@@ -74,6 +74,7 @@ const MonthlyBudgetController = {
         const addVariableCostBtn = document.getElementById('add-variable-cost-button');
         const addUnplannedBtn = document.getElementById('add-unplanned-expense-button');
         const addPotBtn = document.getElementById('add-pot-button');
+        const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
         if (deleteMonthBtn) deleteMonthBtn.addEventListener('click', () => this.deleteCurrentMonth());
@@ -83,6 +84,7 @@ const MonthlyBudgetController = {
         if (addVariableCostBtn) addVariableCostBtn.addEventListener('click', () => this.addVariableCostRow());
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
+        if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
 
         const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
                              'lara-income-estimated', 'lara-income-actual',
@@ -154,6 +156,7 @@ const MonthlyBudgetController = {
                 `${startDate.toLocaleDateString()} → ${endDate.toLocaleDateString()}`;
         }
 
+        this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
         this.loadFixedCosts(monthData.fixedCosts || []);
         this.loadVariableCosts(monthData.variableCosts || []);
@@ -166,6 +169,47 @@ const MonthlyBudgetController = {
         if (noMonthMessage) noMonthMessage.style.display = 'none';
 
         this.updateCalculations();
+    },
+
+    /**
+     * Load weekly breakdown
+     */
+    loadWeeklyBreakdown(weeklyBreakdown) {
+        const tbody = document.getElementById('weekly-breakdown-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
+    },
+
+    /**
+     * Add weekly breakdown row
+     */
+    addWeeklyBreakdownRow(weekData = null) {
+        const tbody = document.getElementById('weekly-breakdown-tbody');
+        if (!tbody) return;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="weekly-date-range" value="${weekData?.dateRange || ''}" placeholder="e.g., 30-9"></td>
+            <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="3">${weekData?.paymentsDue || ''}</textarea></td>
+            <td><textarea class="weekly-groceries" placeholder="Groceries" rows="3">${weekData?.groceries || ''}</textarea></td>
+            <td><textarea class="weekly-transport" placeholder="Transport" rows="3">${weekData?.transport || ''}</textarea></td>
+            <td><textarea class="weekly-activities" placeholder="Activities" rows="3">${weekData?.activities || ''}</textarea></td>
+            <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+        `;
+
+        row.querySelector('.remove-row').addEventListener('click', () => {
+            row.remove();
+            this.updateCalculations();
+        });
+
+        row.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('input', () => this.updateCalculations());
+        });
+
+        tbody.appendChild(row);
     },
 
     /**
@@ -424,12 +468,34 @@ const MonthlyBudgetController = {
         this.setElementHTML('unplanned-expenses-total', '<strong>' + Formatters.formatCurrency(totals.unplannedExpenses.actual) + '</strong>');
         this.setElementHTML('pots-total-estimated', '<strong>' + Formatters.formatCurrency(totals.pots.estimated) + '</strong>');
         this.setElementHTML('pots-total-actual', '<strong>' + Formatters.formatCurrency(totals.pots.actual) + '</strong>');
+
+        const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr'));
+        let weeklyEstimateTotal = 0;
+        let weeklyActualTotal = 0;
+        weeklyBreakdownRows.forEach(row => {
+            const estimate = Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value);
+            const actual = Formatters.parseNumber(row.querySelector('.weekly-actual')?.value);
+            weeklyEstimateTotal += estimate;
+            weeklyActualTotal += actual;
+        });
+        this.setElementHTML('weekly-breakdown-total-estimate', '<strong>' + Formatters.formatCurrency(weeklyEstimateTotal) + '</strong>');
+        this.setElementHTML('weekly-breakdown-total-actual', '<strong>' + Formatters.formatCurrency(weeklyActualTotal) + '</strong>');
     },
 
     /**
      * Get current month data from form
      */
     getCurrentMonthDataFromForm() {
+        const weeklyBreakdown = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr')).map(row => ({
+            dateRange: row.querySelector('.weekly-date-range')?.value || '',
+            paymentsDue: row.querySelector('.weekly-payments-due')?.value || '',
+            groceries: row.querySelector('.weekly-groceries')?.value || '',
+            transport: row.querySelector('.weekly-transport')?.value || '',
+            activities: row.querySelector('.weekly-activities')?.value || '',
+            estimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
+            actual: Formatters.parseNumber(row.querySelector('.weekly-actual')?.value)
+        }));
+
         const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr')).map(row => ({
             category: row.querySelector('.fixed-cost-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
@@ -467,6 +533,7 @@ const MonthlyBudgetController = {
 
         return {
             ...this.currentMonthData,
+            weeklyBreakdown: weeklyBreakdown,
             incomeSources: incomeSources,
             fixedCosts: fixedCosts,
             variableCosts: variableCosts,

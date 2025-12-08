@@ -6,26 +6,63 @@
 }
 
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --secondary-color: #64748b;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --background-color: #f8fafc;
-    --surface-color: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border-color: #e2e8f0;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --spacing-xs: 0.5rem;
-    --spacing-sm: 1rem;
-    --spacing-md: 1.5rem;
-    --spacing-lg: 2rem;
-    --spacing-xl: 3rem;
-    --border-radius: 0.5rem;
+    /* ============================================
+       COLOR PALETTE - Centralized Color Scheme
+       Change these values to update the entire site's color scheme
+       ============================================ */
+    
+    /* Primary Colors */
+    --primary-color: #939292;
+    --primary-hover: #848484;
+    --primary-focus-shadow: rgba(90, 90, 90, 0.3);
+    
+    /* Secondary Colors */
+    --secondary-color: #9e9a93;
+    --secondary-hover: #ae9d9d;
+    
+    /* Status Colors */
+    --success-color: #6b9b7a;
+    --success-hover: #3d5a47;
+    --warning-color: #a5957a;
+    --danger-color: #a57a7a;
+    --danger-hover: #6d3535;
+    
+    /* Background Colors */
+    --background-color: #a5a3a3;
+    --surface-color: #8c8c8c;
+    --surface-color-darker: #909090;
+    --surface-overlay-light: rgba(166, 162, 162, 0.95);
+    --surface-overlay-medium: rgba(140, 140, 140, 0.98);
+    
+    /* Text Colors */
+    --text-primary: #272727;
+    --text-secondary: #000000;
+    --text-white: #e1e1e1;
+    --text-black: #000000;
+    
+    /* Border Colors */
+    --border-color: #7d7d7d;
+    --border-print: #000000;
+    
+    /* Interactive States */
+    --hover-overlay: rgba(255, 255, 255, 0.1);
+    --landing-overlay: rgba(128, 128, 128, 0.4);
+    --table-row-hover: #b3b3b3;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    
+    /* Other */
+    --border-radius: 0.25rem;
     --transition: all 0.2s ease-in-out;
 }
 
@@ -34,31 +71,25 @@ body {
     line-height: 1.6;
     color: var(--text-primary);
     background-color: var(--background-color);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Landing page background */
-body.landing-page {
-    background-image: url('../reference/Money/8dead7d9dd1291163369b731d075ae6c.jpg');
+    background-image: url('../reference/8dead7d9dd1291163369b731d075ae6c.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     background-repeat: no-repeat;
-    position: relative;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
 
-/* Ensure background shows even if image fails to load */
-body.landing-page::after {
+body::after {
     content: '';
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url('../reference/Money/8dead7d9dd1291163369b731d075ae6c.jpg');
+    background-image: url('../reference/8dead7d9dd1291163369b731d075ae6c.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -67,17 +98,27 @@ body.landing-page::after {
     pointer-events: none;
 }
 
-body.landing-page::before {
+body::before {
     content: '';
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(248, 250, 252, 0.85);
+    background: var(--landing-overlay);
     z-index: -1;
     pointer-events: none;
 }
+
+/* Ensure all inputs have dark theme styling */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    background-color: var(--surface-color);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
 
 /* Header Styles */
 .main-header {
@@ -92,7 +133,7 @@ body.landing-page::before {
 .main-navigation {
     max-width: 1200px;
     margin: 0 auto;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -102,7 +143,7 @@ body.landing-page::before {
 .site-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--text-primary);
 }
 
 .nav-list {
@@ -123,13 +164,13 @@ body.landing-page::before {
 
 .nav-link:hover,
 .nav-link.active {
-    color: var(--primary-color);
-    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--text-primary);
+    background-color: var(--hover-overlay);
 }
 
 .nav-link[aria-current="page"] {
-    color: var(--primary-color);
-    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--text-primary);
+    background-color: var(--hover-overlay);
 }
 
 /* Main Content */
@@ -138,14 +179,14 @@ main {
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    padding: var(--spacing-lg) var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-sm);
 }
 
 /* Landing Page Styles */
 .hero-section {
     text-align: center;
-    padding: var(--spacing-xl) 0;
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-md) 0;
+    margin-bottom: var(--spacing-md);
 }
 
 .hero-title {
@@ -165,22 +206,29 @@ main {
 .section-title {
     font-size: 1.75rem;
     font-weight: 600;
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
     color: var(--text-primary);
+}
+
+.section-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    font-style: italic;
 }
 
 .views-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
 }
 
 .view-card {
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: rgba(140, 140, 140, 0.2);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     box-shadow: var(--shadow-md);
     backdrop-filter: blur(10px);
     transition: var(--transition);
@@ -188,7 +236,7 @@ main {
 }
 
 body.landing-page .view-card {
-    background-color: rgba(255, 255, 255, 0.98);
+    background-color: rgba(140, 140, 140, 0.548);
     box-shadow: var(--shadow-lg);
 }
 
@@ -214,11 +262,11 @@ body.landing-page .view-card {
 
 .view-card-description {
     color: var(--text-secondary);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
 .view-card-link {
-    color: var(--primary-color);
+    color: #bfbfbf;
     text-decoration: none;
     font-weight: 500;
     display: inline-block;
@@ -233,12 +281,12 @@ body.landing-page .view-card {
 .months-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-xl);
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
 }
 
 .month-item {
-    background-color: var(--surface-color);
+    background-color: rgba(140, 140, 140, 0.2);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
@@ -248,17 +296,16 @@ body.landing-page .view-card {
     text-decoration: none;
     color: var(--text-primary);
     display: block;
-}
-
-body.landing-page .month-item {
-    background-color: rgba(255, 255, 255, 0.98);
-    box-shadow: var(--shadow-sm);
-}
-
-.month-item:hover {
     box-shadow: var(--shadow-md);
-    border-color: var(--primary-color);
+    backdrop-filter: blur(10px);
+}
+
+.month-item:hover,
+.month-item:focus {
+    box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .month-item-title {
@@ -275,17 +322,17 @@ body.landing-page .month-item {
 .actions-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
 }
 
 .action-button {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
+    background-color: rgba(140, 140, 140, 0.2);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
@@ -293,13 +340,16 @@ body.landing-page .month-item {
     align-items: center;
     justify-content: center;
     gap: var(--spacing-xs);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
 }
 
-.action-button:hover {
-    background-color: var(--primary-hover);
+.action-button:hover,
+.action-button:focus {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .action-button:active {
@@ -315,13 +365,18 @@ body.landing-page .month-item {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
 }
 
+.months-comparison-section {
+    background-color: var(--surface-color-darker);
+    border-radius: calc(var(--border-radius) * 2);
+}
+
 .form-group {
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
 .form-label {
@@ -341,6 +396,8 @@ body.landing-page .month-item {
     font-size: 1rem;
     transition: var(--transition);
     font-family: inherit;
+    background-color: var(--surface-color);
+    color: var(--text-primary);
 }
 
 .form-input:focus,
@@ -348,7 +405,7 @@ body.landing-page .month-item {
 .form-textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px var(--primary-focus-shadow);
 }
 
 .form-textarea {
@@ -368,8 +425,8 @@ body.landing-page .month-item {
 }
 
 .data-table th {
-    background-color: #f1f5f9;
-    padding: var(--spacing-sm);
+    background-color: var(--background-color);
+    padding: var(--spacing-xs) var(--spacing-sm);
     text-align: left;
     font-weight: 600;
     color: var(--text-primary);
@@ -377,7 +434,7 @@ body.landing-page .month-item {
 }
 
 .data-table td {
-    padding: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -386,21 +443,26 @@ body.landing-page .month-item {
 }
 
 .data-table tr:hover {
-    background-color: #f8fafc;
+    background-color: var(--table-row-hover);
 }
 
 .data-table input[type="number"],
-.data-table input[type="text"] {
+.data-table input[type="text"],
+.data-table input[type="date"],
+.data-table select,
+.data-table textarea {
     width: 100%;
     padding: var(--spacing-xs);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 0.875rem;
+    background-color: var(--surface-color);
+    color: var(--text-primary);
 }
 
 .data-table .total-row {
     font-weight: 600;
-    background-color: #f1f5f9;
+    background-color: var(--background-color);
 }
 
 /* Button Styles */
@@ -419,7 +481,7 @@ body.landing-page .month-item {
 
 .btn-primary {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-white);
 }
 
 .btn-primary:hover {
@@ -428,44 +490,44 @@ body.landing-page .month-item {
 
 .btn-secondary {
     background-color: var(--secondary-color);
-    color: white;
+    color: var(--text-white);
 }
 
 .btn-secondary:hover {
-    background-color: #475569;
+    background-color: var(--secondary-hover);
 }
 
 .btn-danger {
     background-color: var(--danger-color);
-    color: white;
+    color: var(--text-white);
 }
 
 .btn-danger:hover {
-    background-color: #dc2626;
+    background-color: var(--danger-hover);
 }
 
 .btn-success {
     background-color: var(--success-color);
-    color: white;
+    color: var(--text-white);
 }
 
 .btn-success:hover {
-    background-color: #059669;
+    background-color: var(--success-hover);
 }
 
 /* Summary Cards */
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
 }
 
 .summary-card {
-    background-color: var(--surface-color);
+    background-color: var(--surface-color-darker);
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: var(--spacing-md);
+    border-radius: calc(var(--border-radius) * 2);
+    padding: var(--spacing-sm);
     box-shadow: var(--shadow-sm);
 }
 
@@ -496,7 +558,7 @@ body.landing-page .month-item {
 .main-footer {
     background-color: var(--surface-color);
     border-top: 1px solid var(--border-color);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm);
     text-align: center;
     color: var(--text-secondary);
     margin-top: auto;
@@ -507,7 +569,7 @@ body.landing-page .month-item {
 .empty-message {
     text-align: center;
     color: var(--text-secondary);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     font-style: italic;
 }
 
@@ -642,7 +704,7 @@ body.landing-page .month-item {
     .summary-card,
     .form-section {
         box-shadow: none;
-        border: 1px solid #000;
+        border: 1px solid var(--border-print);
         page-break-inside: avoid;
     }
 }

@@ -320,8 +320,8 @@ const DataManager = {
 
         if (monthData.variableCosts) {
             monthData.variableCosts.forEach(cost => {
-                totals.variableCosts.estimated += parseFloat(cost.estimatedAmount || 0);
-                totals.variableCosts.actual += parseFloat(cost.actualAmount || 0);
+                totals.variableCosts.estimated += parseFloat(cost.monthlyBudget || cost.estimatedAmount || 0);
+                totals.variableCosts.actual += parseFloat(cost.actualSpent || cost.actualAmount || 0);
             });
         }
 

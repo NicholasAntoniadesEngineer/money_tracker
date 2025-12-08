@@ -42,30 +42,9 @@
                 <p id="month-date-range" class="hero-description"></p>
             </section>
 
-            <section class="summary-section">
-                <h2 class="section-title">Summary</h2>
-                <div class="summary-grid">
-                    <div class="summary-card">
-                        <div class="summary-card-title">Total Income</div>
-                        <div id="summary-income" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Total Expenses</div>
-                        <div id="summary-expenses" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Savings</div>
-                        <div id="summary-savings" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Pots/Investments</div>
-                        <div id="summary-pots" class="summary-card-value">£0.00</div>
-                    </div>
-                </div>
-            </section>
-
             <section class="income-section form-section">
-                <h2 class="section-title">Income</h2>
+                <h2 class="section-title">1. Income Overview (Estimated vs Actual)</h2>
+                <p class="section-description">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
                 <button id="add-income-button" class="btn btn-secondary">Add Income Source</button>
                 <table class="data-table" id="income-table">
                     <thead>
@@ -94,7 +73,8 @@
             </section>
 
             <section class="fixed-costs-section form-section">
-                <h2 class="section-title">Fixed Costs (Recurring Expenses)</h2>
+                <h2 class="section-title">2. Fixed Costs (Recurring Bills)</h2>
+                <p class="section-description">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
                 <button id="add-fixed-cost-button" class="btn btn-secondary">Add Fixed Cost</button>
                 <table class="data-table" id="fixed-costs-table">
                     <thead>
@@ -103,6 +83,8 @@
                             <th>Estimated Amount</th>
                             <th>Actual Amount</th>
                             <th>Date</th>
+                            <th>Card</th>
+                            <th>Paid</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -115,21 +97,23 @@
                             <td id="fixed-costs-total-actual"><strong>£0.00</strong></td>
                             <td></td>
                             <td></td>
+                            <td></td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </section>
 
             <section class="variable-costs-section form-section">
-                <h2 class="section-title">Variable Costs (Operational Expenses)</h2>
-                <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
+                <h2 class="section-title">3. Variable Costs (Food + Activities)</h2>
+                <p class="section-description">The two categories we can control. Assign a monthly budget for each.</p>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
                         <tr>
-                            <th>Expense Category</th>
-                            <th>Estimated Amount</th>
-                            <th>Actual Amount</th>
-                            <th>Actions</th>
+                            <th>Category</th>
+                            <th>Monthly Budget</th>
+                            <th>Actual Spent</th>
+                            <th>Remaining</th>
                         </tr>
                     </thead>
                     <tbody id="variable-costs-tbody">
@@ -137,16 +121,17 @@
                     <tfoot>
                         <tr class="total-row">
                             <td><strong>Total Variable Costs</strong></td>
-                            <td id="variable-costs-total-estimated"><strong>£0.00</strong></td>
+                            <td id="variable-costs-total-budget"><strong>£0.00</strong></td>
                             <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
-                            <td></td>
+                            <td id="variable-costs-total-remaining"><strong>£0.00</strong></td>
                         </tr>
                     </tfoot>
                 </table>
             </section>
 
             <section class="unplanned-expenses-section form-section">
-                <h2 class="section-title">Unplanned Expenses</h2>
+                <h2 class="section-title">4. Unplanned Buying</h2>
+                <p class="section-description">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
                 <button id="add-unplanned-expense-button" class="btn btn-secondary">Add Unplanned Expense</button>
                 <table class="data-table" id="unplanned-expenses-table">
                     <thead>
@@ -155,7 +140,6 @@
                             <th>Amount</th>
                             <th>Date</th>
                             <th>Card</th>
-                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -168,35 +152,50 @@
                             <td></td>
                             <td></td>
                             <td></td>
-                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </section>
 
-            <section class="pots-section form-section">
-                <h2 class="section-title">Pots and Investments</h2>
-                <button id="add-pot-button" class="btn btn-secondary">Add Pot</button>
-                <table class="data-table" id="pots-table">
+            <section class="working-section form-section">
+                <h2 class="section-title">5. The Working Section (The Important One)</h2>
+                <p class="section-description">The heart of the system — split into four weekly blocks. Each week shows payments due, unplanned spending, groceries (with running total), activities (with running total), and weekly estimate for joint account.</p>
+                <table class="data-table" id="weekly-breakdown-table">
                     <thead>
                         <tr>
-                            <th>Category</th>
-                            <th>Estimated Amount</th>
-                            <th>Actual Amount</th>
-                            <th>Actions</th>
+                            <th>Week</th>
+                            <th>Payments Due</th>
+                            <th>Unplanned</th>
+                            <th>Groceries</th>
+                            <th>Activities</th>
+                            <th>Weekly Estimate → Joint Account</th>
                         </tr>
                     </thead>
-                    <tbody id="pots-tbody">
+                    <tbody id="weekly-breakdown-tbody">
                     </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td><strong>Total Savings/Investments</strong></td>
-                            <td id="pots-total-estimated"><strong>£0.00</strong></td>
-                            <td id="pots-total-actual"><strong>£0.00</strong></td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
+            </section>
+
+            <section class="summary-section">
+                <h2 class="section-title">Summary</h2>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-card-title">Total Income</div>
+                        <div id="summary-income" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Total Fixed Costs</div>
+                        <div id="summary-fixed-costs" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Variable Spending Money</div>
+                        <div id="summary-variable-money" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Total Expenses</div>
+                        <div id="summary-expenses" class="summary-card-value">£0.00</div>
+                    </div>
+                </div>
             </section>
 
             <section class="save-section">
