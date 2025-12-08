@@ -75,7 +75,7 @@ const ReferenceImporter = {
 
         if (weeklyTable) {
             const rows = weeklyTable.querySelectorAll('tbody tr');
-            
+
             rows.forEach(row => {
                 const cells = Array.from(row.querySelectorAll('th, td'));
                 if (cells.length >= 5) {
@@ -111,7 +111,7 @@ const ReferenceImporter = {
                         const activities = activitiesIdx >= 0 && cells[activitiesIdx] ? cells[activitiesIdx].textContent.trim() : '';
                         const estimate = estimateIdx >= 0 && cells[estimateIdx] ? this.parseAmount(cells[estimateIdx].textContent || '') : 0;
                         const actual = actualIdx >= 0 && cells[actualIdx] ? this.parseAmount(cells[actualIdx].textContent || '') : 0;
-                        
+
                         weeklyBreakdown.push({
                             dateRange: dateRange,
                             weekRange: dateRange,
@@ -195,30 +195,30 @@ const ReferenceImporter = {
             }
             
             if (isIncomeTable) {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 3) {
-                        const source = cells[0].textContent.trim();
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    const source = cells[0].textContent.trim();
                         const estimated = estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
                         const actual = actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
                         const date = dateIdx < cells.length ? cells[dateIdx].textContent.trim() : '';
 
-                        if (source.includes('Nicholas Income')) {
-                            income.nicholasIncome.estimated = estimated;
-                            income.nicholasIncome.actual = actual;
-                            income.nicholasIncome.date = date;
-                        } else if (source.includes('Lara Income')) {
-                            income.laraIncome.estimated = estimated;
-                            income.laraIncome.actual = actual;
-                            income.laraIncome.date = date;
-                        } else if (source.includes('Other Income')) {
-                            income.otherIncome.estimated = estimated;
-                            income.otherIncome.actual = actual;
-                            income.otherIncome.description = source;
-                        }
+                    if (source.includes('Nicholas Income')) {
+                        income.nicholasIncome.estimated = estimated;
+                        income.nicholasIncome.actual = actual;
+                        income.nicholasIncome.date = date;
+                    } else if (source.includes('Lara Income')) {
+                        income.laraIncome.estimated = estimated;
+                        income.laraIncome.actual = actual;
+                        income.laraIncome.date = date;
+                    } else if (source.includes('Other Income')) {
+                        income.otherIncome.estimated = estimated;
+                        income.otherIncome.actual = actual;
+                        income.otherIncome.description = source;
                     }
-                });
+                }
+            });
             }
         });
 
@@ -335,12 +335,12 @@ const ReferenceImporter = {
                 console.log('Fixed Costs column indices - estimated:', estimatedIdx, 'actual:', actualIdx, 'date:', dateIdx);
             }
 
-            const rows = table.querySelectorAll('tbody tr');
+                const rows = table.querySelectorAll('tbody tr');
             console.log('Processing ' + rows.length + ' fixed cost rows');
             rows.forEach((row, rowIdx) => {
-                const cells = row.querySelectorAll('td');
+                    const cells = row.querySelectorAll('td');
                 if (cells.length >= 2) {
-                    const category = cells[0].textContent.trim();
+                        const category = cells[0].textContent.trim();
                     if (category && !category.includes('Total') && !category.includes('Subscriptions') && category !== '' && category !== 'Category' && !category.startsWith('<')) {
                         let estimated = estimatedIdx >= 0 && estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
                         let actual = actualIdx >= 0 && actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
@@ -358,19 +358,19 @@ const ReferenceImporter = {
                                    (estimatedIdx >= 0 && estimatedIdx < cells.length && cells[estimatedIdx]?.textContent.includes('✓')) || false;
 
                         if (category && (estimated > 0 || actual > 0)) {
-                            fixedCosts.push({
-                                category: category,
-                                estimatedAmount: estimated,
-                                actualAmount: actual,
-                                date: date,
-                                card: card,
-                                paid: paid
-                            });
+                                fixedCosts.push({
+                                    category: category,
+                                    estimatedAmount: estimated,
+                                    actualAmount: actual,
+                                    date: date,
+                                    card: card,
+                                    paid: paid
+                                });
                             console.log('  Added fixed cost: ' + category + ' (est: ' + estimated + ', actual: ' + actual + ')');
+                            }
                         }
                     }
-                }
-            });
+                });
         });
 
         console.log('Extracted ' + fixedCosts.length + ' fixed costs');
@@ -413,12 +413,12 @@ const ReferenceImporter = {
                 console.log('Variable Costs column indices - estimated:', estimatedIdx, 'actual:', actualIdx);
             }
             
-            const rows = table.querySelectorAll('tbody tr');
+                const rows = table.querySelectorAll('tbody tr');
             console.log('Processing ' + rows.length + ' variable cost rows');
             rows.forEach((row, rowIdx) => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 2) {
-                    const category = cells[0].textContent.trim();
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
+                        const category = cells[0].textContent.trim();
                     if (category && !category.includes('Total') && !category.includes('Books') && category !== '' && category !== 'Category' && !category.startsWith('<')) {
                         const monthlyBudget = estimatedIdx >= 0 && estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
                         const actualSpent = actualIdx >= 0 && actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
@@ -434,16 +434,16 @@ const ReferenceImporter = {
                         }
 
                         if (normalizedCategory === 'Food' || normalizedCategory === 'Travel/Transport' || normalizedCategory === 'Activities') {
-                            variableCosts.push({
-                                category: normalizedCategory,
-                                monthlyBudget: monthlyBudget,
-                                actualSpent: actualSpent
-                            });
+                                variableCosts.push({
+                                    category: normalizedCategory,
+                                    monthlyBudget: monthlyBudget,
+                                    actualSpent: actualSpent
+                                });
                             console.log('  Added variable cost: ' + normalizedCategory + ' (budget: ' + monthlyBudget + ', actual: ' + actualSpent + ')');
+                            }
                         }
                     }
-                }
-            });
+                });
         });
 
         // Ensure we have at least Food and Activities
@@ -508,11 +508,11 @@ const ReferenceImporter = {
                 console.log('No header row found, using default column order');
             }
 
-            const rows = table.querySelectorAll('tbody tr');
+                const rows = table.querySelectorAll('tbody tr');
             console.log('Processing ' + rows.length + ' unplanned expense rows');
             rows.forEach((row, rowIdx) => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 2) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
                     const name = nameIdx < cells.length ? cells[nameIdx].textContent.trim() : '';
                     if (name && !name.includes('Total') && name !== '' && !name.startsWith('<')) {
                         const amount = amountIdx < cells.length ? this.parseAmount(cells[amountIdx].textContent) : 0;
@@ -521,18 +521,18 @@ const ReferenceImporter = {
                         const status = statusIdx >= 0 && statusIdx < cells.length ? cells[statusIdx].textContent.trim() : '';
 
                         if (name && amount > 0) {
-                            unplannedExpenses.push({
-                                name: name,
-                                amount: amount,
-                                date: date,
+                                unplannedExpenses.push({
+                                    name: name,
+                                    amount: amount,
+                                    date: date,
                                 card: card,
                                 status: status
-                            });
+                                });
                             console.log('  Added unplanned expense: ' + name + ' (' + amount + ')');
+                            }
                         }
                     }
-                }
-            });
+                });
         });
 
         console.log('Extracted ' + unplannedExpenses.length + ' unplanned expenses');
@@ -581,11 +581,11 @@ const ReferenceImporter = {
                 console.log('No header row found, using default column order');
             }
 
-            const rows = table.querySelectorAll('tbody tr');
+                const rows = table.querySelectorAll('tbody tr');
             console.log('Processing ' + rows.length + ' pot rows');
             rows.forEach((row, rowIdx) => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 2) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
                     const category = categoryIdx < cells.length ? cells[categoryIdx].textContent.trim() : '';
                     if (category && !category.includes('Total') && !category.includes('Category') && category !== '' && !category.startsWith('<')) {
                         // If no estimated column found, use first data column after category
@@ -599,16 +599,16 @@ const ReferenceImporter = {
                             : estimated;
 
                         if (category && estimated > 0) {
-                            pots.push({
-                                category: category,
-                                estimatedAmount: estimated,
-                                actualAmount: actual
-                            });
+                                pots.push({
+                                    category: category,
+                                    estimatedAmount: estimated,
+                                    actualAmount: actual
+                                });
                             console.log('  Added pot: ' + category + ' (estimated: ' + estimated + ', actual: ' + actual + ')');
+                            }
                         }
                     }
-                }
-            });
+                });
         });
 
         console.log('Extracted ' + pots.length + ' pots');

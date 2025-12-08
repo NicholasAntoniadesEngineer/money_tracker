@@ -414,6 +414,8 @@ const MonthlyBudgetController = {
             <td><input type="number" class="fixed-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="fixed-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="text" class="fixed-cost-date" value="${costData?.date || ''}" placeholder="Date"></td>
+            <td><input type="text" class="fixed-cost-card" value="${costData?.card || ''}" placeholder="Card"></td>
+            <td><input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''}></td>
             <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
 
@@ -424,6 +426,7 @@ const MonthlyBudgetController = {
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
+            input.addEventListener('change', () => this.updateCalculations());
         });
 
         tbody.appendChild(row);
@@ -595,6 +598,14 @@ const MonthlyBudgetController = {
             weeklyEstimateTotal += estimate;
             weeklyActualTotal += actual;
         });
+        
+        // Set totals - Payments Due, Groceries, Transport, Activities are blank (can't be calculated)
+        this.setElementHTML('weekly-breakdown-total-payments', '');
+        this.setElementHTML('weekly-breakdown-total-groceries', '');
+        this.setElementHTML('weekly-breakdown-total-transport', '');
+        this.setElementHTML('weekly-breakdown-total-activities', '');
+        
+        // Set calculated totals for Estimate and Actual
         this.setElementHTML('weekly-breakdown-total-estimate', '<strong>' + Formatters.formatCurrency(weeklyEstimateTotal) + '</strong>');
         this.setElementHTML('weekly-breakdown-total-actual', '<strong>' + Formatters.formatCurrency(weeklyActualTotal) + '</strong>');
     },
@@ -619,7 +630,9 @@ const MonthlyBudgetController = {
             category: row.querySelector('.fixed-cost-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
             actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
-            date: row.querySelector('.fixed-cost-date')?.value || ''
+            date: row.querySelector('.fixed-cost-date')?.value || '',
+            card: row.querySelector('.fixed-cost-card')?.value || '',
+            paid: row.querySelector('.fixed-cost-paid')?.checked || false
         }));
 
         const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr')).map(row => ({

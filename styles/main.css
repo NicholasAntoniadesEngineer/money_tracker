@@ -45,25 +45,25 @@
     --border-print: #000000;
     
     /* Interactive States */
-    --hover-overlay: rgba(255, 255, 255, 0.1);
-    --landing-overlay: rgba(128, 128, 128, 0.4);
+    --hover-overlay: rgba(255, 255, 255, 0.5);
+    --landing-overlay: rgba(128, 128, 128, 0.5);
     --table-row-hover: #b3b3b3;
     
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55);
     
     /* Spacing */
-    --spacing-xs: 0.25rem;
+    --spacing-xs: 0.55rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 0.75rem;
     --spacing-lg: 1rem;
     --spacing-xl: 1.5rem;
     
     /* Other */
-    --border-radius: 0.25rem;
-    --transition: all 0.2s ease-in-out;
+    --border-radius: 0.55rem;
+    --transition: all 0.5s ease-in-out;
 }
 
 body {
@@ -210,11 +210,19 @@ main {
     color: var(--text-primary);
 }
 
+#month-title {
+    padding-left: 5%;
+}
+
 .section-description {
     font-size: 1rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-md);
     font-style: italic;
+}
+
+.views-section {
+    margin-top: 5vh; /* 5% of viewport height - scales with screen size */
 }
 
 .views-grid {
@@ -225,7 +233,7 @@ main {
 }
 
 .view-card {
-    background-color: rgba(140, 140, 140, 0.2);
+    background-color: rgba(140, 140, 140, 0.5);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
@@ -286,7 +294,7 @@ body.landing-page .view-card {
 }
 
 .month-item {
-    background-color: rgba(140, 140, 140, 0.2);
+    background-color: rgba(140, 140, 140, 0.5);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
@@ -327,7 +335,7 @@ body.landing-page .view-card {
 }
 
 .action-button {
-    background-color: rgba(140, 140, 140, 0.2);
+    background-color: rgba(140, 140, 140, 0.5);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -408,20 +416,55 @@ body.landing-page .view-card {
     box-shadow: 0 0 0 3px var(--primary-focus-shadow);
 }
 
+/* Placeholder text - white (all inputs and textareas) */
+input::placeholder,
+textarea::placeholder,
+select::placeholder,
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder,
+select::-webkit-input-placeholder,
+input::-moz-placeholder,
+textarea::-moz-placeholder,
+select::-moz-placeholder,
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder,
+select:-ms-input-placeholder {
+    color: #ffffff !important;
+    opacity: 1;
+}
+
 .form-textarea {
     resize: vertical;
     min-height: 100px;
 }
 
 /* Table Styles */
+/* All tables - black borders */
+table {
+    border: 0.2px solid #000000 !important;
+    border-width: 0.2px !important;
+    border-style: solid !important;
+    border-color: #000000 !important;
+}
+
+table th,
+table td {
+    border: 0.2px solid #000000 !important;
+}
+
 .data-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     background-color: var(--surface-color);
-    border-radius: var(--border-radius);
+    border-radius: calc(var(--border-radius) * 2);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-lg);
+    border: 0.2px solid #000000 !important;
+    border-width: 0.2px !important;
+    border-style: solid !important;
+    border-color: #000000 !important;
 }
 
 .data-table th {
@@ -430,25 +473,48 @@ body.landing-page .view-card {
     text-align: left;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 2px solid var(--border-color);
-    border-radius: calc(var(--border-radius) * 2) !important;
+    border: 0.2px solid #000000 !important;
+    border-bottom: 0.2px solid #000000 !important;
+    border-top: 0.2px solid #000000 !important;
+    border-left: 0.2px solid #000000 !important;
+    border-right: 0.2px solid #000000 !important;
+}
+
+.data-table thead th:first-child {
+    border-top-left-radius: calc(var(--border-radius) * 2);
+}
+
+.data-table thead th:last-child {
+    border-top-right-radius: calc(var(--border-radius) * 2);
 }
 
 .data-table td {
     padding: var(--spacing-xs) var(--spacing-sm);
-    border-bottom: 1px solid var(--border-color);
+    border: 0.2px solid #000000 !important;
+    border-bottom: 0.2px solid #000000 !important;
+    border-top: 0.2px solid #000000 !important;
+    border-left: 0.2px solid #000000 !important;
+    border-right: 0.2px solid #000000 !important;
     background-color: rgba(140, 140, 140, 0.90) !important;
-    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+.data-table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: calc(var(--border-radius) * 2);
+}
+
+.data-table tbody tr:last-child td:last-child,
+.data-table tfoot tr:last-child td:last-child {
+    border-bottom-right-radius: calc(var(--border-radius) * 2);
 }
 
 .data-table tr {
     background-color: rgba(140, 140, 140, 0.90) !important;
-    border-radius: calc(var(--border-radius) * 2) !important;
 }
 
 .data-table tr:last-child td {
-    border-bottom: none;
+    border-bottom: 0.2px solid #000000 !important;
 }
+
 
 .data-table tr:hover {
     background-color: var(--table-row-hover);
@@ -468,6 +534,18 @@ body.landing-page .view-card {
     color: var(--text-primary);
 }
 
+.data-table input::placeholder,
+.data-table textarea::placeholder,
+.data-table input::-webkit-input-placeholder,
+.data-table textarea::-webkit-input-placeholder,
+.data-table input::-moz-placeholder,
+.data-table textarea::-moz-placeholder,
+.data-table input:-ms-input-placeholder,
+.data-table textarea:-ms-input-placeholder {
+    color: #ffffff !important;
+    opacity: 1;
+}
+
 .data-table .total-row {
     font-weight: 600;
     background-color: var(--background-color);
@@ -475,25 +553,26 @@ body.landing-page .view-card {
 
 /* Weekly Breakdown Table - Darker Borders (50% darker) */
 #weekly-breakdown-table {
-    border-color: #3f3f3f !important;
+    border: 0.2px solid #000000 !important;
+    border-color: #000000 !important;
 }
 
 #weekly-breakdown-tbody td,
 #weekly-breakdown-tbody th {
-    border-color: #3f3f3f !important;
+    border-color: #000000 !important;
 }
 
 #weekly-breakdown-tbody input,
 #weekly-breakdown-tbody textarea {
-    border-color: #3f3f3f !important;
+    border-color: #000000 !important;
 }
 
 #weekly-breakdown-table thead th {
-    border-color: #3f3f3f !important;
+    border-color: #000000 !important;
 }
 
 #weekly-breakdown-table tfoot td {
-    border-color: #3f3f3f !important;
+    border-color: #000000 !important;
 }
 
 /* Button Styles */
@@ -520,12 +599,36 @@ body.landing-page .view-card {
 }
 
 .btn-secondary {
-    background-color: var(--secondary-color);
-    color: var(--text-white);
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #000000 !important;
 }
 
 .btn-secondary:hover {
-    background-color: var(--secondary-hover);
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #000000 !important;
+}
+
+/* Specific buttons with black text and faded white background */
+#add-fixed-cost-button,
+#add-unplanned-expense-button,
+#add-income-button,
+#add-weekly-breakdown-button,
+#load-months-button,
+#save-all-months-button,
+#add-pot-button {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    color: #000000 !important;
+}
+
+#add-fixed-cost-button:hover,
+#add-unplanned-expense-button:hover,
+#add-income-button:hover,
+#add-weekly-breakdown-button:hover,
+#load-months-button:hover,
+#save-all-months-button:hover,
+#add-pot-button:hover {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+    color: #000000 !important;
 }
 
 .btn-danger {
@@ -685,7 +788,7 @@ body.landing-page .view-card {
 
 /* Button Sizes */
 .btn-sm {
-    padding: 0.25rem 0.75rem;
+    padding: 0.55rem 0.75rem;
     font-size: 0.875rem;
 }
 
