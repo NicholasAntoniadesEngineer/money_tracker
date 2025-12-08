@@ -419,7 +419,17 @@ const MonthlyBudgetController = {
             });
         }
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const allRows = tbody.querySelectorAll('tr');
+        const lastRow = allRows[allRows.length - 1];
+
+        if (lastRow && lastRow.classList.contains('total-row')) {
+            // Insert before the total row
+            tbody.insertBefore(row, lastRow);
+        } else {
+            // No total row found, append to end
+            tbody.appendChild(row);
+        }
     },
 
     /**
@@ -529,7 +539,17 @@ const MonthlyBudgetController = {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const allRows = tbody.querySelectorAll('tr');
+        const lastRow = allRows[allRows.length - 1];
+
+        if (lastRow && lastRow.classList.contains('total-row')) {
+            // Insert before the total row
+            tbody.insertBefore(row, lastRow);
+        } else {
+            // No total row found, append to end
+            tbody.appendChild(row);
+        }
     },
 
     /**
@@ -598,7 +618,17 @@ const MonthlyBudgetController = {
             input.addEventListener('change', () => this.updateCalculations());
         });
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const allRows = tbody.querySelectorAll('tr');
+        const lastRow = allRows[allRows.length - 1];
+
+        if (lastRow && lastRow.classList.contains('total-row')) {
+            // Insert before the total row
+            tbody.insertBefore(row, lastRow);
+        } else {
+            // No total row found, append to end
+            tbody.appendChild(row);
+        }
     },
 
     /**
@@ -664,7 +694,17 @@ const MonthlyBudgetController = {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const allRows = tbody.querySelectorAll('tr');
+        const lastRow = allRows[allRows.length - 1];
+
+        if (lastRow && lastRow.classList.contains('total-row')) {
+            // Insert before the total row
+            tbody.insertBefore(row, lastRow);
+        } else {
+            // No total row found, append to end
+            tbody.appendChild(row);
+        }
     },
 
     /**
@@ -729,7 +769,17 @@ const MonthlyBudgetController = {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const allRows = tbody.querySelectorAll('tr');
+        const lastRow = allRows[allRows.length - 1];
+
+        if (lastRow && lastRow.classList.contains('total-row')) {
+            // Insert before the total row
+            tbody.insertBefore(row, lastRow);
+        } else {
+            // No total row found, append to end
+            tbody.appendChild(row);
+        }
     },
 
     /**

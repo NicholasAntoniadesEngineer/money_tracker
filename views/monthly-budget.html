@@ -63,7 +63,6 @@
             <section class="working-section form-section">
                 <h2 class="section-title">The Working Section (The Important One)</h2>
                 <p class="section-description">The heart of the system — split into weekly blocks. Each week shows payments due, groceries (with running calculations), transport (with running calculations), activities (with running calculations), and weekly estimate/actual for joint account.</p>
-                <button id="add-weekly-breakdown-button" class="btn btn-secondary">Add Week</button>
                 <table class="data-table" id="weekly-breakdown-table">
                     <thead>
                         <tr>
@@ -90,12 +89,14 @@
                         </tr>
                     </tbody>
                 </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-weekly-breakdown-button" class="btn btn-secondary">Add Week</button>
+                </div>
             </section>
 
             <section class="income-section form-section">
                 <h2 class="section-title">1. Income Overview (Estimated vs Actual)</h2>
                 <p class="section-description">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
-                <button id="add-income-button" class="btn btn-secondary">Add Income Source</button>
                 <table class="data-table" id="income-table">
                     <thead>
                         <tr>
@@ -110,12 +111,14 @@
                     <tbody id="income-tbody">
                     </tbody>
                 </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-income-button" class="btn btn-secondary">Add Income Source</button>
+                </div>
             </section>
 
             <section class="fixed-costs-section form-section">
                 <h2 class="section-title">2. Fixed Costs (Recurring Bills)</h2>
                 <p class="section-description">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
-                <button id="add-fixed-cost-button" class="btn btn-secondary">Add Fixed Cost</button>
                 <table class="data-table" id="fixed-costs-table">
                     <thead>
                         <tr>
@@ -131,12 +134,14 @@
                     <tbody id="fixed-costs-tbody">
                     </tbody>
                 </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-fixed-cost-button" class="btn btn-secondary">Add Fixed Cost</button>
+                </div>
             </section>
 
             <section class="variable-costs-section form-section">
                 <h2 class="section-title">3. Variable Costs (Food + Activities)</h2>
                 <p class="section-description">The two categories we can control. Assign a monthly budget for each.</p>
-                <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
                         <tr>
@@ -149,12 +154,14 @@
                     <tbody id="variable-costs-tbody">
                     </tbody>
                 </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
+                </div>
             </section>
 
             <section class="unplanned-expenses-section form-section">
                 <h2 class="section-title">4. Unplanned Buying</h2>
                 <p class="section-description">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
-                <button id="add-unplanned-expense-button" class="btn btn-secondary">Add Unplanned Expense</button>
                 <table class="data-table" id="unplanned-expenses-table">
                     <thead>
                         <tr>
@@ -169,6 +176,9 @@
                     <tbody id="unplanned-expenses-tbody">
                     </tbody>
                 </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-unplanned-expense-button" class="btn btn-secondary">Add Unplanned Expense</button>
+                </div>
             </section>
 
             <section class="summary-section form-section">
