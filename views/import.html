@@ -199,8 +199,21 @@
                     const monthData = await ReferenceImporter.importMonthFromFile(file, monthName, year);
                     importStatus.innerHTML = `
                         <p style="color: var(--success-color);">
-                            Successfully imported ${monthName} ${year}! 
-                            <a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month</a>
+                            ✓ Successfully imported ${monthName} ${year}! 
+                        </p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                            <strong>Data stored in:</strong> Browser localStorage<br/>
+                            <strong>Fixed Costs:</strong> ${monthData.fixedCosts.length} items<br/>
+                            <strong>Variable Costs:</strong> ${monthData.variableCosts.length} items<br/>
+                            <strong>Unplanned Expenses:</strong> ${monthData.unplannedExpenses.length} items<br/>
+                            <strong>Weekly Breakdown:</strong> ${monthData.weeklyBreakdown.length} weeks<br/>
+                            <strong>Income Sources:</strong> ${monthData.incomeSources.length} items
+                        </p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-secondary);">
+                            A JSON file should have downloaded automatically. Save it to the <code>data/months/</code> folder if you want to keep a backup.
+                        </p>
+                        <p style="margin-top: 0.5rem;">
+                            <a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month →</a>
                         </p>
                     `;
                     fileInput.value = '';

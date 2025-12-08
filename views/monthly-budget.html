@@ -21,11 +21,11 @@
     </header>
 
     <main class="budget-main" role="main">
-        <section class="month-selector-section">
+        <section class="month-selector-section form-section">
             <div class="form-group">
                 <label for="month-selector" class="form-label">Select Month:</label>
-                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                    <div style="flex: 1;">
+                <div style="display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
                 <select id="month-selector" class="form-select">
                     <option value="">Loading...</option>
                 </select>
@@ -34,12 +34,58 @@
                     <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete Month</button>
                 </div>
             </div>
+            
+            <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <label class="form-label">File Operations:</label>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button id="load-months-button" class="btn btn-secondary">Load Months from Files</button>
+                    <button id="save-all-months-button" class="btn btn-secondary">Save All Months to Files</button>
+                    <input type="file" id="file-input" multiple accept=".json,.html" style="display: none;">
+                </div>
+                <p class="form-help-text" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                    <strong>Load Months from Files:</strong> Click to select the <code>data/months/</code> folder (modern browsers) or individual JSON/HTML files (all browsers).<br/>
+                    <strong>Save All Months to Files:</strong> Save all months to the <code>data/months/</code> folder (modern browsers) or download files (all browsers).<br/>
+                    <em>Note: You can load both JSON files (from data/months/) and HTML files (from reference/). HTML files will be automatically imported.</em>
+                </p>
+                <div id="file-operations-status" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
+            </div>
         </section>
 
         <div id="month-content" style="display: none;">
             <section class="month-header-section">
                 <h2 id="month-title" class="section-title"></h2>
-                <p id="month-date-range" class="hero-description"></p>
+            </section>
+
+            <section class="working-section form-section">
+                <h2 class="section-title">The Working Section (The Important One)</h2>
+                <p class="section-description">The heart of the system — split into weekly blocks. Each week shows payments due, groceries (with running calculations), transport (with running calculations), activities (with running calculations), and weekly estimate/actual for joint account.</p>
+                <button id="add-weekly-breakdown-button" class="btn btn-secondary">Add Week</button>
+                <table class="data-table" id="weekly-breakdown-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Payments Due</th>
+                            <th>Groceries</th>
+                            <th>Transport</th>
+                            <th>Activities</th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weekly-breakdown-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td>
+                            <td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
             </section>
 
             <section class="income-section form-section">
@@ -157,48 +203,58 @@
                 </table>
             </section>
 
-            <section class="working-section form-section">
-                <h2 class="section-title">5. The Working Section (The Important One)</h2>
-                <p class="section-description">The heart of the system — split into four weekly blocks. Each week shows payments due, unplanned spending, groceries (with running total), activities (with running total), and weekly estimate for joint account.</p>
-                <table class="data-table" id="weekly-breakdown-table">
+            <section class="summary-section form-section">
+                <h2 class="section-title">5. End-of-Month Summary</h2>
+                <p class="section-description">All income minus all expenses (fixed + variable + unplanned) = what's left over / the savings total for the month.</p>
+                <table class="data-table" id="summary-table">
                     <thead>
                         <tr>
-                            <th>Week</th>
-                            <th>Payments Due</th>
-                            <th>Unplanned</th>
-                            <th>Groceries</th>
-                            <th>Activities</th>
-                            <th>Weekly Estimate → Joint Account</th>
+                            <th>Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
                         </tr>
                     </thead>
-                    <tbody id="weekly-breakdown-tbody">
+                    <tbody>
+                        <tr>
+                            <td><strong>Total Income</strong></td>
+                            <td id="summary-income-estimated"><strong>£0.00</strong></td>
+                            <td id="summary-income-actual"><strong>£0.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Fixed Costs</td>
+                            <td id="summary-fixed-costs-estimated">£0.00</td>
+                            <td id="summary-fixed-costs-actual">£0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Total Variable Costs</td>
+                            <td id="summary-variable-costs-estimated">£0.00</td>
+                            <td id="summary-variable-costs-actual">£0.00</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Expenses</strong></td>
+                            <td id="summary-expenses-estimated"><strong>£0.00</strong></td>
+                            <td id="summary-expenses-actual"><strong>£0.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Unplanned Expenses</td>
+                            <td>—</td>
+                            <td id="summary-unplanned-actual">£0.00</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td><strong><em>Grand Savings Total</em></strong></td>
+                            <td id="summary-savings-estimated"><strong><em>£0.00</em></strong></td>
+                            <td id="summary-savings-actual"><strong><em>£0.00</em></strong></td>
+                        </tr>
                     </tbody>
                 </table>
             </section>
 
-            <section class="summary-section">
-                <h2 class="section-title">Summary</h2>
-                <div class="summary-grid">
-                    <div class="summary-card">
-                        <div class="summary-card-title">Total Income</div>
-                        <div id="summary-income" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Total Fixed Costs</div>
-                        <div id="summary-fixed-costs" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Variable Spending Money</div>
-                        <div id="summary-variable-money" class="summary-card-value">£0.00</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-title">Total Expenses</div>
-                        <div id="summary-expenses" class="summary-card-value">£0.00</div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="save-section">
+            <section class="save-section form-section">
+                <h3 class="section-title">Save Data</h3>
+                <p class="section-description" style="font-size: 0.9rem; margin-bottom: 1rem;">
+                    <strong>Data Storage:</strong> All data is stored as individual JSON files in <code>data/months/</code> folder.<br/>
+                    When you save, the file will be saved directly (modern browsers) or downloaded (older browsers).
+                </p>
                 <button id="save-month-button" class="btn btn-primary btn-success" style="font-size: 1.25rem; padding: 1rem 2rem;">Save Month Data</button>
             </section>
         </div>
@@ -214,10 +270,19 @@
 
     <script src="../models/DataManager.js"></script>
     <script src="../utils/formatters.js"></script>
+    <script src="../utils/ReferenceImporter.js"></script>
     <script src="../utils/InitialData.js"></script>
+    <script src="../controllers/MonthlyBudgetController.js"></script>
     <script>
         // Initialize settings
         DataManager.initializeSettings();
+        
+        // Verify ReferenceImporter is loaded
+        if (!window.ReferenceImporter) {
+            console.error('ReferenceImporter not loaded! HTML file imports will not work.');
+        } else {
+            console.log('ReferenceImporter loaded successfully');
+        }
         
         // Initialize controller when DOM is ready
         document.addEventListener('DOMContentLoaded', async function() {
@@ -227,7 +292,6 @@
             }
         });
     </script>
-    <script src="../controllers/MonthlyBudgetController.js"></script>
 </body>
 </html>
 

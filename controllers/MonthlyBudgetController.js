@@ -75,6 +75,10 @@ const MonthlyBudgetController = {
         const addUnplannedBtn = document.getElementById('add-unplanned-expense-button');
         const addPotBtn = document.getElementById('add-pot-button');
         const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
+        const loadMonthsBtn = document.getElementById('load-months-button');
+        const saveAllMonthsBtn = document.getElementById('save-all-months-button');
+        const fileInput = document.getElementById('file-input');
+        const fileOperationsStatus = document.getElementById('file-operations-status');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
         if (deleteMonthBtn) deleteMonthBtn.addEventListener('click', () => this.deleteCurrentMonth());
@@ -85,6 +89,111 @@ const MonthlyBudgetController = {
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
+        
+        // File operations
+        if (loadMonthsBtn) {
+            loadMonthsBtn.addEventListener('click', async () => {
+                loadMonthsBtn.disabled = true;
+                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Loading months from files...</p>';
+                
+                try {
+                    const result = await DataManager.loadMonthsFromFilePicker();
+                    if (result.success) {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">Successfully loaded ' + result.count + ' months!</p>';
+                        this.loadMonthSelector();
+                        if (this.currentMonthKey && result.months[this.currentMonthKey]) {
+                            this.loadMonth(this.currentMonthKey);
+                        }
+                    } else if (result.useFileInput && fileInput) {
+                        // Automatically trigger file input if API not available
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Please select JSON or HTML files to load...</p>';
+                        fileInput.click();
+                    } else {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">' + result.message + '</p>';
+                    }
+                } catch (error) {
+                    fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
+                    console.error('Error loading months:', error);
+                } finally {
+                    loadMonthsBtn.disabled = false;
+                }
+            });
+        }
+        
+        if (saveAllMonthsBtn) {
+            saveAllMonthsBtn.addEventListener('click', async () => {
+                saveAllMonthsBtn.disabled = true;
+                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Saving all months to files...</p>';
+                
+                try {
+                    const result = await DataManager.saveAllMonthsToFiles();
+                    if (result.success) {
+                        if (result.count > 0) {
+                            fileOperationsStatus.innerHTML = `<p style="color: var(--success-color);">✓ ${result.message}</p>`;
+                        } else {
+                            fileOperationsStatus.innerHTML = `<p style="color: var(--warning-color);">⚠ ${result.message}</p>`;
+                        }
+                    } else {
+                        fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ ${result.message}</p>`;
+                    }
+                } catch (error) {
+                    fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
+                    console.error('Error saving all months:', error);
+                } finally {
+                    saveAllMonthsBtn.disabled = false;
+                }
+            });
+        }
+        
+        if (fileInput) {
+            fileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Loading months from selected files...</p>';
+                
+                // Disable buttons during loading
+                if (loadMonthsBtn) loadMonthsBtn.disabled = true;
+                if (saveAllMonthsBtn) saveAllMonthsBtn.disabled = true;
+                
+                try {
+                    const result = await DataManager.loadMonthsFromFileInput(files);
+                    if (result.success) {
+                        const htmlCount = files.filter(f => f.name.endsWith('.html')).length;
+                        const jsonCount = files.filter(f => f.name.endsWith('.json')).length;
+                        const monthText = result.count !== 1 ? 'months' : 'month';
+                        let message = 'Successfully loaded ' + result.count + ' ' + monthText + '!';
+                        if (htmlCount > 0 && jsonCount > 0) {
+                            message += ' (' + htmlCount + ' HTML imported, ' + jsonCount + ' JSON loaded)';
+                        } else if (htmlCount > 0) {
+                            const fileText = htmlCount !== 1 ? 'files' : 'file';
+                            message += ' (' + htmlCount + ' HTML ' + fileText + ' imported)';
+                        }
+                        if (result.errors > 0) {
+                            const errorText = result.errors !== 1 ? 'files' : 'file';
+                            message += '<br/><span style="color: var(--warning-color);">' + result.errors + ' ' + errorText + ' had errors</span>';
+                        }
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
+                        this.loadMonthSelector();
+                        if (this.currentMonthKey && result.months[this.currentMonthKey]) {
+                            this.loadMonth(this.currentMonthKey);
+                        }
+                    } else {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">No valid month files found. Please select JSON or HTML files.</p>';
+                    }
+                } catch (error) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error: ' + error.message + '</p>';
+                    console.error('Error loading files:', error);
+                    if (error.stack) {
+                        console.error('Stack trace:', error.stack);
+                    }
+                } finally {
+                    fileInput.value = '';
+                    if (loadMonthsBtn) loadMonthsBtn.disabled = false;
+                    if (saveAllMonthsBtn) saveAllMonthsBtn.disabled = false;
+                }
+            });
+        }
 
         const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
                              'lara-income-estimated', 'lara-income-actual',
@@ -142,19 +251,11 @@ const MonthlyBudgetController = {
 
         const selector = document.getElementById('month-selector');
         const monthTitle = document.getElementById('month-title');
-        const monthDateRange = document.getElementById('month-date-range');
         const deleteBtn = document.getElementById('delete-month-button');
 
         if (selector) selector.value = monthKey;
         if (monthTitle) monthTitle.textContent = `${monthData.monthName} ${monthData.year}`;
         if (deleteBtn) deleteBtn.style.display = 'inline-block';
-        
-        if (monthDateRange) {
-            const startDate = new Date(monthData.dateRange.start);
-            const endDate = new Date(monthData.dateRange.end);
-            monthDateRange.textContent = 
-                `${startDate.toLocaleDateString()} → ${endDate.toLocaleDateString()}`;
-        }
 
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
@@ -178,7 +279,13 @@ const MonthlyBudgetController = {
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
-        weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
+        
+        if (weeklyBreakdown && weeklyBreakdown.length > 0) {
+            weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
+        } else {
+            // If no weekly breakdown exists, add at least one empty row
+            this.addWeeklyBreakdownRow();
+        }
     },
 
     /**
@@ -190,20 +297,14 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="weekly-date-range" value="${weekData?.dateRange || ''}" placeholder="e.g., 30-9"></td>
-            <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="3">${weekData?.paymentsDue || ''}</textarea></td>
-            <td><textarea class="weekly-groceries" placeholder="Groceries" rows="3">${weekData?.groceries || ''}</textarea></td>
-            <td><textarea class="weekly-transport" placeholder="Transport" rows="3">${weekData?.transport || ''}</textarea></td>
-            <td><textarea class="weekly-activities" placeholder="Activities" rows="3">${weekData?.activities || ''}</textarea></td>
-            <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td><input type="text" class="weekly-date-range" value="${weekData?.dateRange || weekData?.weekRange || ''}" placeholder="e.g., 30-9 or 1-7"></td>
+            <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${weekData?.paymentsDue || ''}</textarea></td>
+            <td><textarea class="weekly-groceries" placeholder="Groceries (with calculations)" rows="4">${weekData?.groceries || ''}</textarea></td>
+            <td><textarea class="weekly-transport" placeholder="Transport (with calculations)" rows="4">${weekData?.transport || ''}</textarea></td>
+            <td><textarea class="weekly-activities" placeholder="Activities (with calculations)" rows="4">${weekData?.activities || ''}</textarea></td>
+            <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
-
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-        });
 
         row.querySelectorAll('input, textarea').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
@@ -449,26 +550,42 @@ const MonthlyBudgetController = {
 
         const totals = DataManager.calculateMonthTotals(this.getCurrentMonthDataFromForm());
 
-        this.setElementText('summary-income', Formatters.formatCurrency(totals.income.actual));
-        this.setElementText('summary-expenses', Formatters.formatCurrency(totals.expenses.actual));
-        this.setElementText('summary-savings', Formatters.formatCurrency(totals.savings.actual));
-        this.setElementText('summary-pots', Formatters.formatCurrency(totals.pots.actual));
-
-        const savingsEl = document.getElementById('summary-savings');
-        if (savingsEl) {
-            savingsEl.className = 'summary-card-value ' + (totals.savings.actual >= 0 ? 'positive' : 'negative');
-        }
-
+        // Update income totals
         this.setElementHTML('income-total-estimated', '<strong>' + Formatters.formatCurrency(totals.income.estimated) + '</strong>');
         this.setElementHTML('income-total-actual', '<strong>' + Formatters.formatCurrency(totals.income.actual) + '</strong>');
+        
+        // Update fixed costs totals
         this.setElementHTML('fixed-costs-total-estimated', '<strong>' + Formatters.formatCurrency(totals.fixedCosts.estimated) + '</strong>');
         this.setElementHTML('fixed-costs-total-actual', '<strong>' + Formatters.formatCurrency(totals.fixedCosts.actual) + '</strong>');
-        this.setElementHTML('variable-costs-total-estimated', '<strong>' + Formatters.formatCurrency(totals.variableCosts.estimated) + '</strong>');
+        
+        // Update variable costs totals
+        this.setElementHTML('variable-costs-total-budget', '<strong>' + Formatters.formatCurrency(totals.variableCosts.estimated) + '</strong>');
         this.setElementHTML('variable-costs-total-actual', '<strong>' + Formatters.formatCurrency(totals.variableCosts.actual) + '</strong>');
+        const variableRemaining = totals.variableCosts.estimated - totals.variableCosts.actual;
+        this.setElementHTML('variable-costs-total-remaining', '<strong>' + Formatters.formatCurrency(variableRemaining) + '</strong>');
+        
+        // Update unplanned expenses totals
         this.setElementHTML('unplanned-expenses-total', '<strong>' + Formatters.formatCurrency(totals.unplannedExpenses.actual) + '</strong>');
-        this.setElementHTML('pots-total-estimated', '<strong>' + Formatters.formatCurrency(totals.pots.estimated) + '</strong>');
-        this.setElementHTML('pots-total-actual', '<strong>' + Formatters.formatCurrency(totals.pots.actual) + '</strong>');
 
+        // Update summary section
+        this.setElementHTML('summary-income-estimated', '<strong>' + Formatters.formatCurrency(totals.income.estimated) + '</strong>');
+        this.setElementHTML('summary-income-actual', '<strong>' + Formatters.formatCurrency(totals.income.actual) + '</strong>');
+        this.setElementHTML('summary-fixed-costs-estimated', Formatters.formatCurrency(totals.fixedCosts.estimated));
+        this.setElementHTML('summary-fixed-costs-actual', Formatters.formatCurrency(totals.fixedCosts.actual));
+        this.setElementHTML('summary-variable-costs-estimated', Formatters.formatCurrency(totals.variableCosts.estimated));
+        this.setElementHTML('summary-variable-costs-actual', Formatters.formatCurrency(totals.variableCosts.actual));
+        this.setElementHTML('summary-expenses-estimated', '<strong>' + Formatters.formatCurrency(totals.expenses.estimated) + '</strong>');
+        this.setElementHTML('summary-expenses-actual', '<strong>' + Formatters.formatCurrency(totals.expenses.actual) + '</strong>');
+        this.setElementHTML('summary-unplanned-actual', Formatters.formatCurrency(totals.unplannedExpenses.actual));
+        
+        // Grand Savings Total = Income - Expenses (fixed + variable + unplanned)
+        // Note: totals.expenses.actual already includes unplanned expenses
+        const grandSavingsEstimated = totals.income.estimated - totals.expenses.estimated;
+        const grandSavingsActual = totals.income.actual - totals.expenses.actual;
+        this.setElementHTML('summary-savings-estimated', '<strong><em>' + Formatters.formatCurrency(grandSavingsEstimated) + '</em></strong>');
+        this.setElementHTML('summary-savings-actual', '<strong><em>' + Formatters.formatCurrency(grandSavingsActual) + '</em></strong>');
+        
+        // Update weekly breakdown totals
         const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr'));
         let weeklyEstimateTotal = 0;
         let weeklyActualTotal = 0;
@@ -488,11 +605,13 @@ const MonthlyBudgetController = {
     getCurrentMonthDataFromForm() {
         const weeklyBreakdown = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr')).map(row => ({
             dateRange: row.querySelector('.weekly-date-range')?.value || '',
+            weekRange: row.querySelector('.weekly-date-range')?.value || '',
             paymentsDue: row.querySelector('.weekly-payments-due')?.value || '',
             groceries: row.querySelector('.weekly-groceries')?.value || '',
             transport: row.querySelector('.weekly-transport')?.value || '',
             activities: row.querySelector('.weekly-activities')?.value || '',
             estimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
+            weeklyEstimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
             actual: Formatters.parseNumber(row.querySelector('.weekly-actual')?.value)
         }));
 
@@ -554,14 +673,26 @@ const MonthlyBudgetController = {
 
         const monthData = this.getCurrentMonthDataFromForm();
         const isNewMonth = !this.currentMonthData || !this.currentMonthData.createdAt;
-        const success = DataManager.saveMonth(this.currentMonthKey, monthData, isNewMonth);
+        
+        // Always export to file - files are the source of truth
+        const success = DataManager.saveMonth(this.currentMonthKey, monthData, true);
 
         if (success) {
-            if (isNewMonth) {
-                alert('Month data saved successfully! A new file has been created for this month.');
+            let message = 'Month data saved successfully!\n\n';
+            
+            // Check if File System Access API is available
+            if ('showSaveFilePicker' in window) {
+                message += 'File saved directly to your selected location.';
             } else {
-                alert('Month data saved successfully!');
+                message += 'A JSON file has been downloaded. ';
+                message += 'Please save it to the data/months/ folder.';
             }
+            
+            if (isNewMonth) {
+                message = 'New month created and saved!\n\n' + message;
+            }
+            
+            alert(message);
             this.currentMonthData = monthData;
             this.loadMonthSelector();
         } else {

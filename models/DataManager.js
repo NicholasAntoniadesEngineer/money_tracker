@@ -30,13 +30,16 @@ const DataManager = {
 
     /**
      * Load a month from individual JSON file
-     * Note: This only works with HTTP/HTTPS protocol, not file://
+     * Files are the source of truth - always try to load from files first
      */
     async loadMonthFromFile(monthKey) {
         try {
             // Check if we're using file:// protocol (fetch won't work)
             if (window.location.protocol === 'file:') {
-                console.warn('Cannot load JSON files with file:// protocol. Data will be loaded from localStorage only.');
+                // With file://, we can't fetch files directly
+                // User must run sync script: node scripts/sync-data.js load
+                console.log(`Using file:// protocol - cannot load ${monthKey}.json directly.`);
+                console.log('Run: node scripts/sync-data.js load');
                 return null;
             }
             
@@ -45,10 +48,10 @@ const DataManager = {
                 return null;
             }
             const monthData = await response.json();
+            console.log(`✓ Loaded ${monthKey}.json from files`);
             return monthData;
         } catch (error) {
-            // Silently fail - data will be loaded from localStorage instead
-            console.warn(`Could not load month file ${monthKey}.json. Using localStorage data.`);
+            // File doesn't exist or can't be loaded
             return null;
         }
     },
@@ -68,33 +71,54 @@ const DataManager = {
 
     /**
      * Load all months from individual JSON files into localStorage
-     * Note: This only works with HTTP/HTTPS protocol, not file://
-     * With file://, the app will use localStorage data only
+     * This is the primary data source - files are the source of truth
      */
     async loadMonthsFromFiles() {
-        // If using file:// protocol, skip file loading (fetch won't work)
+        // If using file:// protocol, we can't fetch files directly
+        // User must run the sync script first: node scripts/sync-data.js load
         if (window.location.protocol === 'file:') {
-            console.log('Using file:// protocol - loading data from localStorage only. JSON files cannot be loaded with file://.');
+            console.log('Using file:// protocol - loading from localStorage.');
+            console.log('To load from files, run: node scripts/sync-data.js load');
             return this.getAllMonths();
         }
         
-        const knownMonths = ['2025-02', '2025-03', '2025-04', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11'];
-        const allMonths = this.getAllMonths();
+        // Try to discover all month files by attempting to load common month keys
+        // In a real implementation, you'd need a directory listing API or known list
+        const allMonths = {};
+        const currentYear = new Date().getFullYear();
+        const years = [currentYear - 1, currentYear, currentYear + 1];
         let loadedCount = 0;
 
-        for (const monthKey of knownMonths) {
-            if (!allMonths[monthKey]) {
-                const monthData = await this.loadMonthFromFile(monthKey);
-                if (monthData) {
-                    allMonths[monthKey] = monthData;
-                    loadedCount++;
+        // Try loading months for the last 2 years and next year
+        for (const year of years) {
+            for (let month = 1; month <= 12; month++) {
+                const monthKey = this.generateMonthKey(year, month);
+                try {
+                    const monthData = await this.loadMonthFromFile(monthKey);
+                    if (monthData) {
+                        allMonths[monthKey] = monthData;
+                        loadedCount++;
+                    }
+                } catch (error) {
+                    // File doesn't exist, skip
                 }
             }
         }
 
+        // Also check localStorage for any months not in files
+        const localStorageMonths = this.getAllMonths();
+        Object.keys(localStorageMonths).forEach(key => {
+            if (!allMonths[key]) {
+                allMonths[key] = localStorageMonths[key];
+            }
+        });
+
         if (loadedCount > 0) {
             this.saveAllMonths(allMonths);
-            console.log(`Loaded ${loadedCount} months from individual files`);
+            console.log(`✓ Loaded ${loadedCount} months from files`);
+        } else {
+            console.log('No month files found. Using localStorage data.');
+            console.log('To sync files, run: node scripts/sync-data.js load');
         }
 
         return allMonths;
@@ -122,9 +146,10 @@ const DataManager = {
     },
 
     /**
-     * Save a specific month's data to localStorage and optionally export as file
+     * Save a specific month's data to localStorage and always export as file
+     * Files are the source of truth - always export when saving
      */
-    saveMonth(monthKey, monthData, exportFile = false) {
+    saveMonth(monthKey, monthData, exportFile = true) {
         monthData.updatedAt = new Date().toISOString();
         if (!monthData.createdAt) {
             monthData.createdAt = new Date().toISOString();
@@ -134,25 +159,55 @@ const DataManager = {
         allMonths[monthKey] = monthData;
         const saved = this.saveAllMonths(allMonths);
         
+        // Always export to file - files are the source of truth
         if (saved && exportFile) {
             this.exportMonthToFile(monthKey, monthData).catch(error => {
                 console.error('Error exporting month file:', error);
             });
+            // Message is handled by the UI
         }
         
         return saved;
     },
 
     /**
-     * Export month data to downloadable JSON file
-     * Downloads the file - user should save it to data/months/ folder
+     * Export month data to file using File System Access API or download
      */
     async exportMonthToFile(monthKey, monthData) {
         try {
             const jsonString = JSON.stringify(monthData, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
             
+            // Try File System Access API (modern browsers)
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: `${monthKey}.json`,
+                        types: [{
+                            description: 'JSON files',
+                            accept: { 'application/json': ['.json'] }
+                        }],
+                        startIn: 'downloads'
+                    });
+                    
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    console.log(`✓ Month ${monthKey} saved directly to file system`);
+                    return true;
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('File System Access API failed, falling back to download:', error);
+                    } else {
+                        // User cancelled
+                        return false;
+                    }
+                }
+            }
+            
+            // Fallback to download
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `${monthKey}.json`;
@@ -165,11 +220,305 @@ const DataManager = {
                 URL.revokeObjectURL(url);
             }, 100);
             
-            console.log(`Month ${monthKey} exported. Please save the file to data/months/ folder.`);
+            console.log(`✓ Month ${monthKey} downloaded. Save it to data/months/ folder.`);
             return true;
         } catch (error) {
             console.error('Error exporting month file:', error);
             return false;
+        }
+    },
+
+    /**
+     * Load months from files using File System Access API or file input
+     */
+    async loadMonthsFromFilePicker() {
+        try {
+            // Check if we're using file:// protocol (File System Access API won't work)
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            // Try File System Access API (modern browsers, not file://)
+            if ('showDirectoryPicker' in window && !isFileProtocol) {
+                try {
+                    const directoryHandle = await window.showDirectoryPicker();
+                    const months = {};
+                    let loadedCount = 0;
+                    
+                    // Read all JSON and HTML files from the selected directory
+                    const htmlFiles = [];
+                    for await (const entry of directoryHandle.values()) {
+                        if (entry.kind === 'file') {
+                            if (entry.name.endsWith('.json')) {
+                                try {
+                                    const file = await entry.getFile();
+                                    const content = await file.text();
+                                    const monthData = JSON.parse(content);
+                                    const monthKey = entry.name.replace('.json', '');
+                                    months[monthKey] = monthData;
+                                    loadedCount++;
+                                    console.log(`✓ Loaded ${monthKey}.json`);
+                                } catch (error) {
+                                    console.error(`Error loading ${entry.name}:`, error);
+                                }
+                            } else if (entry.name.endsWith('.html')) {
+                                htmlFiles.push(entry);
+                            }
+                        }
+                    }
+                    
+                    // Process HTML files if ReferenceImporter is available
+                    if (htmlFiles.length > 0 && window.ReferenceImporter) {
+                        for (const entry of htmlFiles) {
+                            try {
+                                const file = await entry.getFile();
+                                const fileName = entry.name.toLowerCase();
+                                const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                                  'july', 'august', 'september', 'october', 'november', 'december'];
+                                
+                                let monthName = null;
+                                let year = new Date().getFullYear();
+                                
+                                for (const month of monthNames) {
+                                    if (fileName.includes(month)) {
+                                        monthName = month.charAt(0).toUpperCase() + month.slice(1);
+                                        break;
+                                    }
+                                }
+                                
+                                const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                                if (yearMatch) {
+                                    year = parseInt(yearMatch[1], 10);
+                                }
+                                
+                                if (monthName) {
+                                    const monthData = await ReferenceImporter.importMonthFromFile(file, monthName, year);
+                                    const monthKey = monthData.key;
+                                    months[monthKey] = monthData;
+                                    loadedCount++;
+                                    console.log(`✓ Imported ${monthKey} from ${entry.name}`);
+                                }
+                            } catch (error) {
+                                console.error(`Error importing ${entry.name}:`, error);
+                            }
+                        }
+                    }
+                    
+                    if (loadedCount > 0) {
+                        this.saveAllMonths(months);
+                        console.log(`✓ Loaded ${loadedCount} months from directory`);
+                        return { success: true, count: loadedCount, months: months };
+                    } else {
+                        return { success: false, message: 'No valid month files found in directory' };
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('Directory picker failed:', error);
+                        return { success: false, message: error.message, useFileInput: true };
+                    } else {
+                        // User cancelled
+                        return { success: false, message: 'User cancelled' };
+                    }
+                }
+            }
+            
+            // Fallback: Trigger file input
+            return { success: false, message: 'File System Access API not available. Please use the file input button.', useFileInput: true };
+        } catch (error) {
+            console.error('Error loading months from files:', error);
+            return { success: false, message: error.message, useFileInput: true };
+        }
+    },
+
+    /**
+     * Load months from file input (multiple files) - supports both JSON and HTML files
+     */
+    async loadMonthsFromFileInput(files) {
+        const months = {};
+        let loadedCount = 0;
+        let errorCount = 0;
+        const htmlFiles = [];
+        
+        // First pass: Load JSON files and collect HTML files
+        for (const file of files) {
+            if (file.name.endsWith('.json')) {
+                try {
+                    const content = await file.text();
+                    const monthData = JSON.parse(content);
+                    const monthKey = file.name.replace('.json', '');
+                    months[monthKey] = monthData;
+                    loadedCount++;
+                    console.log(`✓ Loaded ${monthKey}.json`);
+                } catch (error) {
+                    console.error(`Error loading ${file.name}:`, error);
+                    errorCount++;
+                }
+            } else if (file.name.endsWith('.html')) {
+                htmlFiles.push(file);
+            }
+        }
+        
+        // Second pass: Process HTML files (need ReferenceImporter)
+        if (htmlFiles.length > 0) {
+            if (!window.ReferenceImporter) {
+                console.error('ReferenceImporter not available. Cannot import HTML files.');
+                console.error('Make sure ReferenceImporter.js is loaded before DataManager.js');
+                errorCount += htmlFiles.length;
+            } else {
+                console.log(`Processing ${htmlFiles.length} HTML file(s)...`);
+                for (const file of htmlFiles) {
+                    try {
+                        // Extract month name and year from filename
+                        const fileName = file.name.toLowerCase();
+                        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                          'july', 'august', 'september', 'october', 'november', 'december'];
+                        
+                        let monthName = null;
+                        let year = new Date().getFullYear(); // Default to current year
+                        
+                        // Find month name in filename
+                        for (const month of monthNames) {
+                            if (fileName.includes(month)) {
+                                monthName = month.charAt(0).toUpperCase() + month.slice(1);
+                                break;
+                            }
+                        }
+                        
+                        // Try to extract year from filename (look for 4-digit year)
+                        const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                        if (yearMatch) {
+                            year = parseInt(yearMatch[1], 10);
+                        }
+                        
+                        if (!monthName) {
+                            const errorMsg = 'Could not determine month from filename: ' + file.name;
+                            console.warn(errorMsg);
+                            console.warn('  File name: ' + file.name);
+                            console.warn('  Lowercase: ' + fileName);
+                            console.warn('  Please ensure the filename contains a month name (e.g., February, March, etc.)');
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        console.log('Importing HTML file: ' + file.name + ' as ' + monthName + ' ' + year);
+                        
+                        // Import HTML file
+                        const monthData = await ReferenceImporter.importMonthFromFile(file, monthName, year);
+                        if (!monthData) {
+                            throw new Error('Import returned null or undefined');
+                        }
+                        if (!monthData.key) {
+                            throw new Error('Import returned data without a key');
+                        }
+                        
+                        const monthKey = monthData.key;
+                        months[monthKey] = monthData;
+                        loadedCount++;
+                        console.log('Imported ' + monthKey + ' from ' + file.name);
+                        console.log('  Fixed costs: ' + (monthData.fixedCosts ? monthData.fixedCosts.length : 0));
+                        console.log('  Variable costs: ' + (monthData.variableCosts ? monthData.variableCosts.length : 0));
+                        console.log('  Weekly breakdown: ' + (monthData.weeklyBreakdown ? monthData.weeklyBreakdown.length : 0));
+                    } catch (error) {
+                        console.error('Error importing ' + file.name + ':', error);
+                        console.error('Error message: ' + error.message);
+                        if (error.stack) {
+                            console.error('Stack trace:', error.stack);
+                        }
+                        errorCount++;
+                    }
+                }
+            }
+        }
+        
+        if (loadedCount > 0) {
+            this.saveAllMonths(months);
+            console.log(`✓ Loaded ${loadedCount} months from files`);
+        }
+        
+        return { success: loadedCount > 0, count: loadedCount, errors: errorCount, months: months };
+    },
+
+    /**
+     * Save all months to files using File System Access API or downloads
+     */
+    async saveAllMonthsToFiles() {
+        const allMonths = this.getAllMonths();
+        const monthKeys = Object.keys(allMonths);
+        
+        if (monthKeys.length === 0) {
+            return { success: false, message: 'No months to save' };
+        }
+        
+        try {
+            // Check if we're using file:// protocol
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            // Try File System Access API (modern browsers, not file://)
+            if ('showDirectoryPicker' in window && !isFileProtocol) {
+                try {
+                    const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    let savedCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const monthKey of monthKeys) {
+                        try {
+                            const monthData = allMonths[monthKey];
+                            const jsonString = JSON.stringify(monthData, null, 2);
+                            const blob = new Blob([jsonString], { type: 'application/json' });
+                            
+                            const fileHandle = await directoryHandle.getFileHandle(`${monthKey}.json`, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+                            
+                            savedCount++;
+                            console.log(`✓ Saved ${monthKey}.json`);
+                        } catch (error) {
+                            console.error(`Error saving ${monthKey}:`, error);
+                            errorCount++;
+                        }
+                    }
+                    
+                    return { 
+                        success: savedCount > 0, 
+                        count: savedCount, 
+                        errors: errorCount,
+                        message: `Saved ${savedCount} months to directory${errorCount > 0 ? ` (${errorCount} errors)` : ''}` 
+                    };
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('Directory picker failed, falling back to downloads:', error);
+                    } else {
+                        return { success: false, message: 'User cancelled' };
+                    }
+                }
+            }
+            
+            // Fallback: Download all files individually
+            let downloadedCount = 0;
+            const downloadPromises = [];
+            
+            for (const monthKey of monthKeys) {
+                const monthData = allMonths[monthKey];
+                downloadPromises.push(
+                    this.exportMonthToFile(monthKey, monthData).then(() => {
+                        downloadedCount++;
+                    }).catch(error => {
+                        console.error(`Error downloading ${monthKey}:`, error);
+                    })
+                );
+                // Small delay to avoid browser blocking multiple downloads
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            await Promise.all(downloadPromises);
+            
+            return { 
+                success: downloadedCount > 0, 
+                count: downloadedCount,
+                message: `Downloaded ${downloadedCount} month file${downloadedCount !== 1 ? 's' : ''}. Save ${downloadedCount === 1 ? 'it' : 'them'} to data/months/ folder.` 
+            };
+        } catch (error) {
+            console.error('Error saving all months:', error);
+            return { success: false, message: error.message };
         }
     },
 

@@ -21,6 +21,7 @@ const ReferenceImporter = {
             fixedCosts: fixedCosts,
             variableCosts: this.extractVariableCosts(doc),
             unplannedExpenses: this.extractUnplannedExpenses(doc),
+            pots: this.extractPots(doc),
             dateRange: this.extractDateRange(doc, year, this.getMonthNumber(monthName))
         };
 
@@ -40,14 +41,14 @@ const ReferenceImporter = {
     },
 
     /**
-     * Extract weekly breakdown table and map to 4 fixed weekly blocks (1-7, 8-16, 17-23, 24-30)
+     * Extract weekly breakdown table - the first table with Date, Payments Due, Groceries, Transport, Activities columns
      */
     extractWeeklyBreakdown(doc, fixedCosts = []) {
         const weeklyBreakdown = [];
         const tables = doc.querySelectorAll('table.simple-table');
         
         if (tables.length === 0) {
-            return this.createEmptyWeeklyBreakdown();
+            return [];
         }
 
         let weeklyTable = null;
@@ -60,96 +61,77 @@ const ReferenceImporter = {
             const hasDate = headers.some(h => h === 'Date' || h.includes('Date'));
             const hasPaymentsDue = headers.some(h => h.includes('Payments Due') || h.includes('Payments'));
             const hasGroceries = headers.some(h => h.includes('Groceries') || h.includes('Grocer'));
+            const hasTransport = headers.some(h => h.includes('Transport') || h.includes('Transport'));
+            const hasActivities = headers.some(h => h.includes('Activities') || h.includes('Activities'));
             const hasEstimate = headers.some(h => h.includes('Estimate') || h.includes('Est'));
             const hasActual = headers.some(h => h === 'Actual' || h.includes('Actual'));
 
-            if (hasDate && hasPaymentsDue && hasGroceries && hasEstimate && hasActual) {
+            // This is the working section table - first table with Date, Payments Due, Groceries, Transport, Activities
+            if (hasDate && hasPaymentsDue && (hasGroceries || hasTransport || hasActivities) && hasEstimate && hasActual) {
                 weeklyTable = table;
                 break;
             }
         }
 
-        const weekRanges = [
-            { range: '1-7', start: 1, end: 7 },
-            { range: '8-16', start: 8, end: 16 },
-            { range: '17-23', start: 17, end: 23 },
-            { range: '24-30', start: 24, end: 30 }
-        ];
-
         if (weeklyTable) {
             const rows = weeklyTable.querySelectorAll('tbody tr');
-            const extractedWeeks = new Map();
-
+            
             rows.forEach(row => {
                 const cells = Array.from(row.querySelectorAll('th, td'));
                 if (cells.length >= 5) {
                     const dateRange = cells[0].textContent.trim();
+                    // Skip empty rows and totals row
                     if (dateRange && !dateRange.includes('TOTALS') && dateRange !== '' && !dateRange.match(/^\s*$/)) {
-                        const paymentsDue = cells[1] ? cells[1].textContent.trim() : '';
-                        const unplanned = cells.length > 2 && cells[2].textContent.includes('Unplanned') ? cells[2].textContent.trim() : '';
-                        const groceries = cells[2] ? cells[2].textContent.trim() : (cells[3] ? cells[3].textContent.trim() : '');
-                        const activities = cells[3] ? cells[3].textContent.trim() : (cells[4] ? cells[4].textContent.trim() : '');
-                        const estimate = cells.length > 5 ? this.parseAmount(cells[cells.length - 2]?.textContent || '') : 0;
-
-                        extractedWeeks.set(dateRange, {
+                        // Find column indices based on headers
+                        const headerRow = weeklyTable.querySelector('thead tr');
+                        const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+                        
+                        let paymentsDueIdx = -1;
+                        let groceriesIdx = -1;
+                        let transportIdx = -1;
+                        let activitiesIdx = -1;
+                        let estimateIdx = -1;
+                        let actualIdx = -1;
+                        let unplannedIdx = -1;
+                        
+                        headers.forEach((header, idx) => {
+                            if (header.includes('Payments Due') || header.includes('Payments')) paymentsDueIdx = idx;
+                            else if (header.includes('Unplanned')) unplannedIdx = idx;
+                            else if (header.includes('Groceries') || header.includes('Grocer')) groceriesIdx = idx;
+                            else if (header.includes('Transport')) transportIdx = idx;
+                            else if (header.includes('Activities')) activitiesIdx = idx;
+                            else if (header.includes('Estimate') || header.includes('Est')) estimateIdx = idx;
+                            else if (header === 'Actual' || header.includes('Actual')) actualIdx = idx;
+                        });
+                        
+                        // Extract data from cells
+                        const paymentsDue = paymentsDueIdx >= 0 && cells[paymentsDueIdx] ? cells[paymentsDueIdx].textContent.trim() : '';
+                        const groceries = groceriesIdx >= 0 && cells[groceriesIdx] ? cells[groceriesIdx].textContent.trim() : '';
+                        const transport = transportIdx >= 0 && cells[transportIdx] ? cells[transportIdx].textContent.trim() : '';
+                        const activities = activitiesIdx >= 0 && cells[activitiesIdx] ? cells[activitiesIdx].textContent.trim() : '';
+                        const estimate = estimateIdx >= 0 && cells[estimateIdx] ? this.parseAmount(cells[estimateIdx].textContent || '') : 0;
+                        const actual = actualIdx >= 0 && cells[actualIdx] ? this.parseAmount(cells[actualIdx].textContent || '') : 0;
+                        
+                        weeklyBreakdown.push({
+                            dateRange: dateRange,
+                            weekRange: dateRange,
                             paymentsDue: paymentsDue,
-                            unplanned: unplanned,
                             groceries: groceries,
+                            transport: transport,
                             activities: activities,
-                            weeklyEstimate: estimate
+                            estimate: estimate,
+                            weeklyEstimate: estimate,
+                            actual: actual
                         });
                     }
                 }
             });
-
-            weekRanges.forEach(weekRange => {
-                const matchingWeek = Array.from(extractedWeeks.keys()).find(key => {
-                    const keyLower = key.toLowerCase();
-                    return keyLower.includes(weekRange.range) || 
-                           keyLower.includes(`${weekRange.start}-${weekRange.end}`) ||
-                           keyLower.includes(`${weekRange.start}st`) ||
-                           keyLower.includes(`${weekRange.start}th`);
-                });
-
-                if (matchingWeek) {
-                    const weekData = extractedWeeks.get(matchingWeek);
-                    weeklyBreakdown.push({
-                        weekRange: weekRange.range,
-                        paymentsDue: weekData.paymentsDue || '',
-                        unplanned: weekData.unplanned || '',
-                        groceries: weekData.groceries || '',
-                        activities: weekData.activities || '',
-                        weeklyEstimate: weekData.weeklyEstimate || 0
-                    });
-                } else {
-                    weeklyBreakdown.push({
-                        weekRange: weekRange.range,
-                        paymentsDue: '',
-                        unplanned: '',
-                        groceries: '',
-                        activities: '',
-                        weeklyEstimate: 0
-                    });
-                }
-            });
-        } else {
-            return this.createEmptyWeeklyBreakdown();
         }
 
+        // If no weeks found, return empty array (will be populated by user)
         return weeklyBreakdown;
     },
 
-    /**
-     * Create empty weekly breakdown structure
-     */
-    createEmptyWeeklyBreakdown() {
-        return [
-            { weekRange: '1-7', paymentsDue: '', unplanned: '', groceries: '', activities: '', weeklyEstimate: 0 },
-            { weekRange: '8-16', paymentsDue: '', unplanned: '', groceries: '', activities: '', weeklyEstimate: 0 },
-            { weekRange: '17-23', paymentsDue: '', unplanned: '', groceries: '', activities: '', weeklyEstimate: 0 },
-            { weekRange: '24-30', paymentsDue: '', unplanned: '', groceries: '', activities: '', weeklyEstimate: 0 }
-        ];
-    },
 
     /**
      * Extract date range from document
@@ -189,33 +171,126 @@ const ReferenceImporter = {
 
         const tables = doc.querySelectorAll('table.simple-table');
         tables.forEach(table => {
-            const rows = table.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 3) {
-                    const source = cells[0].textContent.trim();
-                    const estimated = this.parseAmount(cells[1].textContent);
-                    const actual = this.parseAmount(cells[2].textContent);
-                    const date = cells[3] ? cells[3].textContent.trim() : '';
-
-                    if (source.includes('Nicholas Income')) {
-                        income.nicholasIncome.estimated = estimated;
-                        income.nicholasIncome.actual = actual;
-                        income.nicholasIncome.date = date;
-                    } else if (source.includes('Lara Income')) {
-                        income.laraIncome.estimated = estimated;
-                        income.laraIncome.actual = actual;
-                        income.laraIncome.date = date;
-                    } else if (source.includes('Other Income')) {
-                        income.otherIncome.estimated = estimated;
-                        income.otherIncome.actual = actual;
-                        income.otherIncome.description = source;
-                    }
+            // Check if this is the income table (has "Revenue Source" header)
+            const headerRow = table.querySelector('thead tr');
+            let isIncomeTable = false;
+            let estimatedIdx = 1;
+            let actualIdx = 2;
+            let dateIdx = 3;
+            
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+                isIncomeTable = headers.some(h => h.includes('revenue') || h.includes('income'));
+                if (isIncomeTable) {
+                    headers.forEach((header, idx) => {
+                        if (header.includes('estimate') || header.includes('estimated')) {
+                            estimatedIdx = idx;
+                        } else if (header.includes('actual')) {
+                            actualIdx = idx;
+                        } else if (header.includes('date')) {
+                            dateIdx = idx;
+                        }
+                    });
                 }
-            });
+            }
+            
+            if (isIncomeTable) {
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        const source = cells[0].textContent.trim();
+                        const estimated = estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
+                        const actual = actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
+                        const date = dateIdx < cells.length ? cells[dateIdx].textContent.trim() : '';
+
+                        if (source.includes('Nicholas Income')) {
+                            income.nicholasIncome.estimated = estimated;
+                            income.nicholasIncome.actual = actual;
+                            income.nicholasIncome.date = date;
+                        } else if (source.includes('Lara Income')) {
+                            income.laraIncome.estimated = estimated;
+                            income.laraIncome.actual = actual;
+                            income.laraIncome.date = date;
+                        } else if (source.includes('Other Income')) {
+                            income.otherIncome.estimated = estimated;
+                            income.otherIncome.actual = actual;
+                            income.otherIncome.description = source;
+                        }
+                    }
+                });
+            }
         });
 
         return income;
+    },
+
+    /**
+     * Find section heading for a table (walks backwards through DOM tree)
+     */
+    findSectionHeading(table, sectionName) {
+        const sectionNameLower = sectionName.toLowerCase();
+        const sectionNames = ['fixed costs', 'variable costs', 'unplanned', 'pots', 'investments', 'expenses vs income', 'savings and investments'];
+        
+        // Walk backwards through the DOM tree
+        let current = table;
+        let foundMatchingHeading = null;
+        let depth = 0;
+        const maxDepth = 50;
+        
+        while (current && depth < maxDepth) {
+            // Check previous siblings
+            let sibling = current.previousElementSibling;
+            let siblingDepth = 0;
+            while (sibling && siblingDepth < 20) {
+                // Check if it's a heading
+                const tagName = sibling.tagName ? sibling.tagName.toLowerCase() : '';
+                if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
+                    const text = (sibling.textContent || '').toLowerCase();
+                    if (text.includes(sectionNameLower)) {
+                        foundMatchingHeading = sibling;
+                        break;
+                    }
+                    // Check if it's another section heading
+                    for (const otherSection of sectionNames) {
+                        if (otherSection !== sectionNameLower && text.includes(otherSection)) {
+                            // Found another section - stop searching
+                            return foundMatchingHeading !== null;
+                        }
+                    }
+                }
+                
+                // Also check inside divs
+                if (tagName === 'div') {
+                    const headings = sibling.querySelectorAll('h1, h2, h3');
+                    for (const heading of headings) {
+                        const text = (heading.textContent || '').toLowerCase();
+                        if (text.includes(sectionNameLower)) {
+                            foundMatchingHeading = heading;
+                            break;
+                        }
+                        for (const otherSection of sectionNames) {
+                            if (otherSection !== sectionNameLower && text.includes(otherSection)) {
+                                return foundMatchingHeading !== null;
+                            }
+                        }
+                    }
+                }
+                
+                sibling = sibling.previousElementSibling;
+                siblingDepth++;
+            }
+            
+            if (foundMatchingHeading) {
+                return true;
+            }
+            
+            // Move to parent and continue searching
+            current = current.parentElement;
+            depth++;
+        }
+        
+        return false;
     },
 
     /**
@@ -225,89 +300,164 @@ const ReferenceImporter = {
         const fixedCosts = [];
         const tables = doc.querySelectorAll('table.simple-table');
         
-        let inFixedCostsSection = false;
-        tables.forEach(table => {
-            const prevHeading = table.previousElementSibling;
-            if (prevHeading && prevHeading.textContent.includes('Fixed Costs')) {
-                inFixedCostsSection = true;
+        console.log('Extracting fixed costs from ' + tables.length + ' tables');
+        
+        tables.forEach((table, tableIdx) => {
+            // Check if this table is in the Fixed Costs section
+            const isFixedCostsTable = this.findSectionHeading(table, 'Fixed Costs');
+            if (!isFixedCostsTable) {
+                return;
             }
 
-            if (inFixedCostsSection) {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 3) {
-                        const category = cells[0].textContent.trim();
-                        if (category && !category.includes('Total') && !category.includes('Subscriptions')) {
-                            const estimated = this.parseAmount(cells[1].textContent);
-                            const actual = this.parseAmount(cells[2].textContent);
-                            const date = cells[3] ? cells[3].textContent.trim() : '';
-                            const card = cells.length > 4 ? cells[4].textContent.trim() : '';
-                            const paid = cells[1]?.textContent.includes('✓') || cells[2]?.textContent.includes('✓') || false;
+            console.log('Found Fixed Costs table #' + tableIdx);
 
-                            if (category) {
-                                fixedCosts.push({
-                                    category: category,
-                                    estimatedAmount: estimated,
-                                    actualAmount: actual,
-                                    date: date,
-                                    card: card,
-                                    paid: paid
-                                });
-                            }
-                        }
+            // Get header row to determine column order
+            const headerRow = table.querySelector('thead tr');
+            let estimatedIdx = -1;
+            let actualIdx = -1;
+            let dateIdx = -1;
+            let cardIdx = -1;
+            
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+                console.log('Fixed Costs headers:', headers);
+                headers.forEach((header, idx) => {
+                    if (header.includes('estimate') || header.includes('estimated')) {
+                        estimatedIdx = idx;
+                    } else if (header.includes('actual')) {
+                        actualIdx = idx;
+                    } else if (header.includes('date')) {
+                        dateIdx = idx;
+                    } else if (header.includes('card')) {
+                        cardIdx = idx;
                     }
                 });
+                console.log('Fixed Costs column indices - estimated:', estimatedIdx, 'actual:', actualIdx, 'date:', dateIdx);
             }
+
+            const rows = table.querySelectorAll('tbody tr');
+            console.log('Processing ' + rows.length + ' fixed cost rows');
+            rows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const category = cells[0].textContent.trim();
+                    if (category && !category.includes('Total') && !category.includes('Subscriptions') && category !== '' && category !== 'Category' && !category.startsWith('<')) {
+                        let estimated = estimatedIdx >= 0 && estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
+                        let actual = actualIdx >= 0 && actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
+                        
+                        // Handle special cases like "(Skipped for some reason)" - if estimated is 0 but actual has value, try to get estimated from actual
+                        if (estimated === 0 && actual > 0 && estimatedIdx >= 0 && estimatedIdx < cells.length) {
+                            const estimatedText = cells[estimatedIdx].textContent.trim();
+                            if (estimatedText.includes('Skipped') || estimatedText.includes('skipped') || estimatedText === '') {
+                                // Estimated is empty or skipped, keep actual value
+                            }
+                        }
+                        const date = dateIdx >= 0 && dateIdx < cells.length ? cells[dateIdx].textContent.trim() : '';
+                        const card = cardIdx >= 0 && cardIdx < cells.length ? cells[cardIdx].textContent.trim() : '';
+                        const paid = (actualIdx >= 0 && actualIdx < cells.length && cells[actualIdx]?.textContent.includes('✓')) || 
+                                   (estimatedIdx >= 0 && estimatedIdx < cells.length && cells[estimatedIdx]?.textContent.includes('✓')) || false;
+
+                        if (category && (estimated > 0 || actual > 0)) {
+                            fixedCosts.push({
+                                category: category,
+                                estimatedAmount: estimated,
+                                actualAmount: actual,
+                                date: date,
+                                card: card,
+                                paid: paid
+                            });
+                            console.log('  Added fixed cost: ' + category + ' (est: ' + estimated + ', actual: ' + actual + ')');
+                        }
+                    }
+                }
+            });
         });
 
+        console.log('Extracted ' + fixedCosts.length + ' fixed costs');
         return fixedCosts;
     },
 
     /**
-     * Extract variable costs - only Food and Activities
+     * Extract variable costs - Food, Travel/Transport, and Activities
      */
     extractVariableCosts(doc) {
         const variableCosts = [];
         const tables = doc.querySelectorAll('table.simple-table');
         
-        let inVariableCostsSection = false;
-        tables.forEach(table => {
-            const prevHeading = table.previousElementSibling;
-            if (prevHeading && prevHeading.textContent.includes('Variable Costs')) {
-                inVariableCostsSection = true;
+        console.log('Extracting variable costs from ' + tables.length + ' tables');
+        
+        tables.forEach((table, tableIdx) => {
+            // Check if this table is in the Variable Costs section
+            const isVariableCostsTable = this.findSectionHeading(table, 'Variable Costs');
+            if (!isVariableCostsTable) {
+                return;
             }
 
-            if (inVariableCostsSection) {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 2) {
-                        const category = cells[0].textContent.trim();
-                        if (category && !category.includes('Total') && (category === 'Food' || category === 'Activities' || category.includes('Food') || category.includes('Activities'))) {
-                            const monthlyBudget = this.parseAmount(cells[1].textContent);
-                            const actualSpent = cells.length > 2 ? this.parseAmount(cells[2].textContent) : 0;
+            console.log('Found Variable Costs table #' + tableIdx);
 
-                            const normalizedCategory = category.includes('Food') ? 'Food' : (category.includes('Activities') ? 'Activities' : category);
-
-                            if (normalizedCategory === 'Food' || normalizedCategory === 'Activities') {
-                                variableCosts.push({
-                                    category: normalizedCategory,
-                                    monthlyBudget: monthlyBudget,
-                                    actualSpent: actualSpent
-                                });
-                            }
-                        }
+            // Get header row to determine column order
+            const headerRow = table.querySelector('thead tr');
+            let estimatedIdx = -1;
+            let actualIdx = -1;
+            
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+                console.log('Variable Costs headers:', headers);
+                headers.forEach((header, idx) => {
+                    if (header.includes('estimate') || header.includes('estimated') || header.includes('budget')) {
+                        estimatedIdx = idx;
+                    } else if (header.includes('actual')) {
+                        actualIdx = idx;
                     }
                 });
+                console.log('Variable Costs column indices - estimated:', estimatedIdx, 'actual:', actualIdx);
             }
+            
+            const rows = table.querySelectorAll('tbody tr');
+            console.log('Processing ' + rows.length + ' variable cost rows');
+            rows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const category = cells[0].textContent.trim();
+                    if (category && !category.includes('Total') && !category.includes('Books') && category !== '' && category !== 'Category' && !category.startsWith('<')) {
+                        const monthlyBudget = estimatedIdx >= 0 && estimatedIdx < cells.length ? this.parseAmount(cells[estimatedIdx].textContent) : 0;
+                        const actualSpent = actualIdx >= 0 && actualIdx < cells.length ? this.parseAmount(cells[actualIdx].textContent) : 0;
+
+                        // Normalize category names
+                        let normalizedCategory = category;
+                        if (category.includes('Food')) {
+                            normalizedCategory = 'Food';
+                        } else if (category.includes('Travel') || category.includes('Transport')) {
+                            normalizedCategory = 'Travel/Transport';
+                        } else if (category.includes('Activities')) {
+                            normalizedCategory = 'Activities';
+                        }
+
+                        if (normalizedCategory === 'Food' || normalizedCategory === 'Travel/Transport' || normalizedCategory === 'Activities') {
+                            variableCosts.push({
+                                category: normalizedCategory,
+                                monthlyBudget: monthlyBudget,
+                                actualSpent: actualSpent
+                            });
+                            console.log('  Added variable cost: ' + normalizedCategory + ' (budget: ' + monthlyBudget + ', actual: ' + actualSpent + ')');
+                        }
+                    }
+                }
+            });
         });
 
-        if (variableCosts.length === 0) {
+        // Ensure we have at least Food and Activities
+        const hasFood = variableCosts.some(vc => vc.category === 'Food');
+        const hasActivities = variableCosts.some(vc => vc.category === 'Activities');
+        
+        if (!hasFood) {
             variableCosts.push({ category: 'Food', monthlyBudget: 0, actualSpent: 0 });
+        }
+        if (!hasActivities) {
             variableCosts.push({ category: 'Activities', monthlyBudget: 0, actualSpent: 0 });
         }
 
+        console.log('Extracted ' + variableCosts.length + ' variable costs');
         return variableCosts;
     },
 
@@ -318,38 +468,74 @@ const ReferenceImporter = {
         const unplannedExpenses = [];
         const tables = doc.querySelectorAll('table.simple-table');
         
-        let inUnplannedSection = false;
-        tables.forEach(table => {
-            const prevHeading = table.previousElementSibling;
-            if (prevHeading && (prevHeading.textContent.includes('Unplanned') || prevHeading.textContent.includes('Unplanned Expense'))) {
-                inUnplannedSection = true;
+        console.log('Extracting unplanned expenses from ' + tables.length + ' tables');
+        
+        tables.forEach((table, tableIdx) => {
+            // Check if this table is in the Unplanned Expenses section
+            const isUnplannedTable = this.findSectionHeading(table, 'Unplanned');
+            if (!isUnplannedTable) {
+                return;
             }
 
-            if (inUnplannedSection) {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 2) {
-                        const name = cells[0].textContent.trim();
-                        if (name && !name.includes('Total')) {
-                            const amount = this.parseAmount(cells[1].textContent);
-                            const date = cells.length > 2 ? cells[2].textContent.trim() : '';
-                            const card = cells.length > 3 ? cells[3].textContent.trim() : '';
+            console.log('Found Unplanned Expenses table #' + tableIdx);
 
-                            if (name) {
-                                unplannedExpenses.push({
-                                    name: name,
-                                    amount: amount,
-                                    date: date,
-                                    card: card
-                                });
-                            }
-                        }
+            // Get header row to determine column order (if exists)
+            const headerRow = table.querySelector('thead tr');
+            let nameIdx = 0;
+            let amountIdx = 1;
+            let dateIdx = -1;
+            let cardIdx = -1;
+            let statusIdx = -1;
+            
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+                console.log('Unplanned Expenses headers:', headers);
+                headers.forEach((header, idx) => {
+                    if (header.includes('name') || header.includes('description')) {
+                        nameIdx = idx;
+                    } else if (header.includes('amount')) {
+                        amountIdx = idx;
+                    } else if (header.includes('date')) {
+                        dateIdx = idx;
+                    } else if (header.includes('card')) {
+                        cardIdx = idx;
+                    } else if (header.includes('status')) {
+                        statusIdx = idx;
                     }
                 });
+            } else {
+                // No header row - assume first column is name, second is amount
+                console.log('No header row found, using default column order');
             }
+
+            const rows = table.querySelectorAll('tbody tr');
+            console.log('Processing ' + rows.length + ' unplanned expense rows');
+            rows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const name = nameIdx < cells.length ? cells[nameIdx].textContent.trim() : '';
+                    if (name && !name.includes('Total') && name !== '' && !name.startsWith('<')) {
+                        const amount = amountIdx < cells.length ? this.parseAmount(cells[amountIdx].textContent) : 0;
+                        const date = dateIdx >= 0 && dateIdx < cells.length ? cells[dateIdx].textContent.trim() : '';
+                        const card = cardIdx >= 0 && cardIdx < cells.length ? cells[cardIdx].textContent.trim() : '';
+                        const status = statusIdx >= 0 && statusIdx < cells.length ? cells[statusIdx].textContent.trim() : '';
+
+                        if (name && amount > 0) {
+                            unplannedExpenses.push({
+                                name: name,
+                                amount: amount,
+                                date: date,
+                                card: card,
+                                status: status
+                            });
+                            console.log('  Added unplanned expense: ' + name + ' (' + amount + ')');
+                        }
+                    }
+                }
+            });
         });
 
+        console.log('Extracted ' + unplannedExpenses.length + ' unplanned expenses');
         return unplannedExpenses;
     },
 
@@ -360,36 +546,72 @@ const ReferenceImporter = {
         const pots = [];
         const tables = doc.querySelectorAll('table.simple-table');
         
-        let inPotsSection = false;
-        tables.forEach(table => {
-            const prevHeading = table.previousElementSibling;
-            if (prevHeading && (prevHeading.textContent.includes('Pots') || prevHeading.textContent.includes('Investments'))) {
-                inPotsSection = true;
+        console.log('Extracting pots from ' + tables.length + ' tables');
+        
+        tables.forEach((table, tableIdx) => {
+            // Check if this table is in the Pots/Investments section
+            const isPotsTable = this.findSectionHeading(table, 'Pots') || this.findSectionHeading(table, 'Investments');
+            if (!isPotsTable) {
+                return;
             }
 
-            if (inPotsSection) {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 2) {
-                        const category = cells[0].textContent.trim();
-                        if (category && !category.includes('Total') && !category.includes('Category')) {
-                            const estimated = this.parseAmount(cells[1].textContent);
-                            const actual = cells[2] ? this.parseAmount(cells[2].textContent) : estimated;
+            console.log('Found Pots/Investments table #' + tableIdx);
 
-                            if (category) {
-                                pots.push({
-                                    category: category,
-                                    estimatedAmount: estimated,
-                                    actualAmount: actual
-                                });
-                            }
-                        }
+            // Get header row to determine column order
+            const headerRow = table.querySelector('thead tr');
+            let categoryIdx = 0;
+            let estimatedIdx = -1;
+            let actualIdx = -1;
+            
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim().toLowerCase());
+                console.log('Pots headers:', headers);
+                headers.forEach((header, idx) => {
+                    if (header.includes('category') || header.includes('name')) {
+                        categoryIdx = idx;
+                    } else if (header.includes('estimate') || header.includes('estimated')) {
+                        estimatedIdx = idx;
+                    } else if (header.includes('actual')) {
+                        actualIdx = idx;
                     }
                 });
+                console.log('Pots column indices - category:', categoryIdx, 'estimated:', estimatedIdx, 'actual:', actualIdx);
+            } else {
+                // No header row - assume first column is category, second is estimated
+                console.log('No header row found, using default column order');
             }
+
+            const rows = table.querySelectorAll('tbody tr');
+            console.log('Processing ' + rows.length + ' pot rows');
+            rows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const category = categoryIdx < cells.length ? cells[categoryIdx].textContent.trim() : '';
+                    if (category && !category.includes('Total') && !category.includes('Category') && category !== '' && !category.startsWith('<')) {
+                        // If no estimated column found, use first data column after category
+                        const estimated = estimatedIdx >= 0 && estimatedIdx < cells.length 
+                            ? this.parseAmount(cells[estimatedIdx].textContent)
+                            : (cells.length > 1 ? this.parseAmount(cells[1].textContent) : 0);
+                        
+                        // If no actual column, use estimated value
+                        const actual = actualIdx >= 0 && actualIdx < cells.length 
+                            ? this.parseAmount(cells[actualIdx].textContent)
+                            : estimated;
+
+                        if (category && estimated > 0) {
+                            pots.push({
+                                category: category,
+                                estimatedAmount: estimated,
+                                actualAmount: actual
+                            });
+                            console.log('  Added pot: ' + category + ' (estimated: ' + estimated + ', actual: ' + actual + ')');
+                        }
+                    }
+                }
+            });
         });
 
+        console.log('Extracted ' + pots.length + ' pots');
         return pots;
     },
 
@@ -398,7 +620,12 @@ const ReferenceImporter = {
      */
     parseAmount(text) {
         if (!text) return 0;
-        const cleaned = text.replace(/[£€$,\s]/g, '').trim();
+        // Remove currency symbols, commas, and common text patterns
+        let cleaned = text.replace(/[£€$,\s]/g, '').trim();
+        // Remove text in parentheses like "(Skipped for some reason)"
+        cleaned = cleaned.replace(/\([^)]*\)/g, '').trim();
+        // Remove any remaining non-numeric characters except decimal point and minus
+        cleaned = cleaned.replace(/[^\d.-]/g, '').trim();
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
     },
@@ -422,7 +649,7 @@ const ReferenceImporter = {
                         month: parsedData.month,
                         monthName: parsedData.monthName,
                         dateRange: parsedData.dateRange,
-                        weeklyBreakdown: parsedData.weeklyBreakdown || this.createEmptyWeeklyBreakdown(),
+                        weeklyBreakdown: parsedData.weeklyBreakdown || [],
                         incomeSources: this.convertIncomeToArray(parsedData.income),
                         fixedCosts: parsedData.fixedCosts || [],
                         variableCosts: parsedData.variableCosts || [
@@ -430,11 +657,27 @@ const ReferenceImporter = {
                             { category: 'Activities', monthlyBudget: 0, actualSpent: 0 }
                         ],
                         unplannedExpenses: parsedData.unplannedExpenses || [],
+                        pots: parsedData.pots || [],
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString()
                     };
 
-                    DataManager.saveMonth(monthKey, monthData);
+                    // Save to localStorage and export file (files are source of truth)
+                    const saved = DataManager.saveMonth(monthKey, monthData, true);
+                    
+                    if (saved) {
+                        console.log(`✓ Month ${monthKey} saved to localStorage`);
+                        console.log(`  - Fixed Costs: ${monthData.fixedCosts.length} items`);
+                        console.log(`  - Variable Costs: ${monthData.variableCosts.length} items`);
+                        console.log(`  - Unplanned Expenses: ${monthData.unplannedExpenses.length} items`);
+                        console.log(`  - Weekly Breakdown: ${monthData.weeklyBreakdown.length} weeks`);
+                        console.log(`  - Income Sources: ${monthData.incomeSources.length} items`);
+                        console.log(`  - Pots: ${monthData.pots.length} items`);
+                        console.log(`  - File download should start automatically. Save it to data/months/ folder.`);
+                    } else {
+                        console.error(`✗ Failed to save month ${monthKey} to localStorage`);
+                    }
+                    
                     resolve(monthData);
                 } catch (error) {
                     reject(error);

@@ -363,7 +363,7 @@ body.landing-page .view-card {
 /* Form Styles */
 .form-section {
     background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
+    border: 1px solid #121212;
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
@@ -465,6 +465,29 @@ body.landing-page .view-card {
     background-color: var(--background-color);
 }
 
+/* Weekly Breakdown Table - Darker Borders (50% darker) */
+#weekly-breakdown-table {
+    border-color: #3f3f3f !important;
+}
+
+#weekly-breakdown-tbody td,
+#weekly-breakdown-tbody th {
+    border-color: #3f3f3f !important;
+}
+
+#weekly-breakdown-tbody input,
+#weekly-breakdown-tbody textarea {
+    border-color: #3f3f3f !important;
+}
+
+#weekly-breakdown-table thead th {
+    border-color: #3f3f3f !important;
+}
+
+#weekly-breakdown-table tfoot td {
+    border-color: #3f3f3f !important;
+}
+
 /* Button Styles */
 .btn {
     padding: var(--spacing-xs) var(--spacing-md);
@@ -547,7 +570,7 @@ body.landing-page .view-card {
 }
 
 .summary-card-value.positive {
-    color: var(--success-color);
+    color: #006c22;
 }
 
 .summary-card-value.negative {
