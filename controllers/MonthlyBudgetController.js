@@ -480,7 +480,8 @@ const MonthlyBudgetController = {
                     estimated: incomeData.nicholasIncome.estimated || 0,
                     actual: incomeData.nicholasIncome.actual || 0,
                     date: incomeData.nicholasIncome.date || '',
-                    description: ''
+                    description: '',
+                    comments: incomeData.nicholasIncome.comments || ''
                 });
             }
             if (incomeData.laraIncome) {
@@ -489,7 +490,8 @@ const MonthlyBudgetController = {
                     estimated: incomeData.laraIncome.estimated || 0,
                     actual: incomeData.laraIncome.actual || 0,
                     date: incomeData.laraIncome.date || '',
-                    description: ''
+                    description: '',
+                    comments: incomeData.laraIncome.comments || ''
                 });
             }
             if (incomeData.otherIncome) {
@@ -498,7 +500,8 @@ const MonthlyBudgetController = {
                     estimated: incomeData.otherIncome.estimated || 0,
                     actual: incomeData.otherIncome.actual || 0,
                     date: '',
-                    description: incomeData.otherIncome.description || ''
+                    description: incomeData.otherIncome.description || '',
+                    comments: incomeData.otherIncome.comments || ''
                 });
             }
         }
@@ -527,6 +530,7 @@ const MonthlyBudgetController = {
             <td><input type="number" class="income-actual" value="${incomeData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="text" class="income-date" value="${incomeData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="income-description" value="${incomeData?.description || ''}" placeholder="Description"></td>
+            <td><input type="text" class="income-comments" value="${incomeData?.comments || ''}" placeholder="Comments"></td>
             <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
 
@@ -574,6 +578,7 @@ const MonthlyBudgetController = {
             <td></td>
             <td></td>
             <td></td>
+            <td></td>
         `;
 
         tbody.appendChild(totalRow);
@@ -605,6 +610,7 @@ const MonthlyBudgetController = {
             <td><input type="text" class="fixed-cost-date" value="${costData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="fixed-cost-card" value="${costData?.card || ''}" placeholder="Card"></td>
             <td><input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''}></td>
+            <td><input type="text" class="fixed-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
 
@@ -654,6 +660,7 @@ const MonthlyBudgetController = {
             <td></td>
             <td></td>
             <td></td>
+            <td></td>
         `;
 
         tbody.appendChild(totalRow);
@@ -678,10 +685,16 @@ const MonthlyBudgetController = {
         if (!tbody) return;
 
         const row = document.createElement('tr');
+        const estimated = Formatters.parseNumber(costData?.estimatedAmount || 0);
+        const actual = Formatters.parseNumber(costData?.actualAmount || 0);
+        const remaining = estimated - actual;
+
         row.innerHTML = `
             <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Expense Category"></td>
             <td><input type="number" class="variable-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td class="variable-cost-remaining">${Formatters.formatCurrency(remaining)}</td>
+            <td><input type="text" class="variable-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
 
@@ -690,8 +703,25 @@ const MonthlyBudgetController = {
             this.updateCalculations();
         });
 
+        // Update remaining calculation when estimated or actual changes
+        const updateRemaining = () => {
+            const estimatedInput = row.querySelector('.variable-cost-estimated');
+            const actualInput = row.querySelector('.variable-cost-actual');
+            const remainingCell = row.querySelector('.variable-cost-remaining');
+
+            const estimated = Formatters.parseNumber(estimatedInput?.value || 0);
+            const actual = Formatters.parseNumber(actualInput?.value || 0);
+            const remaining = estimated - actual;
+
+            if (remainingCell) {
+                remainingCell.textContent = Formatters.formatCurrency(remaining);
+            }
+
+            this.updateCalculations();
+        };
+
         row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => this.updateCalculations());
+            input.addEventListener('input', updateRemaining);
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -727,6 +757,8 @@ const MonthlyBudgetController = {
             <td id="variable-costs-total-budget"><strong>£0.00</strong></td>
             <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
             <td id="variable-costs-total-remaining"><strong>£0.00</strong></td>
+            <td></td>
+            <td></td>
         `;
 
         tbody.appendChild(totalRow);
@@ -757,6 +789,7 @@ const MonthlyBudgetController = {
             <td><input type="text" class="unplanned-date" value="${expenseData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="unplanned-card" value="${expenseData?.card || ''}" placeholder="Card"></td>
             <td><input type="text" class="unplanned-status" value="${expenseData?.status || ''}" placeholder="Status"></td>
+            <td><input type="text" class="unplanned-comments" value="${expenseData?.comments || ''}" placeholder="Comments"></td>
             <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
         `;
 
@@ -800,6 +833,7 @@ const MonthlyBudgetController = {
         totalRow.innerHTML = `
             <td><strong>Total Unplanned Expenses</strong></td>
             <td id="unplanned-expenses-total"><strong>£0.00</strong></td>
+            <td></td>
             <td></td>
             <td></td>
             <td></td>
@@ -959,13 +993,15 @@ const MonthlyBudgetController = {
             actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
             date: row.querySelector('.fixed-cost-date')?.value || '',
             card: row.querySelector('.fixed-cost-card')?.value || '',
-            paid: row.querySelector('.fixed-cost-paid')?.checked || false
+            paid: row.querySelector('.fixed-cost-paid')?.checked || false,
+            comments: row.querySelector('.fixed-cost-comments')?.value || ''
         }));
 
         const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr')).map(row => ({
             category: row.querySelector('.variable-cost-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
+            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+            comments: row.querySelector('.variable-cost-comments')?.value || ''
         }));
 
         const unplannedExpenses = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr')).map(row => ({
@@ -973,7 +1009,8 @@ const MonthlyBudgetController = {
             amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
             date: row.querySelector('.unplanned-date')?.value || '',
             card: row.querySelector('.unplanned-card')?.value || '',
-            status: row.querySelector('.unplanned-status')?.value || ''
+            status: row.querySelector('.unplanned-status')?.value || '',
+            comments: row.querySelector('.unplanned-comments')?.value || ''
         }));
 
         const pots = Array.from(document.querySelectorAll('#pots-tbody tr')).map(row => ({
@@ -987,7 +1024,8 @@ const MonthlyBudgetController = {
             estimated: Formatters.parseNumber(row.querySelector('.income-estimated')?.value),
             actual: Formatters.parseNumber(row.querySelector('.income-actual')?.value),
             date: row.querySelector('.income-date')?.value || '',
-            description: row.querySelector('.income-description')?.value || ''
+            description: row.querySelector('.income-description')?.value || '',
+            comments: row.querySelector('.income-comments')?.value || ''
         }));
 
         return {

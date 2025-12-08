@@ -99,7 +99,7 @@ const PotsController = {
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
-            <td><strong>Total Savings/Investments</strong></td>
+            <td><strong>Total</strong></td>
             <td id="pots-total-estimated"><strong>£0.00</strong></td>
             <td id="pots-total-actual"><strong>£0.00</strong></td>
             <td></td>

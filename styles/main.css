@@ -15,7 +15,7 @@
     /* Primary Colors */
     --primary-color: #b0b0b0;
     --primary-hover: #a0a0a0;
-    --primary-focus-shadow: rgba(120, 120, 120, 0.3);
+    --primary-focus-shadow: rgba(168, 168, 168, 0.3);
     
     /* Secondary Colors */
     --secondary-color: #b5b1aa;
@@ -41,7 +41,7 @@
     --surface-overlay-button-hover: rgba(255, 255, 255, 0.8);
     
     /* Text Colors */
-    --text-primary: #2d2d2d;
+    --text-primary: #1b1b1b;
     --text-secondary: #1a1a1a;
     --text-white: #f1f1f1;
     --text-black: #000000;
@@ -50,7 +50,7 @@
     
     /* Border Colors */
     --border-color: #9d9d9d;
-    --border-color-dark: #2a2a2a;
+    --border-color-dark: #1f1f1f;
     --border-color-black: #000000;
     --border-print: #000000;
     
@@ -61,7 +61,7 @@
     
     /* Interactive States */
     --hover-overlay: rgba(255, 255, 255, 0.7);
-    --landing-overlay: rgba(160, 160, 160, 0.5);
+    --landing-overlay: rgba(202, 202, 202, 0.5);
     --table-row-hover: #d3d3d3;
     
     /* Shadows */
@@ -886,7 +886,7 @@ body.landing-page .view-card:focus {
 }
 
 .summary-card {
-    background-color: var(--surface-overlay-section);
+    background-color: rgba(217, 217, 217, 0.95);
     border: var(--border-width-standard) solid var(--border-color);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
     padding: var(--spacing-sm);
@@ -963,6 +963,17 @@ body.landing-page .view-card:focus {
     margin-bottom: var(--spacing-md);
     text-align: center;
 }
+
+.hero-section-pots {
+    background-color: #f0f0f0;
+}
+
+/* Summary section styling */
+.summary-section {
+    background-color: rgba(207, 207, 207, 0.95);
+}
+
+/* Pots table white background handled in HTML */
 
 .views-section {
     margin-top: var(--viewport-spacing-top);

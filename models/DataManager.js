@@ -1149,15 +1149,16 @@ const DataManager = {
             <h2 class="section-title">Income Sources</h2>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Source</th>
-                    <th>Estimated</th>
-                    <th>Actual</th>
-                    <th>Date</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Estimated</th>
+                                <th>Actual</th>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
             <tbody>
                 ${(monthData.incomeSources || []).map(income => `
                 <tr>
@@ -1166,6 +1167,7 @@ const DataManager = {
                     <td>${formatCurrency(income.actual)}</td>
                     <td>${formatDate(income.date)}</td>
                     <td>${income.description || ''}</td>
+                    <td>${income.comments || ''}</td>
                 </tr>
                 `).join('')}
                 <tr class="total-row">
@@ -1184,16 +1186,17 @@ const DataManager = {
             <h2 class="section-title">Fixed Costs</h2>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Category</th>
-                    <th>Estimated</th>
-                    <th>Actual</th>
-                    <th>Date</th>
-                    <th>Card</th>
-                    <th>Paid</th>
-                </tr>
-            </thead>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Estimated</th>
+                                <th>Actual</th>
+                                <th>Date</th>
+                                <th>Card</th>
+                                <th>Paid</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
             <tbody>
                 ${(monthData.fixedCosts || []).map(cost => `
                 <tr>
@@ -1203,6 +1206,7 @@ const DataManager = {
                     <td>${formatDate(cost.date)}</td>
                     <td>${cost.card || ''}</td>
                     <td>${cost.paid ? '✓' : ''}</td>
+                    <td>${cost.comments || ''}</td>
                 </tr>
                 `).join('')}
                 <tr class="total-row">
@@ -1228,6 +1232,8 @@ const DataManager = {
                     <th>Budget</th>
                     <th>Actual</th>
                     <th>Remaining</th>
+                    <th>Comments</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -1237,6 +1243,7 @@ const DataManager = {
                     <td>${formatCurrency(cost.estimatedAmount || cost.monthlyBudget)}</td>
                     <td>${formatCurrency(cost.actualAmount || cost.actualSpent)}</td>
                     <td>${formatCurrency((cost.estimatedAmount || cost.monthlyBudget || 0) - (cost.actualAmount || cost.actualSpent || 0))}</td>
+                    <td>${cost.comments || ''}</td>
                 </tr>
                 `).join('')}
                 <tr class="total-row">
@@ -1244,6 +1251,8 @@ const DataManager = {
                     <td><strong>${formatCurrency(totals.variableCosts.estimated)}</strong></td>
                     <td><strong>${formatCurrency(totals.variableCosts.actual)}</strong></td>
                     <td><strong>${formatCurrency(totals.variableCosts.estimated - totals.variableCosts.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>
@@ -1255,15 +1264,16 @@ const DataManager = {
             <h2 class="section-title">Unplanned Expenses</h2>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Card</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Card</th>
+                                <th>Status</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
             <tbody>
                 ${monthData.unplannedExpenses.map(expense => `
                 <tr>
@@ -1272,6 +1282,7 @@ const DataManager = {
                     <td>${formatDate(expense.date)}</td>
                     <td>${expense.card || ''}</td>
                     <td>${expense.status || ''}</td>
+                    <td>${expense.comments || ''}</td>
                 </tr>
                 `).join('')}
                 <tr class="total-row">
