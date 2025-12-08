@@ -32,16 +32,16 @@
             <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                 <label class="form-label">File Operations:</label>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                    <button id="load-months-button" class="btn btn-secondary">Load Months from Files</button>
+                    <button id="load-months-button" class="btn btn-action">Load Months from Files</button>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <label for="export-format-select" style="color: var(--text-primary); font-size: 0.9rem;">Export Format:</label>
-                        <select id="export-format-select" class="btn btn-secondary" style="padding: 0.5rem 1rem; cursor: pointer; background-color: var(--surface-overlay-button); color: var(--text-black); border-radius: var(--border-radius);">
+                        <select id="export-format-select" class="btn btn-action" style="padding: 0.5rem 1rem; cursor: pointer; color: var(--text-white); border-radius: var(--border-radius);">
                             <option value="json">JSON</option>
                             <option value="csv">CSV</option>
                             <option value="html">HTML</option>
                         </select>
-                        <button id="export-current-month-button" class="btn btn-secondary">Export Current Month</button>
-                        <button id="export-all-months-button" class="btn btn-secondary">Export All Months</button>
+                        <button id="export-current-month-button" class="btn btn-action">Export Current Month</button>
+                        <button id="export-all-months-button" class="btn btn-action">Export All Months</button>
                     </div>
                     <input type="file" id="file-input" multiple accept=".json,.csv,.html" style="display: none;">
                 </div>
@@ -90,7 +90,7 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-weekly-breakdown-button" class="btn btn-secondary">Add Week</button>
+                    <button id="add-weekly-breakdown-button" class="btn btn-action">Add Week</button>
                 </div>
             </section>
 
@@ -113,7 +113,7 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-income-button" class="btn btn-secondary">Add Income Source</button>
+                    <button id="add-income-button" class="btn btn-action">Add Income Source</button>
                 </div>
             </section>
 
@@ -137,7 +137,7 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-fixed-cost-button" class="btn btn-secondary">Add Fixed Cost</button>
+                    <button id="add-fixed-cost-button" class="btn btn-action">Add Fixed Cost</button>
                 </div>
             </section>
 
@@ -159,7 +159,7 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
+                    <button id="add-variable-cost-button" class="btn btn-action">Add Variable Cost</button>
                 </div>
             </section>
 
@@ -182,7 +182,7 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-unplanned-expense-button" class="btn btn-secondary">Add Unplanned Expense</button>
+                    <button id="add-unplanned-expense-button" class="btn btn-action">Add Unplanned Expense</button>
                 </div>
             </section>
 

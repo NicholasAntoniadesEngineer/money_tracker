@@ -402,7 +402,7 @@ const MonthlyBudgetController = {
             <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td>
-                <button type="button" class="btn-delete-week btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Remove</button>
+                <button type="button" class="btn-delete-week btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Remove</button>
             </td>
         `;
 

@@ -26,6 +26,8 @@
     --success-hover: #4d6a57;
     --warning-color: #b5a58a;
     --danger-color: #b58a8a;
+    --action-color: #7b9bab;
+    --action-hover: #4d6a7a;
     --danger-hover: #7d4545;
     
     /* Background Colors */
@@ -750,44 +752,26 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     background-color: var(--success-hover);
 }
 
+.btn-action {
+    background-color: var(--action-color);
+    color: var(--text-white);
+}
+
+.btn-action:hover {
+    background-color: var(--action-hover);
+}
+
 .btn-sm {
     padding: 0.55rem 0.75rem;
     font-size: 0.875rem;
 }
 
-/* Specific Action Buttons */
-#add-fixed-cost-button,
-#add-unplanned-expense-button,
-#add-income-button,
-#add-variable-cost-button,
-#add-weekly-breakdown-button,
-#load-months-button,
-#export-current-month-button,
-#export-all-months-button,
-#add-pot-button {
-    background-color: rgba(210, 210, 210, 0.95);
-    color: var(--text-black);
-    border: var(--border-width-standard) solid var(--border-color-black);
-}
-
-#add-fixed-cost-button:hover,
-#add-unplanned-expense-button:hover,
-#add-income-button:hover,
-#add-variable-cost-button:hover,
-#add-weekly-breakdown-button:hover,
-#load-months-button:hover,
-#export-current-month-button:hover,
-#export-all-months-button:hover,
-#add-pot-button:hover {
-    background-color: rgba(200, 200, 200, 0.95);
-    color: var(--text-black);
-    border: var(--border-width-standard) solid var(--border-color-black);
-}
+/* Specific Action Buttons - Removed as they now use btn-action class */
 
 /* Export Format Select */
 #export-format-select {
-    background-color: rgba(210, 210, 210, 0.95) !important;
-    color: var(--text-black) !important;
+    background-color: var(--action-color) !important;
+    color: var(--text-white) !important;
     border: var(--border-width-standard) solid var(--border-color-black) !important;
     border-radius: var(--border-radius) !important;
     padding: 0.5rem 1rem !important;
@@ -796,13 +780,13 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 }
 
 #export-format-select:hover {
-    background-color: rgba(200, 200, 200, 0.95) !important;
+    background-color: var(--action-hover) !important;
     border: var(--border-width-standard) solid var(--border-color-black) !important;
 }
 
 #export-format-select option {
-    background-color: rgba(230, 230, 230, 0.95);
-    color: var(--text-primary);
+    background-color: var(--action-color);
+    color: var(--text-white);
 }
 
 /* ============================================================================

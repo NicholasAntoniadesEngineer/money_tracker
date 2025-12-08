@@ -62,7 +62,7 @@ const OverviewController = {
                     <td>${Formatters.formatCurrency(totals.pots.actual)}</td>
                     <td class="${totals.savings.actual >= 0 ? 'positive' : 'negative'}"><strong>${Formatters.formatCurrency(totals.savings.actual)}</strong></td>
                     <td>
-                        <a href="monthly-budget.html?month=${monthKey}" class="btn btn-secondary btn-sm">View</a>
+                        <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action btn-sm">View</a>
                         <button class="btn btn-danger btn-sm delete-month-btn" data-month-key="${monthKey}" data-month-name="${monthName} ${monthData.year}" style="margin-left: 0.5rem;">Delete</button>
                     </td>
                 `;
