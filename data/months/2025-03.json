@@ -1,0 +1,62 @@
+{
+  "key": "2025-03",
+  "year": 2025,
+  "month": 3,
+  "monthName": "March",
+  "dateRange": {
+    "start": "2025-03-01",
+    "end": "2025-03-31"
+  },
+  "weeklyBreakdown": [],
+  "fixedCosts": [
+    { "category": "London Borough of Haringey", "estimatedAmount": 145.00, "actualAmount": 145.00, "date": "3rd" },
+    { "category": "Voxi", "estimatedAmount": 10.00, "actualAmount": 10.00, "date": "11th" },
+    { "category": "Rent/Lease", "estimatedAmount": 2100.00, "actualAmount": 2100.00, "date": "10th" },
+    { "category": "OVO Energy LTD", "estimatedAmount": 176.56, "actualAmount": 176.56, "date": "18th" },
+    { "category": "Virgin Media", "estimatedAmount": 28.83, "actualAmount": 28.83, "date": "18th" },
+    { "category": "EE", "estimatedAmount": 10.00, "actualAmount": 10.00, "date": "25th" },
+    { "category": "Barclays Partner Finance", "estimatedAmount": 41.62, "actualAmount": 41.62, "date": "28th" },
+    { "category": "Urban Jungle Insurance", "estimatedAmount": 20.07, "actualAmount": 20.07, "date": "28th" },
+    { "category": "Spotify", "estimatedAmount": 19.99, "actualAmount": 19.99, "date": "1st" },
+    { "category": "Apple Storage iCloud", "estimatedAmount": 8.99, "actualAmount": 8.99, "date": "11th" },
+    { "category": "Audible", "estimatedAmount": 0, "actualAmount": 9.99, "date": "11th" },
+    { "category": "ChatGPT", "estimatedAmount": 19.99, "actualAmount": 19.99, "date": "15th" },
+    { "category": "Creative Cloud All Apps 100GB", "estimatedAmount": 28.48, "actualAmount": 28.48, "date": "16th" },
+    { "category": "Creative Cloud Files Storage 1 TB", "estimatedAmount": 9.98, "actualAmount": 9.98, "date": "16th" },
+    { "category": "Capture One", "estimatedAmount": 4.49, "actualAmount": 4.49, "date": "19th" },
+    { "category": "Cursor AI", "estimatedAmount": 15.84, "actualAmount": 15.52, "date": "24th" },
+    { "category": "The Basement Gym Nicholas", "estimatedAmount": 54.99, "actualAmount": 54.99, "date": "27th" },
+    { "category": "The Basement Gym Lara", "estimatedAmount": 54.99, "actualAmount": 54.99, "date": "27th" },
+    { "category": "Google Storage Photos", "estimatedAmount": 0, "actualAmount": 8.00, "date": "27th" },
+    { "category": "X Ai", "estimatedAmount": 11.00, "actualAmount": 11.00, "date": "27th" }
+  ],
+  "variableCosts": [
+    { "category": "Food", "estimatedAmount": 480, "actualAmount": 517.76 },
+    { "category": "Travel/Transport", "estimatedAmount": 300, "actualAmount": 236.98 },
+    { "category": "Activities", "estimatedAmount": 300, "actualAmount": 329.47 }
+  ],
+  "unplannedExpenses": [
+    { "name": "Lara's Flex (Previous Months expenses, Books, Eating Out, High Commission Cypriot Passport, Carhartt, Levi's)", "amount": 926.33, "date": "", "card": "", "status": "Paid" },
+    { "name": "Past Electricity Overdue", "amount": 148.28, "date": "", "card": "", "status": "Paid" },
+    { "name": "Nicholas Flex", "amount": 141, "date": "", "card": "", "status": "" },
+    { "name": "Carharrt Jeans", "amount": 110, "date": "31st Mar", "card": "Business Card", "status": "" }
+  ],
+  "incomeSources": [
+    { "source": "Nicholas Income", "estimated": 3854.32, "actual": 3854.32, "date": "27th", "description": "" },
+    { "source": "Lara Income", "estimated": 2868.75, "actual": 2868.75, "date": "", "description": "" },
+    { "source": "Other Income", "estimated": 196, "actual": 171.71, "date": "", "description": "e.g., sales of cloths, household" }
+  ],
+  "pots": [
+    { "category": "Cosmetic Pot", "estimatedAmount": 100, "actualAmount": 100 },
+    { "category": "Apple Care Pot", "estimatedAmount": 17, "actualAmount": 17 },
+    { "category": "So Nicholas Can See Pot", "estimatedAmount": 18, "actualAmount": 18 },
+    { "category": "House/Breakages Pot", "estimatedAmount": 200, "actualAmount": 200 },
+    { "category": "Clothes", "estimatedAmount": 100, "actualAmount": 100 },
+    { "category": "Birthday Present Pot", "estimatedAmount": 100, "actualAmount": 100 },
+    { "category": "Emergency Pot", "estimatedAmount": 200, "actualAmount": 200 },
+    { "category": "Business Pot", "estimatedAmount": 200, "actualAmount": 200 }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

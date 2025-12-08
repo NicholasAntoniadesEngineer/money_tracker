@@ -1,0 +1,52 @@
+{
+  "key": "2025-06",
+  "year": 2025,
+  "month": 6,
+  "monthName": "June",
+  "dateRange": {
+    "start": "2025-06-01",
+    "end": "2025-06-30"
+  },
+  "weeklyBreakdown": [],
+  "fixedCosts": [
+    { "category": "Rent/Lease", "estimatedAmount": 2111.29, "actualAmount": 2111.29, "date": "" },
+    { "category": "Transport", "estimatedAmount": 196.54, "actualAmount": 196.54, "date": "" },
+    { "category": "Storage", "estimatedAmount": 436.84, "actualAmount": 436.84, "date": "" },
+    { "category": "Barclays Partner Finance", "estimatedAmount": 48.56, "actualAmount": 0, "date": "" },
+    { "category": "Spotify", "estimatedAmount": 23.32, "actualAmount": 23.32, "date": "" },
+    { "category": "Audible", "estimatedAmount": 11.66, "actualAmount": 11.66, "date": "" },
+    { "category": "Apple Storage iCloud", "estimatedAmount": 10.49, "actualAmount": 10.49, "date": "" },
+    { "category": "ChatGPT", "estimatedAmount": 23.32, "actualAmount": 23.32, "date": "" },
+    { "category": "Creative Cloud All Apps 100GB", "estimatedAmount": 33.23, "actualAmount": 33.23, "date": "" },
+    { "category": "Creative Cloud Files Storage 1 TB", "estimatedAmount": 11.64, "actualAmount": 11.64, "date": "" },
+    { "category": "Google Storage Photos", "estimatedAmount": 0, "actualAmount": 0, "date": "" }
+  ],
+  "variableCosts": [
+    { "category": "Food", "estimatedAmount": 550, "actualAmount": 0 },
+    { "category": "Activities", "estimatedAmount": 400, "actualAmount": 0 },
+    { "category": "Books/Audible", "estimatedAmount": 100, "actualAmount": 0 }
+  ],
+  "unplannedExpenses": [
+    { "name": "±350 Lara Flex", "amount": 350, "date": "", "card": "", "status": "" },
+    { "name": "65.33 Gym App Year Subscription", "amount": 65.33, "date": "", "card": "", "status": "" }
+  ],
+  "incomeSources": [
+    { "source": "Nicholas Income", "estimated": 0, "actual": 0, "date": "", "description": "" },
+    { "source": "Lara Income", "estimated": 0, "actual": 0, "date": "", "description": "" },
+    { "source": "Other Income", "estimated": 0, "actual": 0, "date": "", "description": "e.g., sales of cloths, household" },
+    { "source": "Parent Rescue", "estimated": 0, "actual": 0, "date": "", "description": "" }
+  ],
+  "pots": [
+    { "category": "Cosmetic Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Apple Care Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "So Nicholas Can See Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "House/Breakages Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Clothes", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Birthday Present Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Emergency Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Business Pot", "estimatedAmount": 0, "actualAmount": 0 }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

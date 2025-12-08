@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Budget - Money Tracker</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <header class="main-header">
+        <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+            <h1 class="site-title">Money Tracker</h1>
+            <ul class="nav-list">
+                <li><a href="../index.html" class="nav-link">Home</a></li>
+                <li><a href="monthly-budget.html" class="nav-link active" aria-current="page">Monthly Budget</a></li>
+                <li><a href="pots.html" class="nav-link">Pots & Investments</a></li>
+                <li><a href="overview.html" class="nav-link">Overview</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="budget-main" role="main">
+        <section class="month-selector-section">
+            <div class="form-group">
+                <label for="month-selector" class="form-label">Select Month:</label>
+                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 1;">
+                <select id="month-selector" class="form-select">
+                    <option value="">Loading...</option>
+                </select>
+                    </div>
+                    <button id="create-month-button" class="btn btn-primary">Create New Month</button>
+                    <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete Month</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="month-content" style="display: none;">
+            <section class="month-header-section">
+                <h2 id="month-title" class="section-title"></h2>
+                <p id="month-date-range" class="hero-description"></p>
+            </section>
+
+            <section class="summary-section">
+                <h2 class="section-title">Summary</h2>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-card-title">Total Income</div>
+                        <div id="summary-income" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Total Expenses</div>
+                        <div id="summary-expenses" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Savings</div>
+                        <div id="summary-savings" class="summary-card-value">£0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-title">Pots/Investments</div>
+                        <div id="summary-pots" class="summary-card-value">£0.00</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="income-section form-section">
+                <h2 class="section-title">Income</h2>
+                <button id="add-income-button" class="btn btn-secondary">Add Income Source</button>
+                <table class="data-table" id="income-table">
+                    <thead>
+                        <tr>
+                            <th>Revenue Source</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="income-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>Total Income</strong></td>
+                            <td id="income-total-estimated"><strong>£0.00</strong></td>
+                            <td id="income-total-actual"><strong>£0.00</strong></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <section class="fixed-costs-section form-section">
+                <h2 class="section-title">Fixed Costs (Recurring Expenses)</h2>
+                <button id="add-fixed-cost-button" class="btn btn-secondary">Add Fixed Cost</button>
+                <table class="data-table" id="fixed-costs-table">
+                    <thead>
+                        <tr>
+                            <th>Expense Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fixed-costs-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>Total Fixed Costs</strong></td>
+                            <td id="fixed-costs-total-estimated"><strong>£0.00</strong></td>
+                            <td id="fixed-costs-total-actual"><strong>£0.00</strong></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <section class="variable-costs-section form-section">
+                <h2 class="section-title">Variable Costs (Operational Expenses)</h2>
+                <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
+                <table class="data-table" id="variable-costs-table">
+                    <thead>
+                        <tr>
+                            <th>Expense Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="variable-costs-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>Total Variable Costs</strong></td>
+                            <td id="variable-costs-total-estimated"><strong>£0.00</strong></td>
+                            <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <section class="unplanned-expenses-section form-section">
+                <h2 class="section-title">Unplanned Expenses</h2>
+                <button id="add-unplanned-expense-button" class="btn btn-secondary">Add Unplanned Expense</button>
+                <table class="data-table" id="unplanned-expenses-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Card</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unplanned-expenses-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>Total Unplanned Expenses</strong></td>
+                            <td id="unplanned-expenses-total"><strong>£0.00</strong></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <section class="pots-section form-section">
+                <h2 class="section-title">Pots and Investments</h2>
+                <button id="add-pot-button" class="btn btn-secondary">Add Pot</button>
+                <table class="data-table" id="pots-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pots-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>Total Savings/Investments</strong></td>
+                            <td id="pots-total-estimated"><strong>£0.00</strong></td>
+                            <td id="pots-total-actual"><strong>£0.00</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <section class="save-section">
+                <button id="save-month-button" class="btn btn-primary btn-success" style="font-size: 1.25rem; padding: 1rem 2rem;">Save Month Data</button>
+            </section>
+        </div>
+
+        <div id="no-month-message" style="text-align: center; padding: 3rem;">
+            <p class="empty-message">No month selected. Please select a month from the dropdown or create a new one.</p>
+        </div>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
+    </footer>
+
+    <script src="../models/DataManager.js"></script>
+    <script src="../utils/formatters.js"></script>
+    <script src="../utils/InitialData.js"></script>
+    <script>
+        // Initialize settings
+        DataManager.initializeSettings();
+        
+        // Initialize controller when DOM is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Now initialize the controller (it will handle loading months)
+            if (window.MonthlyBudgetController) {
+                await window.MonthlyBudgetController.init();
+            }
+        });
+    </script>
+    <script src="../controllers/MonthlyBudgetController.js"></script>
+</body>
+</html>
+

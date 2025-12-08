@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Reference Data - Money Tracker</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <header class="main-header">
+        <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+            <h1 class="site-title">Money Tracker</h1>
+            <ul class="nav-list">
+                <li><a href="../index.html" class="nav-link">Home</a></li>
+                <li><a href="monthly-budget.html" class="nav-link">Monthly Budget</a></li>
+                <li><a href="pots.html" class="nav-link">Pots & Investments</a></li>
+                <li><a href="overview.html" class="nav-link">Overview</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="import-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Import Reference Data</h2>
+            <p class="hero-description">Import months from the reference HTML files into your monthly budget tracker.</p>
+        </section>
+
+        <section class="import-section form-section">
+            <h2 class="section-title">Import Month Data</h2>
+            
+            <div class="form-group">
+                <label class="form-label">Import Type:</label>
+                <select id="import-type" class="form-select">
+                    <option value="json">Import JSON File (from data/months/)</option>
+                    <option value="html">Import HTML File (from reference/Money/)</option>
+                </select>
+            </div>
+
+            <div id="json-import-section">
+                <div class="form-group">
+                    <label for="json-file-input" class="form-label">Select JSON File:</label>
+                    <input type="file" id="json-file-input" class="form-input" accept=".json">
+                    <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        Select a JSON file from the data/months/ folder (e.g., 2025-03.json)
+                    </p>
+                </div>
+                <button id="import-json-button" class="btn btn-primary">Import JSON File</button>
+                <div id="json-import-status" style="margin-top: 1rem;"></div>
+            </div>
+
+            <div id="html-import-section" style="display: none;">
+                <div class="form-group">
+                    <label for="month-name" class="form-label">Month Name:</label>
+                    <select id="month-name" class="form-select">
+                        <option value="January">January</option>
+                        <option value="February">February</option>
+                        <option value="March">March</option>
+                        <option value="April">April</option>
+                        <option value="May">May</option>
+                        <option value="June">June</option>
+                        <option value="July">July</option>
+                        <option value="August">August</option>
+                        <option value="September">September</option>
+                        <option value="October">October</option>
+                        <option value="November">November</option>
+                        <option value="December">December</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="year" class="form-label">Year:</label>
+                    <input type="number" id="year" class="form-input" value="2025" min="2000" max="2100">
+                </div>
+                <div class="form-group">
+                    <label for="file-input" class="form-label">Select Reference HTML File:</label>
+                    <input type="file" id="file-input" class="form-input" accept=".html">
+                    <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        Select a reference HTML file from the reference/Money/ folder
+                    </p>
+                </div>
+                <button id="import-button" class="btn btn-primary">Import HTML File</button>
+                <div id="import-status" style="margin-top: 1rem;"></div>
+            </div>
+        </section>
+
+        <section class="quick-import-section form-section">
+            <h2 class="section-title">Quick Import from Reference Folder</h2>
+            <p class="hero-description">Import all available months from the reference files automatically.</p>
+            <button id="quick-import-button" class="btn btn-secondary">Import All Reference Months</button>
+            <div id="quick-import-status" style="margin-top: 1rem;"></div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
+    </footer>
+
+    <script src="../models/DataManager.js"></script>
+    <script src="../utils/formatters.js"></script>
+    <script src="../utils/ReferenceImporter.js"></script>
+    <script>
+        // Initialize settings
+        DataManager.initializeSettings();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const importTypeSelect = document.getElementById('import-type');
+            const jsonImportSection = document.getElementById('json-import-section');
+            const htmlImportSection = document.getElementById('html-import-section');
+            const jsonFileInput = document.getElementById('json-file-input');
+            const importJsonButton = document.getElementById('import-json-button');
+            const jsonImportStatus = document.getElementById('json-import-status');
+            
+            const importButton = document.getElementById('import-button');
+            const quickImportButton = document.getElementById('quick-import-button');
+            const fileInput = document.getElementById('file-input');
+            const monthNameSelect = document.getElementById('month-name');
+            const yearInput = document.getElementById('year');
+            const importStatus = document.getElementById('import-status');
+            const quickImportStatus = document.getElementById('quick-import-status');
+
+            // Toggle between JSON and HTML import
+            importTypeSelect.addEventListener('change', function() {
+                if (this.value === 'json') {
+                    jsonImportSection.style.display = 'block';
+                    htmlImportSection.style.display = 'none';
+                } else {
+                    jsonImportSection.style.display = 'none';
+                    htmlImportSection.style.display = 'block';
+                }
+            });
+
+            // JSON import handler
+            importJsonButton.addEventListener('click', async function() {
+                const file = jsonFileInput.files[0];
+                if (!file) {
+                    jsonImportStatus.innerHTML = '<p style="color: var(--danger-color);">Please select a JSON file.</p>';
+                    return;
+                }
+
+                importJsonButton.disabled = true;
+                jsonImportStatus.innerHTML = '<p>Importing...</p>';
+
+                try {
+                    const text = await file.text();
+                    const monthData = JSON.parse(text);
+                    
+                    if (!monthData.key) {
+                        throw new Error('Invalid JSON file: missing month key');
+                    }
+
+                    // Save to DataManager
+                    DataManager.saveMonth(monthData.key, monthData);
+                    
+                    jsonImportStatus.innerHTML = `
+                        <p style="color: var(--success-color);">
+                            Successfully imported ${monthData.monthName || 'month'} ${monthData.year}! 
+                            <a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month</a>
+                        </p>
+                    `;
+                    jsonFileInput.value = '';
+                } catch (error) {
+                    jsonImportStatus.innerHTML = `<p style="color: var(--danger-color);">Error importing: ${error.message}</p>`;
+                    console.error('Import error:', error);
+                } finally {
+                    importJsonButton.disabled = false;
+                }
+            });
+
+            importButton.addEventListener('click', async function() {
+                const file = fileInput.files[0];
+                if (!file) {
+                    importStatus.innerHTML = '<p style="color: var(--danger-color);">Please select a file.</p>';
+                    return;
+                }
+
+                const monthName = monthNameSelect.value;
+                const year = parseInt(yearInput.value, 10);
+
+                if (!Formatters.validateYear(year)) {
+                    importStatus.innerHTML = '<p style="color: var(--danger-color);">Please enter a valid year.</p>';
+                    return;
+                }
+
+                importButton.disabled = true;
+                importStatus.innerHTML = '<p>Importing...</p>';
+
+                try {
+                    const monthData = await ReferenceImporter.importMonthFromFile(file, monthName, year);
+                    importStatus.innerHTML = `
+                        <p style="color: var(--success-color);">
+                            Successfully imported ${monthName} ${year}! 
+                            <a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month</a>
+                        </p>
+                    `;
+                    fileInput.value = '';
+                } catch (error) {
+                    importStatus.innerHTML = `<p style="color: var(--danger-color);">Error importing: ${error.message}</p>`;
+                    console.error('Import error:', error);
+                } finally {
+                    importButton.disabled = false;
+                }
+            });
+
+            quickImportButton.addEventListener('click', async function() {
+                quickImportButton.disabled = true;
+                quickImportStatus.innerHTML = '<p>This feature requires manual file selection. Please use the file import above.</p>';
+                quickImportButton.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
+

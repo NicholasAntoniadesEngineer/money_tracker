@@ -1,0 +1,50 @@
+{
+  "key": "2025-10",
+  "year": 2025,
+  "month": 10,
+  "monthName": "October",
+  "dateRange": {
+    "start": "2025-10-01",
+    "end": "2025-10-31"
+  },
+  "weeklyBreakdown": [],
+  "fixedCosts": [
+    { "category": "Rent/Lease", "estimatedAmount": 1491, "actualAmount": 0, "date": "2nd" },
+    { "category": "Barclays Partner Finance", "estimatedAmount": 48.23, "actualAmount": 0, "date": "28th" },
+    { "category": "Transport", "estimatedAmount": 196.54, "actualAmount": 0, "date": "9th" },
+    { "category": "Weed", "estimatedAmount": 130, "actualAmount": 0, "date": "15th" },
+    { "category": "Spotify", "estimatedAmount": 23.32, "actualAmount": 0, "date": "1st" },
+    { "category": "Audible", "estimatedAmount": 10.96, "actualAmount": 0, "date": "2nd" },
+    { "category": "Alpinacom Gmbh x2 (Data)", "estimatedAmount": 44, "actualAmount": 0, "date": "8th" },
+    { "category": "Fitinn Wien Rathauspla x 2", "estimatedAmount": 140.12, "actualAmount": 0, "date": "9th" },
+    { "category": "iCloud+ 2TB Storage", "estimatedAmount": 11.54, "actualAmount": 0, "date": "11th" },
+    { "category": "Adobe All Apps 100GB", "estimatedAmount": 32.89, "actualAmount": 0, "date": "16th" },
+    { "category": "Cs Addtl Storage (Creative Cloud 1TB)", "estimatedAmount": 11.53, "actualAmount": 0, "date": "16th" },
+    { "category": "Xai LLC (Grok)", "estimatedAmount": 25.93, "actualAmount": 0, "date": "17th" },
+    { "category": "ChatGPT", "estimatedAmount": 23.08, "actualAmount": 0, "date": "17th" },
+    { "category": "Google Storage Photos", "estimatedAmount": 9.04, "actualAmount": 0, "date": "27th" }
+  ],
+  "variableCosts": [
+    { "category": "Food", "estimatedAmount": 450, "actualAmount": 0 },
+    { "category": "Activities", "estimatedAmount": 200, "actualAmount": 0 }
+  ],
+  "unplannedExpenses": [],
+  "incomeSources": [
+    { "source": "Nicholas Income", "estimated": 3080, "actual": 3155.64, "date": "", "description": "" },
+    { "source": "Lara Income", "estimated": 0, "actual": 0, "date": "", "description": "" },
+    { "source": "Other Income", "estimated": 0, "actual": 0, "date": "", "description": "e.g., sales of cloths, household" }
+  ],
+  "pots": [
+    { "category": "Cosmetic Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Apple Care Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "So Nicholas Can See Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "House/Breakages Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Clothes", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Birthday Present Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Emergency Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Business Pot", "estimatedAmount": 0, "actualAmount": 0 }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

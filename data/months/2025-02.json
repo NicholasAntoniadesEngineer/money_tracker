@@ -1,0 +1,66 @@
+{
+  "key": "2025-02",
+  "year": 2025,
+  "month": 2,
+  "monthName": "February",
+  "dateRange": {
+    "start": "2025-02-01",
+    "end": "2025-02-28"
+  },
+  "weeklyBreakdown": [],
+  "fixedCosts": [
+    { "category": "Rent/Lease", "estimatedAmount": 2100.00, "actualAmount": 2100.00, "date": "10th" },
+    { "category": "OVO Energy LTD", "estimatedAmount": 127.32, "actualAmount": 176.56, "date": "18th" },
+    { "category": "Virgin Media", "estimatedAmount": 28.83, "actualAmount": 28.83, "date": "18th" },
+    { "category": "London Borough of Haringey", "estimatedAmount": 145.00, "actualAmount": 145.00, "date": "3rd" },
+    { "category": "Barclays Partner Finance", "estimatedAmount": 41.62, "actualAmount": 41.62, "date": "4th" },
+    { "category": "Urban Jungle Insurance", "estimatedAmount": 18.45, "actualAmount": 0, "date": "30th" },
+    { "category": "Voxi", "estimatedAmount": 20.00, "actualAmount": 10.00, "date": "11th" },
+    { "category": "EE", "estimatedAmount": 10.00, "actualAmount": 10.00, "date": "25th" },
+    { "category": "The Basement Gym", "estimatedAmount": 54.99, "actualAmount": 39.99, "date": "" },
+    { "category": "The Basement Gym", "estimatedAmount": 54.99, "actualAmount": 39.99, "date": "" },
+    { "category": "Spotify", "estimatedAmount": 19.99, "actualAmount": 19.99, "date": "" },
+    { "category": "Apple Storage iCloud", "estimatedAmount": 0, "actualAmount": 8.99, "date": "" },
+    { "category": "Creative Cloud All Apps 100GB", "estimatedAmount": 28.48, "actualAmount": 28.48, "date": "" },
+    { "category": "Creative Cloud Files Storage 1 TB", "estimatedAmount": 9.98, "actualAmount": 9.98, "date": "" },
+    { "category": "ChatGPT", "estimatedAmount": 19.99, "actualAmount": 19.99, "date": "" },
+    { "category": "Capture One", "estimatedAmount": 4.49, "actualAmount": 4.49, "date": "19th" },
+    { "category": "Cursor AI", "estimatedAmount": 34.66, "actualAmount": 0, "date": "24th" },
+    { "category": "X Ai", "estimatedAmount": 11.00, "actualAmount": 11.00, "date": "" }
+  ],
+  "variableCosts": [
+    { "category": "Food", "estimatedAmount": 400, "actualAmount": 0 },
+    { "category": "Travel/Transport", "estimatedAmount": 300, "actualAmount": 0 },
+    { "category": "Activities", "estimatedAmount": 200, "actualAmount": 0 }
+  ],
+  "unplannedExpenses": [
+    { "name": "Government Legalisation", "amount": 50.50, "date": "", "card": "", "status": "" },
+    { "name": "Uoe Store", "amount": 4.55, "date": "", "card": "", "status": "" },
+    { "name": "Post Office", "amount": 3.95, "date": "", "card": "", "status": "" },
+    { "name": "Government Documents", "amount": 120.30, "date": "", "card": "", "status": "" },
+    { "name": "Amazon Camera Gear", "amount": 66.66, "date": "", "card": "", "status": "" },
+    { "name": "Sumru", "amount": 150, "date": "", "card": "", "status": "" },
+    { "name": "Ampath Blood Work", "amount": 169.28, "date": "", "card": "", "status": "" },
+    { "name": "Lara Monzo Flex Pay Out", "amount": 67.47, "date": "", "card": "", "status": "" },
+    { "name": "Nicholas Amazon Work Things", "amount": 27.26, "date": "", "card": "", "status": "From Pot" }
+  ],
+  "incomeSources": [
+    { "source": "Nicholas Income", "estimated": 3745.03, "actual": 3854.32, "date": "", "description": "" },
+    { "source": "Lara Income", "estimated": 1781.25, "actual": 2085.00, "date": "", "description": "" },
+    { "source": "Other Income", "estimated": 0, "actual": 0, "date": "", "description": "e.g., sales of cloths, household" }
+  ],
+  "pots": [
+    { "category": "Apple Care Pot", "estimatedAmount": 17, "actualAmount": 17 },
+    { "category": "Birthday Present Pot", "estimatedAmount": 40, "actualAmount": 40 },
+    { "category": "Clothes", "estimatedAmount": 30, "actualAmount": 30 },
+    { "category": "Cosmetic Pot", "estimatedAmount": 51, "actualAmount": 51 },
+    { "category": "House/Breakages Pot", "estimatedAmount": 100, "actualAmount": 100 },
+    { "category": "So Nicholas Can See Pot", "estimatedAmount": 18, "actualAmount": 18 },
+    { "category": "Emergency Pot", "estimatedAmount": 200, "actualAmount": 200 },
+    { "category": "Lara Business Pot", "estimatedAmount": 41, "actualAmount": 41 },
+    { "category": "Nicholas Business", "estimatedAmount": 30, "actualAmount": 30 }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

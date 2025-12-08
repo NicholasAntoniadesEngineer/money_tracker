@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview - Money Tracker</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <header class="main-header">
+        <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+            <h1 class="site-title">Money Tracker</h1>
+            <ul class="nav-list">
+                <li><a href="../index.html" class="nav-link">Home</a></li>
+                <li><a href="monthly-budget.html" class="nav-link">Monthly Budget</a></li>
+                <li><a href="pots.html" class="nav-link">Pots & Investments</a></li>
+                <li><a href="overview.html" class="nav-link active" aria-current="page">Overview</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="overview-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Financial Overview</h2>
+            <p class="hero-description">View summary statistics across all months. Compare income, expenses, and savings trends.</p>
+        </section>
+
+        <section class="overall-summary-section">
+            <h2 class="section-title">Overall Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Income (All Months)</div>
+                    <div id="overall-income" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Expenses (All Months)</div>
+                    <div id="overall-expenses" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Savings</div>
+                    <div id="overall-savings" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots/Investments</div>
+                    <div id="overall-pots" class="summary-card-value">£0.00</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="months-comparison-section form-section">
+            <h2 class="section-title">Monthly Comparison</h2>
+            <table class="data-table" id="months-comparison-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Income</th>
+                        <th>Fixed Costs</th>
+                        <th>Variable Costs</th>
+                        <th>Unplanned</th>
+                        <th>Total Expenses</th>
+                        <th>Pots</th>
+                        <th>Savings</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="months-comparison-tbody">
+                </tbody>
+            </table>
+        </section>
+
+        <section class="trends-section form-section">
+            <h2 class="section-title">Trends</h2>
+            <div id="trends-container">
+                <p class="loading-message">Calculating trends...</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
+    </footer>
+
+    <script src="../models/DataManager.js"></script>
+    <script src="../utils/formatters.js"></script>
+    <script>
+        // Initialize settings and load months
+        document.addEventListener('DOMContentLoaded', async function() {
+            DataManager.initializeSettings();
+            await DataManager.loadMonthsFromFiles();
+            
+            // Now initialize the controller
+            if (window.OverviewController) {
+                window.OverviewController.init();
+            }
+        });
+    </script>
+    <script src="../controllers/OverviewController.js"></script>
+</body>
+</html>
+

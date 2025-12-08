@@ -1,0 +1,62 @@
+{
+  "key": "2025-11",
+  "year": 2025,
+  "month": 11,
+  "monthName": "November",
+  "dateRange": {
+    "start": "2025-11-01",
+    "end": "2025-11-30"
+  },
+  "weeklyBreakdown": [],
+  "fixedCosts": [
+    { "category": "Rent/Lease", "estimatedAmount": 1491, "actualAmount": 1491, "date": "1-7" },
+    { "category": "Spotify", "estimatedAmount": 22.69, "actualAmount": 22.69, "date": "1-7" },
+    { "category": "OneMobility x2 (Transport)", "estimatedAmount": 196.60, "actualAmount": 196.60, "date": "1-7" },
+    { "category": "Alpinacom Gmbh", "estimatedAmount": 22.02, "actualAmount": 22.02, "date": "8-16" },
+    { "category": "iCloud+ 2TB Storage", "estimatedAmount": 10.22, "actualAmount": 10.22, "date": "8-16" },
+    { "category": "Audibile Account", "estimatedAmount": 11.37, "actualAmount": 11.37, "date": "8-16" },
+    { "category": "Cs Addtl Storage", "estimatedAmount": 11.35, "actualAmount": 11.35, "date": "8-16" },
+    { "category": "Adobe All Apps 100GB", "estimatedAmount": 37.81, "actualAmount": 37.81, "date": "17-23" },
+    { "category": "Google Storage Photos", "estimatedAmount": 9.04, "actualAmount": 0, "date": "24-30" },
+    { "category": "Barclays Partner Finance", "estimatedAmount": 48.23, "actualAmount": 0, "date": "24-30" },
+    { "category": "Alpinacom Gmbh", "estimatedAmount": 22.02, "actualAmount": 0, "date": "24-30" },
+    { "category": "ChatGPT", "estimatedAmount": 23.08, "actualAmount": 0, "date": "24-30" },
+    { "category": "Xai LLC", "estimatedAmount": 25.93, "actualAmount": 0, "date": "24-30" },
+    { "category": "Fitinn Wien Rathauspla", "estimatedAmount": 140.12, "actualAmount": 0, "date": "24-30" }
+  ],
+  "variableCosts": [
+    { "category": "Food", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Activities", "estimatedAmount": 0, "actualAmount": 0 }
+  ],
+  "unplannedExpenses": [
+    { "name": "Robert Kolinski", "amount": 50, "date": "1-7", "card": "", "status": "" },
+    { "name": "Carhartt Wien", "amount": 100.51, "date": "8-16", "card": "", "status": "" },
+    { "name": "Herzilein Papeterie", "amount": 20, "date": "8-16", "card": "", "status": "" },
+    { "name": "Behance Account", "amount": 10.22, "date": "8-16", "card": "", "status": "" },
+    { "name": "Books", "amount": 3.40, "date": "8-16", "card": "", "status": "" },
+    { "name": "C&z Handels Gmbh", "amount": 19, "date": "8-16", "card": "", "status": "" },
+    { "name": "Adobe (Needs refund)", "amount": 75.65, "date": "17-23", "card": "", "status": "" },
+    { "name": "Books", "amount": 24.40, "date": "17-23", "card": "", "status": "" },
+    { "name": "Glyphs Program", "amount": 301.76, "date": "17-23", "card": "", "status": "" },
+    { "name": "Burton Lara Gear", "amount": 663.18, "date": "17-23", "card": "", "status": "" },
+    { "name": "Weed", "amount": 175.77, "date": "17-23", "card": "", "status": "" }
+  ],
+  "incomeSources": [
+    { "source": "Nicholas Income", "estimated": 0, "actual": 0, "date": "", "description": "" },
+    { "source": "Lara Income", "estimated": 0, "actual": 0, "date": "", "description": "" },
+    { "source": "Other Income", "estimated": 0, "actual": 0, "date": "", "description": "e.g., sales of cloths, household" }
+  ],
+  "pots": [
+    { "category": "Cosmetic Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Apple Care Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "So Nicholas Can See Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "House/Breakages Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Clothes", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Birthday Present Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Emergency Pot", "estimatedAmount": 0, "actualAmount": 0 },
+    { "category": "Business Pot", "estimatedAmount": 0, "actualAmount": 0 }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

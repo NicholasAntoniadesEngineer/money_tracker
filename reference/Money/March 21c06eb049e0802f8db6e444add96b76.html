@@ -1,0 +1,715 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>March</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="21c06eb0-49e0-802f-8db6-e444add96b76" class="page sans"><header><div class="page-header-icon undefined"><img class="icon notion-static-icon" src="https://www.notion.so/icons/cash_lightgray.svg"/></div><h1 class="page-title" dir="auto">March</h1><p class="page-description" dir="auto"></p></header><div class="page-body"><div style="display:contents" dir="auto"><p id="21c06eb0-49e0-8036-acf1-e8b9f9f4fb87" class="">
+</p></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-80cc-a17d-e5d3c78458b0" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8075-b895-fe0a8b6f1e42"><th id="wbIq" class="simple-table-header-color simple-table-header">Date</th><th id="JjND" class="simple-table-header-color simple-table-header" style="width:270.1892395019531px">Payments Due</th><th id="wMPX" class="simple-table-header-color simple-table-header" style="width:191.7725830078125px">Unplanned</th><th id="&lt;upj" class="simple-table-header-color simple-table-header" style="width:193.25px">Groceries</th><th id="csAR" class="simple-table-header-color simple-table-header" style="width:136.4609375px">Activities</th><th id="?S=}" class="simple-table-header-color simple-table-header" style="width:106px">Estimate</th><th id="u]Gk" class="simple-table-header-color simple-table-header" style="width:111px">Actual</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80a5-bcf8-e3e9ff4d7bb2"><th id="wbIq" class="simple-table-header-color simple-table-header"></th><td id="JjND" class="" style="width:270.1892395019531px"></td><td id="wMPX" class="" style="width:191.7725830078125px"></td><td id="&lt;upj" class="" style="width:193.25px">137.5</td><td id="csAR" class="" style="width:136.4609375px">100</td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8000-b2bf-c23d36507293"><th id="wbIq" class="simple-table-header-color simple-table-header"></th><td id="JjND" class="" style="width:270.1892395019531px"></td><td id="wMPX" class="" style="width:191.7725830078125px"></td><td id="&lt;upj" class="" style="width:193.25px">137.5</td><td id="csAR" class="" style="width:136.4609375px">100</td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8037-834e-ffa3795e16aa"><th id="wbIq" class="simple-table-header-color simple-table-header"></th><td id="JjND" class="" style="width:270.1892395019531px"></td><td id="wMPX" class="" style="width:191.7725830078125px"></td><td id="&lt;upj" class="" style="width:193.25px">137.5</td><td id="csAR" class="" style="width:136.4609375px">100</td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-802d-bb82-e6312b9dfbbc"><th id="wbIq" class="simple-table-header-color simple-table-header"></th><td id="JjND" class="" style="width:270.1892395019531px"></td><td id="wMPX" class="" style="width:191.7725830078125px"></td><td id="&lt;upj" class="" style="width:193.25px">137.5</td><td id="csAR" class="" style="width:136.4609375px">100</td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8012-b889-ffdd9e7d789e"><th id="wbIq" class="simple-table-header-color simple-table-header"></th><td id="JjND" class="" style="width:270.1892395019531px"></td><td id="wMPX" class="" style="width:191.7725830078125px"></td><td id="&lt;upj" class="" style="width:193.25px"></td><td id="csAR" class="" style="width:136.4609375px"></td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-8086-b232-c058c71ad39c" class=""><strong>Period: August 2025</strong></h3></div><div style="display:contents" dir="auto"><hr id="21c06eb0-49e0-80df-8e64-cd4ed84af001"/></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-8045-8e2a-d564883fde45" class=""><strong>1. Expenses vs Income</strong></h3></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-8009-81f3-e74f9d597f65" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-803b-80e2-cf2986c748d4"><th id="O`;V" class="simple-table-header-color simple-table-header" style="width:386px">Revenue Source</th><th id="~rhS" class="simple-table-header-color simple-table-header" style="width:284.3194580078125px">Estimated Amount (£)</th><th id="Fw^l" class="simple-table-header-color simple-table-header" style="width:277.65625px">Actual Amount (£)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8068-979f-feb947104eaa"><td id="O`;V" class="" style="width:386px">Nicholas Income</td><td id="~rhS" class="" style="width:284.3194580078125px">3080</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8007-b45e-e12bde47770f"><td id="O`;V" class="" style="width:386px">Lara Income</td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8038-8c33-cf08cfa607b8"><td id="O`;V" class="" style="width:386px">Other Income (e.g., sales of cloths, household)</td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8009-bd61-fe532b6faaa7"><td id="O`;V" class="" style="width:386px"><strong>Total Income</strong></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-802a-a99d-df972f32b15b"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8022-872c-dec9a5a43157"><td id="O`;V" class="" style="width:386px">Total Pots/Investments</td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8045-a15b-f4d64667e730"><td id="O`;V" class="" style="width:386px">Total Fixed Costs</td><td id="~rhS" class="" style="width:284.3194580078125px">2,030.96</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8013-bb4c-dd3f3fd3c1fa"><td id="O`;V" class="" style="width:386px">Total Variable Costs</td><td id="~rhS" class="" style="width:284.3194580078125px">1049.04</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80ae-ad85-c18273351266"><td id="O`;V" class="" style="width:386px"><strong>Total Expenses</strong></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8006-8763-f7590facf8df"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-803c-86b2-cf10c0faa877"><td id="O`;V" class="" style="width:386px"><strong>Total Unplanned Expenses</strong></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80fb-9579-da04ce0c40c6"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80ac-bf26-efde999b47c6"><td id="O`;V" class="" style="width:386px"><em>Grand Savings Total </em></td><td id="~rhS" class="" style="width:284.3194580078125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-8001-af51-d961af6f8e83" class=""><strong>2. Fixed Costs (Recurring Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-8097-ab9e-c0a24bbbec4c" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80d3-a70b-d8466a0ec518"><th id=":kC|" class="simple-table-header-color simple-table-header" style="width:386px">Expense Category</th><th id="Qw=;" class="simple-table-header-color simple-table-header" style="width:284.31597900390625px">Estimate Amount (<strong>€</strong>)</th><th id="Y}q^" class="simple-table-header-color simple-table-header" style="width:275.65625px">Actual Amount (<strong>€</strong>)</th><th id="bSa_" class="simple-table-header-color simple-table-header" style="width:110px">Date</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80d7-a074-da37a0ce53ff"><td id=":kC|" class="" style="width:386px">Rent/Lease</td><td id="Qw=;" class="" style="width:284.31597900390625px">1500</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-807e-91bd-f6081fff411d"><td id=":kC|" class="" style="width:386px">Water/Elec</td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-804b-89cf-f0893c62afad"><td id=":kC|" class="" style="width:386px">Wifi</td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80b4-ae84-fad6479091d3"><td id=":kC|" class="" style="width:386px">Transport</td><td id="Qw=;" class="" style="width:284.31597900390625px">196.54</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80e8-b324-d63a4817f1ea"><td id=":kC|" class="" style="width:386px">Phone Data</td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80da-9ec2-fd0cf6950988"><td id=":kC|" class="" style="width:386px">Barclays Partner Finance</td><td id="Qw=;" class="" style="width:284.31597900390625px">48.56</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80b9-ba45-caee601d2a21"><td id=":kC|" class="" style="width:386px">FitInn Gym</td><td id="Qw=;" class="" style="width:284.31597900390625px">79.8</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80b4-85bc-db582afda7aa"><td id=":kC|" class="" style="width:386px"><em>Subscriptions (e.g., software, memberships)</em></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80b7-83be-c4cdd9632e9c"><td id=":kC|" class="" style="width:386px">Spotify</td><td id="Qw=;" class="" style="width:284.31597900390625px">23.32</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80aa-8368-fd918625722d"><td id=":kC|" class="" style="width:386px">ChatGPT</td><td id="Qw=;" class="" style="width:284.31597900390625px">23.32</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8049-a58f-c9dc577b6de2"><td id=":kC|" class="" style="width:386px">iCloud+ 2TB Storage</td><td id="Qw=;" class="" style="width:284.31597900390625px">10.49</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8087-bf10-df9a542aa7d1"><td id=":kC|" class="" style="width:386px">Audible</td><td id="Qw=;" class="" style="width:284.31597900390625px">11.66</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-805c-a03b-d82aff1d23da"><td id=":kC|" class="" style="width:386px">Creative Cloud All Apps 100GB</td><td id="Qw=;" class="" style="width:284.31597900390625px">33.23</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-801f-bfa2-e05da75125eb"><td id=":kC|" class="" style="width:386px">Creative Cloud Files Storage 1 TB</td><td id="Qw=;" class="" style="width:284.31597900390625px">11.64</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80d7-8383-c38fa3426792"><td id=":kC|" class="" style="width:386px">Cursor AI</td><td id="Qw=;" class="" style="width:284.31597900390625px">18.21</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80dc-a908-dea3579f5cca"><td id=":kC|" class="" style="width:386px">X Ai</td><td id="Qw=;" class="" style="width:284.31597900390625px">12.91</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-806c-af1f-ef8fbd0cb720"><td id=":kC|" class="" style="width:386px">Google Storage Photos</td><td id="Qw=;" class="" style="width:284.31597900390625px">10.49</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80e6-b893-d7945aa45e99"><td id=":kC|" class="" style="width:386px"></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8098-8831-db4551e9c0fb"><td id=":kC|" class="" style="width:386px"><strong>Total Fixed Costs</strong></td><td id="Qw=;" class="" style="width:284.31597900390625px">2,030.96</td><td id="Y}q^" class="" style="width:275.65625px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="21c06eb0-49e0-80ff-8eda-c73c2a26780a"/></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-8023-93de-e45329b0e35e" class=""><strong>3. Variable Costs (Operational Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-80ef-a989-c15a81e72ee8" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8009-a2f4-ed1fd296f5e3"><th id="GSsm" class="simple-table-header-color simple-table-header" style="width:387.4765625px">Expense Category</th><th id="\=C&lt;" class="simple-table-header-color simple-table-header" style="width:261.3203125px">Estimated Amount (<strong>€</strong>)</th><th id="l[KS" class="simple-table-header-color simple-table-header" style="width:277.65625px">Actual Amount (<strong>€</strong>)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8081-b01e-f583810bf7b9"><td id="GSsm" class="" style="width:387.4765625px">Food</td><td id="\=C&lt;" class="" style="width:261.3203125px">550</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8037-b573-d0e97aa23909"><td id="GSsm" class="" style="width:387.4765625px">Activities</td><td id="\=C&lt;" class="" style="width:261.3203125px">400</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80f8-8773-e586556dc14a"><td id="GSsm" class="" style="width:387.4765625px">Books/Audible</td><td id="\=C&lt;" class="" style="width:261.3203125px">99.04</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8061-8ab7-f9c5aa8d6cc5"><td id="GSsm" class="" style="width:387.4765625px"></td><td id="\=C&lt;" class="" style="width:261.3203125px"></td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80e0-9961-eb89c06a5019"><td id="GSsm" class="" style="width:387.4765625px"><strong>Total Variable Costs</strong></td><td id="\=C&lt;" class="" style="width:261.3203125px">1049.04</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="21c06eb0-49e0-803e-8148-dfed8ffbd5a5"/></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-80c7-a72d-da940c535657" class=""><strong>4. Unplanned Expenses</strong></h3></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-80c1-bb1e-cb39621fb5c6" class="simple-table"><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-803c-8e61-cf6d2533860a"><td id="|uOS" class="" style="width:389px"></td><td id="t@@u" class="" style="width:257px"></td><td id="XzOv" class="" style="width:278px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-804e-9ee0-deb01c752a84"><td id="|uOS" class="" style="width:389px"></td><td id="t@@u" class="" style="width:257px"></td><td id="XzOv" class="" style="width:278px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-803a-b477-f73095744361"><td id="|uOS" class="" style="width:389px"></td><td id="t@@u" class="" style="width:257px"></td><td id="XzOv" class="" style="width:278px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8088-bff7-d54b0bad74ff"><td id="|uOS" class="" style="width:389px"><strong>Total</strong></td><td id="t@@u" class="" style="width:257px"></td><td id="XzOv" class="" style="width:278px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="21c06eb0-49e0-805b-b3a2-efd5b9b16212"/></div><div style="display:contents" dir="auto"><h3 id="21c06eb0-49e0-80b4-9ce2-fffbbe9d7fe8" class=""><strong>5. Pots and Investments</strong></h3></div><div style="display:contents" dir="ltr"><table id="21c06eb0-49e0-804b-8f23-d3235c7e9180" class="simple-table"><tbody><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8068-b692-cbe9e0cd5547"><td id="xocK" class="" style="width:645.359375px">Category</td><td id="DeeP" class="" style="width:281.3203125px">Estimated Amount (<strong>€</strong>)</td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-809c-b0ef-c368ecd61ebb"><td id="xocK" class="" style="width:645.359375px">Cosmetic Pot </td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80ba-9106-f98226dd36ff"><td id="xocK" class="" style="width:645.359375px">Apple Care Pot </td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8098-85b6-e2216bb0450b"><td id="xocK" class="" style="width:645.359375px">So Nicholas Can See Pot</td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80e0-a549-e98cf44da65d"><td id="xocK" class="" style="width:645.359375px">House/Breakages Pot </td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8057-bc8f-cd07a3f93587"><td id="xocK" class="" style="width:645.359375px">Clothes</td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80bd-92bd-c64749c75145"><td id="xocK" class="" style="width:645.359375px">Birthday Present Pot</td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-807d-b9e4-cf43c46a9a16"><td id="xocK" class="" style="width:645.359375px">Emergency Pot </td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-80af-b3bc-c421739be727"><td id="xocK" class="" style="width:645.359375px">Business Pot</td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="21c06eb0-49e0-8035-8327-e04275bd8eff"><td id="xocK" class="" style="width:645.359375px"><strong>Total Savings/Investments</strong></td><td id="DeeP" class="" style="width:281.3203125px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="21c06eb0-49e0-801f-9503-ff28ac5a30d9"/></div><div style="display:contents" dir="auto"><p id="21c06eb0-49e0-802f-8dcf-ddb98d82650c" class="">
+</p></div></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - Home</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" href="data:,">
+</head>
+<body class="landing-page">
+    <header class="main-header">
+        <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+            <h1 class="site-title">Money Tracker</h1>
+            <ul class="nav-list">
+                <li><a href="index.html" class="nav-link active" aria-current="page">Home</a></li>
+                <li><a href="views/monthly-budget.html" class="nav-link">Monthly Budget</a></li>
+                <li><a href="views/pots.html" class="nav-link">Pots & Investments</a></li>
+                <li><a href="views/overview.html" class="nav-link">Overview</a></li>
+                <li><a href="views/import.html" class="nav-link">Import</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="landing-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Welcome to Your Money Tracker</h2>
+            <p class="hero-description">Track your monthly expenses, manage your savings pots, and stay on top of your finances.</p>
+        </section>
+
+        <section class="views-section" aria-labelledby="views-heading">
+            <h2 id="views-heading" class="section-title">Available Views</h2>
+            <div class="views-grid">
+                <article class="view-card" tabindex="0" role="button" aria-label="Go to Monthly Budget view">
+                    <div class="view-card-icon">📊</div>
+                    <h3 class="view-card-title">Monthly Budget</h3>
+                    <p class="view-card-description">Track your monthly expenses, fixed costs, variable costs, and income. Automatically calculates totals and savings.</p>
+                    <a href="views/monthly-budget.html" class="view-card-link">Open Monthly Budget →</a>
+                </article>
+
+                <article class="view-card" tabindex="0" role="button" aria-label="Go to Pots & Investments view">
+                    <div class="view-card-icon">💰</div>
+                    <h3 class="view-card-title">Pots & Investments</h3>
+                    <p class="view-card-description">Manage your savings pots and investment categories. Track estimated and actual amounts for each pot.</p>
+                    <a href="views/pots.html" class="view-card-link">Open Pots & Investments →</a>
+                </article>
+
+                <article class="view-card" tabindex="0" role="button" aria-label="Go to Overview view">
+                    <div class="view-card-icon">📈</div>
+                    <h3 class="view-card-title">Overview</h3>
+                    <p class="view-card-description">View summary statistics across all months. Compare income, expenses, and savings trends over time.</p>
+                    <a href="views/overview.html" class="view-card-link">Open Overview →</a>
+                </article>
+            </div>
+        </section>
+
+        <section class="recent-months-section" aria-labelledby="recent-months-heading">
+            <h2 id="recent-months-heading" class="section-title">Recent Months</h2>
+            <div id="recent-months-container" class="months-list">
+                <p class="loading-message">Loading months...</p>
+            </div>
+        </section>
+
+        <section class="quick-actions-section" aria-labelledby="quick-actions-heading">
+            <h2 id="quick-actions-heading" class="section-title">Quick Actions</h2>
+            <div class="actions-grid">
+                <button id="create-new-month-button" class="action-button" aria-label="Create a new month budget">
+                    <span class="action-icon">➕</span>
+                    <span class="action-text">Create New Month</span>
+                </button>
+                <button id="view-all-months-button" class="action-button" aria-label="View all months">
+                    <span class="action-icon">📅</span>
+                    <span class="action-text">View All Months</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
+    </footer>
+
+    <script src="models/DataManager.js"></script>
+    <script src="utils/formatters.js"></script>
+    <script src="utils/InitialData.js"></script>
+    <script>
+        // Initialize with all months data if no months exist
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize settings first
+            DataManager.initializeSettings();
+            
+            // Load months from files if localStorage is empty
+            await InitialData.initializeIfEmpty();
+            
+            // Mark as initialized to prevent double initialization
+            window.landingControllerInitialized = true;
+            
+            // Now initialize the LandingController
+            if (window.LandingController) {
+                await window.LandingController.init();
+            }
+        });
+    </script>
+    <script src="controllers/LandingController.js"></script>
+</body>
+</html>
+
