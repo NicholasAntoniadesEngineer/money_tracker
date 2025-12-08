@@ -364,7 +364,7 @@ body.landing-page .view-card {
 .form-section {
     background-color: var(--surface-color);
     border: 1px solid #121212;
-    border-radius: var(--border-radius);
+    border-radius: calc(var(--border-radius) * 2);
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
@@ -682,6 +682,17 @@ body.landing-page .view-card {
 }
 
 /* Month Selector Section */
+.month-selector-section {
+    background-color: rgba(140, 140, 140, 0.95) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+/* All sections within month-content */
+#month-content > section {
+    background-color: rgba(140, 140, 140, 0.95) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
 .month-selector-section .form-group > div {
     display: flex;
     gap: 0.5rem;
