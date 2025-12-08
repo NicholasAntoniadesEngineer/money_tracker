@@ -436,8 +436,8 @@ const ReferenceImporter = {
                         if (normalizedCategory === 'Food' || normalizedCategory === 'Travel/Transport' || normalizedCategory === 'Activities') {
                                 variableCosts.push({
                                     category: normalizedCategory,
-                                    monthlyBudget: monthlyBudget,
-                                    actualSpent: actualSpent
+                                    estimatedAmount: monthlyBudget,
+                                    actualAmount: actualSpent
                                 });
                             console.log('  Added variable cost: ' + normalizedCategory + ' (budget: ' + monthlyBudget + ', actual: ' + actualSpent + ')');
                             }
@@ -451,10 +451,10 @@ const ReferenceImporter = {
         const hasActivities = variableCosts.some(vc => vc.category === 'Activities');
         
         if (!hasFood) {
-            variableCosts.push({ category: 'Food', monthlyBudget: 0, actualSpent: 0 });
+            variableCosts.push({ category: 'Food', estimatedAmount: 0, actualAmount: 0 });
         }
         if (!hasActivities) {
-            variableCosts.push({ category: 'Activities', monthlyBudget: 0, actualSpent: 0 });
+            variableCosts.push({ category: 'Activities', estimatedAmount: 0, actualAmount: 0 });
         }
 
         console.log('Extracted ' + variableCosts.length + ' variable costs');

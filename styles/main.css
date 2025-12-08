@@ -36,7 +36,7 @@
     --surface-color-darker: #c5c5c5;
     --surface-overlay-light: rgba(200, 196, 196, 0.98);
     --surface-overlay-medium: rgba(180, 180, 180, 1.0);
-    --surface-overlay-section: rgba(180, 180, 180, 0.95);
+    --surface-overlay-section: rgba(180, 180, 180, 0.85);
     --surface-overlay-card: rgba(180, 180, 180, 0.75);
     --surface-overlay-card-landing: rgba(180, 180, 180, 0.80);
     --surface-overlay-button: rgba(255, 255, 255, 0.6);
@@ -203,7 +203,7 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 
 /* Header - Consistent across all views (isolated from page-specific styles) */
 .main-header {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
     border-bottom: var(--border-width-standard) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     position: sticky;
@@ -223,7 +223,7 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 body .main-header,
 body.landing-page .main-header,
 body:not(.landing-page) .main-header {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
     border-bottom: var(--border-width-standard) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     background-image: none;
@@ -346,7 +346,7 @@ body:not(.landing-page) .main-navigation {
         top: 100%;
         left: 0;
         right: 0;
-        background-color: rgba(210, 210, 210, 0.95);
+        background-color: rgba(210, 210, 210, 0.85);
         border: var(--border-width-thin) solid var(--border-color-black);
         border-radius: var(--border-radius);
         box-shadow: var(--shadow-md);
@@ -402,7 +402,7 @@ main {
 
 /* Footer */
 .main-footer {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
     border-top: var(--border-width-standard) solid var(--border-color);
     padding: var(--spacing-sm);
     text-align: center;
@@ -415,7 +415,7 @@ main {
    ============================================================================ */
 
 .form-section {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border: var(--border-width-standard) solid var(--border-color-dark);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
     padding: var(--spacing-md);
@@ -424,7 +424,7 @@ main {
 }
 
 .months-comparison-section {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
 }
 
@@ -449,7 +449,7 @@ main {
     font-size: 1rem;
     transition: var(--transition);
     font-family: inherit;
-    background-color: rgba(230, 230, 230, 0.95);
+    background-color: rgba(230, 230, 230, 0.85);
     color: var(--text-primary);
 }
 
@@ -470,7 +470,7 @@ main {
 input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
-    background-color: rgba(230, 230, 230, 0.95);
+    background-color: rgba(230, 230, 230, 0.85);
     color: var(--text-primary);
     border-color: var(--border-color);
 }
@@ -513,7 +513,7 @@ table:not(.data-table) {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background-color: #d8d8d8;
+    background-color: rgba(216, 216, 216, 0.85);
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -528,7 +528,7 @@ table:not(.data-table) td {
     padding-bottom: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
     padding-left: var(--spacing-sm);
     padding-right: var(--spacing-sm);
-    background-color: #dddddd;
+    background-color: rgba(221, 221, 221, 0.85);
     border: var(--border-width-thin) solid var(--border-color-black);
 }
 
@@ -579,7 +579,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background-color: #d5d5d5;
+    background-color: rgba(213, 213, 213, 0.85);
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -588,7 +588,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 }
 
 .data-table th {
-    background-color: #d0d0d0;
+    background-color: rgba(208, 208, 208, 0.85);
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-sm);
     text-align: left;
     font-weight: 600;
@@ -617,7 +617,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 .data-table td {
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
     border: var(--border-width-thin) solid var(--border-color-black);
-    background-color: #dddddd;
+    background-color: rgba(221, 221, 221, 0.85);
 }
 
 .data-table td:first-child {
@@ -650,11 +650,11 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 
 .data-table tr {
-    background-color: #dddddd;
+    background-color: rgba(221, 221, 221, 0.85);
 }
 
 .data-table tr:hover {
-    background-color: #d0d0d0;
+    background-color: rgba(208, 208, 208, 0.85);
 }
 
 .data-table input[type="number"],
@@ -685,7 +685,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 .data-table .total-row {
     font-weight: 600;
-    background-color: #c8c8c8;
+    background-color: rgba(200, 200, 200, 0.85);
 }
 
 /* Weekly Breakdown Table - inherits from .data-table */
@@ -725,12 +725,12 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 }
 
 .btn-secondary {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
     color: var(--text-black);
 }
 
 .btn-secondary:hover {
-    background-color: rgba(200, 200, 200, 0.95);
+    background-color: rgba(200, 200, 200, 0.85);
     color: var(--text-black);
 }
 
@@ -795,7 +795,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 /* View Cards - Consistent styling for all view cards */
 .view-card {
-    background-color: rgba(220, 220, 220, 0.95) !important;
+    background-color: rgba(220, 220, 220, 0.85) !important;
     border: var(--border-width-standard) solid var(--border-color) !important;
     border-radius: var(--border-radius) !important;
     padding: var(--spacing-md) !important;
@@ -813,7 +813,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 /* Landing page specific styling */
 body.landing-page .view-card {
-    background-color: rgba(225, 225, 225, 0.95) !important;
+    background-color: rgba(225, 225, 225, 0.85) !important;
     box-shadow: var(--shadow-lg) !important;
 }
 
@@ -824,12 +824,12 @@ body.landing-page .view-card {
     transform: translateY(-2px);
     outline: var(--border-width-thick) solid var(--primary-color);
     outline-offset: var(--border-width-thick);
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
 }
 
 body.landing-page .view-card:hover,
 body.landing-page .view-card:focus {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
 }
 
 /* View card content elements */
@@ -863,7 +863,7 @@ body.landing-page .view-card:focus {
 }
 
 .summary-card {
-    background-color: rgba(215, 215, 215, 0.95);
+    background-color: rgba(215, 215, 215, 0.85);
     border: var(--border-width-standard) solid var(--border-color);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
     padding: var(--spacing-sm);
@@ -895,7 +895,7 @@ body.landing-page .view-card:focus {
 
 /* Month Items */
 .month-item {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border: var(--border-width-standard) solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
@@ -933,7 +933,7 @@ body.landing-page .view-card:focus {
 
 /* Landing Page */
 .hero-section {
-    background-color: rgba(225, 225, 225, 0.95);
+    background-color: rgba(225, 225, 225, 0.85);
     border: var(--border-width-standard) solid var(--border-color-dark);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
     padding: var(--spacing-md);
@@ -942,12 +942,12 @@ body.landing-page .view-card:focus {
 }
 
 .hero-section-pots {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
 }
 
 /* Summary section styling */
 .summary-section {
-    background-color: rgba(215, 215, 215, 0.95);
+    background-color: rgba(215, 215, 215, 0.85);
 }
 
 /* Pots table white background handled in HTML */
@@ -978,7 +978,7 @@ body.landing-page .view-card:focus {
 }
 
 .action-button {
-    background-color: rgba(210, 210, 210, 0.95);
+    background-color: rgba(210, 210, 210, 0.85);
     color: var(--text-primary);
     border: var(--border-width-standard) solid var(--border-color-black);
     border-radius: var(--border-radius);
@@ -1013,7 +1013,7 @@ body.landing-page .view-card:focus {
 
 /* Monthly Budget Page */
 .month-selector-section {
-    background-color: rgba(225, 225, 225, 0.95);
+    background-color: rgba(225, 225, 225, 0.85);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
 }
 
@@ -1030,12 +1030,12 @@ body.landing-page .view-card:focus {
 }
 
 #month-content > section {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
 }
 
 .month-header-section {
-    background-color: rgba(225, 225, 225, 0.95);
+    background-color: rgba(225, 225, 225, 0.85);
     border: var(--border-width-thin) solid var(--border-color-black);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
     padding: var(--spacing-md);
@@ -1044,7 +1044,7 @@ body.landing-page .view-card:focus {
 
 /* Pots Page */
 .pots-main > section {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
 }
 
@@ -1054,7 +1054,7 @@ body.landing-page .view-card:focus {
 
 /* Trends Section */
 .trend-item {
-    background-color: rgba(220, 220, 220, 0.95);
+    background-color: rgba(220, 220, 220, 0.85);
     border: var(--border-width-standard) solid var(--border-color);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
@@ -1153,11 +1153,11 @@ body.landing-page .view-card:focus {
     .view-card {
         padding: var(--spacing-md);
         /* Ensure consistent styling on mobile */
-        background-color: rgba(220, 220, 220, 0.95);
+        background-color: rgba(220, 220, 220, 0.85);
     }
     
     body.landing-page .view-card {
-        background-color: rgba(225, 225, 225, 0.95);
+        background-color: rgba(225, 225, 225, 0.85);
     }
 
     .form-section {
