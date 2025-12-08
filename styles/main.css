@@ -425,17 +425,25 @@ body.landing-page .view-card {
 }
 
 .data-table th {
-    background-color: var(--background-color);
+    background-color: rgba(140, 140, 140, 0.90) !important;
     padding: var(--spacing-xs) var(--spacing-sm);
     text-align: left;
     font-weight: 600;
     color: var(--text-primary);
     border-bottom: 2px solid var(--border-color);
+    border-radius: calc(var(--border-radius) * 2) !important;
 }
 
 .data-table td {
     padding: var(--spacing-xs) var(--spacing-sm);
     border-bottom: 1px solid var(--border-color);
+    background-color: rgba(140, 140, 140, 0.90) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+.data-table tr {
+    background-color: rgba(140, 140, 140, 0.90) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
 }
 
 .data-table tr:last-child td {
@@ -547,7 +555,7 @@ body.landing-page .view-card {
 }
 
 .summary-card {
-    background-color: var(--surface-color-darker);
+    background-color: rgba(140, 140, 140, 0.90) !important;
     border: 1px solid var(--border-color);
     border-radius: calc(var(--border-radius) * 2);
     padding: var(--spacing-sm);
@@ -683,13 +691,25 @@ body.landing-page .view-card {
 
 /* Month Selector Section */
 .month-selector-section {
-    background-color: rgba(140, 140, 140, 0.95) !important;
+    background-color: rgba(140, 140, 140, 0.90) !important;
     border-radius: calc(var(--border-radius) * 2) !important;
 }
 
 /* All sections within month-content */
 #month-content > section {
-    background-color: rgba(140, 140, 140, 0.95) !important;
+    background-color: rgba(140, 140, 140, 0.90) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+/* All sections within pots-main */
+.pots-main > section {
+    background-color: rgba(140, 140, 140, 0.90) !important;
+    border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+/* All tables within pots-main */
+.pots-main table {
+    background-color: rgba(140, 140, 140, 0.90) !important;
     border-radius: calc(var(--border-radius) * 2) !important;
 }
 
