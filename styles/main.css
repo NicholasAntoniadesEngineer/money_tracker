@@ -68,7 +68,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    line-height: 1.6;
+    line-height: 1.28; /* Reduced by 20% from 1.6 */
     color: var(--text-primary);
     background-color: var(--background-color);
     background-image: url('../reference/8dead7d9dd1291163369b731d075ae6c.jpg');
@@ -80,6 +80,21 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
+}
+
+/* Reduce vertical spacing for all text elements by 20% */
+p, h1, h2, h3, h4, h5, h6, span, label, li {
+    line-height: 1.28 !important;
+}
+
+/* Reduce line-height and top/bottom padding for all table cells */
+table th,
+table td {
+    line-height: 1.28 !important;
+    padding-top: calc(var(--spacing-xs) * 0.2) !important;
+    padding-bottom: calc(var(--spacing-xs) * 0.2) !important;
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
 }
 
 body::after {
@@ -416,6 +431,17 @@ body.landing-page .view-card {
     box-shadow: 0 0 0 3px var(--primary-focus-shadow);
 }
 
+/* Remove spinner/scroll from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* Placeholder text - white (all inputs and textareas) */
 input::placeholder,
 textarea::placeholder,
@@ -469,7 +495,7 @@ table td {
 
 .data-table th {
     background-color: rgba(140, 140, 140, 0.90) !important;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: calc(var(--spacing-xs) * 0.2) var(--spacing-sm) !important;
     text-align: left;
     font-weight: 600;
     color: var(--text-primary);
@@ -489,7 +515,7 @@ table td {
 }
 
 .data-table td {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: calc(var(--spacing-xs) * 0.3) var(--spacing-sm) !important; 
     border: 0.2px solid #000000 !important;
     border-bottom: 0.2px solid #000000 !important;
     border-top: 0.2px solid #000000 !important;
@@ -802,6 +828,11 @@ table td {
 #month-content > section {
     background-color: rgba(140, 140, 140, 0.90) !important;
     border-radius: calc(var(--border-radius) * 2) !important;
+}
+
+/* Month header section - black solid border */
+.month-header-section {
+    border: 0.2px solid #000000 !important;
 }
 
 /* All sections within pots-main */
