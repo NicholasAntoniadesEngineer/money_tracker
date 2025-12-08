@@ -629,34 +629,49 @@ table td {
    8. CARD COMPONENTS
    ============================================================================ */
 
-/* View Cards */
+/* View Cards - Consistent styling for all view cards */
 .view-card {
-    background-color: var(--surface-overlay-card);
-    border: var(--border-width-standard) solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: var(--spacing-md);
-    box-shadow: var(--shadow-md);
+    background-color: var(--surface-overlay-card) !important;
+    border: var(--border-width-standard) solid var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: var(--spacing-md) !important;
+    box-shadow: var(--shadow-md) !important;
     backdrop-filter: blur(10px);
     transition: var(--transition);
     cursor: pointer;
+    /* Ensure consistent styling - override any inline styles */
+    color: inherit;
+    text-align: left;
+    display: block;
+    width: 100%;
 }
 
+/* Landing page specific styling */
 body.landing-page .view-card {
-    background-color: var(--surface-overlay-card-landing);
-    box-shadow: var(--shadow-lg);
+    background-color: var(--surface-overlay-card-landing) !important;
+    box-shadow: var(--shadow-lg) !important;
 }
 
+/* Hover and focus states - consistent for all view cards */
 .view-card:hover,
 .view-card:focus {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
     outline: var(--border-width-thick) solid var(--primary-color);
     outline-offset: var(--border-width-thick);
+    background-color: var(--surface-overlay-card);
 }
 
+body.landing-page .view-card:hover,
+body.landing-page .view-card:focus {
+    background-color: var(--surface-overlay-card-landing);
+}
+
+/* View card content elements */
 .view-card-icon {
     font-size: 3rem;
     margin-bottom: var(--spacing-sm);
+    display: block;
 }
 
 .view-card-title {
@@ -664,11 +679,13 @@ body.landing-page .view-card {
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
     color: var(--text-primary);
+    line-height: var(--line-height-reduced);
 }
 
 .view-card-description {
     color: var(--text-secondary);
     margin-bottom: var(--spacing-sm);
+    line-height: var(--line-height-reduced);
 }
 
 .view-card-link {
@@ -964,6 +981,12 @@ body.landing-page .view-card {
 
     .view-card {
         padding: var(--spacing-md);
+        /* Ensure consistent styling on mobile */
+        background-color: var(--surface-overlay-card);
+    }
+    
+    body.landing-page .view-card {
+        background-color: var(--surface-overlay-card-landing);
     }
 
     .form-section {
