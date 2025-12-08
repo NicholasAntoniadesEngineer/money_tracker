@@ -702,7 +702,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 .btn {
     padding: var(--spacing-xs) var(--spacing-md);
-    border: none;
+    border: var(--border-width-standard) solid var(--border-color-black);
     border-radius: var(--border-radius);
     font-size: 1rem;
     font-weight: 500;
@@ -767,6 +767,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 #add-pot-button {
     background-color: rgba(210, 210, 210, 0.95);
     color: var(--text-black);
+    border: var(--border-width-standard) solid var(--border-color-black);
 }
 
 #add-fixed-cost-button:hover,
@@ -780,13 +781,14 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 #add-pot-button:hover {
     background-color: rgba(200, 200, 200, 0.95);
     color: var(--text-black);
+    border: var(--border-width-standard) solid var(--border-color-black);
 }
 
 /* Export Format Select */
 #export-format-select {
     background-color: rgba(210, 210, 210, 0.95) !important;
     color: var(--text-black) !important;
-    border: 1px solid var(--border-color) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
     border-radius: var(--border-radius) !important;
     padding: 0.5rem 1rem !important;
     cursor: pointer;
@@ -795,6 +797,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 #export-format-select:hover {
     background-color: rgba(200, 200, 200, 0.95) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
 }
 
 #export-format-select option {
@@ -993,7 +996,7 @@ body.landing-page .view-card:focus {
 .action-button {
     background-color: rgba(210, 210, 210, 0.95);
     color: var(--text-primary);
-    border: var(--border-width-standard) solid var(--border-color);
+    border: var(--border-width-standard) solid var(--border-color-black);
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
     font-size: 0.9rem;
