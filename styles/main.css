@@ -286,6 +286,109 @@ body:not(.landing-page) .main-navigation {
     background-color: var(--hover-overlay);
 }
 
+/* Hamburger Menu */
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--spacing-sm);
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 3px;
+    background-color: var(--text-primary);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+.nav-list {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: var(--spacing-md);
+}
+
+/* Mobile Navigation */
+@media (max-width: 768px) {
+    .main-navigation {
+        position: relative;
+    }
+
+    .hamburger-menu {
+        display: flex;
+    }
+
+    .nav-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--surface-color);
+        border: var(--border-width-thin) solid var(--border-color-black);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-md);
+        flex-direction: column;
+        gap: 0;
+        padding: var(--spacing-sm) 0;
+        transform: translateY(-10px);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+    .nav-list.nav-open {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .nav-list li {
+        width: 100%;
+        text-align: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-list li:last-child {
+        border-bottom: none;
+    }
+
+    .nav-link {
+        display: block;
+        padding: var(--spacing-sm) var(--spacing-md);
+        width: 100%;
+        text-align: center;
+        border-radius: 0;
+    }
+
+    .nav-link:hover,
+    .nav-link.active,
+    .nav-link[aria-current="page"] {
+        background-color: var(--hover-overlay);
+    }
+}
+
 /* Main Content */
 main {
     flex: 1;
@@ -403,21 +506,70 @@ select:-ms-input-placeholder {
    ============================================================================ */
 
 /* Base Table Styles */
-table {
+/* General table styles - all tables should use .data-table class for consistency */
+table:not(.data-table) {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-lg);
     border: var(--border-width-thin) solid var(--border-color-black);
-    border-width: var(--border-width-thin);
-    border-style: solid;
-    border-color: var(--border-color-black);
 }
 
-table th,
-table td {
-    border: var(--border-width-thin) solid var(--border-color-black);
+table:not(.data-table) th,
+table:not(.data-table) td {
     line-height: var(--line-height-reduced);
     padding-top: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
     padding-bottom: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
     padding-left: var(--spacing-sm);
     padding-right: var(--spacing-sm);
+    background-color: var(--surface-overlay-section);
+    border: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) th:first-child,
+table:not(.data-table) td:first-child {
+    border-left: var(--border-width-thin) solid var(--border-color-black);
+}
+
+
+table:not(.data-table) thead th {
+    border-top: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) thead th:first-child {
+    /* border-top-left-radius removed to let table container handle rounding */
+}
+
+table:not(.data-table) thead th:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-top-right-radius removed to let table container handle rounding */
+}
+
+table:not(.data-table) tbody tr:last-child td,
+table:not(.data-table) tfoot tr:last-child td {
+    border-bottom: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) tbody tr:last-child td:first-child {
+    /* border-bottom-left-radius removed to let table container handle rounding */
+}
+
+table:not(.data-table) tbody tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-bottom-right-radius removed to let table container handle rounding */
+}
+
+table:not(.data-table) tfoot tr:last-child td:first-child {
+    /* border-bottom-left-radius removed to let table container handle rounding */
+}
+
+table:not(.data-table) tfoot tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-bottom-right-radius removed to let table container handle rounding */
 }
 
 /* Data Table */
@@ -426,14 +578,11 @@ table td {
     border-collapse: separate;
     border-spacing: 0;
     background-color: var(--surface-color);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-lg);
     border: var(--border-width-thin) solid var(--border-color-black);
-    border-width: var(--border-width-thin);
-    border-style: solid;
-    border-color: var(--border-color-black);
 }
 
 .data-table th {
@@ -443,45 +592,63 @@ table td {
     font-weight: 600;
     color: var(--text-primary);
     border: var(--border-width-thin) solid var(--border-color-black);
-    border-bottom: var(--border-width-thin) solid var(--border-color-black);
-    border-top: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table th:first-child {
     border-left: var(--border-width-thin) solid var(--border-color-black);
-    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+
+.data-table thead th {
+    border-top: var(--border-width-thin) solid var(--border-color-black);
 }
 
 .data-table thead th:first-child {
-    border-top-left-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    /* border-top-left-radius removed to let table container handle rounding */
 }
 
 .data-table thead th:last-child {
-    border-top-right-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-top-right-radius removed to let table container handle rounding */
 }
 
 .data-table td {
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
     border: var(--border-width-thin) solid var(--border-color-black);
-    border-bottom: var(--border-width-thin) solid var(--border-color-black);
-    border-top: var(--border-width-thin) solid var(--border-color-black);
-    border-left: var(--border-width-thin) solid var(--border-color-black);
-    border-right: var(--border-width-thin) solid var(--border-color-black);
     background-color: var(--surface-overlay-section);
+}
+
+.data-table td:first-child {
+    border-left: var(--border-width-thin) solid var(--border-color-black);
+}
+
+
+.data-table tbody tr:last-child td,
+.data-table tfoot tr:last-child td {
+    border-bottom: var(--border-width-thin) solid var(--border-color-black);
 }
 
 .data-table tbody tr:last-child td:first-child {
-    border-bottom-left-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    /* border-bottom-left-radius removed to let table container handle rounding */
 }
 
-.data-table tbody tr:last-child td:last-child,
-.data-table tfoot tr:last-child td:last-child {
-    border-bottom-right-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+.data-table tbody tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-bottom-right-radius removed to let table container handle rounding */
 }
+
+.data-table tfoot tr:last-child td:first-child {
+    /* border-bottom-left-radius removed to let table container handle rounding */
+}
+
+.data-table tfoot tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+    /* border-bottom-right-radius removed to let table container handle rounding */
+}
+
 
 .data-table tr {
     background-color: var(--surface-overlay-section);
-}
-
-.data-table tr:last-child td {
-    border-bottom: var(--border-width-thin) solid var(--border-color-black);
 }
 
 .data-table tr:hover {
@@ -519,27 +686,13 @@ table td {
     background-color: var(--background-color);
 }
 
-/* Weekly Breakdown Table */
+/* Weekly Breakdown Table - inherits from .data-table */
 #weekly-breakdown-table {
-    border: var(--border-width-thin) solid var(--border-color-black);
-    border-color: var(--border-color-black);
-}
-
-#weekly-breakdown-tbody td,
-#weekly-breakdown-tbody th {
-    border-color: var(--border-color-black);
+    /* All styles inherited from .data-table */
 }
 
 #weekly-breakdown-tbody input,
 #weekly-breakdown-tbody textarea {
-    border-color: var(--border-color-black);
-}
-
-#weekly-breakdown-table thead th {
-    border-color: var(--border-color-black);
-}
-
-#weekly-breakdown-table tfoot td {
     border-color: var(--border-color-black);
 }
 
@@ -606,9 +759,11 @@ table td {
 #add-fixed-cost-button,
 #add-unplanned-expense-button,
 #add-income-button,
+#add-variable-cost-button,
 #add-weekly-breakdown-button,
 #load-months-button,
-#save-all-months-button,
+#export-current-month-button,
+#export-all-months-button,
 #add-pot-button {
     background-color: var(--surface-overlay-button);
     color: var(--text-black);
@@ -617,12 +772,34 @@ table td {
 #add-fixed-cost-button:hover,
 #add-unplanned-expense-button:hover,
 #add-income-button:hover,
+#add-variable-cost-button:hover,
 #add-weekly-breakdown-button:hover,
 #load-months-button:hover,
-#save-all-months-button:hover,
+#export-current-month-button:hover,
+#export-all-months-button:hover,
 #add-pot-button:hover {
     background-color: var(--surface-overlay-button-hover);
     color: var(--text-black);
+}
+
+/* Export Format Select */
+#export-format-select {
+    background-color: var(--surface-overlay-button) !important;
+    color: var(--text-black) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 0.5rem 1rem !important;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+#export-format-select:hover {
+    background-color: var(--surface-overlay-button-hover) !important;
+}
+
+#export-format-select option {
+    background-color: var(--surface-color);
+    color: var(--text-primary);
 }
 
 /* ============================================================================
@@ -779,9 +956,12 @@ body.landing-page .view-card:focus {
 
 /* Landing Page */
 .hero-section {
-    text-align: center;
-    padding: var(--spacing-md) 0;
+    background-color: var(--surface-color);
+    border: var(--border-width-standard) solid var(--border-color-dark);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
+    text-align: center;
 }
 
 .views-section {
@@ -867,7 +1047,11 @@ body.landing-page .view-card:focus {
 }
 
 .month-header-section {
+    background-color: var(--surface-color);
     border: var(--border-width-thin) solid var(--border-color-black);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
 }
 
 /* Pots Page */
@@ -877,8 +1061,7 @@ body.landing-page .view-card:focus {
 }
 
 .pots-main table {
-    background-color: var(--surface-overlay-section);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    /* Inherits all styles from .data-table */
 }
 
 /* Trends Section */

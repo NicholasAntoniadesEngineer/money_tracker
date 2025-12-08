@@ -11,6 +11,10 @@
     <!-- Header will be injected by Header.js -->
 
     <main class="budget-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Monthly Budget</h2>
+        </section>
+
         <section class="month-selector-section form-section">
             <div class="form-group">
                 <label for="month-selector" class="form-label">Select Month:</label>
@@ -27,15 +31,25 @@
             
             <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                 <label class="form-label">File Operations:</label>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                     <button id="load-months-button" class="btn btn-secondary">Load Months from Files</button>
-                    <button id="save-all-months-button" class="btn btn-secondary">Save All Months to Files</button>
-                    <input type="file" id="file-input" multiple accept=".json,.html" style="display: none;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label for="export-format-select" style="color: var(--text-primary); font-size: 0.9rem;">Export Format:</label>
+                        <select id="export-format-select" class="btn btn-secondary" style="padding: 0.5rem 1rem; cursor: pointer; background-color: var(--surface-overlay-button); color: var(--text-black); border: 1px solid var(--border-color); border-radius: var(--border-radius);">
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                            <option value="html">HTML</option>
+                        </select>
+                        <button id="export-current-month-button" class="btn btn-secondary">Export Current Month</button>
+                        <button id="export-all-months-button" class="btn btn-secondary">Export All Months</button>
+                    </div>
+                    <input type="file" id="file-input" multiple accept=".json,.csv,.html" style="display: none;">
                 </div>
                 <p class="form-help-text" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
-                    <strong>Load Months from Files:</strong> Click to select the <code>data/months/</code> folder (modern browsers) or individual JSON/HTML files (all browsers).<br/>
-                    <strong>Save All Months to Files:</strong> Save all months to the <code>data/months/</code> folder (modern browsers) or download files (all browsers).<br/>
-                    <em>Note: You can load both JSON files (from data/months/) and HTML files (from reference/). HTML files will be automatically imported.</em>
+                    <strong>Load Months from Files:</strong> Click to select the <code>data/months/</code> folder (modern browsers) or individual JSON/CSV/HTML files (all browsers).<br/>
+                    <strong>Export Current Month:</strong> Export the currently selected month in the selected format (JSON, CSV, or HTML).<br/>
+                    <strong>Export All Months:</strong> Export all months in the selected format (JSON, CSV, or HTML).<br/>
+                    <em>Note: You can load JSON, CSV, and HTML files. CSV and HTML files will be automatically imported. HTML export creates formatted reports.</em>
                 </p>
                 <div id="file-operations-status" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
             </div>
@@ -60,11 +74,10 @@
                             <th>Activities</th>
                             <th>Estimate</th>
                             <th>Actual</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="weekly-breakdown-tbody">
-                    </tbody>
-                    <tfoot>
                         <tr class="total-row">
                             <td><strong>TOTALS</strong></td>
                             <td id="weekly-breakdown-total-payments"></td>
@@ -73,8 +86,9 @@
                             <td id="weekly-breakdown-total-activities"></td>
                             <td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td>
                             <td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td>
+                            <td></td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
             </section>
 
@@ -95,16 +109,6 @@
                     </thead>
                     <tbody id="income-tbody">
                     </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td><strong>Total Income</strong></td>
-                            <td id="income-total-estimated"><strong>£0.00</strong></td>
-                            <td id="income-total-actual"><strong>£0.00</strong></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </section>
 
@@ -126,23 +130,13 @@
                     </thead>
                     <tbody id="fixed-costs-tbody">
                     </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td><strong>Total Fixed Costs</strong></td>
-                            <td id="fixed-costs-total-estimated"><strong>£0.00</strong></td>
-                            <td id="fixed-costs-total-actual"><strong>£0.00</strong></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </section>
 
             <section class="variable-costs-section form-section">
                 <h2 class="section-title">3. Variable Costs (Food + Activities)</h2>
                 <p class="section-description">The two categories we can control. Assign a monthly budget for each.</p>
+                <button id="add-variable-cost-button" class="btn btn-secondary">Add Variable Cost</button>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
                         <tr>
@@ -154,14 +148,6 @@
                     </thead>
                     <tbody id="variable-costs-tbody">
                     </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td><strong>Total Variable Costs</strong></td>
-                            <td id="variable-costs-total-budget"><strong>£0.00</strong></td>
-                            <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
-                            <td id="variable-costs-total-remaining"><strong>£0.00</strong></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </section>
 
@@ -176,20 +162,12 @@
                             <th>Amount</th>
                             <th>Date</th>
                             <th>Card</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="unplanned-expenses-tbody">
                     </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td><strong>Total Unplanned Expenses</strong></td>
-                            <td id="unplanned-expenses-total"><strong>£0.00</strong></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </section>
 
@@ -261,6 +239,7 @@
     <script src="../models/DataManager.js"></script>
     <script src="../utils/formatters.js"></script>
     <script src="../components/Header.js"></script>
+    <script src="../utils/CSVHandler.js"></script>
     <script src="../utils/ReferenceImporter.js"></script>
     <script src="../utils/InitialData.js"></script>
     <script src="../controllers/MonthlyBudgetController.js"></script>
@@ -273,6 +252,13 @@
             console.error('ReferenceImporter not loaded! HTML file imports will not work.');
         } else {
             console.log('ReferenceImporter loaded successfully');
+        }
+        
+        // Verify CSVHandler is loaded
+        if (!window.CSVHandler) {
+            console.error('CSVHandler not loaded! CSV export/import will not work.');
+        } else {
+            console.log('CSVHandler loaded successfully');
         }
         
         // Initialize controller when DOM is ready

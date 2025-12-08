@@ -94,6 +94,17 @@ const PotsController = {
 
             tbody.appendChild(row);
         });
+
+        // Add total row
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Savings/Investments</strong></td>
+            <td id="pots-total-estimated"><strong>£0.00</strong></td>
+            <td id="pots-total-actual"><strong>£0.00</strong></td>
+            <td></td>
+        `;
+        tbody.appendChild(totalRow);
     },
 
     /**
@@ -153,14 +164,12 @@ const PotsController = {
                         </thead>
                         <tbody>
                             ${potsHtml}
-                        </tbody>
-                        <tfoot>
                             <tr class="total-row">
                                 <td><strong>Total</strong></td>
                                 <td><strong>${Formatters.formatCurrency(totals.estimated)}</strong></td>
                                 <td><strong>${Formatters.formatCurrency(totals.actual)}</strong></td>
                             </tr>
-                        </tfoot>
+                        </tbody>
                     </table>
                     <a href="monthly-budget.html?month=${monthKey}" class="btn btn-secondary" style="margin-top: 1rem;">Edit Month</a>
                 </div>

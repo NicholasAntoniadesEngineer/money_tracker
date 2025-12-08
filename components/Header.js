@@ -63,6 +63,11 @@ class Header {
     <header class="main-header">
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
             <h1 class="site-title">Money Tracker</h1>
+            <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
             <ul class="nav-list">
                 ${navLinks}
             </ul>
@@ -77,7 +82,7 @@ class Header {
         // Find where to insert the header (before main or body's first child)
         const main = document.querySelector('main');
         const body = document.body;
-        
+
         if (main) {
             // Insert before main element
             main.insertAdjacentHTML('beforebegin', this.render());
@@ -86,7 +91,43 @@ class Header {
             body.insertAdjacentHTML('afterbegin', this.render());
         } else {
             console.error('Header: Could not find insertion point');
+            return;
         }
+
+        // Initialize hamburger menu functionality
+        this.initHamburgerMenu();
+    }
+
+    /**
+     * Initialize hamburger menu functionality
+     */
+    static initHamburgerMenu() {
+        const hamburgerBtn = document.querySelector('.hamburger-menu');
+        const navList = document.querySelector('.nav-list');
+
+        if (!hamburgerBtn || !navList) return;
+
+        hamburgerBtn.addEventListener('click', () => {
+            const isExpanded = hamburgerBtn.getAttribute('aria-expanded') === 'true';
+            hamburgerBtn.setAttribute('aria-expanded', !isExpanded);
+            navList.classList.toggle('nav-open');
+        });
+
+        // Close menu when clicking outside or on a link
+        document.addEventListener('click', (e) => {
+            if (!hamburgerBtn.contains(e.target) && !navList.contains(e.target)) {
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+                navList.classList.remove('nav-open');
+            }
+        });
+
+        // Close menu when a link is clicked
+        navList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-link')) {
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+                navList.classList.remove('nav-open');
+            }
+        });
     }
 }
 
@@ -101,3 +142,4 @@ if (document.readyState === 'loading') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Header;
 }
+

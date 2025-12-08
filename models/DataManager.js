@@ -161,7 +161,7 @@ const DataManager = {
         
         // Always export to file - files are the source of truth
         if (saved && exportFile) {
-            this.exportMonthToFile(monthKey, monthData).catch(error => {
+            this.exportMonthToFile(monthKey, monthData, 'json').catch(error => {
                 console.error('Error exporting month file:', error);
             });
             // Message is handled by the UI
@@ -172,20 +172,47 @@ const DataManager = {
 
     /**
      * Export month data to file using File System Access API or download
+     * Supports both JSON and CSV formats
      */
-    async exportMonthToFile(monthKey, monthData) {
+    async exportMonthToFile(monthKey, monthData, format = 'json') {
         try {
-            const jsonString = JSON.stringify(monthData, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
+            let blob;
+            let filename;
+            let mimeType;
+            let fileExtension;
+            
+            if (format === 'csv') {
+                if (!window.CSVHandler) {
+                    console.error('CSVHandler not available. Cannot export CSV.');
+                    return false;
+                }
+                const csvString = CSVHandler.monthDataToCSV(monthData);
+                blob = new Blob([csvString], { type: 'text/csv' });
+                filename = `${monthKey}.csv`;
+                mimeType = 'text/csv';
+                fileExtension = '.csv';
+            } else if (format === 'html') {
+                const htmlString = this.monthDataToHTML(monthData, monthKey);
+                blob = new Blob([htmlString], { type: 'text/html' });
+                filename = `${monthKey}.html`;
+                mimeType = 'text/html';
+                fileExtension = '.html';
+            } else {
+                const jsonString = JSON.stringify(monthData, null, 2);
+                blob = new Blob([jsonString], { type: 'application/json' });
+                filename = `${monthKey}.json`;
+                mimeType = 'application/json';
+                fileExtension = '.json';
+            }
             
             // Try File System Access API (modern browsers)
             if ('showSaveFilePicker' in window) {
                 try {
                     const fileHandle = await window.showSaveFilePicker({
-                        suggestedName: `${monthKey}.json`,
+                        suggestedName: filename,
                         types: [{
-                            description: 'JSON files',
-                            accept: { 'application/json': ['.json'] }
+                            description: format === 'csv' ? 'CSV files' : format === 'html' ? 'HTML files' : 'JSON files',
+                            accept: { [mimeType]: [fileExtension] }
                         }],
                         startIn: 'downloads'
                     });
@@ -194,7 +221,7 @@ const DataManager = {
                     await writable.write(blob);
                     await writable.close();
                     
-                    console.log(`✓ Month ${monthKey} saved directly to file system`);
+                    console.log(`✓ Month ${monthKey} saved as ${format.toUpperCase()} directly to file system`);
                     return true;
                 } catch (error) {
                     if (error.name !== 'AbortError') {
@@ -210,7 +237,7 @@ const DataManager = {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${monthKey}.json`;
+            a.download = filename;
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
@@ -220,7 +247,7 @@ const DataManager = {
                 URL.revokeObjectURL(url);
             }, 100);
             
-            console.log(`✓ Month ${monthKey} downloaded. Save it to data/months/ folder.`);
+            console.log(`✓ Month ${monthKey} downloaded as ${format.toUpperCase()}. Save it to data/months/ folder.`);
             return true;
         } catch (error) {
             console.error('Error exporting month file:', error);
@@ -243,8 +270,9 @@ const DataManager = {
                     const months = {};
                     let loadedCount = 0;
                     
-                    // Read all JSON and HTML files from the selected directory
+                    // Read all JSON, CSV, and HTML files from the selected directory
                     const htmlFiles = [];
+                    const csvFiles = [];
                     for await (const entry of directoryHandle.values()) {
                         if (entry.kind === 'file') {
                             if (entry.name.endsWith('.json')) {
@@ -259,8 +287,58 @@ const DataManager = {
                                 } catch (error) {
                                     console.error(`Error loading ${entry.name}:`, error);
                                 }
+                            } else if (entry.name.endsWith('.csv')) {
+                                csvFiles.push(entry);
                             } else if (entry.name.endsWith('.html')) {
                                 htmlFiles.push(entry);
+                            }
+                        }
+                    }
+                    
+                    // Process CSV files if CSVHandler is available
+                    if (csvFiles.length > 0 && window.CSVHandler) {
+                        for (const entry of csvFiles) {
+                            try {
+                                const file = await entry.getFile();
+                                const csvText = await file.text();
+                                const fileName = entry.name.toLowerCase();
+                                const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                                  'july', 'august', 'september', 'october', 'november', 'december'];
+                                
+                                let monthName = null;
+                                let year = new Date().getFullYear();
+                                
+                                for (const month of monthNames) {
+                                    if (fileName.includes(month)) {
+                                        monthName = month.charAt(0).toUpperCase() + month.slice(1);
+                                        break;
+                                    }
+                                }
+                                
+                                const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                                if (yearMatch) {
+                                    year = parseInt(yearMatch[1], 10);
+                                }
+                                
+                                if (!monthName) {
+                                    // Try to extract from filename pattern like "april-2025.csv"
+                                    const nameMatch = entry.name.match(/^([a-z]+)-(\d{4})\.csv$/i);
+                                    if (nameMatch) {
+                                        monthName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+                                        year = parseInt(nameMatch[2], 10);
+                                    } else {
+                                        console.warn(`Could not determine month from CSV filename: ${entry.name}`);
+                                        continue;
+                                    }
+                                }
+                                
+                                const monthData = CSVHandler.csvToMonthData(csvText, monthName, year);
+                                const monthKey = monthData.key;
+                                months[monthKey] = monthData;
+                                loadedCount++;
+                                console.log(`✓ Imported ${monthKey} from ${entry.name}`);
+                            } catch (error) {
+                                console.error(`Error importing CSV ${entry.name}:`, error);
                             }
                         }
                     }
@@ -336,8 +414,9 @@ const DataManager = {
         let loadedCount = 0;
         let errorCount = 0;
         const htmlFiles = [];
+        const csvFiles = [];
         
-        // First pass: Load JSON files and collect HTML files
+        // First pass: Load JSON files and collect HTML/CSV files
         for (const file of files) {
             if (file.name.endsWith('.json')) {
                 try {
@@ -351,8 +430,76 @@ const DataManager = {
                     console.error(`Error loading ${file.name}:`, error);
                     errorCount++;
                 }
+            } else if (file.name.endsWith('.csv')) {
+                csvFiles.push(file);
             } else if (file.name.endsWith('.html')) {
                 htmlFiles.push(file);
+            }
+        }
+        
+        // Process CSV files if CSVHandler is available
+        if (csvFiles.length > 0) {
+            if (!window.CSVHandler) {
+                console.error('CSVHandler not available. Cannot import CSV files.');
+                errorCount += csvFiles.length;
+            } else {
+                console.log(`Processing ${csvFiles.length} CSV file(s)...`);
+                for (const file of csvFiles) {
+                    try {
+                        const csvText = await file.text();
+                        const fileName = file.name.toLowerCase();
+                        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                          'july', 'august', 'september', 'october', 'november', 'december'];
+                        
+                        let monthName = null;
+                        let year = new Date().getFullYear();
+                        
+                        // Find month name in filename
+                        for (const month of monthNames) {
+                            if (fileName.includes(month)) {
+                                monthName = month.charAt(0).toUpperCase() + month.slice(1);
+                                break;
+                            }
+                        }
+                        
+                        // Try to extract year from filename
+                        const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                        if (yearMatch) {
+                            year = parseInt(yearMatch[1], 10);
+                        }
+                        
+                        // Try pattern like "april-2025.csv"
+                        if (!monthName) {
+                            const nameMatch = file.name.match(/^([a-z]+)-(\d{4})\.csv$/i);
+                            if (nameMatch) {
+                                monthName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+                                year = parseInt(nameMatch[2], 10);
+                            }
+                        }
+                        
+                        if (!monthName) {
+                            const errorMsg = 'Could not determine month from CSV filename: ' + file.name;
+                            console.warn(errorMsg);
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        console.log('Importing CSV file: ' + file.name + ' as ' + monthName + ' ' + year);
+                        
+                        const monthData = CSVHandler.csvToMonthData(csvText, monthName, year);
+                        if (!monthData || !monthData.key) {
+                            throw new Error('CSV import returned invalid data');
+                        }
+                        
+                        const monthKey = monthData.key;
+                        months[monthKey] = monthData;
+                        loadedCount++;
+                        console.log('  Added month: ' + monthKey);
+                    } catch (error) {
+                        console.error('Error importing CSV ' + file.name + ':', error);
+                        errorCount++;
+                    }
+                }
             }
         }
         
@@ -461,13 +608,29 @@ const DataManager = {
                     for (const monthKey of monthKeys) {
                         try {
                             const monthData = allMonths[monthKey];
-                            const jsonString = JSON.stringify(monthData, null, 2);
-                            const blob = new Blob([jsonString], { type: 'application/json' });
                             
-                            const fileHandle = await directoryHandle.getFileHandle(`${monthKey}.json`, { create: true });
-                            const writable = await fileHandle.createWritable();
-                            await writable.write(blob);
-                            await writable.close();
+                            // Save as JSON
+                            const jsonString = JSON.stringify(monthData, null, 2);
+                            const jsonBlob = new Blob([jsonString], { type: 'application/json' });
+                            const jsonFileHandle = await directoryHandle.getFileHandle(`${monthKey}.json`, { create: true });
+                            const jsonWritable = await jsonFileHandle.createWritable();
+                            await jsonWritable.write(jsonBlob);
+                            await jsonWritable.close();
+                            
+                            // Save as CSV if CSVHandler is available
+                            if (window.CSVHandler) {
+                                try {
+                                    const csvString = CSVHandler.monthDataToCSV(monthData);
+                                    const csvBlob = new Blob([csvString], { type: 'text/csv' });
+                                    const csvFileHandle = await directoryHandle.getFileHandle(`${monthKey}.csv`, { create: true });
+                                    const csvWritable = await csvFileHandle.createWritable();
+                                    await csvWritable.write(csvBlob);
+                                    await csvWritable.close();
+                                    console.log(`✓ Saved ${monthKey}.csv`);
+                                } catch (csvError) {
+                                    console.warn(`Could not save ${monthKey}.csv:`, csvError);
+                                }
+                            }
                             
                             savedCount++;
                             console.log(`✓ Saved ${monthKey}.json`);
@@ -492,29 +655,43 @@ const DataManager = {
                 }
             }
             
-            // Fallback: Download all files individually
+            // Fallback: Download all files individually (both JSON and CSV)
             let downloadedCount = 0;
             const downloadPromises = [];
             
             for (const monthKey of monthKeys) {
                 const monthData = allMonths[monthKey];
+                // Download JSON
                 downloadPromises.push(
-                    this.exportMonthToFile(monthKey, monthData).then(() => {
+                    this.exportMonthToFile(monthKey, monthData, 'json').then(() => {
                         downloadedCount++;
                     }).catch(error => {
-                        console.error(`Error downloading ${monthKey}:`, error);
+                        console.error(`Error downloading ${monthKey}.json:`, error);
                     })
                 );
                 // Small delay to avoid browser blocking multiple downloads
                 await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Download CSV if CSVHandler is available
+                if (window.CSVHandler) {
+                    downloadPromises.push(
+                        this.exportMonthToFile(monthKey, monthData, 'csv').then(() => {
+                            // CSV download doesn't count separately, it's part of the same month
+                        }).catch(error => {
+                            console.warn(`Could not download ${monthKey}.csv:`, error);
+                        })
+                    );
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
             }
             
             await Promise.all(downloadPromises);
             
+            const fileTypeText = window.CSVHandler ? 'JSON and CSV files' : 'JSON files';
             return { 
                 success: downloadedCount > 0, 
                 count: downloadedCount,
-                message: `Downloaded ${downloadedCount} month file${downloadedCount !== 1 ? 's' : ''}. Save ${downloadedCount === 1 ? 'it' : 'them'} to data/months/ folder.` 
+                message: `Downloaded ${downloadedCount} month ${fileTypeText}${downloadedCount !== 1 ? 's' : ''}. Save ${downloadedCount === 1 ? 'it' : 'them'} to data/months/ folder.` 
             };
         } catch (error) {
             console.error('Error saving all months:', error);
@@ -711,6 +888,492 @@ const DataManager = {
         totals.savings.actual = totals.income.actual - totals.expenses.actual - totals.pots.actual;
 
         return totals;
+    },
+
+    /**
+     * Generate HTML representation of month data
+     */
+    monthDataToHTML(monthData, monthKey) {
+        const formatCurrency = (amount) => {
+            if (!amount && amount !== 0) return '£0.00';
+            return '£' + parseFloat(amount).toFixed(2);
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            try {
+                return new Date(dateString).toLocaleDateString('en-GB');
+            } catch {
+                return dateString;
+            }
+        };
+
+        const monthName = monthData.monthName || this.getMonthName(monthData.month);
+        const year = monthData.year;
+
+        // Helper to render table rows
+        const renderTableRows = (items, columns) => {
+            if (!items || items.length === 0) {
+                return `<tr><td colspan="${columns.length}" style="text-align: center; font-style: italic; color: #666;">No data</td></tr>`;
+            }
+
+            return items.map(item => {
+                return '<tr>' + columns.map(col => {
+                    let value = item[col.key];
+                    if (col.type === 'currency') {
+                        value = formatCurrency(value);
+                    } else if (col.type === 'date') {
+                        value = formatDate(value);
+                    } else if (col.type === 'boolean') {
+                        value = value ? '✓' : '';
+                    }
+                    return `<td>${value || ''}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
+        };
+
+        // Calculate totals
+        const totals = this.calculateMonthTotals(monthData);
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${monthName} ${year} - Monthly Budget</title>
+    <style>
+        /* cspell:disable-file */
+        /* webkit printing magic: print all background colors */
+        html {
+            -webkit-print-color-adjust: exact;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        @media only screen {
+            body {
+                margin: 2em auto;
+                max-width: 900px;
+                background-color: #f8f9fa;
+            }
+        }
+
+        body {
+            white-space: pre-wrap;
+            background-color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+
+        .header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .total-row {
+            background-color: #fff3cd;
+            font-weight: 600;
+        }
+
+        .total-row td {
+            border-top: 2px solid #ffc107;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .summary-section .section-title {
+            color: white;
+        }
+
+        .summary-section table {
+            color: #333;
+        }
+
+        .summary-section .total-row {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .summary-section .total-row td {
+            border-top: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .export-info {
+            background: #e9ecef;
+            padding: 1rem;
+            margin-top: 2rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .export-info strong {
+            color: #495057;
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                margin: 0 !important;
+                max-width: none !important;
+            }
+
+            .section {
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+
+            .export-info {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${monthName} ${year}</h1>
+        <p>Monthly Budget Report</p>
+    </div>
+
+    ${monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0 ? `
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Weekly Breakdown</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date Range</th>
+                    <th>Payments Due</th>
+                    <th>Groceries</th>
+                    <th>Transport</th>
+                    <th>Activities</th>
+                    <th>Estimate</th>
+                    <th>Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${monthData.weeklyBreakdown.map(week => `
+                <tr>
+                    <td>${week.dateRange || week.weekRange || ''}</td>
+                    <td>${week.paymentsDue || ''}</td>
+                    <td>${week.groceries || ''}</td>
+                    <td>${week.transport || ''}</td>
+                    <td>${week.activities || ''}</td>
+                    <td>${formatCurrency(week.estimate || week.weeklyEstimate)}</td>
+                    <td>${formatCurrency(week.actual)}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>TOTALS</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><strong>${formatCurrency(monthData.weeklyBreakdown.reduce((sum, week) => sum + (week.estimate || week.weeklyEstimate || 0), 0))}</strong></td>
+                    <td><strong>${formatCurrency(monthData.weeklyBreakdown.reduce((sum, week) => sum + (week.actual || 0), 0))}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Income Sources</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Estimated</th>
+                    <th>Actual</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${(monthData.incomeSources || []).map(income => `
+                <tr>
+                    <td>${income.source || ''}</td>
+                    <td>${formatCurrency(income.estimated)}</td>
+                    <td>${formatCurrency(income.actual)}</td>
+                    <td>${formatDate(income.date)}</td>
+                    <td>${income.description || ''}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>Total Income</strong></td>
+                    <td><strong>${formatCurrency(totals.income.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.income.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Fixed Costs</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Estimated</th>
+                    <th>Actual</th>
+                    <th>Date</th>
+                    <th>Card</th>
+                    <th>Paid</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${(monthData.fixedCosts || []).map(cost => `
+                <tr>
+                    <td>${cost.category || ''}</td>
+                    <td>${formatCurrency(cost.estimatedAmount)}</td>
+                    <td>${formatCurrency(cost.actualAmount)}</td>
+                    <td>${formatDate(cost.date)}</td>
+                    <td>${cost.card || ''}</td>
+                    <td>${cost.paid ? '✓' : ''}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>Total Fixed Costs</strong></td>
+                    <td><strong>${formatCurrency(totals.fixedCosts.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.fixedCosts.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Variable Costs</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Budget</th>
+                    <th>Actual</th>
+                    <th>Remaining</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${(monthData.variableCosts || []).map(cost => `
+                <tr>
+                    <td>${cost.category || ''}</td>
+                    <td>${formatCurrency(cost.estimatedAmount || cost.monthlyBudget)}</td>
+                    <td>${formatCurrency(cost.actualAmount || cost.actualSpent)}</td>
+                    <td>${formatCurrency((cost.estimatedAmount || cost.monthlyBudget || 0) - (cost.actualAmount || cost.actualSpent || 0))}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>Total Variable Costs</strong></td>
+                    <td><strong>${formatCurrency(totals.variableCosts.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.variableCosts.actual)}</strong></td>
+                    <td><strong>${formatCurrency(totals.variableCosts.estimated - totals.variableCosts.actual)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    ${monthData.unplannedExpenses && monthData.unplannedExpenses.length > 0 ? `
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Unplanned Expenses</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Card</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${monthData.unplannedExpenses.map(expense => `
+                <tr>
+                    <td>${expense.name || ''}</td>
+                    <td>${formatCurrency(expense.amount)}</td>
+                    <td>${formatDate(expense.date)}</td>
+                    <td>${expense.card || ''}</td>
+                    <td>${expense.status || ''}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>Total Unplanned Expenses</strong></td>
+                    <td><strong>${formatCurrency(totals.unplannedExpenses.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    ${monthData.pots && monthData.pots.length > 0 ? `
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Savings & Investments</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Estimated</th>
+                    <th>Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${monthData.pots.map(pot => `
+                <tr>
+                    <td>${pot.category || ''}</td>
+                    <td>${formatCurrency(pot.estimatedAmount)}</td>
+                    <td>${formatCurrency(pot.actualAmount)}</td>
+                </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td><strong>Total Savings/Investments</strong></td>
+                    <td><strong>${formatCurrency(totals.pots.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.pots.actual)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    <div class="section summary-section">
+        <div class="section-header">
+            <h2 class="section-title">Monthly Summary</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Estimated</th>
+                    <th>Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Total Income</strong></td>
+                    <td><strong>${formatCurrency(totals.income.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.income.actual)}</strong></td>
+                </tr>
+                <tr>
+                    <td>Total Fixed Costs</td>
+                    <td>${formatCurrency(totals.fixedCosts.estimated)}</td>
+                    <td>${formatCurrency(totals.fixedCosts.actual)}</td>
+                </tr>
+                <tr>
+                    <td>Total Variable Costs</td>
+                    <td>${formatCurrency(totals.variableCosts.estimated)}</td>
+                    <td>${formatCurrency(totals.variableCosts.actual)}</td>
+                </tr>
+                <tr>
+                    <td><strong>Total Expenses</strong></td>
+                    <td><strong>${formatCurrency(totals.expenses.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.expenses.actual)}</strong></td>
+                </tr>
+                <tr>
+                    <td>Total Unplanned Expenses</td>
+                    <td>—</td>
+                    <td>${formatCurrency(totals.unplannedExpenses.actual)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Grand Savings Total</strong></td>
+                    <td><strong>${formatCurrency(totals.savings.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.savings.actual)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="export-info">
+        <strong>Export Details:</strong><br>
+        Generated on ${new Date().toLocaleString()}<br>
+        Format: HTML Report<br>
+        Source: Money Tracker Application
+    </div>
+</body>
+</html>`;
+
+        return html;
     }
 };
 

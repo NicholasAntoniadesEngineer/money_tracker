@@ -76,7 +76,9 @@ const MonthlyBudgetController = {
         const addPotBtn = document.getElementById('add-pot-button');
         const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
         const loadMonthsBtn = document.getElementById('load-months-button');
-        const saveAllMonthsBtn = document.getElementById('save-all-months-button');
+        const exportCurrentMonthBtn = document.getElementById('export-current-month-button');
+        const exportAllMonthsBtn = document.getElementById('export-all-months-button');
+        const exportFormatSelect = document.getElementById('export-format-select');
         const fileInput = document.getElementById('file-input');
         const fileOperationsStatus = document.getElementById('file-operations-status');
 
@@ -89,6 +91,46 @@ const MonthlyBudgetController = {
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
+        
+        // Export Current Month button
+        if (exportCurrentMonthBtn && exportFormatSelect) {
+            exportCurrentMonthBtn.addEventListener('click', async () => {
+                if (!this.currentMonthKey) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">Please select a month first.</p>';
+                    return;
+                }
+                
+                const format = exportFormatSelect.value || 'json';
+                
+                if (format === 'csv' && !window.CSVHandler) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
+                    return;
+                }
+                
+                exportCurrentMonthBtn.disabled = true;
+                const formatUpper = format.toUpperCase();
+                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Exporting month as ' + formatUpper + '...</p>';
+                
+                try {
+                    const monthData = DataManager.getMonth(this.currentMonthKey);
+                    if (!monthData) {
+                        throw new Error('Month data not found');
+                    }
+                    
+                    const success = await DataManager.exportMonthToFile(this.currentMonthKey, monthData, format);
+                    if (success) {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">Month exported as ' + formatUpper + ' successfully!</p>';
+                    } else {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">' + formatUpper + ' export cancelled or failed.</p>';
+                    }
+                } catch (error) {
+                    console.error('Error exporting ' + formatUpper + ':', error);
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error exporting ' + formatUpper + ': ' + error.message + '</p>';
+                } finally {
+                    exportCurrentMonthBtn.disabled = false;
+                }
+            });
+        }
         
         // File operations
         if (loadMonthsBtn) {
@@ -120,27 +162,66 @@ const MonthlyBudgetController = {
             });
         }
         
-        if (saveAllMonthsBtn) {
-            saveAllMonthsBtn.addEventListener('click', async () => {
-                saveAllMonthsBtn.disabled = true;
-                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Saving all months to files...</p>';
+        // Export All Months button
+        if (exportAllMonthsBtn && exportFormatSelect) {
+            exportAllMonthsBtn.addEventListener('click', async () => {
+                const format = exportFormatSelect.value || 'json';
+                
+                if (format === 'csv' && !window.CSVHandler) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
+                    return;
+                }
+                
+                exportAllMonthsBtn.disabled = true;
+                const formatUpper = format.toUpperCase();
+                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Exporting all months as ' + formatUpper + '...</p>';
                 
                 try {
-                    const result = await DataManager.saveAllMonthsToFiles();
-                    if (result.success) {
-                        if (result.count > 0) {
-                            fileOperationsStatus.innerHTML = `<p style="color: var(--success-color);">✓ ${result.message}</p>`;
-                        } else {
-                            fileOperationsStatus.innerHTML = `<p style="color: var(--warning-color);">⚠ ${result.message}</p>`;
+                    const allMonths = DataManager.getAllMonths();
+                    const monthKeys = Object.keys(allMonths);
+                    
+                    if (monthKeys.length === 0) {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">No months to export.</p>';
+                        exportAllMonthsBtn.disabled = false;
+                        return;
+                    }
+                    
+                    let exportedCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const monthKey of monthKeys) {
+                        try {
+                            const monthData = allMonths[monthKey];
+                            const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
+                            if (success) {
+                                exportedCount++;
+                            } else {
+                                errorCount++;
+                            }
+                            // Small delay to avoid browser blocking multiple downloads
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        } catch (error) {
+                            console.error('Error exporting ' + monthKey + ':', error);
+                            errorCount++;
                         }
+                    }
+                    
+                    if (exportedCount > 0) {
+                        const monthText = exportedCount !== 1 ? 'months' : 'month';
+                        let message = 'Successfully exported ' + exportedCount + ' ' + monthText + ' as ' + formatUpper + '!';
+                        if (errorCount > 0) {
+                            const errorText = errorCount !== 1 ? 'errors' : 'error';
+                            message += '<br/><span style="color: var(--warning-color);">' + errorCount + ' ' + errorText + ' occurred</span>';
+                        }
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
                     } else {
-                        fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ ${result.message}</p>`;
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Failed to export any months.</p>';
                     }
                 } catch (error) {
-                    fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
-                    console.error('Error saving all months:', error);
+                    console.error('Error exporting all months:', error);
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error exporting all months: ' + error.message + '</p>';
                 } finally {
-                    saveAllMonthsBtn.disabled = false;
+                    exportAllMonthsBtn.disabled = false;
                 }
             });
         }
@@ -154,20 +235,32 @@ const MonthlyBudgetController = {
                 
                 // Disable buttons during loading
                 if (loadMonthsBtn) loadMonthsBtn.disabled = true;
-                if (saveAllMonthsBtn) saveAllMonthsBtn.disabled = true;
+                if (exportAllMonthsBtn) exportAllMonthsBtn.disabled = true;
+                if (exportCurrentMonthBtn) exportCurrentMonthBtn.disabled = true;
                 
                 try {
                     const result = await DataManager.loadMonthsFromFileInput(files);
                     if (result.success) {
                         const htmlCount = files.filter(f => f.name.endsWith('.html')).length;
                         const jsonCount = files.filter(f => f.name.endsWith('.json')).length;
+                        const csvCount = files.filter(f => f.name.endsWith('.csv')).length;
                         const monthText = result.count !== 1 ? 'months' : 'month';
                         let message = 'Successfully loaded ' + result.count + ' ' + monthText + '!';
-                        if (htmlCount > 0 && jsonCount > 0) {
-                            message += ' (' + htmlCount + ' HTML imported, ' + jsonCount + ' JSON loaded)';
-                        } else if (htmlCount > 0) {
+                        const fileTypes = [];
+                        if (htmlCount > 0) {
                             const fileText = htmlCount !== 1 ? 'files' : 'file';
-                            message += ' (' + htmlCount + ' HTML ' + fileText + ' imported)';
+                            fileTypes.push(htmlCount + ' HTML ' + fileText);
+                        }
+                        if (jsonCount > 0) {
+                            const fileText = jsonCount !== 1 ? 'files' : 'file';
+                            fileTypes.push(jsonCount + ' JSON ' + fileText);
+                        }
+                        if (csvCount > 0) {
+                            const fileText = csvCount !== 1 ? 'files' : 'file';
+                            fileTypes.push(csvCount + ' CSV ' + fileText);
+                        }
+                        if (fileTypes.length > 0) {
+                            message += ' (' + fileTypes.join(', ') + ')';
                         }
                         if (result.errors > 0) {
                             const errorText = result.errors !== 1 ? 'files' : 'file';
@@ -190,7 +283,8 @@ const MonthlyBudgetController = {
                 } finally {
                     fileInput.value = '';
                     if (loadMonthsBtn) loadMonthsBtn.disabled = false;
-                    if (saveAllMonthsBtn) saveAllMonthsBtn.disabled = false;
+                    if (exportAllMonthsBtn) exportAllMonthsBtn.disabled = false;
+                    if (exportCurrentMonthBtn) exportCurrentMonthBtn.disabled = false;
                 }
             });
         }
@@ -281,11 +375,14 @@ const MonthlyBudgetController = {
         tbody.innerHTML = '';
         
         if (weeklyBreakdown && weeklyBreakdown.length > 0) {
-            weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
+        weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
         } else {
             // If no weekly breakdown exists, add at least one empty row
             this.addWeeklyBreakdownRow();
         }
+
+        // Always add the total row at the end
+        this.addWeeklyBreakdownTotalRow();
     },
 
     /**
@@ -304,13 +401,54 @@ const MonthlyBudgetController = {
             <td><textarea class="weekly-activities" placeholder="Activities (with calculations)" rows="4">${weekData?.activities || ''}</textarea></td>
             <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td>
+                <button type="button" class="btn-delete-week btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Remove</button>
+            </td>
         `;
 
         row.querySelectorAll('input, textarea').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
+        // Add delete button handler
+        const deleteBtn = row.querySelector('.btn-delete-week');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                row.remove();
+                this.updateCalculations();
+            });
+        }
+
         tbody.appendChild(row);
+    },
+
+    /**
+     * Add weekly breakdown total row
+     */
+    addWeeklyBreakdownTotalRow() {
+        const tbody = document.getElementById('weekly-breakdown-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>TOTALS</strong></td>
+            <td id="weekly-breakdown-total-payments"></td>
+            <td id="weekly-breakdown-total-groceries"></td>
+            <td id="weekly-breakdown-total-transport"></td>
+            <td id="weekly-breakdown-total-activities"></td>
+            <td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td>
+            <td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td>
+            <td></td>
+        `;
+
+        tbody.appendChild(totalRow);
     },
 
     /**
@@ -360,6 +498,9 @@ const MonthlyBudgetController = {
         } else {
             incomeSources.forEach(income => this.addIncomeRow(income));
         }
+
+        // Always add the total row at the end
+        this.addIncomeTotalRow();
     },
 
     /**
@@ -392,6 +533,33 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Add income total row
+     */
+    addIncomeTotalRow() {
+        const tbody = document.getElementById('income-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Income</strong></td>
+            <td id="income-total-estimated"><strong>£0.00</strong></td>
+            <td id="income-total-actual"><strong>£0.00</strong></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        `;
+
+        tbody.appendChild(totalRow);
+    },
+
+    /**
      * Load fixed costs
      */
     loadFixedCosts(costs) {
@@ -399,6 +567,7 @@ const MonthlyBudgetController = {
         if (!tbody) return;
         tbody.innerHTML = '';
         costs.forEach(cost => this.addFixedCostRow(cost));
+        this.addFixedCostsTotalRow();
     },
 
     /**
@@ -433,6 +602,34 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Add fixed costs total row
+     */
+    addFixedCostsTotalRow() {
+        const tbody = document.getElementById('fixed-costs-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Fixed Costs</strong></td>
+            <td id="fixed-costs-total-estimated"><strong>£0.00</strong></td>
+            <td id="fixed-costs-total-actual"><strong>£0.00</strong></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        `;
+
+        tbody.appendChild(totalRow);
+    },
+
+    /**
      * Load variable costs
      */
     loadVariableCosts(costs) {
@@ -440,6 +637,7 @@ const MonthlyBudgetController = {
         if (!tbody) return;
         tbody.innerHTML = '';
         costs.forEach(cost => this.addVariableCostRow(cost));
+        this.addVariableCostsTotalRow();
     },
 
     /**
@@ -470,6 +668,31 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Add variable costs total row
+     */
+    addVariableCostsTotalRow() {
+        const tbody = document.getElementById('variable-costs-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Variable Costs</strong></td>
+            <td id="variable-costs-total-budget"><strong>£0.00</strong></td>
+            <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
+            <td id="variable-costs-total-remaining"><strong>£0.00</strong></td>
+        `;
+
+        tbody.appendChild(totalRow);
+    },
+
+    /**
      * Load unplanned expenses
      */
     loadUnplannedExpenses(expenses) {
@@ -477,6 +700,7 @@ const MonthlyBudgetController = {
         if (!tbody) return;
         tbody.innerHTML = '';
         expenses.forEach(expense => this.addUnplannedExpenseRow(expense));
+        this.addUnplannedExpensesTotalRow();
     },
 
     /**
@@ -509,6 +733,33 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Add unplanned expenses total row
+     */
+    addUnplannedExpensesTotalRow() {
+        const tbody = document.getElementById('unplanned-expenses-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Unplanned Expenses</strong></td>
+            <td id="unplanned-expenses-total"><strong>£0.00</strong></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        `;
+
+        tbody.appendChild(totalRow);
+    },
+
+    /**
      * Load pots
      */
     loadPots(pots) {
@@ -516,6 +767,7 @@ const MonthlyBudgetController = {
         if (!tbody) return;
         tbody.innerHTML = '';
         pots.forEach(pot => this.addPotRow(pot));
+        this.addPotsTotalRow();
     },
 
     /**
@@ -543,6 +795,31 @@ const MonthlyBudgetController = {
         });
 
         tbody.appendChild(row);
+    },
+
+    /**
+     * Add pots total row
+     */
+    addPotsTotalRow() {
+        const tbody = document.getElementById('pots-tbody');
+        if (!tbody) return;
+
+        // Remove existing total row if it exists
+        const existingTotalRow = tbody.querySelector('.total-row');
+        if (existingTotalRow) {
+            existingTotalRow.remove();
+        }
+
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td><strong>Total Savings/Investments</strong></td>
+            <td id="pots-total-estimated"><strong>£0.00</strong></td>
+            <td id="pots-total-actual"><strong>£0.00</strong></td>
+            <td></td>
+        `;
+
+        tbody.appendChild(totalRow);
     },
 
     /**
@@ -581,13 +858,13 @@ const MonthlyBudgetController = {
         this.setElementHTML('summary-expenses-actual', '<strong>' + Formatters.formatCurrency(totals.expenses.actual) + '</strong>');
         this.setElementHTML('summary-unplanned-actual', Formatters.formatCurrency(totals.unplannedExpenses.actual));
         
-        // Grand Savings Total = Income - Expenses (fixed + variable + unplanned)
+        // Grand Savings Total = Income - Expenses - Pots
         // Note: totals.expenses.actual already includes unplanned expenses
-        const grandSavingsEstimated = totals.income.estimated - totals.expenses.estimated;
-        const grandSavingsActual = totals.income.actual - totals.expenses.actual;
+        const grandSavingsEstimated = totals.income.estimated - totals.expenses.estimated - totals.pots.estimated;
+        const grandSavingsActual = totals.income.actual - totals.expenses.actual - totals.pots.actual;
         this.setElementHTML('summary-savings-estimated', '<strong><em>' + Formatters.formatCurrency(grandSavingsEstimated) + '</em></strong>');
         this.setElementHTML('summary-savings-actual', '<strong><em>' + Formatters.formatCurrency(grandSavingsActual) + '</em></strong>');
-        
+
         // Update weekly breakdown totals
         const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr'));
         let weeklyEstimateTotal = 0;
