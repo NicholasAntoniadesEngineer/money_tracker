@@ -1176,6 +1176,7 @@ const DataManager = {
                     <td><strong>${formatCurrency(totals.income.actual)}</strong></td>
                     <td></td>
                     <td></td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>
@@ -1213,6 +1214,8 @@ const DataManager = {
                     <td><strong>Total Fixed Costs</strong></td>
                     <td><strong>${formatCurrency(totals.fixedCosts.estimated)}</strong></td>
                     <td><strong>${formatCurrency(totals.fixedCosts.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -1288,6 +1291,8 @@ const DataManager = {
                 <tr class="total-row">
                     <td><strong>Total Unplanned Expenses</strong></td>
                     <td><strong>${formatCurrency(totals.unplannedExpenses.actual)}</strong></td>
+                    <td></td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>

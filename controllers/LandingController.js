@@ -50,14 +50,9 @@ const LandingController = {
      */
     setupEventListeners() {
         const createNewMonthButton = document.getElementById('create-new-month-button');
-        const viewAllMonthsButton = document.getElementById('view-all-months-button');
 
         if (createNewMonthButton) {
             createNewMonthButton.addEventListener('click', () => this.handleCreateNewMonth());
-        }
-
-        if (viewAllMonthsButton) {
-            viewAllMonthsButton.addEventListener('click', () => this.handleViewAllMonths());
         }
     },
 
@@ -102,12 +97,6 @@ const LandingController = {
         window.location.href = `views/monthly-budget.html?month=${monthKey}`;
     },
 
-    /**
-     * Handle view all months action
-     */
-    handleViewAllMonths() {
-        window.location.href = 'views/overview.html';
-    }
 };
 
 // Make LandingController available globally

@@ -428,7 +428,7 @@ const MonthlyBudgetController = {
             tbody.insertBefore(row, lastRow);
         } else {
             // No total row found, append to end
-            tbody.appendChild(row);
+        tbody.appendChild(row);
         }
     },
 
@@ -552,7 +552,7 @@ const MonthlyBudgetController = {
             tbody.insertBefore(row, lastRow);
         } else {
             // No total row found, append to end
-            tbody.appendChild(row);
+        tbody.appendChild(row);
         }
     },
 
@@ -633,7 +633,7 @@ const MonthlyBudgetController = {
             tbody.insertBefore(row, lastRow);
         } else {
             // No total row found, append to end
-            tbody.appendChild(row);
+        tbody.appendChild(row);
         }
     },
 
@@ -733,7 +733,7 @@ const MonthlyBudgetController = {
             tbody.insertBefore(row, lastRow);
         } else {
             // No total row found, append to end
-            tbody.appendChild(row);
+        tbody.appendChild(row);
         }
     },
 
@@ -811,7 +811,7 @@ const MonthlyBudgetController = {
             tbody.insertBefore(row, lastRow);
         } else {
             // No total row found, append to end
-            tbody.appendChild(row);
+        tbody.appendChild(row);
         }
     },
 

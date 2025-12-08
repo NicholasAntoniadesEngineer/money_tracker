@@ -82,7 +82,7 @@ class Header {
         // Find where to insert the header (before main or body's first child)
         const main = document.querySelector('main');
         const body = document.body;
-
+        
         if (main) {
             // Insert before main element
             main.insertAdjacentHTML('beforebegin', this.render());
