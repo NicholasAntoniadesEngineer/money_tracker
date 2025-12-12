@@ -42,6 +42,26 @@
     --surface-overlay-button: rgba(255, 255, 255, 0.6);
     --surface-overlay-button-hover: rgba(255, 255, 255, 0.8);
     
+    /* Component Background Colors */
+    --bg-header: rgba(210, 210, 210, 0.85);
+    --bg-form-section: rgba(220, 220, 220, 0.85);
+    --bg-hero-section: rgba(225, 225, 225, 0.85);
+    --bg-summary-card: rgba(215, 215, 215, 0.85);
+    --bg-input: rgba(230, 230, 230, 0.85);
+    --bg-data-table: rgba(213, 213, 213, 0.85);
+    --bg-table: rgba(216, 216, 216, 0.85);
+    --bg-table-cell: rgba(221, 221, 221, 0.85);
+    --bg-table-header: rgba(208, 208, 208, 0.85);
+    --bg-table-total: rgba(200, 200, 200, 0.85);
+    --bg-action-button: rgba(210, 210, 210, 0.85);
+    --bg-button-secondary: rgba(210, 210, 210, 0.85);
+    --bg-button-secondary-hover: rgba(200, 200, 200, 0.85);
+    --bg-trend-item: rgba(220, 220, 220, 0.85);
+    --bg-month-item: rgba(220, 220, 220, 0.85);
+    --bg-view-card: rgba(220, 220, 220, 0.85);
+    --bg-view-card-landing: rgba(225, 225, 225, 0.85);
+    --bg-view-card-hover: rgba(210, 210, 210, 0.85);
+    
     /* Text Colors */
     --text-primary: #1b1b1b;
     --text-secondary: #1a1a1a;
@@ -78,6 +98,10 @@
     --spacing-lg: 1rem;
     --spacing-xl: 1.5rem;
     
+    /* Common Padding Values */
+    --padding-button-sm: 0.5rem 1rem;
+    --gap-standard: 0.5rem;
+    
     /* Spacing Multipliers (for reduced spacing) */
     --spacing-multiplier-reduced: 0.2;
     --spacing-multiplier-medium: 0.3;
@@ -86,6 +110,16 @@
     /* Typography */
     --line-height-base: 1.28;
     --line-height-reduced: 1.28;
+    
+    /* Font Sizes */
+    --font-size-xs: 0.875rem;
+    --font-size-sm: 0.9rem;
+    --font-size-base: 1rem;
+    --font-size-md: 1.25rem;
+    --font-size-lg: 1.75rem;
+    --font-size-xl: 2rem;
+    --font-size-xxl: 2.5rem;
+    --font-size-xxxl: 3rem;
     
     /* Layout */
     --border-radius: 0.55rem;
@@ -166,7 +200,7 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 }
 
 .section-title {
-    font-size: 1.75rem;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
     color: var(--text-primary);
@@ -184,14 +218,14 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 }
 
 .hero-title {
-    font-size: 2.5rem;
+    font-size: var(--font-size-xxl);
     font-weight: 700;
     margin-bottom: var(--spacing-sm);
     color: var(--text-primary);
 }
 
 .hero-description {
-    font-size: 1.25rem;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     max-width: 600px;
     margin: 0 auto;
@@ -203,19 +237,16 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 
 /* Header - Consistent across all views (isolated from page-specific styles) */
 .main-header {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-header);
     border-bottom: var(--border-width-standard) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     position: sticky;
     top: 0;
     z-index: 100;
     width: 100%;
-    /* Ensure header is isolated from view-specific styles */
     isolation: isolate;
-    /* Reset any inherited styles */
     margin: 0;
     padding: 0;
-    /* Ensure solid background that doesn't change */
     background-image: none;
 }
 
@@ -223,7 +254,7 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 body .main-header,
 body.landing-page .main-header,
 body:not(.landing-page) .main-header {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-header);
     border-bottom: var(--border-width-standard) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     background-image: none;
@@ -275,9 +306,8 @@ body:not(.landing-page) .main-navigation {
     color: var(--text-secondary);
     font-weight: 500;
     padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     transition: var(--transition);
-    /* Ensure consistent styling */
     display: inline-block;
 }
 
@@ -306,7 +336,7 @@ body:not(.landing-page) .main-navigation {
     width: 100%;
     height: 3px;
     background-color: var(--text-primary);
-    border-radius: 2px;
+    border-radius: 0;
     transition: all 0.3s ease;
     transform-origin: center;
 }
@@ -321,14 +351,6 @@ body:not(.landing-page) .main-navigation {
 
 .hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(3) {
     transform: rotate(-45deg) translate(6px, -6px);
-}
-
-.nav-list {
-    display: flex;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    gap: var(--spacing-md);
 }
 
 /* Mobile Navigation */
@@ -346,9 +368,9 @@ body:not(.landing-page) .main-navigation {
         top: 100%;
         left: 0;
         right: 0;
-        background-color: rgba(210, 210, 210, 0.85);
+        background-color: var(--bg-header);
         border: var(--border-width-thin) solid var(--border-color-black);
-        border-radius: var(--border-radius);
+        border-radius: 0;
         box-shadow: var(--shadow-md);
         flex-direction: column;
         gap: 0;
@@ -402,7 +424,7 @@ main {
 
 /* Footer */
 .main-footer {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-header);
     border-top: var(--border-width-standard) solid var(--border-color);
     padding: var(--spacing-sm);
     text-align: center;
@@ -415,17 +437,17 @@ main {
    ============================================================================ */
 
 .form-section {
-    background-color: rgba(220, 220, 220, 0.85);
+    background-color: var(--bg-form-section);
     border: var(--border-width-standard) solid var(--border-color-dark);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-radius: 0;
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
 }
 
 .months-comparison-section {
-    background-color: rgba(220, 220, 220, 0.85);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    background-color: var(--bg-form-section);
+    border-radius: 0;
 }
 
 .form-group {
@@ -445,11 +467,11 @@ main {
     width: 100%;
     padding: var(--spacing-xs) var(--spacing-sm);
     border: var(--border-width-standard) solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 1rem;
+    border-radius: 0;
+    font-size: var(--font-size-base);
     transition: var(--transition);
     font-family: inherit;
-    background-color: rgba(230, 230, 230, 0.85);
+    background-color: var(--bg-input);
     color: var(--text-primary);
 }
 
@@ -470,7 +492,7 @@ main {
 input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
-    background-color: rgba(230, 230, 230, 0.85);
+    background-color: var(--bg-input);
     color: var(--text-primary);
     border-color: var(--border-color);
 }
@@ -513,8 +535,8 @@ table:not(.data-table) {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background-color: rgba(216, 216, 216, 0.85);
-    border-radius: var(--border-radius);
+    background-color: var(--bg-table);
+    border-radius: 0;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-lg);
@@ -528,7 +550,7 @@ table:not(.data-table) td {
     padding-bottom: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
     padding-left: var(--spacing-sm);
     padding-right: var(--spacing-sm);
-    background-color: rgba(221, 221, 221, 0.85);
+    background-color: var(--bg-table-cell);
     border: var(--border-width-thin) solid var(--border-color-black);
 }
 
@@ -579,8 +601,8 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background-color: rgba(213, 213, 213, 0.85);
-    border-radius: var(--border-radius);
+    background-color: var(--bg-data-table);
+    border-radius: 0;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-lg);
@@ -588,7 +610,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 }
 
 .data-table th {
-    background-color: rgba(208, 208, 208, 0.85);
+    background-color: var(--bg-table-header);
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-sm);
     text-align: left;
     font-weight: 600;
@@ -617,7 +639,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 .data-table td {
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
     border: var(--border-width-thin) solid var(--border-color-black);
-    background-color: rgba(221, 221, 221, 0.85);
+    background-color: var(--bg-table-cell);
 }
 
 .data-table td:first-child {
@@ -650,11 +672,11 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 
 .data-table tr {
-    background-color: rgba(221, 221, 221, 0.85);
+    background-color: var(--bg-table-cell);
 }
 
 .data-table tr:hover {
-    background-color: rgba(208, 208, 208, 0.85);
+    background-color: var(--bg-table-header);
 }
 
 .data-table input[type="number"],
@@ -665,9 +687,9 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     width: 100%;
     padding: var(--spacing-xs);
     border: var(--border-width-standard) solid var(--border-color);
-    border-radius: 4px;
-    font-size: 0.875rem;
-    background-color: #ffffff;
+    border-radius: 0;
+    font-size: var(--font-size-xs);
+    background-color: var(--text-white);
     color: var(--text-primary);
 }
 
@@ -685,12 +707,12 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 .data-table .total-row {
     font-weight: 600;
-    background-color: rgba(200, 200, 200, 0.85);
+    background-color: var(--bg-table-total);
 }
 
 /* Weekly Breakdown Table - inherits from .data-table */
 #weekly-breakdown-table {
-    /* All styles inherited from .data-table */
+    border-radius: 0;
 }
 
 #weekly-breakdown-tbody input,
@@ -702,10 +724,18 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
    7. BUTTON COMPONENTS
    ============================================================================ */
 
+/* Universal button selector - ensures ALL buttons have no border-radius */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    border-radius: 0;
+}
+
 .btn {
     padding: var(--spacing-xs) var(--spacing-md);
     border: var(--border-width-standard) solid var(--border-color-black);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
@@ -725,12 +755,12 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 }
 
 .btn-secondary {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-button-secondary);
     color: var(--text-black);
 }
 
 .btn-secondary:hover {
-    background-color: rgba(200, 200, 200, 0.85);
+    background-color: var(--bg-button-secondary-hover);
     color: var(--text-black);
 }
 
@@ -763,25 +793,24 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 .btn-sm {
     padding: 0.55rem 0.75rem;
-    font-size: 0.875rem;
+    font-size: var(--font-size-xs);
 }
 
 /* Specific Action Buttons - Removed as they now use btn-action class */
 
 /* Export Format Select */
 #export-format-select {
-    background-color: var(--action-color) !important;
-    color: var(--text-white) !important;
-    border: var(--border-width-standard) solid var(--border-color-black) !important;
-    border-radius: var(--border-radius) !important;
-    padding: 0.5rem 1rem !important;
+    background-color: var(--action-color);
+    color: var(--text-white);
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0;
+    padding: var(--padding-button-sm);
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
 }
 
 #export-format-select:hover {
-    background-color: var(--action-hover) !important;
-    border: var(--border-width-standard) solid var(--border-color-black) !important;
+    background-color: var(--action-hover);
 }
 
 #export-format-select option {
@@ -795,26 +824,25 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 /* View Cards - Consistent styling for all view cards */
 .view-card {
-    background-color: rgba(220, 220, 220, 0.85) !important;
-    border: var(--border-width-standard) solid var(--border-color) !important;
-    border-radius: var(--border-radius) !important;
-    padding: var(--spacing-md) !important;
-    box-shadow: var(--shadow-md) !important;
+    background-color: var(--bg-view-card);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: 0;
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-md);
     backdrop-filter: blur(10px);
     transition: var(--transition);
     cursor: pointer;
-    /* Ensure consistent styling - override any inline styles */
     color: inherit;
     text-align: left;
     display: block;
     width: 100%;
-    text-decoration: none !important;
+    text-decoration: none;
 }
 
 /* Landing page specific styling */
 body.landing-page .view-card {
-    background-color: rgba(225, 225, 225, 0.85) !important;
-    box-shadow: var(--shadow-lg) !important;
+    background-color: var(--bg-view-card-landing);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Hover and focus states - consistent for all view cards */
@@ -824,17 +852,17 @@ body.landing-page .view-card {
     transform: translateY(-2px);
     outline: var(--border-width-thick) solid var(--primary-color);
     outline-offset: var(--border-width-thick);
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-view-card-hover);
 }
 
 body.landing-page .view-card:hover,
 body.landing-page .view-card:focus {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-view-card-hover);
 }
 
 /* View card content elements */
 .view-card-icon {
-    font-size: 3rem;
+    font-size: var(--font-size-xxxl);
     margin-bottom: var(--spacing-sm);
     display: block;
 }
@@ -863,15 +891,15 @@ body.landing-page .view-card:focus {
 }
 
 .summary-card {
-    background-color: rgba(215, 215, 215, 0.85);
+    background-color: var(--bg-summary-card);
     border: var(--border-width-standard) solid var(--border-color);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-radius: 0;
     padding: var(--spacing-sm);
     box-shadow: var(--shadow-sm);
 }
 
 .summary-card-title {
-    font-size: 0.875rem;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xs);
@@ -895,9 +923,9 @@ body.landing-page .view-card:focus {
 
 /* Month Items */
 .month-item {
-    background-color: rgba(220, 220, 220, 0.85);
+    background-color: var(--bg-month-item);
     border: var(--border-width-standard) solid var(--border-color);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     padding: var(--spacing-md);
     text-align: center;
     cursor: pointer;
@@ -923,7 +951,7 @@ body.landing-page .view-card:focus {
 }
 
 .month-item-date {
-    font-size: 0.875rem;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
 }
 
@@ -933,21 +961,21 @@ body.landing-page .view-card:focus {
 
 /* Landing Page */
 .hero-section {
-    background-color: rgba(225, 225, 225, 0.85);
+    background-color: var(--bg-hero-section);
     border: var(--border-width-standard) solid var(--border-color-dark);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-radius: 0;
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
     text-align: center;
 }
 
 .hero-section-pots {
-    background-color: rgba(220, 220, 220, 0.85);
+    background-color: var(--bg-form-section);
 }
 
 /* Summary section styling */
 .summary-section {
-    background-color: rgba(215, 215, 215, 0.85);
+    background-color: var(--bg-summary-card);
 }
 
 /* Pots table white background handled in HTML */
@@ -978,12 +1006,12 @@ body.landing-page .view-card:focus {
 }
 
 .action-button {
-    background-color: rgba(210, 210, 210, 0.85);
+    background-color: var(--bg-action-button);
     color: var(--text-primary);
     border: var(--border-width-standard) solid var(--border-color-black);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     padding: var(--spacing-md);
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
@@ -1008,18 +1036,18 @@ body.landing-page .view-card:focus {
 }
 
 .action-icon {
-    font-size: 1.25rem;
+    font-size: var(--font-size-md);
 }
 
 /* Monthly Budget Page */
 .month-selector-section {
-    background-color: rgba(225, 225, 225, 0.85);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    background-color: var(--bg-hero-section);
+    border-radius: 0;
 }
 
 .month-selector-section .form-group > div {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--gap-standard);
     align-items: flex-end;
     flex-wrap: wrap;
 }
@@ -1030,22 +1058,22 @@ body.landing-page .view-card:focus {
 }
 
 #month-content > section {
-    background-color: rgba(220, 220, 220, 0.85);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    background-color: var(--bg-form-section);
+    border-radius: 0;
 }
 
 .month-header-section {
-    background-color: rgba(225, 225, 225, 0.85);
+    background-color: var(--bg-hero-section);
     border: var(--border-width-thin) solid var(--border-color-black);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    border-radius: 0;
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
 }
 
 /* Pots Page */
 .pots-main > section {
-    background-color: rgba(220, 220, 220, 0.85);
-    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    background-color: var(--bg-form-section);
+    border-radius: 0;
 }
 
 .pots-main table {
@@ -1054,15 +1082,15 @@ body.landing-page .view-card:focus {
 
 /* Trends Section */
 .trend-item {
-    background-color: rgba(220, 220, 220, 0.85);
+    background-color: var(--bg-trend-item);
     border: var(--border-width-standard) solid var(--border-color);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
 }
 
 .trend-item h3 {
-    font-size: 1.25rem;
+    font-size: var(--font-size-md);
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
     color: var(--text-primary);
@@ -1091,7 +1119,7 @@ body.landing-page .view-card:focus {
 
 @media (max-width: 768px) {
     .hero-title {
-        font-size: 2rem;
+        font-size: var(--font-size-xl);
     }
 
     .hero-description {
@@ -1118,7 +1146,7 @@ body.landing-page .view-card:focus {
     }
 
     .data-table {
-        font-size: 0.875rem;
+        font-size: var(--font-size-xs);
         display: block;
         overflow-x: auto;
     }
