@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Data - Money Tracker</title>
+    <title>Import & Export Data - Money Tracker</title>
     <link rel="stylesheet" href="../styles/main.css">
     <link rel="icon" href="data:,">
 </head>
@@ -14,11 +14,18 @@
 
         <section class="import-section form-section" style="margin-top: 5rem;">
             <h2 class="section-title">Import Files</h2>
-            <p class="hero-description">Select files to import (JSON, CSV, or HTML)<br/>
-            <em>Example: '2024-01.json' → January 2024</em></p>
+            <p class="section-description">Import month data from JSON, CSV, or HTML files. You can select a folder (modern browsers) or individual files (all browsers).</p>
 
             <div class="form-group">
-                <label for="file-input" class="form-label">Select Files:</label>
+                <button id="load-months-button" class="btn btn-primary">Select Folder or Files</button>
+                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <strong>Modern browsers:</strong> Click to select the <code>data/months/</code> folder directly.<br/>
+                    <strong>All browsers:</strong> If folder selection isn't available, you'll be prompted to select individual files.
+                </p>
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <label for="file-input" class="form-label">Or Select Files Manually:</label>
                 <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
                 <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
                     Select one or multiple files from the data/months/ folder (JSON/CSV) or reference/ folder (HTML). The format will be detected automatically.
@@ -33,9 +40,44 @@
                 </p>
             </div>
 
-            <button id="import-button" class="btn btn-primary">Import Files</button>
+            <button id="import-button" class="btn btn-action" style="display: none;">Import Selected Files</button>
             <div id="import-status" style="margin-top: 1rem;"></div>
         </section>
+
+        <section class="form-section">
+            <h2 class="section-title">Export & Delete Months</h2>
+            <p class="section-description">Export months in various formats (JSON, CSV, or HTML) or delete months.</p>
+            
+            <div class="form-group">
+                <label for="month-selector" class="form-label">Select Month:</label>
+                <select id="month-selector" class="form-select">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="export-format-select" class="form-label">Export Format:</label>
+                <select id="export-format-select" class="form-select">
+                    <option value="json">JSON</option>
+                    <option value="csv">CSV</option>
+                    <option value="html">HTML</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button id="export-current-month-button" class="btn btn-action">Export Selected Month</button>
+                <button id="export-all-months-button" class="btn btn-action">Export All Months</button>
+                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete Selected Month</button>
+            </div>
+            <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                <strong>Export Selected Month:</strong> Export the selected month in the chosen format (JSON, CSV, or HTML).<br/>
+                <strong>Export All Months:</strong> Export all months in the chosen format (JSON, CSV, or HTML).<br/>
+                <strong>Delete Selected Month:</strong> Permanently delete the selected month. <em style="color: var(--danger-color);">This action cannot be undone.</em><br/>
+                <em>Note: HTML export creates formatted reports.</em>
+            </p>
+        </section>
+
+        <div id="file-operations-status" style="margin-top: 1rem;"></div>
     </main>
 
     <footer class="main-footer" role="contentinfo">
@@ -47,260 +89,15 @@
     <script src="../utils/formatters.js"></script>
     <script src="../utils/CSVHandler.js"></script>
     <script src="../utils/ReferenceImporter.js"></script>
+    <script src="../controllers/ImportController.js"></script>
     <script>
         // Initialize settings
         DataManager.initializeSettings();
         
+        // Initialize ImportController when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            const fileInput = document.getElementById('file-input');
-            const importButton = document.getElementById('import-button');
-            const importStatus = document.getElementById('import-status');
-            const yearInputGroup = document.getElementById('year-input-group');
-            const importYear = document.getElementById('import-year');
-
-            // Show/hide year input based on selected files
-            fileInput.addEventListener('change', function() {
-                const files = this.files;
-                if (!files || files.length === 0) {
-                    yearInputGroup.style.display = 'none';
-                    return;
-                }
-
-                // Show year input if any selected file is CSV or HTML
-                let showYearInput = false;
-                for (let i = 0; i < files.length; i++) {
-                    const fileName = files[i].name.toLowerCase();
-                    if (fileName.endsWith('.csv') || fileName.endsWith('.html')) {
-                        showYearInput = true;
-                        break;
-                    }
-                }
-                yearInputGroup.style.display = showYearInput ? 'block' : 'none';
-
-                // Try to extract year from first CSV/HTML file
-                if (showYearInput) {
-                    for (let i = 0; i < files.length; i++) {
-                        const fileName = files[i].name.toLowerCase();
-                        if (fileName.endsWith('.csv') || fileName.endsWith('.html')) {
-                            const yearMatch = fileName.match(/\b(20\d{2})\b/);
-                            if (yearMatch) {
-                                importYear.value = yearMatch[1];
-                                break;
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Unified import handler for single or multiple files
-            importButton.addEventListener('click', async function() {
-                const files = fileInput.files;
-                if (!files || files.length === 0) {
-                    importStatus.innerHTML = '<p style="color: var(--danger-color);">Please select at least one file.</p>';
-                    return;
-                }
-
-                // Validate files
-                let hasInvalidFile = false;
-                for (let i = 0; i < files.length; i++) {
-                    const fileName = files[i].name.toLowerCase();
-                    const isJson = fileName.endsWith('.json');
-                    const isCsv = fileName.endsWith('.csv');
-                    const isHtml = fileName.endsWith('.html');
-
-                    if (!isJson && !isCsv && !isHtml) {
-                        hasInvalidFile = true;
-                        break;
-                    }
-                }
-
-                if (hasInvalidFile) {
-                    importStatus.innerHTML = '<p style="color: var(--danger-color);">Please select only JSON, CSV, or HTML files.</p>';
-                    return;
-                }
-
-                // Check if year is needed and valid
-                const hasCsvOrHtml = Array.from(files).some(file => {
-                    const fileName = file.name.toLowerCase();
-                    return fileName.endsWith('.csv') || fileName.endsWith('.html');
-                });
-
-                if (hasCsvOrHtml && !Formatters.validateYear(parseInt(importYear.value, 10))) {
-                    importStatus.innerHTML = '<p style="color: var(--danger-color);">Please enter a valid year for CSV/HTML files.</p>';
-                    return;
-                }
-
-                // Check required handlers are loaded
-                const hasCsv = Array.from(files).some(file => file.name.toLowerCase().endsWith('.csv'));
-                const hasHtml = Array.from(files).some(file => file.name.toLowerCase().endsWith('.html'));
-
-                if (hasCsv && !window.CSVHandler) {
-                    importStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot import CSV files.</p>';
-                    return;
-                }
-
-                if (hasHtml && !window.ReferenceImporter) {
-                    importStatus.innerHTML = '<p style="color: var(--danger-color);">ReferenceImporter not loaded. Cannot import HTML files.</p>';
-                    return;
-                }
-
-                importButton.disabled = true;
-                importStatus.innerHTML = `<p>Importing ${files.length} file${files.length > 1 ? 's' : ''}...</p>`;
-
-                const year = parseInt(importYear.value, 10);
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                const results = [];
-                let successCount = 0;
-                let errorCount = 0;
-
-                // Process each file
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const fileName = file.name.toLowerCase();
-                    const isJson = fileName.endsWith('.json');
-                    const isCsv = fileName.endsWith('.csv');
-                    const isHtml = fileName.endsWith('.html');
-
-                    try {
-                        let monthData = null;
-                        let monthName = null;
-                        let fileYear = year;
-
-                        // Extract month and year from filename
-                        for (const month of monthNames) {
-                            if (fileName.includes(month.toLowerCase())) {
-                                monthName = month;
-                                break;
-                            }
-                        }
-
-                        // Try to extract year from filename
-                        const yearMatch = fileName.match(/\b(20\d{2})\b/);
-                        if (yearMatch) {
-                            fileYear = parseInt(yearMatch[1], 10);
-                        }
-
-                        // For JSON files, try to get info from file content
-                        if (isJson && (!monthName || !fileYear)) {
-                            try {
-                                const text = await file.text();
-                                const jsonData = JSON.parse(text);
-                                if (jsonData.monthName && jsonData.year) {
-                                    monthName = jsonData.monthName;
-                                    fileYear = jsonData.year;
-                                } else if (jsonData.key) {
-                                    // Extract from key like "april-2025"
-                                    const keyParts = jsonData.key.split('-');
-                                    if (keyParts.length >= 2) {
-                                        monthName = keyParts[0].charAt(0).toUpperCase() + keyParts[0].slice(1);
-                                        fileYear = parseInt(keyParts[1], 10);
-                                    }
-                                }
-                            } catch (e) {
-                                // Ignore parse errors, will be caught below
-                            }
-                        }
-
-                        if (!monthName) {
-                            results.push(`<p style="color: var(--warning-color);">Skipped ${file.name}: Could not determine month name</p>`);
-                            errorCount++;
-                            continue;
-                        }
-
-                        // Import based on file type
-                        if (isJson) {
-                            const text = await file.text();
-                            monthData = JSON.parse(text);
-                            if (!monthData.key) {
-                                monthData.key = `${monthName.toLowerCase()}-${fileYear}`;
-                            }
-                        } else if (isCsv) {
-                            const csvText = await file.text();
-                            monthData = CSVHandler.csvToMonthData(csvText, monthName, fileYear);
-                        } else if (isHtml) {
-                            monthData = await ReferenceImporter.importMonthFromFile(file, monthName, fileYear);
-                        }
-
-                        if (!monthData || !monthData.key) {
-                            throw new Error('Could not parse month data');
-                        }
-
-                        // Save to DataManager
-                        DataManager.saveMonth(monthData.key, monthData);
-                        results.push(`<p style="color: var(--success-color);">✓ Imported ${monthName} ${fileYear}</p>`);
-                        successCount++;
-
-                    } catch (error) {
-                        results.push(`<p style="color: var(--danger-color);">✗ Failed to import ${file.name}: ${error.message}</p>`);
-                        errorCount++;
-                    }
-                }
-
-                // Show results
-                if (files.length === 1 && successCount === 1) {
-                    // Single file success - show detailed success message
-                    const file = files[0];
-                    const fileName = file.name.toLowerCase();
-                    const isJson = fileName.endsWith('.json');
-                    const isCsv = fileName.endsWith('.csv');
-                    const isHtml = fileName.endsWith('.html');
-                    const fileType = isJson ? 'JSON' : (isCsv ? 'CSV' : 'HTML');
-
-                    // Extract month info for success message
-                    let monthName = null;
-                    let fileYear = null;
-                    for (const month of monthNames) {
-                        if (fileName.includes(month.toLowerCase())) {
-                            monthName = month;
-                            break;
-                        }
-                    }
-                    const yearMatch = fileName.match(/\b(20\d{2})\b/);
-                    if (yearMatch) {
-                        fileYear = yearMatch[1];
-                    }
-
-                    // Try to get from JSON content if needed
-                    if (isJson && (!monthName || !fileYear)) {
-                        try {
-                            const text = await files[0].text();
-                            const jsonData = JSON.parse(text);
-                            if (jsonData.monthName) monthName = jsonData.monthName;
-                            if (jsonData.year) fileYear = jsonData.year;
-                            else if (jsonData.key) {
-                                const keyParts = jsonData.key.split('-');
-                                if (keyParts.length >= 2) {
-                                    monthName = keyParts[0].charAt(0).toUpperCase() + keyParts[0].slice(1);
-                                    fileYear = parseInt(keyParts[1], 10);
-                                }
-                            }
-                        } catch (e) {}
-                    }
-
-                    const monthData = DataManager.getMonth(`${monthName?.toLowerCase()}-${fileYear}`);
-                    importStatus.innerHTML = `
-                        <p style="color: var(--success-color);">
-                            ✓ Successfully imported ${monthName || 'month'} ${fileYear || ''} from ${fileType} file!
-                        </p>
-                        ${monthData ? `<p style="margin-top: 0.5rem;"><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month →</a></p>` : ''}
-                    `;
-                } else {
-                    // Multiple files or mixed results
-                    importStatus.innerHTML = `
-                        <div>
-                            <p><strong>Import Complete:</strong> ${successCount} succeeded, ${errorCount} failed</p>
-                            ${results.join('')}
-                            ${successCount > 0 ? `<p><a href="monthly-budget.html" style="color: var(--primary-color);">View Monthly Budget</a></p>` : ''}
-                        </div>
-                    `;
-                }
-
-                fileInput.value = '';
-                yearInputGroup.style.display = 'none';
-                importButton.disabled = false;
-            });
+            ImportController.init();
         });
     </script>
 </body>
 </html>
-

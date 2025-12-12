@@ -1,0 +1,561 @@
+/**
+ * Import Controller
+ * Handles all file operations: import, export, load, delete
+ */
+
+const ImportController = {
+    /**
+     * Initialize the import page
+     */
+    async init() {
+        await DataManager.loadMonthsFromFiles();
+        this.setupEventListeners();
+    },
+
+    /**
+     * Setup event listeners
+     */
+    setupEventListeners() {
+        const importButton = document.getElementById('import-button');
+        const fileInput = document.getElementById('file-input');
+        const loadMonthsBtn = document.getElementById('load-months-button');
+        const exportCurrentMonthBtn = document.getElementById('export-current-month-button');
+        const exportAllMonthsBtn = document.getElementById('export-all-months-button');
+        const exportFormatSelect = document.getElementById('export-format-select');
+        const monthSelector = document.getElementById('month-selector');
+        const deleteMonthBtn = document.getElementById('delete-month-button');
+        const importStatus = document.getElementById('import-status');
+        const fileOperationsStatus = document.getElementById('file-operations-status');
+        const yearInputGroup = document.getElementById('year-input-group');
+        const importYear = document.getElementById('import-year');
+
+        // Primary import button - tries File System Access API first, falls back to file input
+        if (loadMonthsBtn) {
+            loadMonthsBtn.addEventListener('click', async () => {
+                loadMonthsBtn.disabled = true;
+                const statusElement = fileOperationsStatus || importStatus;
+                if (statusElement) {
+                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Loading months from files...</p>';
+                }
+                
+                try {
+                    const result = await DataManager.loadMonthsFromFilePicker();
+                    if (result.success) {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--success-color);">Successfully loaded ' + result.count + ' months!</p>';
+                        }
+                        this.loadMonthSelector();
+                    } else if (result.useFileInput && fileInput) {
+                        // Fallback to file input if API not available
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--text-secondary);">Please select JSON, CSV, or HTML files to import...</p>';
+                        }
+                        fileInput.click();
+                    } else {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--danger-color);">' + result.message + '</p>';
+                        }
+                    }
+                } catch (error) {
+                    if (statusElement) {
+                        statusElement.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
+                    }
+                    console.error('Error loading months:', error);
+                } finally {
+                    loadMonthsBtn.disabled = false;
+                }
+            });
+        }
+
+        // File input change handler - show import button and year input if needed
+        if (fileInput && yearInputGroup && importYear && importButton) {
+            fileInput.addEventListener('change', () => {
+                const files = fileInput.files;
+                if (files && files.length > 0) {
+                    // Show import button when files are selected
+                    importButton.style.display = 'inline-block';
+                    this.handleFileInputChange(fileInput, yearInputGroup, importYear);
+                } else {
+                    importButton.style.display = 'none';
+                    yearInputGroup.style.display = 'none';
+                }
+            });
+        }
+
+        // Import button handler - for manually selected files
+        if (importButton && fileInput) {
+            importButton.addEventListener('click', () => {
+                this.handleImportFiles(fileInput, importYear, yearInputGroup, importStatus, importButton);
+            });
+        }
+
+
+        // Export Current Month button
+        if (exportCurrentMonthBtn && exportFormatSelect && monthSelector) {
+            exportCurrentMonthBtn.addEventListener('click', async () => {
+                const selectedMonthKey = monthSelector.value;
+                if (!selectedMonthKey) {
+                    const statusElement = fileOperationsStatus || importStatus;
+                    if (statusElement) {
+                        statusElement.innerHTML = '<p style="color: var(--warning-color);">Please select a month first.</p>';
+                    }
+                    return;
+                }
+                
+                const format = exportFormatSelect.value || 'json';
+                
+                if (format === 'csv' && !window.CSVHandler) {
+                    const statusElement = fileOperationsStatus || importStatus;
+                    if (statusElement) {
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
+                    }
+                    return;
+                }
+                
+                exportCurrentMonthBtn.disabled = true;
+                const formatUpper = format.toUpperCase();
+                const statusElement = fileOperationsStatus || importStatus;
+                if (statusElement) {
+                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting month as ' + formatUpper + '...</p>';
+                }
+                
+                try {
+                    const monthData = DataManager.getMonth(selectedMonthKey);
+                    if (!monthData) {
+                        throw new Error('Month data not found');
+                    }
+                    
+                    const success = await DataManager.exportMonthToFile(selectedMonthKey, monthData, format);
+                    if (success) {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--success-color);">Month exported as ' + formatUpper + ' successfully!</p>';
+                        }
+                    } else {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--warning-color);">' + formatUpper + ' export cancelled or failed.</p>';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error exporting ' + formatUpper + ':', error);
+                    const statusElement = fileOperationsStatus || importStatus;
+                    if (statusElement) {
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting ' + formatUpper + ': ' + error.message + '</p>';
+                    }
+                } finally {
+                    exportCurrentMonthBtn.disabled = false;
+                }
+            });
+        }
+        
+        // Export All Months button
+        if (exportAllMonthsBtn && exportFormatSelect) {
+            exportAllMonthsBtn.addEventListener('click', async () => {
+                const format = exportFormatSelect.value || 'json';
+                
+                if (format === 'csv' && !window.CSVHandler) {
+                    const statusElement = fileOperationsStatus || importStatus;
+                    if (statusElement) {
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
+                    }
+                    return;
+                }
+                
+                exportAllMonthsBtn.disabled = true;
+                const formatUpper = format.toUpperCase();
+                const statusElement = fileOperationsStatus || importStatus;
+                if (statusElement) {
+                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting all months as ' + formatUpper + '...</p>';
+                }
+                
+                try {
+                    const allMonths = DataManager.getAllMonths();
+                    const monthKeys = Object.keys(allMonths);
+                    
+                    if (monthKeys.length === 0) {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--warning-color);">No months to export.</p>';
+                        }
+                        exportAllMonthsBtn.disabled = false;
+                        return;
+                    }
+                    
+                    let exportedCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const monthKey of monthKeys) {
+                        try {
+                            const monthData = allMonths[monthKey];
+                            const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
+                            if (success) {
+                                exportedCount++;
+                            } else {
+                                errorCount++;
+                            }
+                            // Small delay to avoid browser blocking multiple downloads
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        } catch (error) {
+                            console.error('Error exporting ' + monthKey + ':', error);
+                            errorCount++;
+                        }
+                    }
+                    
+                    if (exportedCount > 0) {
+                        const monthText = exportedCount !== 1 ? 'months' : 'month';
+                        let message = 'Successfully exported ' + exportedCount + ' ' + monthText + ' as ' + formatUpper + '!';
+                        if (errorCount > 0) {
+                            const errorText = errorCount !== 1 ? 'errors' : 'error';
+                            message += '<br/><span style="color: var(--warning-color);">' + errorCount + ' ' + errorText + ' occurred</span>';
+                        }
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
+                        }
+                    } else {
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--danger-color);">Failed to export any months.</p>';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error exporting all months:', error);
+                    const statusElement = fileOperationsStatus || importStatus;
+                    if (statusElement) {
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting all months: ' + error.message + '</p>';
+                    }
+                } finally {
+                    exportAllMonthsBtn.disabled = false;
+                }
+            });
+        }
+
+        // Delete month button
+        if (deleteMonthBtn && monthSelector) {
+            deleteMonthBtn.addEventListener('click', () => {
+                const selectedMonthKey = monthSelector.value;
+                if (!selectedMonthKey) {
+                    alert('No month selected');
+                    return;
+                }
+
+                const monthData = DataManager.getMonth(selectedMonthKey);
+                if (!monthData) {
+                    alert('Month not found');
+                    return;
+                }
+
+                const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                const year = monthData.year;
+
+                const confirmMessage = `Are you sure you want to delete ${monthName} ${year}? This action cannot be undone.`;
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                const success = DataManager.deleteMonth(selectedMonthKey);
+
+                if (success) {
+                    alert(`${monthName} ${year} has been deleted.`);
+                    this.loadMonthSelector();
+                    if (monthSelector) monthSelector.value = '';
+                    if (deleteMonthBtn) deleteMonthBtn.style.display = 'none';
+                } else {
+                    alert('Error deleting month. Please try again.');
+                }
+            });
+        }
+
+        // Month selector change handler - show/hide delete button
+        if (monthSelector && deleteMonthBtn) {
+            monthSelector.addEventListener('change', () => {
+                if (monthSelector.value) {
+                    deleteMonthBtn.style.display = 'inline-block';
+                } else {
+                    deleteMonthBtn.style.display = 'none';
+                }
+            });
+        }
+    },
+
+    /**
+     * Handle file input change
+     */
+    handleFileInputChange(fileInput, yearInputGroup, importYear) {
+        const files = fileInput.files;
+        if (!files || files.length === 0) {
+            if (yearInputGroup) yearInputGroup.style.display = 'none';
+            return;
+        }
+
+        // Show year input if any selected file is CSV or HTML
+        let showYearInput = false;
+        for (let i = 0; i < files.length; i++) {
+            const fileName = files[i].name.toLowerCase();
+            if (fileName.endsWith('.csv') || fileName.endsWith('.html')) {
+                showYearInput = true;
+                break;
+            }
+        }
+        if (yearInputGroup) {
+            yearInputGroup.style.display = showYearInput ? 'block' : 'none';
+        }
+
+        // Try to extract year from first CSV/HTML file
+        if (showYearInput && importYear) {
+            for (let i = 0; i < files.length; i++) {
+                const fileName = files[i].name.toLowerCase();
+                if (fileName.endsWith('.csv') || fileName.endsWith('.html')) {
+                    const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                    if (yearMatch) {
+                        importYear.value = yearMatch[1];
+                        break;
+                    }
+                }
+            }
+        }
+    },
+
+    /**
+     * Handle import files
+     */
+    async handleImportFiles(fileInput, importYear, yearInputGroup, importStatus, importButton) {
+        const files = fileInput.files;
+        if (!files || files.length === 0) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">Please select at least one file.</p>';
+            }
+            return;
+        }
+
+        // Validate files
+        let hasInvalidFile = false;
+        for (let i = 0; i < files.length; i++) {
+            const fileName = files[i].name.toLowerCase();
+            const isJson = fileName.endsWith('.json');
+            const isCsv = fileName.endsWith('.csv');
+            const isHtml = fileName.endsWith('.html');
+
+            if (!isJson && !isCsv && !isHtml) {
+                hasInvalidFile = true;
+                break;
+            }
+        }
+
+        if (hasInvalidFile) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">Please select only JSON, CSV, or HTML files.</p>';
+            }
+            return;
+        }
+
+        // Check if year is needed and valid
+        const hasCsvOrHtml = Array.from(files).some(file => {
+            const fileName = file.name.toLowerCase();
+            return fileName.endsWith('.csv') || fileName.endsWith('.html');
+        });
+
+        if (hasCsvOrHtml && importYear && !Formatters.validateYear(parseInt(importYear.value, 10))) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">Please enter a valid year for CSV/HTML files.</p>';
+            }
+            return;
+        }
+
+        // Check required handlers are loaded
+        const hasCsv = Array.from(files).some(file => file.name.toLowerCase().endsWith('.csv'));
+        const hasHtml = Array.from(files).some(file => file.name.toLowerCase().endsWith('.html'));
+
+        if (hasCsv && !window.CSVHandler) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot import CSV files.</p>';
+            }
+            return;
+        }
+
+        if (hasHtml && !window.ReferenceImporter) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">ReferenceImporter not loaded. Cannot import HTML files.</p>';
+            }
+            return;
+        }
+
+        if (importButton) importButton.disabled = true;
+        if (importStatus) {
+            importStatus.innerHTML = `<p>Importing ${files.length} file${files.length > 1 ? 's' : ''}...</p>`;
+        }
+
+        const year = importYear ? parseInt(importYear.value, 10) : new Date().getFullYear();
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const results = [];
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Process each file
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileName = file.name.toLowerCase();
+            const isJson = fileName.endsWith('.json');
+            const isCsv = fileName.endsWith('.csv');
+            const isHtml = fileName.endsWith('.html');
+
+            try {
+                let monthData = null;
+                let monthName = null;
+                let fileYear = year;
+
+                // Extract month and year from filename
+                for (const month of monthNames) {
+                    if (fileName.includes(month.toLowerCase())) {
+                        monthName = month;
+                        break;
+                    }
+                }
+
+                // Try to extract year from filename
+                const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                if (yearMatch) {
+                    fileYear = parseInt(yearMatch[1], 10);
+                }
+
+                // For JSON files, try to get info from file content
+                if (isJson && (!monthName || !fileYear)) {
+                    try {
+                        const text = await file.text();
+                        const jsonData = JSON.parse(text);
+                        if (jsonData.monthName && jsonData.year) {
+                            monthName = jsonData.monthName;
+                            fileYear = jsonData.year;
+                        } else if (jsonData.key) {
+                            // Extract from key like "april-2025"
+                            const keyParts = jsonData.key.split('-');
+                            if (keyParts.length >= 2) {
+                                monthName = keyParts[0].charAt(0).toUpperCase() + keyParts[0].slice(1);
+                                fileYear = parseInt(keyParts[1], 10);
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parse errors, will be caught below
+                    }
+                }
+
+                if (!monthName) {
+                    results.push(`<p style="color: var(--warning-color);">Skipped ${file.name}: Could not determine month name</p>`);
+                    errorCount++;
+                    continue;
+                }
+
+                // Import based on file type
+                if (isJson) {
+                    const text = await file.text();
+                    monthData = JSON.parse(text);
+                    if (!monthData.key) {
+                        monthData.key = `${monthName.toLowerCase()}-${fileYear}`;
+                    }
+                } else if (isCsv) {
+                    const csvText = await file.text();
+                    monthData = CSVHandler.csvToMonthData(csvText, monthName, fileYear);
+                } else if (isHtml) {
+                    monthData = await ReferenceImporter.importMonthFromFile(file, monthName, fileYear);
+                }
+
+                if (!monthData || !monthData.key) {
+                    throw new Error('Could not parse month data');
+                }
+
+                // Save to DataManager
+                DataManager.saveMonth(monthData.key, monthData);
+                results.push(`<p style="color: var(--success-color);">✓ Imported ${monthName} ${fileYear}</p>`);
+                successCount++;
+
+            } catch (error) {
+                results.push(`<p style="color: var(--danger-color);">✗ Failed to import ${file.name}: ${error.message}</p>`);
+                errorCount++;
+            }
+        }
+
+        // Show results
+        if (importStatus) {
+            if (files.length === 1 && successCount === 1) {
+                const file = files[0];
+                const fileName = file.name.toLowerCase();
+                const isJson = fileName.endsWith('.json');
+                const isCsv = fileName.endsWith('.csv');
+                const isHtml = fileName.endsWith('.html');
+                const fileType = isJson ? 'JSON' : (isCsv ? 'CSV' : 'HTML');
+
+                let monthName = null;
+                let fileYear = null;
+                for (const month of monthNames) {
+                    if (fileName.includes(month.toLowerCase())) {
+                        monthName = month;
+                        break;
+                    }
+                }
+                const yearMatch = fileName.match(/\b(20\d{2})\b/);
+                if (yearMatch) {
+                    fileYear = yearMatch[1];
+                }
+
+                if (isJson && (!monthName || !fileYear)) {
+                    try {
+                        const text = await files[0].text();
+                        const jsonData = JSON.parse(text);
+                        if (jsonData.monthName) monthName = jsonData.monthName;
+                        if (jsonData.year) fileYear = jsonData.year;
+                        else if (jsonData.key) {
+                            const keyParts = jsonData.key.split('-');
+                            if (keyParts.length >= 2) {
+                                monthName = keyParts[0].charAt(0).toUpperCase() + keyParts[0].slice(1);
+                                fileYear = parseInt(keyParts[1], 10);
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                const monthData = DataManager.getMonth(`${monthName?.toLowerCase()}-${fileYear}`);
+                importStatus.innerHTML = `
+                    <p style="color: var(--success-color);">
+                        ✓ Successfully imported ${monthName || 'month'} ${fileYear || ''} from ${fileType} file!
+                    </p>
+                    ${monthData ? `<p style="margin-top: 0.5rem;"><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month →</a></p>` : ''}
+                `;
+            } else {
+                importStatus.innerHTML = `
+                    <div>
+                        <p><strong>Import Complete:</strong> ${successCount} succeeded, ${errorCount} failed</p>
+                        ${results.join('')}
+                        ${successCount > 0 ? `<p><a href="monthly-budget.html" style="color: var(--primary-color);">View Monthly Budget</a></p>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        if (fileInput) fileInput.value = '';
+        if (yearInputGroup) yearInputGroup.style.display = 'none';
+        if (importButton) {
+            importButton.disabled = false;
+            importButton.style.display = 'none';
+        }
+        this.loadMonthSelector();
+    },
+
+    /**
+     * Load month selector dropdown
+     */
+    loadMonthSelector() {
+        const selector = document.getElementById('month-selector');
+        if (!selector) return;
+
+        const allMonths = DataManager.getAllMonths();
+        const monthKeys = Object.keys(allMonths).sort().reverse();
+
+        selector.innerHTML = monthKeys.length > 0 
+            ? monthKeys.map(key => {
+                const monthData = allMonths[key];
+                const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+            }).join('')
+            : '<option value="">No months available</option>';
+    }
+};
+
+// Make available globally
+window.ImportController = ImportController;
+

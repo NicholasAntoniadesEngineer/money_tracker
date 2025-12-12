@@ -67,7 +67,6 @@ const MonthlyBudgetController = {
      */
     setupEventListeners() {
         const createMonthBtn = document.getElementById('create-month-button');
-        const deleteMonthBtn = document.getElementById('delete-month-button');
         const saveMonthBtn = document.getElementById('save-month-button');
         const addIncomeBtn = document.getElementById('add-income-button');
         const addFixedCostBtn = document.getElementById('add-fixed-cost-button');
@@ -75,15 +74,8 @@ const MonthlyBudgetController = {
         const addUnplannedBtn = document.getElementById('add-unplanned-expense-button');
         const addPotBtn = document.getElementById('add-pot-button');
         const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
-        const loadMonthsBtn = document.getElementById('load-months-button');
-        const exportCurrentMonthBtn = document.getElementById('export-current-month-button');
-        const exportAllMonthsBtn = document.getElementById('export-all-months-button');
-        const exportFormatSelect = document.getElementById('export-format-select');
-        const fileInput = document.getElementById('file-input');
-        const fileOperationsStatus = document.getElementById('file-operations-status');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
-        if (deleteMonthBtn) deleteMonthBtn.addEventListener('click', () => this.deleteCurrentMonth());
         if (saveMonthBtn) saveMonthBtn.addEventListener('click', () => this.saveMonthData());
         if (addIncomeBtn) addIncomeBtn.addEventListener('click', () => this.addIncomeRow());
         if (addFixedCostBtn) addFixedCostBtn.addEventListener('click', () => this.addFixedCostRow());
@@ -91,203 +83,6 @@ const MonthlyBudgetController = {
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
-        
-        // Export Current Month button
-        if (exportCurrentMonthBtn && exportFormatSelect) {
-            exportCurrentMonthBtn.addEventListener('click', async () => {
-                if (!this.currentMonthKey) {
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">Please select a month first.</p>';
-                    return;
-                }
-                
-                const format = exportFormatSelect.value || 'json';
-                
-                if (format === 'csv' && !window.CSVHandler) {
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
-                    return;
-                }
-                
-                exportCurrentMonthBtn.disabled = true;
-                const formatUpper = format.toUpperCase();
-                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Exporting month as ' + formatUpper + '...</p>';
-                
-                try {
-                    const monthData = DataManager.getMonth(this.currentMonthKey);
-                    if (!monthData) {
-                        throw new Error('Month data not found');
-                    }
-                    
-                    const success = await DataManager.exportMonthToFile(this.currentMonthKey, monthData, format);
-                    if (success) {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">Month exported as ' + formatUpper + ' successfully!</p>';
-                    } else {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">' + formatUpper + ' export cancelled or failed.</p>';
-                    }
-                } catch (error) {
-                    console.error('Error exporting ' + formatUpper + ':', error);
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error exporting ' + formatUpper + ': ' + error.message + '</p>';
-                } finally {
-                    exportCurrentMonthBtn.disabled = false;
-                }
-            });
-        }
-        
-        // File operations
-        if (loadMonthsBtn) {
-            loadMonthsBtn.addEventListener('click', async () => {
-                loadMonthsBtn.disabled = true;
-                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Loading months from files...</p>';
-                
-                try {
-                    const result = await DataManager.loadMonthsFromFilePicker();
-                    if (result.success) {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">Successfully loaded ' + result.count + ' months!</p>';
-                        this.loadMonthSelector();
-                        if (this.currentMonthKey && result.months[this.currentMonthKey]) {
-                            this.loadMonth(this.currentMonthKey);
-                        }
-                    } else if (result.useFileInput && fileInput) {
-                        // Automatically trigger file input if API not available
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Please select JSON or HTML files to load...</p>';
-                        fileInput.click();
-                    } else {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">' + result.message + '</p>';
-                    }
-                } catch (error) {
-                    fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
-                    console.error('Error loading months:', error);
-                } finally {
-                    loadMonthsBtn.disabled = false;
-                }
-            });
-        }
-        
-        // Export All Months button
-        if (exportAllMonthsBtn && exportFormatSelect) {
-            exportAllMonthsBtn.addEventListener('click', async () => {
-                const format = exportFormatSelect.value || 'json';
-                
-                if (format === 'csv' && !window.CSVHandler) {
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
-                    return;
-                }
-                
-                exportAllMonthsBtn.disabled = true;
-                const formatUpper = format.toUpperCase();
-                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Exporting all months as ' + formatUpper + '...</p>';
-                
-                try {
-                    const allMonths = DataManager.getAllMonths();
-                    const monthKeys = Object.keys(allMonths);
-                    
-                    if (monthKeys.length === 0) {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--warning-color);">No months to export.</p>';
-                        exportAllMonthsBtn.disabled = false;
-                        return;
-                    }
-                    
-                    let exportedCount = 0;
-                    let errorCount = 0;
-                    
-                    for (const monthKey of monthKeys) {
-                        try {
-                            const monthData = allMonths[monthKey];
-                            const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
-                            if (success) {
-                                exportedCount++;
-                            } else {
-                                errorCount++;
-                            }
-                            // Small delay to avoid browser blocking multiple downloads
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                        } catch (error) {
-                            console.error('Error exporting ' + monthKey + ':', error);
-                            errorCount++;
-                        }
-                    }
-                    
-                    if (exportedCount > 0) {
-                        const monthText = exportedCount !== 1 ? 'months' : 'month';
-                        let message = 'Successfully exported ' + exportedCount + ' ' + monthText + ' as ' + formatUpper + '!';
-                        if (errorCount > 0) {
-                            const errorText = errorCount !== 1 ? 'errors' : 'error';
-                            message += '<br/><span style="color: var(--warning-color);">' + errorCount + ' ' + errorText + ' occurred</span>';
-                        }
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
-                    } else {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Failed to export any months.</p>';
-                    }
-                } catch (error) {
-                    console.error('Error exporting all months:', error);
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error exporting all months: ' + error.message + '</p>';
-                } finally {
-                    exportAllMonthsBtn.disabled = false;
-                }
-            });
-        }
-        
-        if (fileInput) {
-            fileInput.addEventListener('change', async (e) => {
-                const files = Array.from(e.target.files);
-                if (files.length === 0) return;
-                
-                fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Loading months from selected files...</p>';
-                
-                // Disable buttons during loading
-                if (loadMonthsBtn) loadMonthsBtn.disabled = true;
-                if (exportAllMonthsBtn) exportAllMonthsBtn.disabled = true;
-                if (exportCurrentMonthBtn) exportCurrentMonthBtn.disabled = true;
-                
-                try {
-                    const result = await DataManager.loadMonthsFromFileInput(files);
-                    if (result.success) {
-                        const htmlCount = files.filter(f => f.name.endsWith('.html')).length;
-                        const jsonCount = files.filter(f => f.name.endsWith('.json')).length;
-                        const csvCount = files.filter(f => f.name.endsWith('.csv')).length;
-                        const monthText = result.count !== 1 ? 'months' : 'month';
-                        let message = 'Successfully loaded ' + result.count + ' ' + monthText + '!';
-                        const fileTypes = [];
-                        if (htmlCount > 0) {
-                            const fileText = htmlCount !== 1 ? 'files' : 'file';
-                            fileTypes.push(htmlCount + ' HTML ' + fileText);
-                        }
-                        if (jsonCount > 0) {
-                            const fileText = jsonCount !== 1 ? 'files' : 'file';
-                            fileTypes.push(jsonCount + ' JSON ' + fileText);
-                        }
-                        if (csvCount > 0) {
-                            const fileText = csvCount !== 1 ? 'files' : 'file';
-                            fileTypes.push(csvCount + ' CSV ' + fileText);
-                        }
-                        if (fileTypes.length > 0) {
-                            message += ' (' + fileTypes.join(', ') + ')';
-                        }
-                        if (result.errors > 0) {
-                            const errorText = result.errors !== 1 ? 'files' : 'file';
-                            message += '<br/><span style="color: var(--warning-color);">' + result.errors + ' ' + errorText + ' had errors</span>';
-                        }
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
-                        this.loadMonthSelector();
-                        if (this.currentMonthKey && result.months[this.currentMonthKey]) {
-                            this.loadMonth(this.currentMonthKey);
-                        }
-                    } else {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">No valid month files found. Please select JSON or HTML files.</p>';
-                    }
-                } catch (error) {
-                    fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error: ' + error.message + '</p>';
-                    console.error('Error loading files:', error);
-                    if (error.stack) {
-                        console.error('Stack trace:', error.stack);
-                    }
-                } finally {
-                    fileInput.value = '';
-                    if (loadMonthsBtn) loadMonthsBtn.disabled = false;
-                    if (exportAllMonthsBtn) exportAllMonthsBtn.disabled = false;
-                    if (exportCurrentMonthBtn) exportCurrentMonthBtn.disabled = false;
-                }
-            });
-        }
 
         const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
                              'lara-income-estimated', 'lara-income-actual',
@@ -345,11 +140,9 @@ const MonthlyBudgetController = {
 
         const selector = document.getElementById('month-selector');
         const monthTitle = document.getElementById('month-title');
-        const deleteBtn = document.getElementById('delete-month-button');
 
         if (selector) selector.value = monthKey;
         if (monthTitle) monthTitle.textContent = `${monthData.monthName} ${monthData.year}`;
-        if (deleteBtn) deleteBtn.style.display = 'inline-block';
 
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
@@ -1114,9 +907,6 @@ const MonthlyBudgetController = {
             const monthKeys = Object.keys(allMonths).sort().reverse();
             if (monthKeys.length > 0) {
                 this.loadMonth(monthKeys[0]);
-            } else {
-                const deleteBtn = document.getElementById('delete-month-button');
-                if (deleteBtn) deleteBtn.style.display = 'none';
             }
         } else {
             alert('Error deleting month. Please try again.');

@@ -25,33 +25,13 @@
                 </select>
                     </div>
                     <button id="create-month-button" class="btn btn-primary">Create New Month</button>
-                    <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete Month</button>
                 </div>
             </div>
             
             <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                <label class="form-label">File Operations:</label>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                    <button id="load-months-button" class="btn btn-action">Load Months from Files</button>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <label for="export-format-select" style="color: var(--text-primary); font-size: 0.9rem;">Export Format:</label>
-                        <select id="export-format-select" class="btn btn-action" style="padding: 0.5rem 1rem; cursor: pointer; color: var(--text-white); border-radius: var(--border-radius);">
-                            <option value="json">JSON</option>
-                            <option value="csv">CSV</option>
-                            <option value="html">HTML</option>
-                        </select>
-                        <button id="export-current-month-button" class="btn btn-action">Export Current Month</button>
-                        <button id="export-all-months-button" class="btn btn-action">Export All Months</button>
-                    </div>
-                    <input type="file" id="file-input" multiple accept=".json,.csv,.html" style="display: none;">
-                </div>
-                <p class="form-help-text" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
-                    <strong>Load Months from Files:</strong> Click to select the <code>data/months/</code> folder (modern browsers) or individual JSON/CSV/HTML files (all browsers).<br/>
-                    <strong>Export Current Month:</strong> Export the currently selected month in the selected format (JSON, CSV, or HTML).<br/>
-                    <strong>Export All Months:</strong> Export all months in the selected format (JSON, CSV, or HTML).<br/>
-                    <em>Note: You can load JSON, CSV, and HTML files. CSV and HTML files will be automatically imported. HTML export creates formatted reports.</em>
+                <p class="form-help-text" style="font-size: 0.85rem; color: var(--text-secondary);">
+                    <strong>File Operations:</strong> Import, export, load, and delete operations have been moved to the <a href="import.html" style="color: var(--primary-color);">Import & Export</a> page.
                 </p>
-                <div id="file-operations-status" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
             </div>
         </section>
 

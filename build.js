@@ -42,7 +42,8 @@ const JS_ORDER = {
         'models/DataManager.js',
         'utils/formatters.js',
         'utils/CSVHandler.js',
-        'utils/ReferenceImporter.js'
+        'utils/ReferenceImporter.js',
+        'controllers/ImportController.js'
     ]
 };
 
