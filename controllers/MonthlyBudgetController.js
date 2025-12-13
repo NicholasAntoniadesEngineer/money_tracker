@@ -8,6 +8,72 @@ const MonthlyBudgetController = {
     currentMonthKey: null,
 
     /**
+     * Calculate the number of weeks in a month
+     * Returns an array of week objects with start and end dates
+     * Weeks run Monday to Sunday
+     */
+    calculateWeeksInMonth(year, month) {
+        const weeks = [];
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+        const daysInMonth = lastDay.getDate();
+        
+        // Find the Monday of the week containing the first day of the month
+        const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const daysToMonday = firstDayOfWeek === 0 ? -6 : 1 - firstDayOfWeek;
+        
+        let weekStartDay = 1 + daysToMonday;
+        let weekEndDay = weekStartDay + 6;
+        
+        // Adjust if week starts before month
+        if (weekStartDay < 1) {
+            weekStartDay = 1;
+        }
+        
+        // Continue until we've covered all days in the month
+        while (weekStartDay <= daysInMonth) {
+            // Ensure week end doesn't exceed month end
+            if (weekEndDay > daysInMonth) {
+                weekEndDay = daysInMonth;
+            }
+            
+            weeks.push({
+                startDate: weekStartDay,
+                endDate: weekEndDay,
+                startFullDate: new Date(year, month - 1, weekStartDay),
+                endFullDate: new Date(year, month - 1, weekEndDay),
+                weekNumber: weeks.length + 1
+            });
+            
+            // Move to next week
+            weekStartDay = weekEndDay + 1;
+            weekEndDay = weekStartDay + 6;
+        }
+        
+        return weeks;
+    },
+
+    /**
+     * Get week number for a given date in the month
+     */
+    getWeekForDate(year, month, day) {
+        const weeks = this.calculateWeeksInMonth(year, month);
+        for (let i = 0; i < weeks.length; i++) {
+            if (day >= weeks[i].startDate && day <= weeks[i].endDate) {
+                return i;
+            }
+        }
+        return 0; // Default to first week
+    },
+
+    /**
+     * Format date range for week display
+     */
+    formatWeekDateRange(week) {
+        return `${week.startDate}-${week.endDate}`;
+    },
+
+    /**
      * Initialize the monthly budget page
      */
     async init() {
@@ -42,12 +108,12 @@ const MonthlyBudgetController = {
      */
     loadMonthSelector() {
         const selector = document.getElementById('month-selector');
-        if (!selector) return;
-
+        const selectorInitial = document.getElementById('month-selector-initial');
+        
         const allMonths = DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        selector.innerHTML = monthKeys.length > 0 
+        const optionsHtml = monthKeys.length > 0 
             ? monthKeys.map(key => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
@@ -55,11 +121,8 @@ const MonthlyBudgetController = {
             }).join('')
             : '<option value="">No months available</option>';
 
-        selector.addEventListener('change', () => {
-            if (selector.value) {
-                this.loadMonth(selector.value);
-            }
-        });
+        if (selector) selector.innerHTML = optionsHtml;
+        if (selectorInitial) selectorInitial.innerHTML = optionsHtml;
     },
 
     /**
@@ -83,6 +146,34 @@ const MonthlyBudgetController = {
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
+
+        // Copy from month event listeners
+        const copyIncomeBtn = document.getElementById('copy-income-button');
+        const copyFixedCostsBtn = document.getElementById('copy-fixed-costs-button');
+        const copyVariableCostsBtn = document.getElementById('copy-variable-costs-button');
+        const copyUnplannedBtn = document.getElementById('copy-unplanned-button');
+
+        if (copyIncomeBtn) copyIncomeBtn.addEventListener('click', () => this.copyIncomeFromMonth());
+        if (copyFixedCostsBtn) copyFixedCostsBtn.addEventListener('click', () => this.copyFixedCostsFromMonth());
+        if (copyVariableCostsBtn) copyVariableCostsBtn.addEventListener('click', () => this.copyVariableCostsFromMonth());
+        if (copyUnplannedBtn) copyUnplannedBtn.addEventListener('click', () => this.copyUnplannedExpensesFromMonth());
+
+        // Month selector event listeners
+        const selector = document.getElementById('month-selector');
+        const selectorInitial = document.getElementById('month-selector-initial');
+        
+        const handleMonthChange = (value) => {
+            if (value) {
+                this.loadMonth(value);
+            }
+        };
+        
+        if (selector) {
+            selector.addEventListener('change', () => handleMonthChange(selector.value));
+        }
+        if (selectorInitial) {
+            selectorInitial.addEventListener('change', () => handleMonthChange(selectorInitial.value));
+        }
 
         const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
                              'lara-income-estimated', 'lara-income-actual',
@@ -139,22 +230,38 @@ const MonthlyBudgetController = {
         this.currentMonthKey = monthKey;
 
         const selector = document.getElementById('month-selector');
+        const selectorInitial = document.getElementById('month-selector-initial');
         const monthTitle = document.getElementById('month-title');
+        const monthTitleWrapper = document.getElementById('month-title-wrapper');
+        const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
 
+        // Update both selectors
         if (selector) selector.value = monthKey;
-        if (monthTitle) monthTitle.textContent = `${monthData.monthName} ${monthData.year}`;
+        if (selectorInitial) selectorInitial.value = monthKey;
+        
+        // Show month title with compact selector, hide initial selector
+        if (monthTitle) {
+            monthTitle.textContent = `${monthData.monthName} ${monthData.year}`;
+        }
+        if (monthTitleWrapper) monthTitleWrapper.style.display = 'flex';
+        if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'none';
 
-        this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
         this.loadFixedCosts(monthData.fixedCosts || []);
         this.loadVariableCosts(monthData.variableCosts || []);
         this.loadUnplannedExpenses(monthData.unplannedExpenses || []);
         this.loadPots(monthData.pots || []);
+        
+        // Load weekly breakdown after costs are loaded so we can populate them
+        this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
 
         const monthContent = document.getElementById('month-content');
         const noMonthMessage = document.getElementById('no-month-message');
         if (monthContent) monthContent.style.display = 'block';
         if (noMonthMessage) noMonthMessage.style.display = 'none';
+
+        // Populate copy month selectors
+        this.populateCopyMonthSelectors();
 
         this.updateCalculations();
     },
@@ -167,15 +274,51 @@ const MonthlyBudgetController = {
         if (!tbody) return;
         tbody.innerHTML = '';
         
+        if (!this.currentMonthData) return;
+        
+        const year = this.currentMonthData.year;
+        const month = this.currentMonthData.month;
+        const weeks = this.calculateWeeksInMonth(year, month);
+        
+        // If weekly breakdown exists and has data, use it but ensure we have the right number of weeks
         if (weeklyBreakdown && weeklyBreakdown.length > 0) {
-        weeklyBreakdown.forEach(week => this.addWeeklyBreakdownRow(week));
+            // Create a map of existing weeks by date range
+            const existingWeeksMap = new Map();
+            weeklyBreakdown.forEach(week => {
+                const dateRange = week.dateRange || week.weekRange || '';
+                existingWeeksMap.set(dateRange, week);
+            });
+            
+            // Generate weeks, preserving existing data where possible
+            weeks.forEach((week, index) => {
+                const dateRange = this.formatWeekDateRange(week);
+                const existingWeek = existingWeeksMap.get(dateRange);
+                if (existingWeek) {
+                    this.addWeeklyBreakdownRow(existingWeek);
+                } else {
+                    // Create new week with date range
+                    this.addWeeklyBreakdownRow({
+                        dateRange: dateRange,
+                        weekRange: dateRange
+                    });
+                }
+            });
         } else {
-            // If no weekly breakdown exists, add at least one empty row
-            this.addWeeklyBreakdownRow();
+            // Auto-generate weeks based on calendar
+            weeks.forEach(week => {
+                const dateRange = this.formatWeekDateRange(week);
+                this.addWeeklyBreakdownRow({
+                    dateRange: dateRange,
+                    weekRange: dateRange
+                });
+            });
         }
 
         // Always add the total row at the end
         this.addWeeklyBreakdownTotalRow();
+        
+        // Populate fixed costs and variable costs into working section
+        this.populateWorkingSectionFromCosts();
     },
 
     /**
@@ -194,17 +337,15 @@ const MonthlyBudgetController = {
             <td><textarea class="weekly-activities" placeholder="Activities (with calculations)" rows="4">${weekData?.activities || ''}</textarea></td>
             <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td>
-                <button type="button" class="btn-delete-week btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Remove</button>
-            </td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
         row.querySelectorAll('input, textarea').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
-        // Add delete button handler
-        const deleteBtn = row.querySelector('.btn-delete-week');
+        // Add delete handler
+        const deleteBtn = row.querySelector('.delete-row-x');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
@@ -223,6 +364,168 @@ const MonthlyBudgetController = {
             // No total row found, append to end
         tbody.appendChild(row);
         }
+    },
+
+    /**
+     * Populate working section from fixed costs and variable costs
+     */
+    populateWorkingSectionFromCosts() {
+        if (!this.currentMonthData) return;
+        
+        const year = this.currentMonthData.year;
+        const month = this.currentMonthData.month;
+        const weeks = this.calculateWeeksInMonth(year, month);
+        const fixedCosts = this.currentMonthData.fixedCosts || [];
+        const variableCosts = this.currentMonthData.variableCosts || [];
+        
+        // Get all weekly rows (excluding total row)
+        const weeklyRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)'));
+        
+        // Distribute variable costs across weeks (same for all weeks)
+        const numWeeks = weeks.length;
+        const weeklyVariableCosts = {};
+        
+        variableCosts.forEach(cost => {
+            const category = cost.category || '';
+            const monthlyBudget = Formatters.parseNumber(cost.estimatedAmount || 0);
+            if (monthlyBudget <= 0) return;
+            
+            const weeklyBudget = monthlyBudget / numWeeks;
+            
+            // Map categories to columns
+            const categoryLower = category.toLowerCase();
+            if (categoryLower.includes('groc') || categoryLower.includes('food')) {
+                if (!weeklyVariableCosts.groceries) weeklyVariableCosts.groceries = [];
+                weeklyVariableCosts.groceries.push({
+                    category: category,
+                    weeklyBudget: weeklyBudget,
+                    monthlyBudget: monthlyBudget,
+                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
+                });
+            } else if (categoryLower.includes('transport') || categoryLower.includes('travel')) {
+                if (!weeklyVariableCosts.transport) weeklyVariableCosts.transport = [];
+                weeklyVariableCosts.transport.push({
+                    category: category,
+                    weeklyBudget: weeklyBudget,
+                    monthlyBudget: monthlyBudget,
+                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
+                });
+            } else if (categoryLower.includes('activit')) {
+                if (!weeklyVariableCosts.activities) weeklyVariableCosts.activities = [];
+                weeklyVariableCosts.activities.push({
+                    category: category,
+                    weeklyBudget: weeklyBudget,
+                    monthlyBudget: monthlyBudget,
+                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
+                });
+            }
+        });
+        
+        // Process each week
+        weeklyRows.forEach((row, weekIndex) => {
+            if (weekIndex >= weeks.length) return;
+            
+            const paymentsDueTextarea = row.querySelector('.weekly-payments-due');
+            const groceriesTextarea = row.querySelector('.weekly-groceries');
+            const transportTextarea = row.querySelector('.weekly-transport');
+            const activitiesTextarea = row.querySelector('.weekly-activities');
+            
+            // Collect fixed costs for this week
+            const week = weeks[weekIndex];
+            const weekFixedCosts = [];
+            
+            fixedCosts.forEach(cost => {
+                if (!cost.date) return;
+                
+                // Parse date - could be in various formats (DD, DD-MM, DD/MM, etc.)
+                const dateMatch = cost.date.toString().match(/(\d+)/);
+                if (dateMatch) {
+                    const day = parseInt(dateMatch[1], 10);
+                    if (day >= week.startDate && day <= week.endDate) {
+                        const amount = Formatters.parseNumber(cost.estimatedAmount || cost.actualAmount || 0);
+                        const category = cost.category || 'Fixed Cost';
+                        weekFixedCosts.push({
+                            category: category,
+                            amount: amount,
+                            date: day,
+                            card: cost.card || '',
+                            paid: cost.paid || false
+                        });
+                    }
+                }
+            });
+            
+            // Build payments due text (only if field is empty or contains auto-generated content)
+            const currentPayments = paymentsDueTextarea?.value || '';
+            const hasAutoGeneratedPayments = currentPayments.includes('Auto-generated');
+            
+            if (weekFixedCosts.length > 0 && (!currentPayments.trim() || hasAutoGeneratedPayments)) {
+                const paymentsText = weekFixedCosts.map(cost => {
+                    const paidStatus = cost.paid ? ' ✓' : '';
+                    const cardInfo = cost.card ? ` (${cost.card})` : '';
+                    return `${cost.category}: ${Formatters.formatCurrency(cost.amount)}${cardInfo}${paidStatus}`;
+                }).join('\n');
+                
+                if (hasAutoGeneratedPayments) {
+                    // Replace existing auto-generated content
+                    const beforeAuto = currentPayments.split('--- Auto-generated')[0].trim();
+                    paymentsDueTextarea.value = beforeAuto ? beforeAuto + '\n\n--- Auto-generated Fixed Costs ---\n' + paymentsText : '--- Auto-generated Fixed Costs ---\n' + paymentsText;
+                } else {
+                    paymentsDueTextarea.value = '--- Auto-generated Fixed Costs ---\n' + paymentsText;
+                }
+            }
+            
+            // Populate groceries column (only if empty or contains auto-generated content)
+            const currentGroceries = groceriesTextarea?.value || '';
+            const hasAutoGeneratedGroceries = currentGroceries.includes('Auto-generated');
+            
+            if (weeklyVariableCosts.groceries && weeklyVariableCosts.groceries.length > 0 && (!currentGroceries.trim() || hasAutoGeneratedGroceries)) {
+                const groceriesText = weeklyVariableCosts.groceries.map(cost => {
+                    return `${cost.category}: ${cost.calculation}`;
+                }).join('\n');
+                
+                if (hasAutoGeneratedGroceries) {
+                    const beforeAuto = currentGroceries.split('--- Auto-generated')[0].trim();
+                    groceriesTextarea.value = beforeAuto ? beforeAuto + '\n\n--- Auto-generated Budget ---\n' + groceriesText : '--- Auto-generated Budget ---\n' + groceriesText;
+                } else {
+                    groceriesTextarea.value = '--- Auto-generated Budget ---\n' + groceriesText;
+                }
+            }
+            
+            // Populate transport column (only if empty or contains auto-generated content)
+            const currentTransport = transportTextarea?.value || '';
+            const hasAutoGeneratedTransport = currentTransport.includes('Auto-generated');
+            
+            if (weeklyVariableCosts.transport && weeklyVariableCosts.transport.length > 0 && (!currentTransport.trim() || hasAutoGeneratedTransport)) {
+                const transportText = weeklyVariableCosts.transport.map(cost => {
+                    return `${cost.category}: ${cost.calculation}`;
+                }).join('\n');
+                
+                if (hasAutoGeneratedTransport) {
+                    const beforeAuto = currentTransport.split('--- Auto-generated')[0].trim();
+                    transportTextarea.value = beforeAuto ? beforeAuto + '\n\n--- Auto-generated Budget ---\n' + transportText : '--- Auto-generated Budget ---\n' + transportText;
+                } else {
+                    transportTextarea.value = '--- Auto-generated Budget ---\n' + transportText;
+                }
+            }
+            
+            // Populate activities column (only if empty or contains auto-generated content)
+            const currentActivities = activitiesTextarea?.value || '';
+            const hasAutoGeneratedActivities = currentActivities.includes('Auto-generated');
+            
+            if (weeklyVariableCosts.activities && weeklyVariableCosts.activities.length > 0 && (!currentActivities.trim() || hasAutoGeneratedActivities)) {
+                const activitiesText = weeklyVariableCosts.activities.map(cost => {
+                    return `${cost.category}: ${cost.calculation}`;
+                }).join('\n');
+                
+                if (hasAutoGeneratedActivities) {
+                    const beforeAuto = currentActivities.split('--- Auto-generated')[0].trim();
+                    activitiesTextarea.value = beforeAuto ? beforeAuto + '\n\n--- Auto-generated Budget ---\n' + activitiesText : '--- Auto-generated Budget ---\n' + activitiesText;
+                } else {
+                    activitiesTextarea.value = '--- Auto-generated Budget ---\n' + activitiesText;
+                }
+            }
+        });
     },
 
     /**
@@ -324,13 +627,16 @@ const MonthlyBudgetController = {
             <td><input type="text" class="income-date" value="${incomeData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="income-description" value="${incomeData?.description || ''}" placeholder="Description"></td>
             <td><input type="text" class="income-comments" value="${incomeData?.comments || ''}" placeholder="Comments"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-        });
+        const deleteBtn = row.querySelector('.delete-row-x');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                row.remove();
+                this.updateCalculations();
+            });
+        }
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
@@ -404,13 +710,16 @@ const MonthlyBudgetController = {
             <td><input type="text" class="fixed-cost-card" value="${costData?.card || ''}" placeholder="Card"></td>
             <td><input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''}></td>
             <td><input type="text" class="fixed-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-        });
+        const deleteBtn = row.querySelector('.delete-row-x');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                row.remove();
+                this.updateCalculations();
+            });
+        }
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
@@ -488,13 +797,16 @@ const MonthlyBudgetController = {
             <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td class="variable-cost-remaining">${Formatters.formatCurrency(remaining)}</td>
             <td><input type="text" class="variable-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-        });
+        const deleteBtn = row.querySelector('.delete-row-x');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                row.remove();
+                this.updateCalculations();
+            });
+        }
 
         // Update remaining calculation when estimated or actual changes
         const updateRemaining = () => {
@@ -583,13 +895,16 @@ const MonthlyBudgetController = {
             <td><input type="text" class="unplanned-card" value="${expenseData?.card || ''}" placeholder="Card"></td>
             <td><input type="text" class="unplanned-status" value="${expenseData?.status || ''}" placeholder="Status"></td>
             <td><input type="text" class="unplanned-comments" value="${expenseData?.comments || ''}" placeholder="Comments"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-        });
+        const deleteBtn = row.querySelector('.delete-row-x');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                row.remove();
+                this.updateCalculations();
+            });
+        }
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => this.updateCalculations());
@@ -898,8 +1213,12 @@ const MonthlyBudgetController = {
 
             const monthContent = document.getElementById('month-content');
             const noMonthMessage = document.getElementById('no-month-message');
+            const monthTitleWrapper = document.getElementById('month-title-wrapper');
+            const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
             if (monthContent) monthContent.style.display = 'none';
             if (noMonthMessage) noMonthMessage.style.display = 'block';
+            if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
+            if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
 
             this.loadMonthSelector();
 
@@ -919,6 +1238,207 @@ const MonthlyBudgetController = {
     setElementText(id, text) {
         const el = document.getElementById(id);
         if (el) el.textContent = text;
+    },
+
+    /**
+     * Populate copy month selectors with all available months (excluding current)
+     */
+    populateCopyMonthSelectors() {
+        if (!this.currentMonthKey) return;
+
+        const allMonths = DataManager.getAllMonths();
+        const monthKeys = Object.keys(allMonths)
+            .filter(key => key !== this.currentMonthKey)
+            .sort()
+            .reverse();
+
+        const optionsHtml = monthKeys.length > 0 
+            ? monthKeys.map(key => {
+                const monthData = allMonths[key];
+                const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+            }).join('')
+            : '<option value="">No other months available</option>';
+
+        // Populate all copy selectors
+        const selectors = [
+            'copy-income-from-month',
+            'copy-fixed-costs-from-month',
+            'copy-variable-costs-from-month',
+            'copy-unplanned-from-month'
+        ];
+
+        selectors.forEach(selectorId => {
+            const selector = document.getElementById(selectorId);
+            if (selector) {
+                selector.innerHTML = '<option value="">Select month to copy...</option>' + optionsHtml;
+            }
+        });
+    },
+
+    /**
+     * Copy income data from selected month
+     */
+    copyIncomeFromMonth() {
+        const selector = document.getElementById('copy-income-from-month');
+        if (!selector || !selector.value) {
+            alert('Please select a month to copy from');
+            return;
+        }
+
+        const sourceMonthKey = selector.value;
+        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        
+        if (!sourceMonthData) {
+            alert('Source month not found');
+            return;
+        }
+
+        const sourceIncome = sourceMonthData.income || sourceMonthData.incomeSources || [];
+        
+        if (sourceIncome.length === 0) {
+            alert('No income data found in the selected month');
+            return;
+        }
+
+        // Clear current income
+        const tbody = document.getElementById('income-tbody');
+        if (tbody) tbody.innerHTML = '';
+
+        // Load source income
+        this.loadIncomeSources(sourceIncome);
+        
+        // Update current month data
+        if (!this.currentMonthData.income) {
+            this.currentMonthData.income = {};
+        }
+        this.currentMonthData.incomeSources = sourceIncome;
+        
+        alert(`Copied ${sourceIncome.length} income source(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
+        this.updateCalculations();
+    },
+
+    /**
+     * Copy fixed costs from selected month
+     */
+    copyFixedCostsFromMonth() {
+        const selector = document.getElementById('copy-fixed-costs-from-month');
+        if (!selector || !selector.value) {
+            alert('Please select a month to copy from');
+            return;
+        }
+
+        const sourceMonthKey = selector.value;
+        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        
+        if (!sourceMonthData) {
+            alert('Source month not found');
+            return;
+        }
+
+        const sourceFixedCosts = sourceMonthData.fixedCosts || [];
+        
+        if (sourceFixedCosts.length === 0) {
+            alert('No fixed costs found in the selected month');
+            return;
+        }
+
+        // Clear current fixed costs
+        const tbody = document.getElementById('fixed-costs-tbody');
+        if (tbody) tbody.innerHTML = '';
+
+        // Load source fixed costs
+        this.loadFixedCosts(sourceFixedCosts);
+        
+        // Update current month data
+        this.currentMonthData.fixedCosts = sourceFixedCosts;
+        
+        // Repopulate working section with new fixed costs
+        this.populateWorkingSectionFromCosts();
+        
+        alert(`Copied ${sourceFixedCosts.length} fixed cost(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
+        this.updateCalculations();
+    },
+
+    /**
+     * Copy variable costs from selected month
+     */
+    copyVariableCostsFromMonth() {
+        const selector = document.getElementById('copy-variable-costs-from-month');
+        if (!selector || !selector.value) {
+            alert('Please select a month to copy from');
+            return;
+        }
+
+        const sourceMonthKey = selector.value;
+        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        
+        if (!sourceMonthData) {
+            alert('Source month not found');
+            return;
+        }
+
+        const sourceVariableCosts = sourceMonthData.variableCosts || [];
+        
+        if (sourceVariableCosts.length === 0) {
+            alert('No variable costs found in the selected month');
+            return;
+        }
+
+        // Clear current variable costs
+        const tbody = document.getElementById('variable-costs-tbody');
+        if (tbody) tbody.innerHTML = '';
+
+        // Load source variable costs
+        this.loadVariableCosts(sourceVariableCosts);
+        
+        // Update current month data
+        this.currentMonthData.variableCosts = sourceVariableCosts;
+        
+        // Repopulate working section with new variable costs
+        this.populateWorkingSectionFromCosts();
+        
+        alert(`Copied ${sourceVariableCosts.length} variable cost(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
+        this.updateCalculations();
+    },
+
+    /**
+     * Copy unplanned expenses from selected month
+     */
+    copyUnplannedExpensesFromMonth() {
+        const selector = document.getElementById('copy-unplanned-from-month');
+        if (!selector || !selector.value) {
+            alert('Please select a month to copy from');
+            return;
+        }
+
+        const sourceMonthKey = selector.value;
+        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        
+        if (!sourceMonthData) {
+            alert('Source month not found');
+            return;
+        }
+
+        const sourceUnplanned = sourceMonthData.unplannedExpenses || [];
+        
+        if (sourceUnplanned.length === 0) {
+            alert('No unplanned expenses found in the selected month');
+            return;
+        }
+
+        // Clear current unplanned expenses
+        const tbody = document.getElementById('unplanned-expenses-tbody');
+        if (tbody) tbody.innerHTML = '';
+
+        // Load source unplanned expenses
+        this.loadUnplannedExpenses(sourceUnplanned);
+        
+        // Update current month data
+        this.currentMonthData.unplannedExpenses = sourceUnplanned;
+        
+        alert(`Copied ${sourceUnplanned.length} unplanned expense(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
+        this.updateCalculations();
     },
 
     /**

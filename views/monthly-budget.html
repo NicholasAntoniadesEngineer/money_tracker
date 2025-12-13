@@ -16,33 +16,27 @@
         </section>
 
         <section class="month-selector-section form-section">
-            <div class="form-group">
-                <label for="month-selector" class="form-label">Select Month:</label>
-                <div style="display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 200px;">
-                <select id="month-selector" class="form-select">
-                    <option value="">Loading...</option>
-                </select>
-                    </div>
-                    <button id="create-month-button" class="btn btn-primary">Create New Month</button>
+            <div class="month-header-container">
+                <div class="month-title-wrapper" id="month-title-wrapper" style="display: none;">
+                    <h2 id="month-title" class="month-title"></h2>
+                    <select id="month-selector" class="month-selector-compact">
+                        <option value="">Loading...</option>
+                    </select>
                 </div>
-            </div>
-            
-            <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                <p class="form-help-text" style="font-size: 0.85rem; color: var(--text-secondary);">
-                    <strong>File Operations:</strong> Import, export, load, and delete operations have been moved to the <a href="import.html" style="color: var(--primary-color);">Import & Export</a> page.
-                </p>
+                <div class="month-selector-wrapper" id="month-selector-wrapper">
+                    <label for="month-selector-initial" class="form-label">Select Month:</label>
+                    <select id="month-selector-initial" class="form-select">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <button id="create-month-button" class="btn btn-primary create-month-btn">Create New Month</button>
             </div>
         </section>
 
         <div id="month-content" style="display: none;">
-            <section class="month-header-section">
-                <h2 id="month-title" class="section-title"></h2>
-            </section>
 
             <section class="working-section form-section">
-                <h2 class="section-title">The Working Section (The Important One)</h2>
-                <p class="section-description">The heart of the system — split into weekly blocks. Each week shows payments due, groceries (with running calculations), transport (with running calculations), activities (with running calculations), and weekly estimate/actual for joint account.</p>
+                <h2 class="section-title">The Working Section</h2>
                 <table class="data-table" id="weekly-breakdown-table">
                     <thead>
                         <tr>
@@ -53,7 +47,7 @@
                             <th>Activities</th>
                             <th>Estimate</th>
                             <th>Actual</th>
-                            <th>Actions</th>
+                            <th class="delete-column-header"></th>
                         </tr>
                     </thead>
                     <tbody id="weekly-breakdown-tbody">
@@ -70,13 +64,24 @@
                     </tbody>
                 </table>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button id="add-weekly-breakdown-button" class="btn btn-action">Add Week</button>
+                    <button id="add-weekly-breakdown-button" class="btn btn-action" style="display: none;">Add Week</button>
+                    <small style="color: var(--text-secondary); font-style: italic;">Weeks are automatically generated based on the calendar month</small>
                 </div>
             </section>
 
             <section class="income-section form-section">
-                <h2 class="section-title">1. Income Overview (Estimated vs Actual)</h2>
-                <p class="section-description">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h2 class="section-title" style="margin: 0;">1. Income</h2>
+                        <p class="section-description" style="margin: 0.5rem 0 0 0;">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="copy-income-from-month" class="form-select" style="min-width: 180px;">
+                            <option value="">Select month to copy...</option>
+                        </select>
+                        <button id="copy-income-button" class="btn btn-action">Copy</button>
+                    </div>
+                </div>
                 <table class="data-table" id="income-table">
                     <thead>
                         <tr>
@@ -86,7 +91,7 @@
                             <th>Date</th>
                             <th>Description</th>
                             <th>Comments</th>
-                            <th>Actions</th>
+                            <th class="delete-column-header"></th>
                         </tr>
                     </thead>
                     <tbody id="income-tbody">
@@ -98,8 +103,18 @@
             </section>
 
             <section class="fixed-costs-section form-section">
-                <h2 class="section-title">2. Fixed Costs (Recurring Bills)</h2>
-                <p class="section-description">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h2 class="section-title" style="margin: 0;">2. Fixed Costs (Recurring Bills)</h2>
+                        <p class="section-description" style="margin: 0.5rem 0 0 0;">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="copy-fixed-costs-from-month" class="form-select" style="min-width: 180px;">
+                            <option value="">Select month to copy...</option>
+                        </select>
+                        <button id="copy-fixed-costs-button" class="btn btn-action">Copy</button>
+                    </div>
+                </div>
                 <table class="data-table" id="fixed-costs-table">
                     <thead>
                         <tr>
@@ -110,7 +125,7 @@
                             <th>Card</th>
                             <th>Paid</th>
                             <th>Comments</th>
-                            <th>Actions</th>
+                            <th class="delete-column-header"></th>
                         </tr>
                     </thead>
                     <tbody id="fixed-costs-tbody">
@@ -122,8 +137,18 @@
             </section>
 
             <section class="variable-costs-section form-section">
-                <h2 class="section-title">3. Variable Costs (Food + Activities)</h2>
-                <p class="section-description">The two categories we can control. Assign a monthly budget for each.</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h2 class="section-title" style="margin: 0;">3. Variable Costs (Food + Activities)</h2>
+                        <p class="section-description" style="margin: 0.5rem 0 0 0;">The two categories we can control. Assign a monthly budget for each.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="copy-variable-costs-from-month" class="form-select" style="min-width: 180px;">
+                            <option value="">Select month to copy...</option>
+                        </select>
+                        <button id="copy-variable-costs-button" class="btn btn-action">Copy</button>
+                    </div>
+                </div>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
                         <tr>
@@ -132,7 +157,7 @@
                             <th>Actual Spent</th>
                             <th>Remaining</th>
                             <th>Comments</th>
-                            <th>Actions</th>
+                            <th class="delete-column-header"></th>
                         </tr>
                     </thead>
                     <tbody id="variable-costs-tbody">
@@ -144,8 +169,18 @@
             </section>
 
             <section class="unplanned-expenses-section form-section">
-                <h2 class="section-title">4. Unplanned Buying</h2>
-                <p class="section-description">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h2 class="section-title" style="margin: 0;">4. Unplanned Buying</h2>
+                        <p class="section-description" style="margin: 0.5rem 0 0 0;">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="copy-unplanned-from-month" class="form-select" style="min-width: 180px;">
+                            <option value="">Select month to copy...</option>
+                        </select>
+                        <button id="copy-unplanned-button" class="btn btn-action">Copy</button>
+                    </div>
+                </div>
                 <table class="data-table" id="unplanned-expenses-table">
                     <thead>
                         <tr>
@@ -155,7 +190,7 @@
                             <th>Card</th>
                             <th>Status</th>
                             <th>Comments</th>
-                            <th>Actions</th>
+                            <th class="delete-column-header"></th>
                         </tr>
                     </thead>
                     <tbody id="unplanned-expenses-tbody">

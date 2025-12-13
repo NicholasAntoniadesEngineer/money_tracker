@@ -63,11 +63,11 @@ const OverviewController = {
                     <td class="${totals.savings.actual >= 0 ? 'positive' : 'negative'}"><strong>${Formatters.formatCurrency(totals.savings.actual)}</strong></td>
                     <td>
                         <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action btn-sm">View</a>
-                        <button class="btn btn-danger btn-sm delete-month-btn" data-month-key="${monthKey}" data-month-name="${monthName} ${monthData.year}" style="margin-left: 0.5rem;">Delete</button>
+                        <button type="button" class="delete-row-x" aria-label="Delete month" data-month-key="${monthKey}" data-month-name="${monthName} ${monthData.year}">×</button>
                     </td>
                 `;
 
-                const deleteBtn = row.querySelector('.delete-month-btn');
+                const deleteBtn = row.querySelector('.delete-row-x');
                 if (deleteBtn) {
                     deleteBtn.addEventListener('click', () => {
                         this.deleteMonth(monthKey, deleteBtn.dataset.monthName);

@@ -81,16 +81,17 @@ const PotsController = {
                 <td><strong>${category}</strong></td>
                 <td>${Formatters.formatCurrency(pot.estimatedAmount)}</td>
                 <td>${Formatters.formatCurrency(pot.actualAmount)}</td>
-                <td>
-                    <button class="btn btn-danger btn-sm remove-pot" data-category="${category}">Remove</button>
-                </td>
+                <td><button type="button" class="delete-row-x" aria-label="Delete row" data-category="${category}">×</button></td>
             `;
 
-            row.querySelector('.remove-pot').addEventListener('click', () => {
-                if (confirm(`Are you sure you want to remove all entries for "${category}"? This will remove it from all months.`)) {
-                    this.removePotFromAllMonths(category);
-                }
-            });
+            const deleteBtn = row.querySelector('.delete-row-x');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to remove all entries for "${category}"? This will remove it from all months.`)) {
+                        this.removePotFromAllMonths(category);
+                    }
+                });
+            }
 
             tbody.appendChild(row);
         });

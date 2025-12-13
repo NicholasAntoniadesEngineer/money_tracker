@@ -996,7 +996,7 @@ const DataManager = {
         .section {
             margin-bottom: 2rem;
             background: white;
-            border-radius: 8px;
+            border-radius: 0px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
@@ -1068,7 +1068,7 @@ const DataManager = {
             background: #e9ecef;
             padding: 1rem;
             margin-top: 2rem;
-            border-radius: 4px;
+            border-radius: 0px;
             font-size: 0.875rem;
             color: #6c757d;
         }
