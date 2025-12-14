@@ -322,6 +322,14 @@ const SettingsController = {
                 }
             });
         }
+
+        // Clear all data button
+        const clearDataBtn = document.getElementById('clear-all-data-button');
+        if (clearDataBtn) {
+            clearDataBtn.addEventListener('click', () => {
+                this.clearAllData();
+            });
+        }
     },
 
     /**
@@ -587,6 +595,34 @@ const SettingsController = {
     },
 
     /**
+     * Clear all cached data and reset to fresh state
+     */
+    clearAllData() {
+        const confirmMessage = `Are you sure you want to clear all cached data? This will:\n\n• Delete all saved months\n• Delete all pots data\n• Reset all settings to defaults\n\nThis action cannot be undone and will reload the page.`;
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            // Clear all localStorage data
+            localStorage.clear();
+
+            // Reinitialize settings with defaults
+            DataManager.initializeSettings();
+
+            // Show success message
+            alert('All cached data has been cleared. The page will now reload.');
+
+            // Reload the page to refresh everything
+            window.location.reload();
+
+        } catch (error) {
+            console.error('Error clearing data:', error);
+            alert('Error clearing data. Please try again.');
+        }
+    },
+
+    /**
      * Load month selector dropdown
      */
     loadMonthSelector() {
@@ -596,7 +632,7 @@ const SettingsController = {
         const allMonths = DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        selector.innerHTML = monthKeys.length > 0 
+        selector.innerHTML = monthKeys.length > 0
             ? monthKeys.map(key => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
