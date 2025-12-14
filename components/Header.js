@@ -62,12 +62,14 @@ class Header {
         return `
     <header class="main-header">
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
-            <h1 class="site-title">Money Tracker</h1>
-            <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
-                <span class="hamburger-line"></span>
-                <span class="hamburger-line"></span>
-                <span class="hamburger-line"></span>
-            </button>
+            <div class="header-title-group">
+                <h1 class="site-title">Money Tracker</h1>
+                <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+            </div>
             <ul class="nav-list">
                 ${navLinks}
             </ul>

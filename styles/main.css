@@ -96,6 +96,9 @@
     --max-width-content: 1200px;
     --viewport-spacing-top: 5vh;
     --month-title-padding-left: 5%;
+    
+    /* Background Images */
+    --site-background: url('../reference/site_background_image.jpg');
 }
 
 /* ============================================================================
@@ -117,7 +120,7 @@ body {
     line-height: var(--line-height-base);
     color: var(--text-primary);
     background-color: var(--background-color);
-    background-image: url('../reference/8dead7d9dd1291163369b731d075ae6c.jpg');
+    background-image: var(--site-background);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -135,7 +138,7 @@ body::after {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url('../reference/8dead7d9dd1291163369b731d075ae6c.jpg');
+    background-image: var(--site-background);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -239,7 +242,8 @@ body:not(.landing-page) .main-navigation {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: var(--spacing-sm);
 }
 
 .main-navigation {
@@ -249,7 +253,83 @@ body:not(.landing-page) .main-navigation {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: var(--spacing-sm);
+}
+
+/* Header title group - keeps title and hamburger together */
+.header-title-group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 1;
+    gap: var(--spacing-xs);
+    min-width: 0;
+}
+
+.header-title-group > .site-title {
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+}
+
+.header-title-group > .hamburger-menu {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+/* Make nav-list stay on same line as title group */
+.main-navigation > .nav-list {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    flex-shrink: 1;
+    white-space: nowrap;
+}
+
+/* When window is narrow, keep everything on same line but make items smaller */
+@media (max-width: 1100px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
+    .main-navigation {
+        flex-wrap: nowrap !important;
+    }
+    
+    /* Title group stays together */
+    .header-title-group {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+    
+    .header-title-group > .site-title {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 1rem;
+    }
+    
+    /* Hamburger still hidden at 1100px - nav-list should still be visible */
+    .header-title-group > .hamburger-menu {
+        display: none !important;
+    }
+    
+    /* Nav list stays on same line, shrinks if needed */
+    .main-navigation > .nav-list {
+        flex-shrink: 1;
+        min-width: 0;
+        display: flex !important;
+    }
+    
+    .nav-list {
+        gap: var(--spacing-xs);
+    }
+    
+    .nav-link {
+        font-size: 0.9rem;
+        padding: var(--spacing-xs);
+    }
 }
 
 .site-title {
@@ -259,6 +339,9 @@ body:not(.landing-page) .main-navigation {
     /* Prevent inheritance from view-specific styles */
     margin: 0;
     padding: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .nav-list {
@@ -268,6 +351,8 @@ body:not(.landing-page) .main-navigation {
     flex-wrap: wrap;
     margin: 0;
     padding: 0;
+    justify-content: flex-end;
+    align-items: center;
 }
 
 .nav-link {
@@ -300,6 +385,12 @@ body:not(.landing-page) .main-navigation {
     cursor: pointer;
     padding: 0;
     margin-left: var(--spacing-sm);
+    flex-shrink: 0;
+    order: 2;
+}
+
+.site-title {
+    order: 1;
 }
 
 .hamburger-line {
@@ -329,18 +420,119 @@ body:not(.landing-page) .main-navigation {
     margin: 0;
     padding: 0;
     gap: var(--spacing-md);
+    justify-content: flex-end;
+    align-items: center;
 }
 
-/* Mobile Navigation */
-@media (max-width: 768px) {
+/* Mobile Navigation - Apply when hamburger is visible */
+@media (max-width: 900px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
     .main-navigation {
         position: relative;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    /* Ensure title and hamburger stay on same line */
+    .main-navigation > .site-title {
+        flex: 0 1 auto !important;
+        max-width: calc(100% - 40px) !important;
+        margin-right: 0 !important;
+    }
+    
+    .main-navigation > .hamburger-menu {
+        flex: 0 0 auto !important;
+        margin-left: var(--spacing-xs) !important;
+    }
+
+    .site-title {
+        font-size: 1rem;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: calc(100% - 40px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+        padding: 0;
+        order: 1;
+        line-height: 1.2;
     }
 
     .hamburger-menu {
-        display: flex;
+        display: flex !important;
+        width: 22px;
+        height: 18px;
+        margin-left: var(--spacing-xs);
+        flex-shrink: 0;
+        order: 2;
+        padding: 0;
+        min-width: 22px;
     }
 
+    .hamburger-line {
+        height: 2px;
+    }
+}
+
+/* Mobile Navigation - Smaller screens */
+@media (max-width: 768px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
+    .main-navigation {
+        position: relative;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .site-title {
+        font-size: 0.9rem;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: calc(100% - 35px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+        padding: 0;
+        order: 1;
+        line-height: 1.2;
+    }
+
+    /* Hide nav-list from normal flow when hamburger is visible */
+    .main-navigation > .nav-list {
+        display: none !important;
+    }
+
+    /* Show hamburger menu - must use same specificity as 1100px rule */
+    .header-title-group > .hamburger-menu {
+        display: flex !important;
+        width: 22px;
+        height: 18px;
+        flex-shrink: 0;
+        padding: 0;
+        min-width: 22px;
+        margin: 0;
+    }
+    
+    .hamburger-menu {
+        display: flex !important;
+    }
+
+    .hamburger-line {
+        height: 2px;
+    }
+
+    /* Nav list is positioned absolutely for dropdown menu (only visible when hamburger is clicked) */
     .nav-list {
         position: absolute;
         top: 100%;
@@ -358,8 +550,20 @@ body:not(.landing-page) .main-navigation {
         visibility: hidden;
         transition: all 0.3s ease;
         z-index: 1000;
+        width: 100%;
+        flex: 0 0 auto;
+        order: 3;
+        display: flex !important;
     }
 
+    /* When nav is open, show it even though parent has display: none */
+    .main-navigation > .nav-list.nav-open {
+        display: flex !important;
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+    
     .nav-list.nav-open {
         transform: translateY(0);
         opacity: 1;

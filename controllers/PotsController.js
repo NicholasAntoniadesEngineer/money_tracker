@@ -87,10 +87,10 @@ const PotsController = {
             const deleteBtn = row.querySelector('.delete-row-x');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', () => {
-                    if (confirm(`Are you sure you want to remove all entries for "${category}"? This will remove it from all months.`)) {
-                        this.removePotFromAllMonths(category);
-                    }
-                });
+                if (confirm(`Are you sure you want to remove all entries for "${category}"? This will remove it from all months.`)) {
+                    this.removePotFromAllMonths(category);
+                }
+            });
             }
 
             tbody.appendChild(row);
