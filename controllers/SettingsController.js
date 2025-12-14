@@ -78,6 +78,53 @@ const SettingsController = {
         const fileOperationsStatus = document.getElementById('file-operations-status');
         const yearInputGroup = document.getElementById('year-input-group');
         const importYear = document.getElementById('import-year');
+        const clearAllDataBtn = document.getElementById('clear-all-data-button');
+
+        // Clear all cached data button
+        if (clearAllDataBtn) {
+            clearAllDataBtn.addEventListener('click', () => {
+                const confirmMessage = 'Are you sure you want to clear all cached data? This will remove all months, pots, and settings data stored in your browser. The original data files will not be affected, but you\'ll need to re-import them to view the data again.\n\nThis action cannot be undone.';
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                const fileOperationsStatus = document.getElementById('file-operations-status');
+                if (fileOperationsStatus) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Clearing all cached data...</p>';
+                }
+
+                try {
+                    // Clear all localStorage data
+                    localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
+                    localStorage.removeItem(DataManager.STORAGE_KEY_POTS);
+                    localStorage.removeItem(DataManager.STORAGE_KEY_SETTINGS);
+
+                    // Reset to default settings
+                    DataManager.initializeSettings();
+
+                    // Clear any cached data
+                    DataManager._monthsCache = null;
+
+                    // Reload month selector to show empty state
+                    this.loadMonthSelector();
+
+                    if (fileOperationsStatus) {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">✓ All cached data has been cleared. Settings have been reset to defaults.</p>';
+                    }
+
+                    // Optional: Reload the page to ensure clean state
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+
+                } catch (error) {
+                    console.error('Error clearing cached data:', error);
+                    if (fileOperationsStatus) {
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error clearing cached data. Please try again.</p>';
+                    }
+                }
+            });
+        }
 
         // Primary import button - tries File System Access API first, falls back to file input
         if (loadMonthsBtn) {
@@ -320,14 +367,6 @@ const SettingsController = {
                 } else {
                     deleteMonthBtn.style.display = 'none';
                 }
-            });
-        }
-
-        // Clear all data button
-        const clearDataBtn = document.getElementById('clear-all-data-button');
-        if (clearDataBtn) {
-            clearDataBtn.addEventListener('click', () => {
-                this.clearAllData();
             });
         }
     },
@@ -595,34 +634,6 @@ const SettingsController = {
     },
 
     /**
-     * Clear all cached data and reset to fresh state
-     */
-    clearAllData() {
-        const confirmMessage = `Are you sure you want to clear all cached data? This will:\n\n• Delete all saved months\n• Delete all pots data\n• Reset all settings to defaults\n\nThis action cannot be undone and will reload the page.`;
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-
-        try {
-            // Clear all localStorage data
-            localStorage.clear();
-
-            // Reinitialize settings with defaults
-            DataManager.initializeSettings();
-
-            // Show success message
-            alert('All cached data has been cleared. The page will now reload.');
-
-            // Reload the page to refresh everything
-            window.location.reload();
-
-        } catch (error) {
-            console.error('Error clearing data:', error);
-            alert('Error clearing data. Please try again.');
-        }
-    },
-
-    /**
      * Load month selector dropdown
      */
     loadMonthSelector() {
@@ -632,7 +643,7 @@ const SettingsController = {
         const allMonths = DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        selector.innerHTML = monthKeys.length > 0
+        selector.innerHTML = monthKeys.length > 0 
             ? monthKeys.map(key => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);

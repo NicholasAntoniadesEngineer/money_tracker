@@ -248,15 +248,47 @@ const MonthlyBudgetController = {
 
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
         this.loadFixedCosts(monthData.fixedCosts || []);
-        this.loadVariableCosts(monthData.variableCosts || []);
+
+        // Ensure variable costs are initialized with defaults if empty
+        let variableCosts = monthData.variableCosts || [];
+
+        if (variableCosts.length === 0) {
+            const settings = DataManager.getSettings() || DataManager.initializeSettings();
+            variableCosts = (settings.defaultVariableCategories || []).map(category => ({
+                category: category,
+                estimatedAmount: 0,
+                actualAmount: 0,
+                comments: ''
+            }));
+            // Update the month data with default variable costs
+            monthData.variableCosts = variableCosts;
+            this.currentMonthData = monthData;
+        }
+
+        // Normalize variable costs data structure to use estimatedAmount/actualAmount
+        // (handles both monthlyBudget/actualSpent and estimatedAmount/actualAmount formats)
+        // Create a fresh copy to avoid reference issues
+        const normalizedVariableCosts = variableCosts.map(cost => ({
+            category: cost.category || '',
+            estimatedAmount: cost.estimatedAmount !== undefined ? cost.estimatedAmount : (cost.monthlyBudget || 0),
+            actualAmount: cost.actualAmount !== undefined ? cost.actualAmount : (cost.actualSpent || 0),
+            comments: cost.comments || ''
+        }));
+
+        // Load variable costs with normalized data
+        this.loadVariableCosts(normalizedVariableCosts, false); // Allow rebuild to ensure proper display
+        
+        // Explicitly update current month data to ensure it's in sync (matching copyVariableCostsFromMonth pattern)
+        this.currentMonthData.variableCosts = normalizedVariableCosts;
+        
         this.loadUnplannedExpenses(monthData.unplannedExpenses || []);
         this.loadPots(monthData.pots || []);
-        
-        // Rebuild table structure based on variable costs
-        this.rebuildWorkingSectionTable();
-        
+
         // Load weekly breakdown after costs are loaded so we can populate them
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
+
+        // Populate working section with variable costs data (similar to copy function)
+        this.populateWorkingSectionFromCosts();
 
         const monthContent = document.getElementById('month-content');
         const noMonthMessage = document.getElementById('no-month-message');
@@ -265,6 +297,10 @@ const MonthlyBudgetController = {
 
         // Populate copy month selectors
         this.populateCopyMonthSelectors();
+
+        // Automatically copy variable costs from the selected month to ensure table updates correctly
+        // This uses the same logic as the copy button which works reliably
+        this.copyVariableCostsFromMonthInternal(monthKey);
 
         this.updateCalculations();
     },
@@ -305,7 +341,7 @@ const MonthlyBudgetController = {
         
         // Build header: Date, Payments Due, [Variable Cost Categories], Estimate, Actual, Delete
         const existingHeaders = headerRow.innerHTML;
-        let newHeaderHTML = '<th>Date</th><th>Payments Due (added from tables below)</th>';
+        let newHeaderHTML = '<th>Date</th><th>Payments Due</th>';
         
         // Add variable cost category columns
         categories.forEach(category => {
@@ -1004,16 +1040,21 @@ const MonthlyBudgetController = {
     /**
      * Load variable costs
      */
-    loadVariableCosts(costs) {
+    loadVariableCosts(costs, skipRebuild = false) {
         const tbody = document.getElementById('variable-costs-tbody');
         if (!tbody) return;
+
         tbody.innerHTML = '';
         costs.forEach(cost => this.addVariableCostRow(cost));
         this.addVariableCostsTotalRow();
-        
-        // Rebuild working section table structure when variable costs change
+
+        // Update current month data
         if (this.currentMonthData) {
             this.currentMonthData.variableCosts = costs;
+        }
+
+        // Rebuild working section table structure when variable costs change
+        if (this.currentMonthData && !skipRebuild) {
             this.rebuildWorkingSectionTable();
             // Reload weekly breakdown to update columns
             if (this.currentMonthData.weeklyBreakdown) {
@@ -1111,8 +1152,8 @@ const MonthlyBudgetController = {
                     // Always populate working section after rebuilding to ensure new category is included
                     this.populateWorkingSectionFromCosts(true);
                 } else if (input.classList.contains('variable-cost-estimated') || input.classList.contains('variable-cost-actual')) {
-                    // Repopulate working section when amount changes
-                    this.populateWorkingSectionFromCosts();
+                    // Repopulate working section when amount changes (force update to ensure working section reflects new amounts)
+                    this.populateWorkingSectionFromCosts(true);
                 }
             });
         });
@@ -1791,6 +1832,47 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Internal function to copy variable costs from a specific month
+     * Used automatically when month selector changes
+     */
+    copyVariableCostsFromMonthInternal(sourceMonthKey) {
+        if (!sourceMonthKey) {
+            return;
+        }
+
+        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        
+        if (!sourceMonthData) {
+            return;
+        }
+
+        const sourceVariableCostsRaw = sourceMonthData.variableCosts || [];
+
+        if (sourceVariableCostsRaw.length === 0) {
+            return;
+        }
+
+        // Normalize variable costs data structure to use estimatedAmount/actualAmount
+        // (handles both monthlyBudget/actualSpent and estimatedAmount/actualAmount formats)
+        // Create a fresh copy to avoid reference issues
+        const sourceVariableCosts = sourceVariableCostsRaw.map(cost => ({
+            category: cost.category || '',
+            estimatedAmount: cost.estimatedAmount !== undefined ? cost.estimatedAmount : (cost.monthlyBudget || 0),
+            actualAmount: cost.actualAmount !== undefined ? cost.actualAmount : (cost.actualSpent || 0),
+            comments: cost.comments || ''
+        }));
+
+        // Load source variable costs
+        this.loadVariableCosts(sourceVariableCosts, false); // Allow rebuild when copying
+
+        // Update current month data
+        this.currentMonthData.variableCosts = sourceVariableCosts;
+        
+        // Repopulate working section with new variable costs
+        this.populateWorkingSectionFromCosts();
+    },
+
+    /**
      * Copy variable costs from selected month
      */
     copyVariableCostsFromMonth() {
@@ -1801,34 +1883,13 @@ const MonthlyBudgetController = {
         }
 
         const sourceMonthKey = selector.value;
+        this.copyVariableCostsFromMonthInternal(sourceMonthKey);
+        
         const sourceMonthData = DataManager.getMonth(sourceMonthKey);
-        
-        if (!sourceMonthData) {
-            alert('Source month not found');
-            return;
+        if (sourceMonthData) {
+            alert(`Copied ${(sourceMonthData.variableCosts || []).length} variable cost(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
         }
-
-        const sourceVariableCosts = sourceMonthData.variableCosts || [];
         
-        if (sourceVariableCosts.length === 0) {
-            alert('No variable costs found in the selected month');
-            return;
-        }
-
-        // Clear current variable costs
-        const tbody = document.getElementById('variable-costs-tbody');
-        if (tbody) tbody.innerHTML = '';
-
-        // Load source variable costs
-        this.loadVariableCosts(sourceVariableCosts);
-        
-        // Update current month data
-        this.currentMonthData.variableCosts = sourceVariableCosts;
-        
-        // Repopulate working section with new variable costs
-        this.populateWorkingSectionFromCosts();
-        
-        alert(`Copied ${sourceVariableCosts.length} variable cost(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
         this.updateCalculations();
     },
 

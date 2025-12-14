@@ -7,7 +7,7 @@ const DataManager = {
     STORAGE_KEY_MONTHS: 'money_tracker_months',
     STORAGE_KEY_POTS: 'money_tracker_pots',
     STORAGE_KEY_SETTINGS: 'money_tracker_settings',
-    MONTHS_DIR: 'data/months/',
+    MONTHS_DIR: '/data/months/',
     _monthsCache: null,
 
     /**
@@ -800,6 +800,14 @@ const DataManager = {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0);
 
+        // Initialize variable costs with default categories from settings
+        const variableCosts = (settings.defaultVariableCategories || []).map(category => ({
+            category: category,
+            estimatedAmount: 0,
+            actualAmount: 0,
+            comments: ''
+        }));
+
         const newMonth = {
             key: monthKey,
             year: year,
@@ -811,7 +819,7 @@ const DataManager = {
             },
             weeklyBreakdown: [],
             fixedCosts: [],
-            variableCosts: [],
+            variableCosts: variableCosts,
             unplannedExpenses: [],
             incomeSources: [],
             pots: [],
