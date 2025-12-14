@@ -5,10 +5,24 @@
 
 const Formatters = {
     /**
+     * Get currency symbol from settings
+     */
+    getCurrencySymbol() {
+        if (typeof window !== 'undefined' && window.DataManager) {
+            const settings = DataManager.getSettings();
+            if (settings && settings.currency) {
+                return settings.currency;
+            }
+        }
+        return '£'; // Default to £
+    },
+
+    /**
      * Format currency amount
      */
     formatCurrency(amount) {
-        return '£' + parseFloat(amount || 0).toFixed(2);
+        const currencySymbol = this.getCurrencySymbol();
+        return currencySymbol + parseFloat(amount || 0).toFixed(2);
     },
 
     /**

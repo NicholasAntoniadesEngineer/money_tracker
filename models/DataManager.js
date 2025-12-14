@@ -895,8 +895,8 @@ const DataManager = {
      */
     monthDataToHTML(monthData, monthKey) {
         const formatCurrency = (amount) => {
-            if (!amount && amount !== 0) return '£0.00';
-            return '£' + parseFloat(amount).toFixed(2);
+            if (!amount && amount !== 0) return Formatters.formatCurrency(0);
+            return Formatters.formatCurrency(amount);
         };
 
         const formatDate = (dateString) => {

@@ -19,8 +19,10 @@ class Header {
             return 'Pots & Investments';
         } else if (filename.includes('overview')) {
             return 'Overview';
+        } else if (filename.includes('settings')) {
+            return 'Settings';
         } else if (filename.includes('import')) {
-            return 'Import';
+            return 'Settings';
         }
         return 'Home';
     }
@@ -49,7 +51,7 @@ class Header {
             { name: 'Monthly Budget', href: basePath + 'views/monthly-budget.html', page: 'Monthly Budget' },
             { name: 'Pots & Investments', href: basePath + 'views/pots.html', page: 'Pots & Investments' },
             { name: 'Overview', href: basePath + 'views/overview.html', page: 'Overview' },
-            { name: 'Import', href: basePath + 'views/import.html', page: 'Import' }
+            { name: 'Settings', href: basePath + 'views/settings.html', page: 'Settings' }
         ];
 
         const navLinks = navItems.map(item => {

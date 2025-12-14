@@ -252,6 +252,9 @@ const MonthlyBudgetController = {
         this.loadUnplannedExpenses(monthData.unplannedExpenses || []);
         this.loadPots(monthData.pots || []);
         
+        // Rebuild table structure based on variable costs
+        this.rebuildWorkingSectionTable();
+        
         // Load weekly breakdown after costs are loaded so we can populate them
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
 
@@ -267,9 +270,78 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Get variable cost categories (excluding transport which is in fixed costs)
+     */
+    getVariableCostCategories() {
+        if (!this.currentMonthData) return [];
+        const variableCosts = this.currentMonthData.variableCosts || [];
+        const categories = new Set();
+        
+        variableCosts.forEach(cost => {
+            const category = (cost.category || '').trim();
+            if (category) {
+                const categoryLower = category.toLowerCase();
+                // Exclude transport/travel as it's in fixed costs
+                if (!categoryLower.includes('transport') && !categoryLower.includes('travel')) {
+                    categories.add(category);
+                }
+            }
+        });
+        
+        return Array.from(categories).sort();
+    },
+
+    /**
+     * Rebuild the working section table structure based on variable costs
+     */
+    rebuildWorkingSectionTable() {
+        const thead = document.getElementById('weekly-breakdown-thead');
+        const tbody = document.getElementById('weekly-breakdown-tbody');
+        if (!thead || !tbody) return;
+        
+        const categories = this.getVariableCostCategories();
+        const headerRow = thead.querySelector('tr');
+        if (!headerRow) return;
+        
+        // Build header: Date, Payments Due, [Variable Cost Categories], Estimate, Actual, Delete
+        const existingHeaders = headerRow.innerHTML;
+        let newHeaderHTML = '<th>Date</th><th>Payments Due (added from tables below)</th>';
+        
+        // Add variable cost category columns
+        categories.forEach(category => {
+            newHeaderHTML += `<th>${category}</th>`;
+        });
+        
+        newHeaderHTML += '<th>Estimate</th><th>Actual</th><th class="delete-column-header"></th>';
+        headerRow.innerHTML = newHeaderHTML;
+        
+        // Update total row
+        const totalRow = tbody.querySelector('.total-row');
+        if (totalRow) {
+            let totalRowHTML = '<td><strong>TOTALS</strong></td><td id="weekly-breakdown-total-payments"></td>';
+            
+            // Add total cells for each variable cost category
+            categories.forEach(category => {
+                const categoryId = 'weekly-breakdown-total-' + this.sanitizeCategoryId(category);
+                totalRowHTML += `<td id="${categoryId}"></td>`;
+            });
+            
+            totalRowHTML += '<td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td><td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td><td></td>';
+            totalRow.innerHTML = totalRowHTML;
+        }
+    },
+
+    /**
+     * Sanitize category name for use as ID
+     */
+    sanitizeCategoryId(category) {
+        return category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    },
+
+    /**
      * Load weekly breakdown
      */
-    loadWeeklyBreakdown(weeklyBreakdown) {
+    loadWeeklyBreakdown(weeklyBreakdown, forceRepopulate = false) {
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -318,11 +390,11 @@ const MonthlyBudgetController = {
         this.addWeeklyBreakdownTotalRow();
         
         // Populate fixed costs and variable costs into working section
-        this.populateWorkingSectionFromCosts();
+        this.populateWorkingSectionFromCosts(forceRepopulate);
         
         // Auto-size all textareas after loading
         setTimeout(() => {
-            const textareas = document.querySelectorAll('.weekly-payments-due, .weekly-groceries, .weekly-transport, .weekly-activities');
+            const textareas = document.querySelectorAll('#weekly-breakdown-tbody textarea');
             textareas.forEach(textarea => {
                 this.autoSizeTextarea(textarea);
             });
@@ -336,35 +408,72 @@ const MonthlyBudgetController = {
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!tbody) return;
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
+        const categories = this.getVariableCostCategories();
+        let rowHTML = `
             <td><input type="text" class="weekly-date-range" value="${weekData?.dateRange || weekData?.weekRange || ''}" placeholder="e.g., 30-9 or 1-7"></td>
             <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${weekData?.paymentsDue || ''}</textarea></td>
-            <td><textarea class="weekly-groceries" placeholder="Groceries (with calculations)" rows="4">${weekData?.groceries || ''}</textarea></td>
-            <td><textarea class="weekly-transport" placeholder="Transport (with calculations)" rows="4">${weekData?.transport || ''}</textarea></td>
-            <td><textarea class="weekly-activities" placeholder="Activities (with calculations)" rows="4">${weekData?.activities || ''}</textarea></td>
+        `;
+        
+        // Add textarea for each variable cost category
+        categories.forEach(category => {
+            const categoryId = this.sanitizeCategoryId(category);
+            const categoryClass = 'weekly-variable-' + categoryId;
+            const existingValue = weekData && weekData[categoryClass] ? weekData[categoryClass] : (weekData && weekData[category] ? weekData[category] : '');
+            rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
+        });
+        
+        rowHTML += `
             <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
+        const row = document.createElement('tr');
+        row.innerHTML = rowHTML;
+
         row.querySelectorAll('input, textarea').forEach(input => {
             input.addEventListener('input', () => {
-                this.updateCalculations();
-                if (input.classList.contains('weekly-payments-due') || 
-                    input.classList.contains('weekly-groceries') ||
-                    input.classList.contains('weekly-transport') ||
-                    input.classList.contains('weekly-activities')) {
+                // Check if this is a variable cost textarea (class starts with 'weekly-variable-')
+                const isVariableCost = Array.from(input.classList).some(cls => cls.startsWith('weekly-variable-'));
+                
+                // Auto-update estimate and actual when textareas change
+                if (input.classList.contains('weekly-payments-due') || isVariableCost) {
                     this.autoSizeTextarea(input);
+                    // Update total line for variable cost textareas (must happen before updateCalculations)
+                    if (isVariableCost) {
+                        // Use requestAnimationFrame to ensure DOM is ready
+                        requestAnimationFrame(() => {
+                            this.updateVariableCostTotal(input);
+                            // Then update calculations
+                            this.updateCalculations();
+                        });
+                        return; // Don't call updateCalculations again below
+                    }
+                    // Trigger calculation update to recalculate estimate/actual
+                    setTimeout(() => this.updateCalculations(), 0);
+                } else {
+                    this.updateCalculations();
                 }
             });
         });
         
-        // Auto-size payments due textarea on load
-        const paymentsDueTextarea = row.querySelector('.weekly-payments-due');
-        if (paymentsDueTextarea) {
-            this.autoSizeTextarea(paymentsDueTextarea);
+        // Make estimate and actual read-only (auto-calculated)
+        const estimateInput = row.querySelector('.weekly-estimate');
+        const actualInput = row.querySelector('.weekly-actual');
+        if (estimateInput) {
+            estimateInput.readOnly = true;
+            estimateInput.style.backgroundColor = 'var(--bg-secondary)';
         }
+        if (actualInput) {
+            actualInput.readOnly = true;
+            actualInput.style.backgroundColor = 'var(--bg-secondary)';
+        }
+        
+        // Auto-size all textareas on load
+        const textareas = row.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            this.autoSizeTextarea(textarea);
+        });
 
         // Add delete handler
         const deleteBtn = row.querySelector('.delete-row-x');
@@ -390,8 +499,9 @@ const MonthlyBudgetController = {
 
     /**
      * Populate working section from fixed costs and variable costs
+     * @param {boolean} forceUpdate - If true, force update even if textareas have data
      */
-    populateWorkingSectionFromCosts() {
+    populateWorkingSectionFromCosts(forceUpdate = false) {
         if (!this.currentMonthData) return;
         
         const year = this.currentMonthData.year;
@@ -406,41 +516,32 @@ const MonthlyBudgetController = {
         // Distribute variable costs across weeks (same for all weeks)
         const numWeeks = weeks.length;
         const weeklyVariableCosts = {};
+        const categories = this.getVariableCostCategories();
         
         variableCosts.forEach(cost => {
-            const category = cost.category || '';
+            const category = (cost.category || '').trim();
+            if (!category) return;
+            
+            const categoryLower = category.toLowerCase();
+            // Skip transport/travel as it's in fixed costs
+            if (categoryLower.includes('transport') || categoryLower.includes('travel')) {
+                return;
+            }
+            
             const monthlyBudget = Formatters.parseNumber(cost.estimatedAmount || 0);
             if (monthlyBudget <= 0) return;
             
             const weeklyBudget = monthlyBudget / numWeeks;
             
-            // Map categories to columns
-            const categoryLower = category.toLowerCase();
-            if (categoryLower.includes('groc') || categoryLower.includes('food')) {
-                if (!weeklyVariableCosts.groceries) weeklyVariableCosts.groceries = [];
-                weeklyVariableCosts.groceries.push({
-                    category: category,
-                    weeklyBudget: weeklyBudget,
-                    monthlyBudget: monthlyBudget,
-                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
-                });
-            } else if (categoryLower.includes('transport') || categoryLower.includes('travel')) {
-                if (!weeklyVariableCosts.transport) weeklyVariableCosts.transport = [];
-                weeklyVariableCosts.transport.push({
-                    category: category,
-                    weeklyBudget: weeklyBudget,
-                    monthlyBudget: monthlyBudget,
-                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
-                });
-            } else if (categoryLower.includes('activit')) {
-                if (!weeklyVariableCosts.activities) weeklyVariableCosts.activities = [];
-                weeklyVariableCosts.activities.push({
-                    category: category,
-                    weeklyBudget: weeklyBudget,
-                    monthlyBudget: monthlyBudget,
-                    calculation: `${Formatters.formatCurrency(monthlyBudget)} ÷ ${numWeeks} weeks = ${Formatters.formatCurrency(weeklyBudget)}/week`
-                });
+            if (!weeklyVariableCosts[category]) {
+                weeklyVariableCosts[category] = [];
             }
+            weeklyVariableCosts[category].push({
+                category: category,
+                weeklyBudget: weeklyBudget,
+                monthlyBudget: monthlyBudget,
+                calculation: weeklyBudget.toFixed(2)
+            });
         });
         
         // Process each week
@@ -448,9 +549,6 @@ const MonthlyBudgetController = {
             if (weekIndex >= weeks.length) return;
             
             const paymentsDueTextarea = row.querySelector('.weekly-payments-due');
-            const groceriesTextarea = row.querySelector('.weekly-groceries');
-            const transportTextarea = row.querySelector('.weekly-transport');
-            const activitiesTextarea = row.querySelector('.weekly-activities');
             
             // Collect fixed costs for this week
             const week = weeks[weekIndex];
@@ -485,80 +583,91 @@ const MonthlyBudgetController = {
                 const paymentsText = weekFixedCosts.map(cost => {
                     const paidStatus = cost.paid ? ' ✓' : '';
                     const cardInfo = cost.card ? ` (${cost.card})` : '';
+                    // Format: Category: £Amount (Card) ✓
+                    // Amount is formatted with currency symbol for easy parsing
                     return `${cost.category}: ${Formatters.formatCurrency(cost.amount)}${cardInfo}${paidStatus}`;
                 }).join('\n');
                 
                 if (hasAutoGeneratedPayments) {
-                    // Replace existing auto-generated content
+                    // Replace existing auto-generated content, remove any "---" separators
                     const beforeAuto = currentPayments.split('Auto-generated')[0].trim();
-                    paymentsDueTextarea.value = beforeAuto ? beforeAuto + '\n' + paymentsText : paymentsText;
+                    const cleanedBeforeAuto = beforeAuto.replace(/---+/g, '').trim();
+                    paymentsDueTextarea.value = cleanedBeforeAuto ? cleanedBeforeAuto + '\n' + paymentsText : paymentsText;
                 } else {
                     paymentsDueTextarea.value = paymentsText;
                 }
                 
                 // Auto-size the textarea
                 this.autoSizeTextarea(paymentsDueTextarea);
+                
+                // Update calculations to show totals
+                this.updateCalculations();
             }
             
-            // Populate groceries column (only if empty or contains auto-generated content)
-            const currentGroceries = groceriesTextarea?.value || '';
-            const hasAutoGeneratedGroceries = currentGroceries.includes('Auto-generated');
-            
-            if (weeklyVariableCosts.groceries && weeklyVariableCosts.groceries.length > 0 && (!currentGroceries.trim() || hasAutoGeneratedGroceries)) {
-                const groceriesText = weeklyVariableCosts.groceries.map(cost => {
-                    return `${cost.category}: ${cost.calculation}`;
-                }).join('\n');
+            // Populate each variable cost category column
+            categories.forEach(category => {
+                const categoryId = this.sanitizeCategoryId(category);
+                const categoryClass = 'weekly-variable-' + categoryId;
+                const categoryTextarea = row.querySelector('.' + categoryClass);
                 
-                if (hasAutoGeneratedGroceries) {
-                    const beforeAuto = currentGroceries.split('Auto-generated')[0].trim();
-                    groceriesTextarea.value = beforeAuto ? beforeAuto + '\n' + groceriesText : groceriesText;
+                if (!categoryTextarea) return;
+                
+                const currentValue = categoryTextarea.value || '';
+                const hasAutoGenerated = currentValue.includes('Auto-generated');
+                const hasEstimate = currentValue.includes('Estimate:');
+                const hasEquals = currentValue.includes('=');
+                
+                // Update if: force update, empty, has auto-generated, or has estimate (to update with new category data)
+                if (weeklyVariableCosts[category] && weeklyVariableCosts[category].length > 0 && (forceUpdate || !currentValue.trim() || hasAutoGenerated || hasEstimate)) {
+                    // Calculate total estimate for this category (sum of all variable costs in this category)
+                    const totalEstimate = weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0);
+                    const baseEstimate = totalEstimate.toFixed(2);
+                    
+                    if (hasAutoGenerated || hasEstimate || !currentValue.trim()) {
+                        // Replace old format with new format - preserve user adjustments
+                        const lines = currentValue.split('\n');
+                        const adjustments = lines.filter(line => {
+                            const trimmed = line.trim();
+                            return trimmed && 
+                                   !trimmed.startsWith('Estimate:') && 
+                                   !trimmed.startsWith('Auto-generated') &&
+                                   !trimmed.startsWith('=') &&
+                                   (trimmed.startsWith('+') || trimmed.startsWith('-') || /^[\d.]+$/.test(trimmed));
+                        });
+                        
+                        // Build new content: base estimate, then adjustments
+                        let newContent = baseEstimate;
+                        if (adjustments.length > 0) {
+                            newContent += '\n' + adjustments.join('\n');
+                        }
+                        categoryTextarea.value = newContent;
+                        // Always calculate and add the total line
+                        this.updateVariableCostTotal(categoryTextarea);
+                    } else {
+                        // Preserve existing content but update base estimate if it's just a number
+                        const lines = currentValue.split('\n');
+                        const firstLine = lines[0]?.trim() || '';
+                        if (/^[\d.]+$/.test(firstLine)) {
+                            // First line is just a number, replace it with new estimate
+                            lines[0] = baseEstimate;
+                            categoryTextarea.value = lines.join('\n');
+                            // Always calculate and add the total line
+                            this.updateVariableCostTotal(categoryTextarea);
+                        } else {
+                            // Keep existing content, just update total
+                            this.updateVariableCostTotal(categoryTextarea);
+                        }
+                    }
+                    
+                    // Auto-size the textarea
+                    this.autoSizeTextarea(categoryTextarea);
                 } else {
-                    groceriesTextarea.value = groceriesText;
+                    // Always ensure total line exists and is calculated, even if content hasn't changed
+                    if (!hasEquals || currentValue.trim()) {
+                        this.updateVariableCostTotal(categoryTextarea);
+                    }
                 }
-                
-                // Auto-size the textarea
-                this.autoSizeTextarea(groceriesTextarea);
-            }
-            
-            // Populate transport column (only if empty or contains auto-generated content)
-            const currentTransport = transportTextarea?.value || '';
-            const hasAutoGeneratedTransport = currentTransport.includes('Auto-generated');
-            
-            if (weeklyVariableCosts.transport && weeklyVariableCosts.transport.length > 0 && (!currentTransport.trim() || hasAutoGeneratedTransport)) {
-                const transportText = weeklyVariableCosts.transport.map(cost => {
-                    return `${cost.category}: ${cost.calculation}`;
-                }).join('\n');
-                
-                if (hasAutoGeneratedTransport) {
-                    const beforeAuto = currentTransport.split('Auto-generated')[0].trim();
-                    transportTextarea.value = beforeAuto ? beforeAuto + '\n' + transportText : transportText;
-                } else {
-                    transportTextarea.value = transportText;
-                }
-                
-                // Auto-size the textarea
-                this.autoSizeTextarea(transportTextarea);
-            }
-            
-            // Populate activities column (only if empty or contains auto-generated content)
-            const currentActivities = activitiesTextarea?.value || '';
-            const hasAutoGeneratedActivities = currentActivities.includes('Auto-generated');
-            
-            if (weeklyVariableCosts.activities && weeklyVariableCosts.activities.length > 0 && (!currentActivities.trim() || hasAutoGeneratedActivities)) {
-                const activitiesText = weeklyVariableCosts.activities.map(cost => {
-                    return `${cost.category}: ${cost.calculation}`;
-                }).join('\n');
-                
-                if (hasAutoGeneratedActivities) {
-                    const beforeAuto = currentActivities.split('Auto-generated')[0].trim();
-                    activitiesTextarea.value = beforeAuto ? beforeAuto + '\n' + activitiesText : activitiesText;
-                } else {
-                    activitiesTextarea.value = activitiesText;
-                }
-                
-                // Auto-size the textarea
-                this.autoSizeTextarea(activitiesTextarea);
-            }
+            });
         });
     },
 
@@ -575,18 +684,21 @@ const MonthlyBudgetController = {
             existingTotalRow.remove();
         }
 
+        // Get dynamic categories to match the table structure
+        const categories = this.getVariableCostCategories();
+        let totalRowHTML = '<td><strong>TOTALS</strong></td><td id="weekly-breakdown-total-payments"></td>';
+        
+        // Add total cells for each variable cost category
+        categories.forEach(category => {
+            const categoryId = 'weekly-breakdown-total-' + this.sanitizeCategoryId(category);
+            totalRowHTML += `<td id="${categoryId}"></td>`;
+        });
+        
+        totalRowHTML += '<td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td><td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td><td></td>';
+
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
-        totalRow.innerHTML = `
-            <td><strong>TOTALS</strong></td>
-            <td id="weekly-breakdown-total-payments"></td>
-            <td id="weekly-breakdown-total-groceries"></td>
-            <td id="weekly-breakdown-total-transport"></td>
-            <td id="weekly-breakdown-total-activities"></td>
-            <td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td>
-            <td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td>
-            <td></td>
-        `;
+        totalRow.innerHTML = totalRowHTML;
 
         tbody.appendChild(totalRow);
     },
@@ -669,11 +781,17 @@ const MonthlyBudgetController = {
             deleteBtn.addEventListener('click', () => {
             row.remove();
             this.updateCalculations();
+                // Repopulate working section when unplanned expense is deleted
+                this.populateWorkingSectionFromCosts();
         });
         }
 
         row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => this.updateCalculations());
+            input.addEventListener('input', () => {
+                this.updateCalculations();
+                // Repopulate working section when unplanned expense changes
+                this.populateWorkingSectionFromCosts();
+            });
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -687,6 +805,9 @@ const MonthlyBudgetController = {
             // No total row found, append to end
         tbody.appendChild(row);
         }
+        
+        // Repopulate working section when income is added
+        this.populateWorkingSectionFromCosts();
     },
 
     /**
@@ -752,12 +873,22 @@ const MonthlyBudgetController = {
             deleteBtn.addEventListener('click', () => {
             row.remove();
             this.updateCalculations();
+                // Repopulate working section when fixed cost is deleted
+                this.populateWorkingSectionFromCosts();
         });
         }
 
         row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => this.updateCalculations());
-            input.addEventListener('change', () => this.updateCalculations());
+            input.addEventListener('input', () => {
+                this.updateCalculations();
+                // Repopulate working section when fixed cost changes
+                this.populateWorkingSectionFromCosts();
+            });
+            input.addEventListener('change', () => {
+                this.updateCalculations();
+                // Repopulate working section when fixed cost changes
+                this.populateWorkingSectionFromCosts();
+            });
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -771,6 +902,21 @@ const MonthlyBudgetController = {
             // No total row found, append to end
         tbody.appendChild(row);
         }
+        
+        // Update current month data and repopulate working section when fixed cost is added
+        if (this.currentMonthData) {
+            const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
+                category: row.querySelector('.fixed-cost-category')?.value || '',
+                estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
+                actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
+                date: row.querySelector('.fixed-cost-date')?.value || '',
+                card: row.querySelector('.fixed-cost-card')?.value || '',
+                paid: row.querySelector('.fixed-cost-paid')?.checked || false,
+                comments: row.querySelector('.fixed-cost-comments')?.value || ''
+            }));
+            this.currentMonthData.fixedCosts = fixedCosts;
+        }
+        this.populateWorkingSectionFromCosts();
     },
 
     /**
@@ -811,6 +957,16 @@ const MonthlyBudgetController = {
         tbody.innerHTML = '';
         costs.forEach(cost => this.addVariableCostRow(cost));
         this.addVariableCostsTotalRow();
+        
+        // Rebuild working section table structure when variable costs change
+        if (this.currentMonthData) {
+            this.currentMonthData.variableCosts = costs;
+            this.rebuildWorkingSectionTable();
+            // Reload weekly breakdown to update columns
+            if (this.currentMonthData.weeklyBreakdown) {
+                this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
+            }
+        }
     },
 
     /**
@@ -838,7 +994,22 @@ const MonthlyBudgetController = {
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
             row.remove();
+                // Update current month data
+                if (this.currentMonthData) {
+                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+                        category: row.querySelector('.variable-cost-category')?.value || '',
+                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                    }));
+                    this.currentMonthData.variableCosts = variableCosts;
+                }
             this.updateCalculations();
+                // Rebuild table structure when variable cost is deleted
+                this.rebuildWorkingSectionTable();
+                if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
+                    this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
+                }
         });
         }
 
@@ -860,7 +1031,35 @@ const MonthlyBudgetController = {
         };
 
         row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', updateRemaining);
+            input.addEventListener('input', () => {
+                // Update current month data
+                if (this.currentMonthData) {
+                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+                        category: row.querySelector('.variable-cost-category')?.value || '',
+                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                    }));
+                    this.currentMonthData.variableCosts = variableCosts;
+                }
+
+                updateRemaining();
+                
+                // Rebuild table structure if category changed
+                if (input.classList.contains('variable-cost-category')) {
+                    this.rebuildWorkingSectionTable();
+                    // Reload weekly breakdown to update columns, force repopulate to update category columns
+                    if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
+                        this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown, true);
+                    } else {
+                        // If no weekly breakdown exists yet, just repopulate with force update
+                        this.populateWorkingSectionFromCosts(true);
+                    }
+                } else if (input.classList.contains('variable-cost-estimated') || input.classList.contains('variable-cost-actual')) {
+                    // Repopulate working section when amount changes
+                    this.populateWorkingSectionFromCosts();
+                }
+            });
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -874,6 +1073,24 @@ const MonthlyBudgetController = {
             // No total row found, append to end
         tbody.appendChild(row);
         }
+        
+        // Update current month data and rebuild table structure when variable cost is added
+        if (this.currentMonthData) {
+            const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+                category: row.querySelector('.variable-cost-category')?.value || '',
+                estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+                actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+                comments: row.querySelector('.variable-cost-comments')?.value || ''
+            }));
+            this.currentMonthData.variableCosts = variableCosts;
+        }
+        const updateWorkingSection = () => {
+            this.rebuildWorkingSectionTable();
+            if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
+                this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
+            }
+        };
+        updateWorkingSection();
     },
 
     /**
@@ -937,11 +1154,17 @@ const MonthlyBudgetController = {
             deleteBtn.addEventListener('click', () => {
             row.remove();
             this.updateCalculations();
+                // Repopulate working section when unplanned expense is deleted
+                this.populateWorkingSectionFromCosts();
         });
         }
 
         row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => this.updateCalculations());
+            input.addEventListener('input', () => {
+                this.updateCalculations();
+                // Repopulate working section when unplanned expense changes
+                this.populateWorkingSectionFromCosts();
+            });
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -955,6 +1178,9 @@ const MonthlyBudgetController = {
             // No total row found, append to end
         tbody.appendChild(row);
         }
+        
+        // Repopulate working section when unplanned expense is added
+        this.populateWorkingSectionFromCosts();
     },
 
     /**
@@ -1091,43 +1317,106 @@ const MonthlyBudgetController = {
         this.setElementHTML('summary-savings-estimated', '<strong><em>' + Formatters.formatCurrency(grandSavingsEstimated) + '</em></strong>');
         this.setElementHTML('summary-savings-actual', '<strong><em>' + Formatters.formatCurrency(grandSavingsActual) + '</em></strong>');
 
-        // Update weekly breakdown totals
-        const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr'));
+        // Update weekly breakdown totals - simple sums of each column
+        const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)'));
+        const categories = this.getVariableCostCategories();
         let weeklyEstimateTotal = 0;
         let weeklyActualTotal = 0;
-        weeklyBreakdownRows.forEach(row => {
-            const estimate = Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value);
-            const actual = Formatters.parseNumber(row.querySelector('.weekly-actual')?.value);
-            weeklyEstimateTotal += estimate;
-            weeklyActualTotal += actual;
+        let weeklyPaymentsTotal = 0;
+        const weeklyVariableCostsTotal = {};
+        
+        // Initialize totals for each category
+        categories.forEach(category => {
+            weeklyVariableCostsTotal[category] = 0;
         });
         
-        // Set totals - Payments Due, Groceries, Transport, Activities are blank (can't be calculated)
-        this.setElementHTML('weekly-breakdown-total-payments', '');
-        this.setElementHTML('weekly-breakdown-total-groceries', '');
-        this.setElementHTML('weekly-breakdown-total-transport', '');
-        this.setElementHTML('weekly-breakdown-total-activities', '');
+        weeklyBreakdownRows.forEach(row => {
+            const estimateInput = row.querySelector('.weekly-estimate');
+            const actualInput = row.querySelector('.weekly-actual');
+            const paymentsDueText = row.querySelector('.weekly-payments-due')?.value || '';
+            
+            // Calculate payments due totals (estimated and actual)
+            const paymentsEstimated = this.calculatePaymentsDueTotal(paymentsDueText, true);
+            const paymentsActual = this.calculatePaymentsDueTotal(paymentsDueText, false);
+            weeklyPaymentsTotal += paymentsEstimated;
+            
+            // Calculate variable cost totals for each category
+            // For estimate column: use only base estimate (from tables, not user adjustments)
+            // For actual column: use total from "=" line in textarea
+            // For variable cost column totals: sum the "=" values (base + adjustments) from each row
+            let rowVariableEstimated = 0;
+            let rowVariableActual = 0;
+            categories.forEach(category => {
+                const categoryId = this.sanitizeCategoryId(category);
+                const categoryClass = 'weekly-variable-' + categoryId;
+                const categoryText = row.querySelector('.' + categoryClass)?.value || '';
+                // For estimate: use only base estimate (first number, no adjustments)
+                const categoryEstimated = this.calculateVariableCostBaseEstimate(categoryText);
+                // For actual: use total from "=" line if available
+                const categoryActual = this.calculateVariableCostTotal(categoryText, false);
+                // For variable cost column totals: sum the total from "=" line (includes adjustments)
+                const categoryTotal = this.calculateVariableCostTotal(categoryText, true);
+                weeklyVariableCostsTotal[category] += categoryTotal;
+                rowVariableEstimated += categoryEstimated;
+                rowVariableActual += categoryActual;
+            });
+            
+            // Calculate estimate (payments due estimated + all variable costs base estimates from tables)
+            const rowEstimate = paymentsEstimated + rowVariableEstimated;
+            if (estimateInput) {
+                estimateInput.value = rowEstimate.toFixed(2);
+            }
+            // Calculate total directly from source data (more accurate than reading rounded input values)
+            weeklyEstimateTotal += rowEstimate;
+            
+            // Calculate actual (payments due actual + all variable costs actual)
+            const rowActual = paymentsActual + rowVariableActual;
+            if (actualInput) {
+                actualInput.value = rowActual.toFixed(2);
+            }
+            // Calculate total directly from source data (more accurate than reading rounded input values)
+            weeklyActualTotal += rowActual;
+        });
         
-        // Set calculated totals for Estimate and Actual
+        // Set calculated totals - simple sums (one number per column)
         this.setElementHTML('weekly-breakdown-total-estimate', '<strong>' + Formatters.formatCurrency(weeklyEstimateTotal) + '</strong>');
         this.setElementHTML('weekly-breakdown-total-actual', '<strong>' + Formatters.formatCurrency(weeklyActualTotal) + '</strong>');
+        this.setElementHTML('weekly-breakdown-total-payments', '<strong>' + Formatters.formatCurrency(weeklyPaymentsTotal) + '</strong>');
+        
+        // Set variable cost totals - simple sums (one number per column)
+        categories.forEach(category => {
+            const categoryId = 'weekly-breakdown-total-' + this.sanitizeCategoryId(category);
+            const total = weeklyVariableCostsTotal[category];
+            this.setElementHTML(categoryId, '<strong>' + Formatters.formatCurrency(total) + '</strong>');
+        });
     },
 
     /**
      * Get current month data from form
      */
     getCurrentMonthDataFromForm() {
-        const weeklyBreakdown = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr')).map(row => ({
+        const categories = this.getVariableCostCategories();
+        const weeklyBreakdown = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)')).map(row => {
+            const weekData = {
             dateRange: row.querySelector('.weekly-date-range')?.value || '',
             weekRange: row.querySelector('.weekly-date-range')?.value || '',
             paymentsDue: row.querySelector('.weekly-payments-due')?.value || '',
-            groceries: row.querySelector('.weekly-groceries')?.value || '',
-            transport: row.querySelector('.weekly-transport')?.value || '',
-            activities: row.querySelector('.weekly-activities')?.value || '',
             estimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
             weeklyEstimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
             actual: Formatters.parseNumber(row.querySelector('.weekly-actual')?.value)
-        }));
+            };
+            
+            // Add dynamic variable cost columns
+            categories.forEach(category => {
+                const categoryId = this.sanitizeCategoryId(category);
+                const categoryClass = 'weekly-variable-' + categoryId;
+                const categoryValue = row.querySelector('.' + categoryClass)?.value || '';
+                weekData[categoryClass] = categoryValue;
+                weekData[category] = categoryValue; // Also store by category name for backwards compatibility
+            });
+            
+            return weekData;
+        });
 
         const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr')).map(row => ({
             category: row.querySelector('.fixed-cost-category')?.value || '',
@@ -1473,6 +1762,302 @@ const MonthlyBudgetController = {
         
         alert(`Copied ${sourceUnplanned.length} unplanned expense(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
         this.updateCalculations();
+    },
+
+    /**
+     * Calculate total from payments due textarea
+     * Parses amounts from format: "Category: £Amount (Card) ✓"
+     */
+    /**
+     * Calculate total from payments due textarea
+     * Parses amounts from format: "Category: £Amount (Card) ✓" or "Category: £Amount [Actual: £Amount]"
+     * @param {boolean} estimatedOnly - If true, only count estimated amounts. If false, only count actual amounts.
+     */
+    calculatePaymentsDueTotal(paymentsDueText, estimatedOnly = true) {
+        if (!paymentsDueText || !paymentsDueText.trim()) return 0;
+        
+        let total = 0;
+        const lines = paymentsDueText.split('\n');
+        const currencySymbol = Formatters.formatCurrency(0).charAt(0); // Get currency symbol (usually £)
+        const escapedSymbol = currencySymbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            // Remove any "---" separators from the line
+            const cleanedLine = line.replace(/---+/g, '').trim();
+            if (!cleanedLine) return;
+            
+            // Check if line has actual amount in format: "Category: £Amount [Actual: £Amount]"
+            const actualMatch = cleanedLine.match(/\[Actual:\s*([^\]]+)\]/i);
+            
+            if (estimatedOnly) {
+                // Extract estimated amount (first amount, or amount before [Actual:])
+                const beforeActual = actualMatch ? cleanedLine.split('[')[0] : cleanedLine;
+                const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
+                const matches = beforeActual.match(amountRegex);
+                
+                if (matches && matches.length > 0) {
+                    const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
+                    const amount = parseFloat(amountStr);
+                    if (!isNaN(amount) && amount > 0) {
+                        total += amount;
+                    }
+                }
+            } else {
+                // Extract actual amount if present
+                if (actualMatch) {
+                    const actualText = actualMatch[1];
+                    const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
+                    const matches = actualText.match(amountRegex);
+                    
+                    if (matches && matches.length > 0) {
+                        const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
+                        const amount = parseFloat(amountStr);
+                        if (!isNaN(amount) && amount > 0) {
+                            total += amount;
+                        }
+                    }
+                }
+            }
+        });
+        
+        return total;
+    },
+
+    /**
+     * Calculate base estimate from variable cost textarea (for estimate column)
+     * Returns only the base estimate value, ignoring user adjustments
+     * This ensures the estimate column always uses values from the tables, not user adjustments
+     */
+    calculateVariableCostBaseEstimate(variableCostText) {
+        if (!variableCostText || !variableCostText.trim()) return 0;
+        
+        const lines = variableCostText.split('\n');
+        const contentLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed && !trimmed.startsWith('=');
+        });
+        
+        if (contentLines.length === 0) return 0;
+        
+        // Parse first line - extract only the base number (before any + or -)
+        const firstLine = contentLines[0]?.trim() || '0';
+        const baseMatch = firstLine.match(/^([\d.]+)/);
+        if (baseMatch) {
+            return Formatters.parseNumber(baseMatch[1]);
+        }
+        
+        return Formatters.parseNumber(firstLine);
+    },
+
+    /**
+     * Calculate total from variable cost textarea
+     * Parses amounts from format: "Estimate: £Amount" or "Estimate: £Amount [Actual: £Amount]"
+     * @param {boolean} estimatedOnly - If true, only count estimated amounts. If false, only count actual amounts.
+     */
+    calculateVariableCostTotal(variableCostText, estimatedOnly = true) {
+        if (!variableCostText || !variableCostText.trim()) return 0;
+        
+        const lines = variableCostText.split('\n');
+        const contentLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed && !trimmed.startsWith('=');
+        });
+        
+        if (contentLines.length === 0) return 0;
+        
+        // Parse first line - may contain base estimate and inline adjustments (e.g., "40.00+5-10")
+        const firstLine = contentLines[0]?.trim() || '0';
+        let baseEstimate = 0;
+        let adjustmentsTotal = 0;
+        
+        // Check if first line contains inline adjustments (has + or - after a number)
+        const inlineAdjustmentMatch = firstLine.match(/^([\d.]+)([+\-].*)$/);
+        if (inlineAdjustmentMatch) {
+            // First line has inline adjustments
+            baseEstimate = Formatters.parseNumber(inlineAdjustmentMatch[1]);
+            const adjustmentsStr = inlineAdjustmentMatch[2];
+            
+            // Parse all inline adjustments (e.g., "+5-10+3" -> [+5, -10, +3])
+            const adjustmentMatches = adjustmentsStr.match(/[+\-][\d.]+/g);
+            if (adjustmentMatches) {
+                adjustmentMatches.forEach(match => {
+                    if (match.startsWith('+')) {
+                        adjustmentsTotal += Formatters.parseNumber(match.substring(1));
+                    } else if (match.startsWith('-')) {
+                        adjustmentsTotal -= Formatters.parseNumber(match.substring(1));
+                    }
+                });
+            }
+        } else {
+            // First line is just a number (base estimate)
+            baseEstimate = Formatters.parseNumber(firstLine);
+        }
+        
+        // For estimated, return base estimate + adjustments
+        // For actual, we'll use the total from the "=" line if it exists, otherwise base + adjustments
+        if (estimatedOnly) {
+            let total = baseEstimate + adjustmentsTotal;
+            
+            // Parse adjustments on separate lines (lines starting with + or -)
+            for (let i = 1; i < contentLines.length; i++) {
+                const line = contentLines[i].trim();
+                if (line.startsWith('+')) {
+                    const value = Formatters.parseNumber(line.substring(1));
+                    total += value;
+                } else if (line.startsWith('-')) {
+                    const value = Formatters.parseNumber(line.substring(1));
+                    total -= value;
+                } else if (/^[\d.]+$/.test(line)) {
+                    // Also handle plain numbers as adjustments
+                    const value = Formatters.parseNumber(line);
+                    total += value;
+                }
+            }
+            
+            return total;
+        } else {
+            // For actual, check if there's a total line with "="
+            const totalLine = lines.find(line => line.trim().startsWith('='));
+            if (totalLine) {
+                // Extract amount from "= £Amount" format
+                const currencySymbol = Formatters.formatCurrency(0).charAt(0);
+                const escapedSymbol = currencySymbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
+                const matches = totalLine.match(amountRegex);
+                if (matches && matches.length > 0) {
+                    const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
+                    const amount = parseFloat(amountStr);
+                    if (!isNaN(amount)) {
+                        return amount;
+                    }
+                }
+            }
+            
+            // Fallback: calculate from base + adjustments (same as estimated)
+            let total = baseEstimate + adjustmentsTotal;
+            for (let i = 1; i < contentLines.length; i++) {
+                const line = contentLines[i].trim();
+                if (line.startsWith('+')) {
+                    const value = Formatters.parseNumber(line.substring(1));
+                    total += value;
+                } else if (line.startsWith('-')) {
+                    const value = Formatters.parseNumber(line.substring(1));
+                    total -= value;
+                } else if (/^[\d.]+$/.test(line)) {
+                    const value = Formatters.parseNumber(line);
+                    total += value;
+                }
+            }
+            
+            return total;
+        }
+    },
+
+    /**
+     * Update the total line at the bottom of a variable cost textarea
+     * Format: base estimate + adjustments = total
+     */
+    updateVariableCostTotal(textarea) {
+        if (!textarea) return;
+        
+        const content = textarea.value || '';
+        const lines = content.split('\n');
+        
+        // Remove existing total line (lines starting with "=")
+        const contentLines = lines.filter(line => !line.trim().startsWith('='));
+        
+        if (contentLines.length === 0) return;
+        
+        // Parse first line - may contain base estimate and inline adjustments (e.g., "40.00+5-10")
+        const firstLine = contentLines[0]?.trim() || '0';
+        let baseEstimate = 0;
+        let adjustmentsTotal = 0;
+        
+        // Check if first line contains inline adjustments (has + or - after a number)
+        const inlineAdjustmentMatch = firstLine.match(/^([\d.]+)([+\-].*)$/);
+        if (inlineAdjustmentMatch) {
+            // First line has inline adjustments
+            baseEstimate = Formatters.parseNumber(inlineAdjustmentMatch[1]);
+            const adjustmentsStr = inlineAdjustmentMatch[2];
+            
+            // Parse all inline adjustments (e.g., "+5-10+3" -> [+5, -10, +3])
+            const adjustmentMatches = adjustmentsStr.match(/[+\-][\d.]+/g);
+            if (adjustmentMatches) {
+                adjustmentMatches.forEach(match => {
+                    if (match.startsWith('+')) {
+                        adjustmentsTotal += Formatters.parseNumber(match.substring(1));
+                    } else if (match.startsWith('-')) {
+                        adjustmentsTotal -= Formatters.parseNumber(match.substring(1));
+                    }
+                });
+            }
+        } else {
+            // First line is just a number (base estimate)
+            baseEstimate = Formatters.parseNumber(firstLine);
+        }
+        
+        // Parse adjustments on separate lines (lines starting with + or -)
+        for (let i = 1; i < contentLines.length; i++) {
+            const line = contentLines[i].trim();
+            if (line.startsWith('+')) {
+                const value = Formatters.parseNumber(line.substring(1));
+                adjustmentsTotal += value;
+            } else if (line.startsWith('-')) {
+                const value = Formatters.parseNumber(line.substring(1));
+                adjustmentsTotal -= value;
+            } else if (/^[\d.]+$/.test(line)) {
+                // Also handle plain numbers as adjustments
+                const value = Formatters.parseNumber(line);
+                adjustmentsTotal += value;
+            }
+        }
+        
+        // Calculate total: base estimate + all adjustments
+        const total = baseEstimate + adjustmentsTotal;
+        
+        // Build new content with calculated total line
+        let newContent = contentLines.join('\n');
+        const totalLine = '= ' + Formatters.formatCurrency(total);
+        newContent += '\n' + totalLine;
+        
+        // Check if total has changed
+        const currentTotalLine = lines.find(line => line.trim().startsWith('='));
+        const newTotalLine = totalLine.trim();
+        const totalChanged = !currentTotalLine || currentTotalLine.trim() !== newTotalLine;
+        
+        // Always update to ensure total is correct, but only if it changed to avoid unnecessary DOM updates
+        if (totalChanged || !currentTotalLine) {
+            // Save cursor position before updating
+            const wasFocused = document.activeElement === textarea;
+            const cursorPos = textarea.selectionStart;
+            const oldContent = textarea.value;
+            const contentBeforeTotal = contentLines.join('\n');
+            
+            // Calculate where cursor should be after update
+            // If cursor was in the content (not in total line), preserve position
+            const oldContentBeforeTotal = oldContent.split('\n').filter(l => !l.trim().startsWith('=')).join('\n');
+            const cursorInContent = cursorPos <= oldContentBeforeTotal.length;
+            
+            // Update textarea
+            textarea.value = newContent;
+            
+            // Restore cursor position if textarea was focused and cursor was in content (not in total line)
+            if (wasFocused && cursorInContent) {
+                // Use requestAnimationFrame for smoother cursor restoration
+                requestAnimationFrame(() => {
+                    if (document.activeElement === textarea || wasFocused) {
+                        textarea.focus();
+                        // Try to preserve cursor position relative to content
+                        const newPos = Math.min(cursorPos, contentBeforeTotal.length);
+                        if (newPos >= 0 && newPos <= textarea.value.length) {
+                            textarea.setSelectionRange(newPos, newPos);
+                        }
+                    }
+                });
+            }
+        }
     },
 
     /**

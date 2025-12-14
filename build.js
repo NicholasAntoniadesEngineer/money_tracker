@@ -37,13 +37,13 @@ const JS_ORDER = {
         'utils/formatters.js',
         'controllers/OverviewController.js'
     ],
-    'views/import.html': [
+    'views/settings.html': [
         'components/Header.js',
         'models/DataManager.js',
         'utils/formatters.js',
         'utils/CSVHandler.js',
         'utils/ReferenceImporter.js',
-        'controllers/ImportController.js'
+        'controllers/SettingsController.js'
     ]
 };
 
@@ -218,7 +218,7 @@ function build() {
         'views/monthly-budget.html',
         'views/pots.html',
         'views/overview.html',
-        'views/import.html'
+        'views/settings.html'
     ];
     
     htmlFiles.forEach(processHTML);

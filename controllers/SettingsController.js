@@ -1,21 +1,71 @@
 /**
- * Import Controller
+ * Settings Controller
  * Handles all file operations: import, export, load, delete
+ * Also handles currency settings
  */
 
-const ImportController = {
+const SettingsController = {
     /**
-     * Initialize the import page
+     * Initialize the settings page
      */
     async init() {
         await DataManager.loadMonthsFromFiles();
+        this.loadCurrencySetting();
         this.setupEventListeners();
+    },
+
+    /**
+     * Load and display current currency setting
+     */
+    loadCurrencySetting() {
+        const currencySelect = document.getElementById('currency-select');
+        if (!currencySelect) return;
+
+        const settings = DataManager.getSettings();
+        const currentCurrency = settings && settings.currency ? settings.currency : '£';
+        
+        currencySelect.value = currentCurrency;
+    },
+
+    /**
+     * Save currency setting
+     */
+    saveCurrencySetting(currency) {
+        const settings = DataManager.getSettings() || DataManager.initializeSettings();
+        settings.currency = currency;
+        const success = DataManager.saveSettings(settings);
+        
+        if (success) {
+            // Reload page to update all currency displays
+            window.location.reload();
+        }
+        
+        return success;
     },
 
     /**
      * Setup event listeners
      */
     setupEventListeners() {
+        // Currency selector
+        const currencySelect = document.getElementById('currency-select');
+        if (currencySelect) {
+            currencySelect.addEventListener('change', () => {
+                const selectedCurrency = currencySelect.value;
+                const currencyStatus = document.getElementById('currency-status');
+                
+                if (currencyStatus) {
+                    currencyStatus.innerHTML = '<p style="color: var(--text-secondary);">Saving currency setting...</p>';
+                }
+                
+                const success = this.saveCurrencySetting(selectedCurrency);
+                
+                if (!success && currencyStatus) {
+                    currencyStatus.innerHTML = '<p style="color: var(--danger-color);">Error saving currency setting. Please try again.</p>';
+                }
+            });
+        }
+
         const importButton = document.getElementById('import-button');
         const fileInput = document.getElementById('file-input');
         const loadMonthsBtn = document.getElementById('load-months-button');
@@ -557,5 +607,5 @@ const ImportController = {
 };
 
 // Make available globally
-window.ImportController = ImportController;
+window.SettingsController = SettingsController;
 

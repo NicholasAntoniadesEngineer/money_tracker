@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import & Export Data - Money Tracker</title>
+    <title>Settings - Money Tracker</title>
     <link rel="stylesheet" href="../styles/main.css">
     <link rel="icon" href="data:,">
 </head>
@@ -12,7 +12,33 @@
 
     <main class="import-main" role="main">
 
-        <section class="import-section form-section" style="margin-top: 5rem;">
+        <section class="form-section" style="margin-top: 5rem;">
+            <h2 class="section-title">Currency Settings</h2>
+            <p class="section-description">Select your preferred currency. This will be used throughout the application for all monetary values.</p>
+
+            <div class="form-group">
+                <label for="currency-select" class="form-label">Currency:</label>
+                <select id="currency-select" class="form-select">
+                    <option value="£">£ (GBP - British Pound)</option>
+                    <option value="$">$ (USD - US Dollar)</option>
+                    <option value="€">€ (EUR - Euro)</option>
+                    <option value="¥">¥ (JPY - Japanese Yen)</option>
+                    <option value="₹">₹ (INR - Indian Rupee)</option>
+                    <option value="A$">A$ (AUD - Australian Dollar)</option>
+                    <option value="C$">C$ (CAD - Canadian Dollar)</option>
+                    <option value="CHF">CHF (Swiss Franc)</option>
+                    <option value="NZ$">NZ$ (NZD - New Zealand Dollar)</option>
+                    <option value="R">R (ZAR - South African Rand)</option>
+                </select>
+                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    Changing the currency will update all displayed amounts throughout the application.
+                </p>
+            </div>
+
+            <div id="currency-status" style="margin-top: 1rem;"></div>
+        </section>
+
+        <section class="import-section form-section">
             <h2 class="section-title">Import Files</h2>
             <p class="section-description">Import month data from JSON, CSV, or HTML files. You can select a folder (modern browsers) or individual files (all browsers).</p>
 
@@ -89,15 +115,16 @@
     <script src="../utils/formatters.js"></script>
     <script src="../utils/CSVHandler.js"></script>
     <script src="../utils/ReferenceImporter.js"></script>
-    <script src="../controllers/ImportController.js"></script>
+    <script src="../controllers/SettingsController.js"></script>
     <script>
         // Initialize settings
         DataManager.initializeSettings();
         
-        // Initialize ImportController when DOM is ready
+        // Initialize SettingsController when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            ImportController.init();
+            SettingsController.init();
         });
     </script>
 </body>
 </html>
+
