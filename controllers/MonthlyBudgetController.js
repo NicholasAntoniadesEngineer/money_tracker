@@ -2502,8 +2502,31 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Safely evaluate a mathematical expression string
+     * Only allows numbers, basic operators (+, -, *, /), parentheses, and spaces
+     */
+    safeEvaluateExpression(expression) {
+        // Remove currency symbols and commas, keep only numbers, operators, parentheses, and spaces
+        const cleaned = expression.replace(/[£$€¥₹A$C$CHFNZ$R,]/g, '').trim();
+        
+        // Validate that expression only contains safe characters
+        if (!/^[\d+\-*/().\s]+$/.test(cleaned)) {
+            return NaN;
+        }
+        
+        try {
+            // Use Function constructor for safer evaluation (still limited to math operations)
+            const result = Function('"use strict"; return (' + cleaned + ')')();
+            return typeof result === 'number' && !isNaN(result) && isFinite(result) ? result : NaN;
+        } catch (error) {
+            return NaN;
+        }
+    },
+
+    /**
      * Calculate total from variable cost textarea
      * Reads actual spending from "= £Amount" line (user input)
+     * Supports both single numbers and mathematical expressions (e.g., "= 100+20+10-5")
      * @param {boolean} estimatedOnly - If true, only count estimated amounts. If false, only count actual amounts.
      */
     calculateVariableCostTotal(variableCostText, estimatedOnly = true) {
@@ -2521,11 +2544,24 @@ const MonthlyBudgetController = {
                 return 0;
             }
             
-            // Extract amount from "= £Amount" or "= Amount" format
+            // Extract everything after "="
+            const expressionAfterEquals = trimmedTotalLine.substring(1).trim();
+            
+            if (!expressionAfterEquals) {
+                return 0;
+            }
+            
+            // Try to evaluate as a mathematical expression
+            const evaluatedResult = this.safeEvaluateExpression(expressionAfterEquals);
+            if (!isNaN(evaluatedResult)) {
+                return evaluatedResult;
+            }
+            
+            // Fallback: Try extracting amount from "= £Amount" format (single currency value)
             const currencySymbol = Formatters.formatCurrency(0).charAt(0);
             const escapedSymbol = currencySymbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
-            const matches = trimmedTotalLine.match(amountRegex);
+            const matches = expressionAfterEquals.match(amountRegex);
             if (matches && matches.length > 0) {
                 const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
                 const amount = parseFloat(amountStr);
@@ -2534,8 +2570,8 @@ const MonthlyBudgetController = {
                 }
             }
             
-            // Try parsing as plain number (user might have entered just a number after "=")
-            const plainNumberMatch = trimmedTotalLine.replace('=', '').trim().match(/^([\d,]+(?:\\.\\d{2})?)$/);
+            // Fallback: Try parsing as plain number
+            const plainNumberMatch = expressionAfterEquals.match(/^([\d,]+(?:\\.\\d{2})?)$/);
             if (plainNumberMatch) {
                 const amountStr = plainNumberMatch[1].replace(/,/g, '');
                 const amount = parseFloat(amountStr);
