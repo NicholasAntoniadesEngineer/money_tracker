@@ -234,46 +234,46 @@ const MonthlyBudgetController = {
                 {
                     "dateRange": "1-7",
                     "weekRange": "1-7",
-                    "paymentsDue": "Rent/Lease 1,491 ✓Spotify 22.69 ✓OneMobility x2 (Transport) 196.60 ✓",
-                    "groceries": "120-1.31-2.24-88.72-6.60-46.71-11.35-10.57-20.79= -68.29 + 50Spent: 188.29",
+                    "paymentsDue": "Rent/Lease 1,400 ✓Spotify 30 ✓OneMobility x2 (Transport) 100 ✓",
+                    "groceries": "100-20-30-40-50-60-70-80= 100Spent: 100",
                     "transport": "",
-                    "activities": "50-50= 0Spent: 0",
-                    "estimate": 0,
-                    "weeklyEstimate": 0,
-                    "actual": 1948.58
+                    "activities": "50-60= 50Spent: 60",
+                    "estimate": 80,
+                    "weeklyEstimate": 80,
+                    "actual": 1900
                 },
                 {
                     "dateRange": "8-16",
                     "weekRange": "8-16",
-                    "paymentsDue": "Alpinacom Gmbh 22.02 ✓iCloud+ 2TB Storage 10.22 ✓Audibile Account 11.37 ✓Cs Addtl Storage 11.35 ✓",
-                    "groceries": "120-7.04-6.04-1.00-4.25-20.80-26.57-29.69-6.45-12.75-38.68-38-5.88-4.93-19.95-11-22.87-14.15= -150.05Spent: 270.05",
+                    "paymentsDue": "Alpinacom Gmbh 40 ✓iCloud+ 2TB Storage 20 ✓Audibile Account 30 ✓Cs Addtl Storage 50 ✓",
+                    "groceries": "100-10-20-30-40-50-60-70-80-90-100-10-20-30-40-50= 100Spent: 200",
                     "transport": "",
-                    "activities": "50-6.68-35.17-10.10= -1.95Spent: 51.95",
-                    "estimate": 343.68,
-                    "weeklyEstimate": 343.68,
-                    "actual": 0
+                    "activities": "50-60-70-80= 50Spent: 60",
+                    "estimate": 300,
+                    "weeklyEstimate": 300,
+                    "actual": 70
                 },
                 {
                     "dateRange": "17-23",
                     "weekRange": "17-23",
-                    "paymentsDue": "Adobe All Apps 100GB 37.81 ✓",
-                    "groceries": "120-19.90-7.75-26.52-53.10= 12.73Spent: 107.27",
+                    "paymentsDue": "Adobe All Apps 100GB 40 ✓",
+                    "groceries": "100-20-30-40-50= 100Spent: 100",
                     "transport": "",
                     "activities": "50= Spent:",
-                    "estimate": 388.23,
-                    "weeklyEstimate": 388.23,
-                    "actual": 0
+                    "estimate": 300,
+                    "weeklyEstimate": 300,
+                    "actual": 90
                 },
                 {
                     "dateRange": "24-30",
                     "weekRange": "24-30",
-                    "paymentsDue": "Google Storage Photos 9.04Barclays Partner Finance 48.23 Alpinacom Gmbh 22.02 ChatGPT 23.08Xai LLC 25.93 Fitinn Wien Rathauspla 140.12",
-                    "groceries": "120=Spent:",
+                    "paymentsDue": "Google Storage Photos 20Barclays Partner Finance 30 Alpinacom Gmbh 40 ChatGPT 50Xai LLC 60 Fitinn Wien Rathauspla 100",
+                    "groceries": "100=Spent:",
                     "transport": "",
                     "activities": "50= Spent:",
-                    "estimate": 234.04,
-                    "weeklyEstimate": 234.04,
-                    "actual": 0
+                    "estimate": 200,
+                    "weeklyEstimate": 200,
+                    "actual": 100
                 },
                 {
                     "dateRange": "Totals",
@@ -290,22 +290,22 @@ const MonthlyBudgetController = {
             "incomeSources": [
                 {
                     "source": "Nicholas Income",
-                    "estimated": 3080,
-                    "actual": 3155.64,
+                    "estimated": 2000,
+                    "actual": 2100,
                     "date": "",
                     "description": ""
                 },
                 {
                     "source": "Lara Income",
-                    "estimated": 2551.3,
-                    "actual": 2521.3,
+                    "estimated": 3000,
+                    "actual": 2900,
                     "date": "",
                     "description": ""
                 },
                 {
                     "source": "Other Income",
-                    "estimated": 0,
-                    "actual": 0,
+                    "estimated": 50,
+                    "actual": 40,
                     "date": "",
                     "description": "Other Income (e.g., sales of cloths, household)"
                 }
@@ -313,120 +313,120 @@ const MonthlyBudgetController = {
             "fixedCosts": [
                 {
                     "category": "Spotify",
-                    "estimatedAmount": 23.32,
-                    "actualAmount": 22.69,
+                    "estimatedAmount": 30,
+                    "actualAmount": 30,
                     "date": "1st",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Rent/Lease",
-                    "estimatedAmount": 1491,
-                    "actualAmount": 1491,
+                    "estimatedAmount": 1400,
+                    "actualAmount": 1400,
                     "date": "3rd",
                     "card": "Joint Amex",
                     "paid": false
                 },
                 {
                     "category": "Transport",
-                    "estimatedAmount": 196.54,
-                    "actualAmount": 196.6,
+                    "estimatedAmount": 100,
+                    "actualAmount": 100,
                     "date": "3rd",
                     "card": "Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Alpinacom Gmbh (Data)",
-                    "estimatedAmount": 24.99,
-                    "actualAmount": 22.02,
+                    "estimatedAmount": 40,
+                    "actualAmount": 40,
                     "date": "",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Audible",
-                    "estimatedAmount": 11.34,
-                    "actualAmount": 11.37,
+                    "estimatedAmount": 20,
+                    "actualAmount": 20,
                     "date": "11th",
                     "card": "Lara Monzo Flex",
                     "paid": false
                 },
                 {
                     "category": "Weed",
-                    "estimatedAmount": 130,
-                    "actualAmount": 175.77,
+                    "estimatedAmount": 100,
+                    "actualAmount": 100,
                     "date": "15th",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "iCloud+ 2TB Storage",
-                    "estimatedAmount": 10.2,
-                    "actualAmount": 10.22,
+                    "estimatedAmount": 20,
+                    "actualAmount": 20,
                     "date": "15th",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Adobe All Apps 100GB",
-                    "estimatedAmount": 32.89,
-                    "actualAmount": 37.81,
+                    "estimatedAmount": 40,
+                    "actualAmount": 40,
                     "date": "16th",
                     "card": "Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Cs Addtl Storage (Creative Cloud 1TB)",
-                    "estimatedAmount": 11.53,
-                    "actualAmount": 11.35,
+                    "estimatedAmount": 50,
+                    "actualAmount": 50,
                     "date": "16th",
                     "card": "Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Fitinn Wien Rathauspla x 2",
-                    "estimatedAmount": 140.12,
-                    "actualAmount": 0,
+                    "estimatedAmount": 100,
+                    "actualAmount": 60,
                     "date": "",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Xai LLC (Grok)",
-                    "estimatedAmount": 26.38,
-                    "actualAmount": 0,
+                    "estimatedAmount": 60,
+                    "actualAmount": 60,
                     "date": "25th",
                     "card": "Joint Amex",
                     "paid": false
                 },
                 {
                     "category": "ChatGPT",
-                    "estimatedAmount": 22.69,
-                    "actualAmount": 0,
+                    "estimatedAmount": 50,
+                    "actualAmount": 50,
                     "date": "17th",
                     "card": "Apple Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Google Storage Photos",
-                    "estimatedAmount": 9.22,
-                    "actualAmount": 0,
+                    "estimatedAmount": 20,
+                    "actualAmount": 20,
                     "date": "28th",
                     "card": "Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Barclays Partner Finance",
-                    "estimatedAmount": 47.37,
-                    "actualAmount": 0,
+                    "estimatedAmount": 30,
+                    "actualAmount": 30,
                     "date": "28th",
                     "card": "Monzo Joint",
                     "paid": false
                 },
                 {
                     "category": "Alpinacom Gmbh (Data)",
-                    "estimatedAmount": 24.99,
-                    "actualAmount": 0,
+                    "estimatedAmount": 40,
+                    "actualAmount": 40,
                     "date": "31st",
                     "card": "Apple Monzo Joint",
                     "paid": false
@@ -436,12 +436,12 @@ const MonthlyBudgetController = {
                 {
                     "category": "Food",
                     "estimatedAmount": 500,
-                    "actualAmount": 0
+                    "actualAmount": 70
                 },
                 {
                     "category": "Activities",
                     "estimatedAmount": 200,
-                    "actualAmount": 0
+                    "actualAmount": 80
                 }
             ],
             "unplannedExpenses": [
@@ -456,8 +456,8 @@ const MonthlyBudgetController = {
             "pots": [
                 {
                     "category": "Remaining Debt",
-                    "estimatedAmount": 2041.96,
-                    "actualAmount": 2041.96
+                    "estimatedAmount": 2000,
+                    "actualAmount": 2000
                 }
             ],
             "createdAt": "2025-12-12T22:34:39.463Z",
@@ -648,6 +648,99 @@ const MonthlyBudgetController = {
         newHeaderHTML += '<th>Estimate</th><th>Actual</th><th class="delete-column-header"></th>';
         headerRow.innerHTML = newHeaderHTML;
         
+        // Update existing data rows to include all variable cost columns
+        const dataRows = tbody.querySelectorAll('tr:not(.total-row)');
+        dataRows.forEach(row => {
+            // Get existing data from the row
+            const dateInput = row.querySelector('.weekly-date-range');
+            const paymentsTextarea = row.querySelector('.weekly-payments-due');
+            const estimateInput = row.querySelector('.weekly-estimate');
+            const actualInput = row.querySelector('.weekly-actual');
+            const deleteBtn = row.querySelector('.delete-row-x');
+            
+            // Get existing variable cost values
+            const existingVariableCosts = {};
+            categories.forEach(category => {
+                const categoryId = this.sanitizeCategoryId(category);
+                const categoryClass = 'weekly-variable-' + categoryId;
+                const existingTextarea = row.querySelector('.' + categoryClass);
+                if (existingTextarea) {
+                    existingVariableCosts[category] = existingTextarea.value;
+                }
+            });
+            
+            // Rebuild row HTML
+            let rowHTML = `
+                <td><input type="text" class="weekly-date-range" value="${dateInput?.value || ''}" placeholder="e.g., 30-9 or 1-7"></td>
+                <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${paymentsTextarea?.value || ''}</textarea></td>
+            `;
+            
+            // Add textarea for each variable cost category
+            categories.forEach((category, index) => {
+                const categoryId = this.sanitizeCategoryId(category);
+                const categoryClass = 'weekly-variable-' + categoryId;
+                const existingValue = existingVariableCosts[category] || '';
+                rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
+            });
+            
+            rowHTML += `
+                <td><input type="number" class="weekly-estimate" value="${estimateInput?.value || ''}" step="0.01" min="0" placeholder="0.00"></td>
+                <td><input type="number" class="weekly-actual" value="${actualInput?.value || ''}" step="0.01" min="0" placeholder="0.00"></td>
+                <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
+            `;
+            
+            // Replace row content
+            row.innerHTML = rowHTML;
+            
+            // Reattach event listeners
+            row.querySelectorAll('input, textarea').forEach(input => {
+                input.addEventListener('input', () => {
+                    const isVariableCost = Array.from(input.classList).some(cls => cls.startsWith('weekly-variable-'));
+                    
+                    if (input.classList.contains('weekly-payments-due') || isVariableCost) {
+                        this.autoSizeTextarea(input);
+                        if (isVariableCost) {
+                            requestAnimationFrame(() => {
+                                this.updateVariableCostTotal(input);
+                                this.updateCalculations();
+                            });
+                            return;
+                        }
+                        setTimeout(() => this.updateCalculations(), 0);
+                    } else {
+                        this.updateCalculations();
+                    }
+                });
+            });
+            
+            // Make estimate and actual read-only
+            const newEstimateInput = row.querySelector('.weekly-estimate');
+            const newActualInput = row.querySelector('.weekly-actual');
+            if (newEstimateInput) {
+                newEstimateInput.readOnly = true;
+                newEstimateInput.style.backgroundColor = 'var(--bg-secondary)';
+            }
+            if (newActualInput) {
+                newActualInput.readOnly = true;
+                newActualInput.style.backgroundColor = 'var(--bg-secondary)';
+            }
+            
+            // Auto-size textareas
+            const textareas = row.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                this.autoSizeTextarea(textarea);
+            });
+            
+            // Reattach delete handler
+            const newDeleteBtn = row.querySelector('.delete-row-x');
+            if (newDeleteBtn) {
+                newDeleteBtn.addEventListener('click', () => {
+                    row.remove();
+                    this.updateCalculations();
+                });
+            }
+        });
+        
         // Update total row
         const totalRow = tbody.querySelector('.total-row');
         if (totalRow) {
@@ -662,6 +755,9 @@ const MonthlyBudgetController = {
             totalRowHTML += '<td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td><td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td><td></td>';
             totalRow.innerHTML = totalRowHTML;
         }
+        
+        // Recalculate totals after rebuilding
+        this.updateCalculations();
     },
 
     /**
@@ -926,7 +1022,8 @@ const MonthlyBudgetController = {
                 paymentsDueTextarea.value = '';
                 this.autoSizeTextarea(paymentsDueTextarea);
                 this.updateCalculations();
-            } else if (!currentPayments.trim() || hasAutoGeneratedPayments || forceUpdate) {
+            } else if (!currentPayments.trim() || hasAutoGeneratedPayments) {
+                // Only auto-populate if field is empty or has auto-generated content
                 const paymentsText = weekFixedCosts.map(cost => {
                     const paidStatus = cost.paid ? ' ✓' : '';
                     const cardInfo = cost.card ? ` (${cost.card})` : '';
@@ -949,6 +1046,53 @@ const MonthlyBudgetController = {
 
                 // Update calculations to show totals
                 this.updateCalculations();
+            } else if (forceUpdate && currentPayments.trim()) {
+                // When forceUpdate is true and field has content, only update paid status ticks
+                // Parse existing lines and update paid status for matching categories
+                const lines = currentPayments.split('\n');
+                const updatedLines = lines.map(line => {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) return line;
+                    
+                    // Check if this line matches any fixed cost for this week
+                    for (const cost of weekFixedCosts) {
+                        // Check if line contains the category name
+                        if (trimmedLine.includes(cost.category)) {
+                            // Remove existing tick if present
+                            let updatedLine = trimmedLine.replace(/\s*✓\s*$/, '');
+                            // Add tick if paid
+                            if (cost.paid && !updatedLine.endsWith('✓')) {
+                                updatedLine += ' ✓';
+                            }
+                            return updatedLine;
+                        }
+                    }
+                    return line;
+                });
+                
+                // Also add any new fixed costs that aren't in the existing text
+                const existingCategories = new Set();
+                lines.forEach(line => {
+                    weekFixedCosts.forEach(cost => {
+                        if (line.includes(cost.category)) {
+                            existingCategories.add(cost.category);
+                        }
+                    });
+                });
+                
+                const newCosts = weekFixedCosts.filter(cost => !existingCategories.has(cost.category));
+                if (newCosts.length > 0) {
+                    const newPaymentsText = newCosts.map(cost => {
+                        const paidStatus = cost.paid ? ' ✓' : '';
+                        const cardInfo = cost.card ? ` (${cost.card})` : '';
+                        return `${cost.category}: ${Formatters.formatCurrency(cost.amount)}${cardInfo}${paidStatus}`;
+                    }).join('\n');
+                    updatedLines.push(newPaymentsText);
+                }
+                
+                paymentsDueTextarea.value = updatedLines.join('\n');
+                this.autoSizeTextarea(paymentsDueTextarea);
+                this.updateCalculations();
             }
             
             // Populate each variable cost category column
@@ -967,57 +1111,73 @@ const MonthlyBudgetController = {
                 // Check if we have variable costs data for this category
                 const hasVariableCostsData = weeklyVariableCosts[category] && weeklyVariableCosts[category].length > 0;
                 
-                // Update if: we have data AND (force update, empty, has auto-generated, or has estimate)
-                // With forceUpdate=true, always populate if we have data, regardless of current content
-                // This ensures new variable costs get populated when added
+                // Update if: we have data AND (empty, has auto-generated, or has estimate)
+                // When forceUpdate=true, do NOT overwrite user-entered data - only update if field is empty or auto-generated
                 if (hasVariableCostsData) {
-                    const shouldUpdate = forceUpdate || !currentValue.trim() || hasAutoGenerated || hasEstimate;
+                    // Only update if empty, has auto-generated, or has estimate - NOT when forceUpdate is true with user data
+                    const shouldUpdate = !currentValue.trim() || hasAutoGenerated || hasEstimate;
                     if (shouldUpdate) {
                     // Calculate total estimate for this category (sum of all variable costs in this category)
                     const totalEstimate = weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0);
                     const baseEstimate = totalEstimate.toFixed(2);
                     
-                    // If forceUpdate is true, always replace with new estimate (preserving user adjustments)
-                    // Otherwise, only replace if empty, has auto-generated, or has estimate
-                    if (forceUpdate || hasAutoGenerated || hasEstimate || !currentValue.trim()) {
-                        // Replace old format with new format - preserve only actual user adjustments (lines starting with + or -)
-                        // Do NOT preserve plain numbers as they are old base estimates that should be replaced
-                        const lines = currentValue.split('\n');
-                        const adjustments = lines.filter(line => {
-                            const trimmed = line.trim();
-                            return trimmed && 
-                                   !trimmed.startsWith('Estimate:') && 
-                                   !trimmed.startsWith('Auto-generated') &&
-                                   !trimmed.startsWith('=') &&
-                                   (trimmed.startsWith('+') || trimmed.startsWith('-'));
-                        });
+                    // Only replace if empty, has auto-generated, or has estimate
+                    if (hasAutoGenerated || hasEstimate || !currentValue.trim()) {
+                        // Build new content: Estimate line with formatted amount, then empty = line for user input
+                        const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
+                        let newContent = estimateLine;
                         
-                        // Build new content: base estimate (sum of all variable costs for this category), then adjustments
-                        let newContent = baseEstimate;
-                        if (adjustments.length > 0) {
-                            newContent += '\n' + adjustments.join('\n');
+                        // Check if user has already filled in the "=" line
+                        const lines = currentValue.split('\n');
+                        const existingEqualsLine = lines.find(line => line.trim().startsWith('='));
+                        if (existingEqualsLine && existingEqualsLine.trim().length > 1) {
+                            // User has entered actual spending, preserve it
+                            newContent += '\n' + existingEqualsLine.trim();
+                        } else {
+                            // Empty "=" line for user to fill in actual spending
+                            newContent += '\n=';
                         }
+                        
                         categoryTextarea.value = newContent;
-                        // Always calculate and add the total line
-                        this.updateVariableCostTotal(categoryTextarea);
                     } else {
-                        // Preserve existing content but update base estimate if it's just a number
+                        // Preserve existing content but update estimate line if it's in old format
                         const lines = currentValue.split('\n');
                         const firstLine = lines[0]?.trim() || '';
+                        
+                        // Check if first line is old format (just a number) or new format (Estimate:)
                         if (/^[\d.]+$/.test(firstLine)) {
-                            // First line is just a number, replace it with new estimate
-                            lines[0] = baseEstimate;
+                            // Old format - replace with new format
+                            const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
+                            lines[0] = estimateLine;
+                            
+                            // Ensure "=" line exists
+                            const hasEqualsLine = lines.some(line => line.trim().startsWith('='));
+                            if (!hasEqualsLine) {
+                                lines.push('=');
+                            }
+                            
                             categoryTextarea.value = lines.join('\n');
-                            // Always calculate and add the total line
-                            this.updateVariableCostTotal(categoryTextarea);
-                        } else {
-                            // Keep existing content, just update total
-                            this.updateVariableCostTotal(categoryTextarea);
+                        } else if (firstLine.startsWith('Estimate:')) {
+                            // Already in new format, just update the estimate value
+                            const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
+                            lines[0] = estimateLine;
+                            
+                            // Ensure "=" line exists
+                            const hasEqualsLine = lines.some(line => line.trim().startsWith('='));
+                            if (!hasEqualsLine) {
+                                lines.push('=');
+                            }
+                            
+                            categoryTextarea.value = lines.join('\n');
                         }
+                        // If neither format, keep existing content as-is
                     }
                     
                     // Auto-size the textarea
                     this.autoSizeTextarea(categoryTextarea);
+                    } else {
+                        // Field has user data and forceUpdate is true - just update the total line, don't overwrite content
+                        this.updateVariableCostTotal(categoryTextarea);
                     }
                 } else {
                     // Always ensure total line exists and is calculated, even if content hasn't changed
@@ -2303,7 +2463,7 @@ const MonthlyBudgetController = {
 
     /**
      * Calculate base estimate from variable cost textarea (for estimate column)
-     * Returns only the base estimate value, ignoring user adjustments
+     * Returns only the base estimate value from "Estimate: £Amount" format
      * This ensures the estimate column always uses values from the tables, not user adjustments
      */
     calculateVariableCostBaseEstimate(variableCostText) {
@@ -2317,8 +2477,22 @@ const MonthlyBudgetController = {
         
         if (contentLines.length === 0) return 0;
         
-        // Parse first line - extract only the base number (before any + or -)
+        // Parse first line - check for "Estimate: £Amount" format
         const firstLine = contentLines[0]?.trim() || '0';
+        
+        // Try to parse "Estimate: £Amount" format
+        if (firstLine.startsWith('Estimate:')) {
+            const currencySymbol = Formatters.formatCurrency(0).charAt(0);
+            const escapedSymbol = currencySymbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
+            const matches = firstLine.match(amountRegex);
+            if (matches && matches.length > 0) {
+                const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
+                return Formatters.parseNumber(amountStr);
+            }
+        }
+        
+        // Fallback: try to parse as plain number (old format)
         const baseMatch = firstLine.match(/^([\d.]+)/);
         if (baseMatch) {
             return Formatters.parseNumber(baseMatch[1]);
@@ -2329,7 +2503,7 @@ const MonthlyBudgetController = {
 
     /**
      * Calculate total from variable cost textarea
-     * Parses amounts from format: "Estimate: £Amount" or "Estimate: £Amount [Actual: £Amount]"
+     * Reads actual spending from "= £Amount" line (user input)
      * @param {boolean} estimatedOnly - If true, only count estimated amounts. If false, only count actual amounts.
      */
     calculateVariableCostTotal(variableCostText, estimatedOnly = true) {
@@ -2337,14 +2511,21 @@ const MonthlyBudgetController = {
 
         const lines = variableCostText.split('\n');
 
-        // Check if there's a total line with "="
+        // Check if there's a total line with "=" - this is where user enters actual spending
         const totalLine = lines.find(line => line.trim().startsWith('='));
         if (totalLine) {
-            // Extract amount from "= £Amount" format
+            const trimmedTotalLine = totalLine.trim();
+            
+            // If "=" line is empty or just "=", return 0 (user hasn't entered actual spending yet)
+            if (trimmedTotalLine === '=' || trimmedTotalLine.length <= 1) {
+                return 0;
+            }
+            
+            // Extract amount from "= £Amount" or "= Amount" format
             const currencySymbol = Formatters.formatCurrency(0).charAt(0);
             const escapedSymbol = currencySymbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
-            const matches = totalLine.match(amountRegex);
+            const matches = trimmedTotalLine.match(amountRegex);
             if (matches && matches.length > 0) {
                 const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
                 const amount = parseFloat(amountStr);
@@ -2352,54 +2533,25 @@ const MonthlyBudgetController = {
                     return amount;
                 }
             }
-        }
-
-        // Fallback: calculate deductions total from content (same logic as updateVariableCostTotal)
-        const contentLines = lines.filter(line => !line.trim().startsWith('='));
-        if (contentLines.length === 0) return 0;
-
-        const firstLine = contentLines[0]?.trim() || '0';
-        let deductionsTotal = 0;
-
-        // Check if first line contains inline adjustments (has + or - after a number)
-        const inlineAdjustmentMatch = firstLine.match(/^([\d.]+)([+\-].*)$/);
-        if (inlineAdjustmentMatch) {
-            const adjustmentsStr = inlineAdjustmentMatch[2];
-
-            // Parse all inline adjustments as deductions
-            const adjustmentMatches = adjustmentsStr.match(/[+\-][\d.]+/g);
-            if (adjustmentMatches) {
-                adjustmentMatches.forEach(match => {
-                    if (match.startsWith('+')) {
-                        deductionsTotal += Formatters.parseNumber(match.substring(1));
-                    } else if (match.startsWith('-')) {
-                        deductionsTotal += Formatters.parseNumber(match.substring(1)); // - becomes +
-                    }
-                });
+            
+            // Try parsing as plain number (user might have entered just a number after "=")
+            const plainNumberMatch = trimmedTotalLine.replace('=', '').trim().match(/^([\d,]+(?:\\.\\d{2})?)$/);
+            if (plainNumberMatch) {
+                const amountStr = plainNumberMatch[1].replace(/,/g, '');
+                const amount = parseFloat(amountStr);
+                if (!isNaN(amount)) {
+                    return amount;
+                }
             }
         }
 
-        // Parse adjustments on separate lines
-        for (let i = 1; i < contentLines.length; i++) {
-            const line = contentLines[i].trim();
-            if (line.startsWith('+')) {
-                const value = Formatters.parseNumber(line.substring(1));
-                deductionsTotal += value;
-            } else if (line.startsWith('-')) {
-                const value = Formatters.parseNumber(line.substring(1));
-                deductionsTotal += value; // - becomes +
-            } else if (/^[\d.]+$/.test(line)) {
-                const value = Formatters.parseNumber(line);
-                deductionsTotal += value;
-            }
-        }
-
-        return deductionsTotal;
+        // If no "=" line or it's empty, return 0 (user hasn't entered actual spending)
+        return 0;
     },
 
     /**
-     * Update the total line at the bottom of a variable cost textarea
-     * Format: base estimate + adjustments = total
+     * Ensure the "=" line exists in variable cost textarea
+     * User fills in actual spending on the "=" line
      */
     updateVariableCostTotal(textarea) {
         if (!textarea) return;
@@ -2407,100 +2559,16 @@ const MonthlyBudgetController = {
         const content = textarea.value || '';
         const lines = content.split('\n');
         
-        // Remove existing total line (lines starting with "=")
-        const contentLines = lines.filter(line => !line.trim().startsWith('='));
+        // Check if "=" line exists, if not add empty one
+        const hasEqualsLine = lines.some(line => line.trim().startsWith('='));
         
-        if (contentLines.length === 0) return;
-        
-        // Parse first line - may contain base estimate and inline adjustments (e.g., "40.00+5-10")
-        const firstLine = contentLines[0]?.trim() || '0';
-        let baseEstimate = 0;
-        let adjustmentsTotal = 0;
-
-        // Check if first line contains inline adjustments (has + or - after a number)
-        const inlineAdjustmentMatch = firstLine.match(/^([\d.]+)([+\-].*)$/);
-        if (inlineAdjustmentMatch) {
-            // First line has inline adjustments
-            baseEstimate = Formatters.parseNumber(inlineAdjustmentMatch[1]);
-            const adjustmentsStr = inlineAdjustmentMatch[2];
-
-            // Parse all inline adjustments
-            // e.g., "40+5-10" -> +5 -10 = -5
-            const adjustmentMatches = adjustmentsStr.match(/[+\-][\d.]+/g);
-            if (adjustmentMatches) {
-                adjustmentMatches.forEach(match => {
-                    if (match.startsWith('+')) {
-                        adjustmentsTotal += Formatters.parseNumber(match.substring(1));
-                    } else if (match.startsWith('-')) {
-                        adjustmentsTotal -= Formatters.parseNumber(match.substring(1));
-                    }
-                });
-            }
-        } else {
-            // First line is just a number (no adjustments) - this is the base estimate
-            baseEstimate = Formatters.parseNumber(firstLine);
-            adjustmentsTotal = 0;
+        if (!hasEqualsLine) {
+            // Add empty "=" line for user to fill in actual spending
+            const contentBeforeEquals = lines.filter(line => !line.trim().startsWith('=')).join('\n');
+            textarea.value = contentBeforeEquals + (contentBeforeEquals ? '\n=' : '=');
+            this.autoSizeTextarea(textarea);
         }
-
-        // Parse adjustments on separate lines (only lines starting with + or -)
-        // Do NOT treat plain numbers as adjustments - they are likely old base estimates
-        for (let i = 1; i < contentLines.length; i++) {
-            const line = contentLines[i].trim();
-            if (line.startsWith('+')) {
-                const value = Formatters.parseNumber(line.substring(1));
-                adjustmentsTotal += value;
-            } else if (line.startsWith('-')) {
-                const value = Formatters.parseNumber(line.substring(1));
-                adjustmentsTotal -= value;
-            }
-            // Note: Plain numbers (like "90.00") are NOT treated as adjustments
-            // They should only appear as the base estimate on the first line
-        }
-
-        // Calculate total: base estimate + adjustments
-        const total = baseEstimate + adjustmentsTotal;
-        
-        // Build new content with calculated total line
-        let newContent = contentLines.join('\n');
-        const totalLine = '= ' + Formatters.formatCurrency(total);
-        newContent += '\n' + totalLine;
-        
-        // Check if total has changed
-        const currentTotalLine = lines.find(line => line.trim().startsWith('='));
-        const newTotalLine = totalLine.trim();
-        const totalChanged = !currentTotalLine || currentTotalLine.trim() !== newTotalLine;
-        
-        // Always update to ensure total is correct, but only if it changed to avoid unnecessary DOM updates
-        if (totalChanged || !currentTotalLine) {
-            // Save cursor position before updating
-            const wasFocused = document.activeElement === textarea;
-            const cursorPos = textarea.selectionStart;
-            const oldContent = textarea.value;
-            const contentBeforeTotal = contentLines.join('\n');
-            
-            // Calculate where cursor should be after update
-            // If cursor was in the content (not in total line), preserve position
-            const oldContentBeforeTotal = oldContent.split('\n').filter(l => !l.trim().startsWith('=')).join('\n');
-            const cursorInContent = cursorPos <= oldContentBeforeTotal.length;
-            
-            // Update textarea
-            textarea.value = newContent;
-            
-            // Restore cursor position if textarea was focused and cursor was in content (not in total line)
-            if (wasFocused && cursorInContent) {
-                // Use requestAnimationFrame for smoother cursor restoration
-                requestAnimationFrame(() => {
-                    if (document.activeElement === textarea || wasFocused) {
-                        textarea.focus();
-                        // Try to preserve cursor position relative to content
-                        const newPos = Math.min(cursorPos, contentBeforeTotal.length);
-                        if (newPos >= 0 && newPos <= textarea.value.length) {
-                            textarea.setSelectionRange(newPos, newPos);
-                        }
-                    }
-                });
-            }
-        }
+        // Don't auto-calculate the "=" line - user fills it in with actual spending
     },
 
     /**

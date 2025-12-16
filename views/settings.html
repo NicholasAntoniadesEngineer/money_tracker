@@ -13,8 +13,7 @@
     <main class="import-main" role="main">
 
         <section class="form-section" style="margin-top: 5rem;">
-            <h2 class="section-title">Currency Settings</h2>
-            <p class="section-description">Select your preferred currency. This will be used throughout the application for all monetary values.</p>
+            <h2 class="section-title">Currency</h2>
 
             <div class="form-group">
                 <label for="currency-select" class="form-label">Currency:</label>
@@ -30,9 +29,6 @@
                     <option value="NZ$">NZ$ (NZD - New Zealand Dollar)</option>
                     <option value="R">R (ZAR - South African Rand)</option>
                 </select>
-                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    Changing the currency will update all displayed amounts throughout the application.
-                </p>
             </div>
 
             <div id="currency-status" style="margin-top: 1rem;"></div>
@@ -40,44 +36,27 @@
 
         <section class="form-section">
             <h2 class="section-title">Data Management</h2>
-            <p class="section-description">Clear all cached data and reset the application to a fresh state.</p>
 
             <div class="form-group">
                 <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
-                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--danger-color); font-size: 0.875rem;">
-                    <strong>Warning:</strong> This will clear all months, pots, and settings data stored in your browser cache.
-                    Your original JSON data files in the reference folder will not be affected, but you'll need to re-import them to view the data again.
-                    This action cannot be undone. Use this only if you want to start with a fresh cache.
-                </p>
             </div>
         </section>
 
         <section class="import-section form-section">
-            <h2 class="section-title">Import Files</h2>
-            <p class="section-description">Import month data from JSON, CSV, or HTML files. You can select a folder (modern browsers) or individual files (all browsers).</p>
+            <h2 class="section-title">Import</h2>
 
             <div class="form-group">
                 <button id="load-months-button" class="btn btn-primary">Select Folder or Files</button>
-                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    <strong>Modern browsers:</strong> Click to select the <code>data/months/</code> folder directly.<br/>
-                    <strong>All browsers:</strong> If folder selection isn't available, you'll be prompted to select individual files.
-                </p>
             </div>
 
             <div class="form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                <label for="file-input" class="form-label">Or Select Files Manually:</label>
+                <label for="file-input" class="form-label">Or Select Files:</label>
                 <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
-                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    Select one or multiple files from the data/months/ folder (JSON/CSV) or reference/ folder (HTML). The format will be detected automatically.
-                </p>
             </div>
 
             <div id="year-input-group" class="form-group" style="display: none;">
-                <label for="import-year" class="form-label">Year for CSV/HTML files:</label>
+                <label for="import-year" class="form-label">Year:</label>
                 <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100">
-                <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    Required for CSV and HTML files. JSON files include year information in the data.
-                </p>
             </div>
 
             <button id="import-button" class="btn btn-action" style="display: none;">Import Selected Files</button>
@@ -85,18 +64,17 @@
         </section>
 
         <section class="form-section">
-            <h2 class="section-title">Export & Delete Months</h2>
-            <p class="section-description">Export months in various formats (JSON, CSV, or HTML) or delete months.</p>
+            <h2 class="section-title">Export & Delete</h2>
             
             <div class="form-group">
-                <label for="month-selector" class="form-label">Select Month:</label>
-                <select id="month-selector" class="form-select">
+                <label for="month-selector" class="form-label">Months:</label>
+                <select id="month-selector" class="form-select" multiple>
                     <option value="">Loading...</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="export-format-select" class="form-label">Export Format:</label>
+                <label for="export-format-select" class="form-label">Format:</label>
                 <select id="export-format-select" class="form-select">
                     <option value="json">JSON</option>
                     <option value="csv">CSV</option>
@@ -105,16 +83,9 @@
             </div>
 
             <div class="form-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button id="export-current-month-button" class="btn btn-action">Export Selected Month</button>
-                <button id="export-all-months-button" class="btn btn-action">Export All Months</button>
-                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete Selected Month</button>
+                <button id="export-button" class="btn btn-action">Export</button>
+                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete</button>
             </div>
-            <p class="form-help-text" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                <strong>Export Selected Month:</strong> Export the selected month in the chosen format (JSON, CSV, or HTML).<br/>
-                <strong>Export All Months:</strong> Export all months in the chosen format (JSON, CSV, or HTML).<br/>
-                <strong>Delete Selected Month:</strong> Permanently delete the selected month. <em style="color: var(--danger-color);">This action cannot be undone.</em><br/>
-                <em>Note: HTML export creates formatted reports.</em>
-            </p>
         </section>
 
         <div id="file-operations-status" style="margin-top: 1rem;"></div>

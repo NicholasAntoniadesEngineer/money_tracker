@@ -69,8 +69,7 @@ const SettingsController = {
         const importButton = document.getElementById('import-button');
         const fileInput = document.getElementById('file-input');
         const loadMonthsBtn = document.getElementById('load-months-button');
-        const exportCurrentMonthBtn = document.getElementById('export-current-month-button');
-        const exportAllMonthsBtn = document.getElementById('export-all-months-button');
+        const exportButton = document.getElementById('export-button');
         const exportFormatSelect = document.getElementById('export-format-select');
         const monthSelector = document.getElementById('month-selector');
         const deleteMonthBtn = document.getElementById('delete-month-button');
@@ -187,14 +186,18 @@ const SettingsController = {
         }
 
 
-        // Export Current Month button
-        if (exportCurrentMonthBtn && exportFormatSelect && monthSelector) {
-            exportCurrentMonthBtn.addEventListener('click', async () => {
-                const selectedMonthKey = monthSelector.value;
-                if (!selectedMonthKey) {
+        // Export button - handles multiple selected months
+        if (exportButton && exportFormatSelect && monthSelector) {
+            exportButton.addEventListener('click', async () => {
+                const selectedOptions = Array.from(monthSelector.selectedOptions);
+                const selectedMonthKeys = selectedOptions
+                    .map(option => option.value)
+                    .filter(value => value && value !== '');
+                
+                if (selectedMonthKeys.length === 0) {
                     const statusElement = fileOperationsStatus || importStatus;
                     if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--warning-color);">Please select a month first.</p>';
+                        statusElement.innerHTML = '<p style="color: var(--warning-color);">Please select at least one month to export.</p>';
                     }
                     return;
                 }
@@ -209,79 +212,25 @@ const SettingsController = {
                     return;
                 }
                 
-                exportCurrentMonthBtn.disabled = true;
+                exportButton.disabled = true;
                 const formatUpper = format.toUpperCase();
                 const statusElement = fileOperationsStatus || importStatus;
+                const monthCount = selectedMonthKeys.length;
                 if (statusElement) {
-                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting month as ' + formatUpper + '...</p>';
+                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting ' + monthCount + ' month' + (monthCount !== 1 ? 's' : '') + ' as ' + formatUpper + '...</p>';
                 }
                 
                 try {
-                    const monthData = DataManager.getMonth(selectedMonthKey);
-                    if (!monthData) {
-                        throw new Error('Month data not found');
-                    }
-                    
-                    const success = await DataManager.exportMonthToFile(selectedMonthKey, monthData, format);
-                    if (success) {
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--success-color);">Month exported as ' + formatUpper + ' successfully!</p>';
-                        }
-                    } else {
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--warning-color);">' + formatUpper + ' export cancelled or failed.</p>';
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error exporting ' + formatUpper + ':', error);
-                    const statusElement = fileOperationsStatus || importStatus;
-                    if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting ' + formatUpper + ': ' + error.message + '</p>';
-                    }
-                } finally {
-                    exportCurrentMonthBtn.disabled = false;
-                }
-            });
-        }
-        
-        // Export All Months button
-        if (exportAllMonthsBtn && exportFormatSelect) {
-            exportAllMonthsBtn.addEventListener('click', async () => {
-                const format = exportFormatSelect.value || 'json';
-                
-                if (format === 'csv' && !window.CSVHandler) {
-                    const statusElement = fileOperationsStatus || importStatus;
-                    if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--danger-color);">CSVHandler not loaded. Cannot export CSV.</p>';
-                    }
-                    return;
-                }
-                
-                exportAllMonthsBtn.disabled = true;
-                const formatUpper = format.toUpperCase();
-                const statusElement = fileOperationsStatus || importStatus;
-                if (statusElement) {
-                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting all months as ' + formatUpper + '...</p>';
-                }
-                
-                try {
-                    const allMonths = DataManager.getAllMonths();
-                    const monthKeys = Object.keys(allMonths);
-                    
-                    if (monthKeys.length === 0) {
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--warning-color);">No months to export.</p>';
-                        }
-                        exportAllMonthsBtn.disabled = false;
-                        return;
-                    }
-                    
                     let exportedCount = 0;
                     let errorCount = 0;
                     
-                    for (const monthKey of monthKeys) {
+                    for (const monthKey of selectedMonthKeys) {
                         try {
-                            const monthData = allMonths[monthKey];
+                            const monthData = DataManager.getMonth(monthKey);
+                            if (!monthData) {
+                                throw new Error('Month data not found for ' + monthKey);
+                            }
+                            
                             const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
                             if (success) {
                                 exportedCount++;
@@ -312,26 +261,32 @@ const SettingsController = {
                         }
                     }
                 } catch (error) {
-                    console.error('Error exporting all months:', error);
+                    console.error('Error exporting months:', error);
                     const statusElement = fileOperationsStatus || importStatus;
                     if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting all months: ' + error.message + '</p>';
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting months: ' + error.message + '</p>';
                     }
                 } finally {
-                    exportAllMonthsBtn.disabled = false;
+                    exportButton.disabled = false;
                 }
             });
         }
 
-        // Delete month button
+        // Delete month button - works with first selected month only
         if (deleteMonthBtn && monthSelector) {
             deleteMonthBtn.addEventListener('click', () => {
-                const selectedMonthKey = monthSelector.value;
-                if (!selectedMonthKey) {
+                const selectedOptions = Array.from(monthSelector.selectedOptions);
+                const selectedMonthKeys = selectedOptions
+                    .map(option => option.value)
+                    .filter(value => value && value !== '');
+                
+                if (selectedMonthKeys.length === 0) {
                     alert('No month selected');
                     return;
                 }
-
+                
+                // Use first selected month for delete
+                const selectedMonthKey = selectedMonthKeys[0];
                 const monthData = DataManager.getMonth(selectedMonthKey);
                 if (!monthData) {
                     alert('Month not found');
@@ -351,7 +306,6 @@ const SettingsController = {
                 if (success) {
                     alert(`${monthName} ${year} has been deleted.`);
                     this.loadMonthSelector();
-                    if (monthSelector) monthSelector.value = '';
                     if (deleteMonthBtn) deleteMonthBtn.style.display = 'none';
                 } else {
                     alert('Error deleting month. Please try again.');
@@ -362,7 +316,9 @@ const SettingsController = {
         // Month selector change handler - show/hide delete button
         if (monthSelector && deleteMonthBtn) {
             monthSelector.addEventListener('change', () => {
-                if (monthSelector.value) {
+                const selectedOptions = Array.from(monthSelector.selectedOptions);
+                const hasSelection = selectedOptions.some(option => option.value && option.value !== '');
+                if (hasSelection) {
                     deleteMonthBtn.style.display = 'inline-block';
                 } else {
                     deleteMonthBtn.style.display = 'none';
@@ -649,7 +605,7 @@ const SettingsController = {
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
                 return `<option value="${key}">${monthName} ${monthData.year}</option>`;
             }).join('')
-            : '<option value="">No months available</option>';
+            : '';
     }
 };
 
