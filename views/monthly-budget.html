@@ -67,17 +67,9 @@
             </section>
 
             <section class="income-section form-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div>
-                        <h2 class="section-title" style="margin: 0;">1. Income</h2>
-                        <p class="section-description" style="margin: 0.5rem 0 0 0;">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <select id="copy-income-from-month" class="form-select" style="min-width: 180px;">
-                            <option value="">Select month to copy...</option>
-                        </select>
-                        <button id="copy-income-button" class="btn btn-action">Copy</button>
-                    </div>
+                <div style="margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">1. Income</h2>
+                    <p class="section-description" style="margin: 0.5rem 0 0 0;">At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p>
                 </div>
                 <table class="data-table" id="income-table">
                     <thead>
@@ -94,23 +86,19 @@
                     <tbody id="income-tbody">
                     </tbody>
                 </table>
-                <div style="text-align: right; margin-top: 1rem;">
+                <div style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-income-from-month" class="form-select" style="width: auto;">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-income-button" class="btn btn-action">Copy</button>
                     <button id="add-income-button" class="btn btn-action">Add Income Source</button>
                 </div>
             </section>
 
             <section class="fixed-costs-section form-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div>
-                        <h2 class="section-title" style="margin: 0;">2. Fixed Costs (Recurring Bills)</h2>
-                        <p class="section-description" style="margin: 0.5rem 0 0 0;">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <select id="copy-fixed-costs-from-month" class="form-select" style="min-width: 180px;">
-                            <option value="">Select month to copy...</option>
-                        </select>
-                        <button id="copy-fixed-costs-button" class="btn btn-action">Copy</button>
-                    </div>
+                <div style="margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">2. Fixed Costs (Recurring Bills)</h2>
+                    <p class="section-description" style="margin: 0.5rem 0 0 0;">All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p>
                 </div>
                 <table class="data-table" id="fixed-costs-table">
                     <thead>
@@ -128,23 +116,19 @@
                     <tbody id="fixed-costs-tbody">
                     </tbody>
                 </table>
-                <div style="text-align: right; margin-top: 1rem;">
+                <div style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-fixed-costs-from-month" class="form-select" style="width: auto;">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-fixed-costs-button" class="btn btn-action">Copy</button>
                     <button id="add-fixed-cost-button" class="btn btn-action">Add Fixed Cost</button>
                 </div>
             </section>
 
             <section class="variable-costs-section form-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div>
-                        <h2 class="section-title" style="margin: 0;">3. Variable Costs (Food + Activities)</h2>
-                        <p class="section-description" style="margin: 0.5rem 0 0 0;">The two categories we can control. Assign a monthly budget for each.</p>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <select id="copy-variable-costs-from-month" class="form-select" style="min-width: 180px;">
-                            <option value="">Select month to copy...</option>
-                        </select>
-                        <button id="copy-variable-costs-button" class="btn btn-action">Copy</button>
-                    </div>
+                <div style="margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">3. Variable Costs (Food + Activities)</h2>
+                    <p class="section-description" style="margin: 0.5rem 0 0 0;">The two categories we can control. Assign a monthly budget for each.</p>
                 </div>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
@@ -160,23 +144,19 @@
                     <tbody id="variable-costs-tbody">
                     </tbody>
                 </table>
-                <div style="text-align: right; margin-top: 1rem;">
+                <div style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-variable-costs-from-month" class="form-select" style="width: auto;">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-variable-costs-button" class="btn btn-action">Copy</button>
                     <button id="add-variable-cost-button" class="btn btn-action">Add Variable Cost</button>
                 </div>
             </section>
 
             <section class="unplanned-expenses-section form-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div>
-                        <h2 class="section-title" style="margin: 0;">4. Unplanned Buying</h2>
-                        <p class="section-description" style="margin: 0.5rem 0 0 0;">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <select id="copy-unplanned-from-month" class="form-select" style="min-width: 180px;">
-                            <option value="">Select month to copy...</option>
-                        </select>
-                        <button id="copy-unplanned-button" class="btn btn-action">Copy</button>
-                    </div>
+                <div style="margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">4. Unplanned Buying</h2>
+                    <p class="section-description" style="margin: 0.5rem 0 0 0;">Catch-all section for things we didn't budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p>
                 </div>
                 <table class="data-table" id="unplanned-expenses-table">
                     <thead>
@@ -193,7 +173,11 @@
                     <tbody id="unplanned-expenses-tbody">
                     </tbody>
                 </table>
-                <div style="text-align: right; margin-top: 1rem;">
+                <div style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-unplanned-from-month" class="form-select" style="width: auto;">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-unplanned-button" class="btn btn-action">Copy</button>
                     <button id="add-unplanned-expense-button" class="btn btn-action">Add Unplanned Expense</button>
                 </div>
             </section>
@@ -250,7 +234,7 @@
                     <strong>Data Storage:</strong> All data is stored as individual JSON files in <code>data/months/</code> folder.<br/>
                     When you save, the file will be saved directly (modern browsers) or downloaded (older browsers).
                 </p>
-                <button id="save-month-button" class="btn btn-primary btn-success" style="font-size: 1.25rem; padding: 1rem 2rem;">Save Month Data</button>
+                <button id="save-month-button" class="btn btn-primary btn-success">Save Month Data</button>
             </section>
         </div>
 

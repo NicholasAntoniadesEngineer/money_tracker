@@ -169,10 +169,14 @@ p, h1, h2, h3, h4, h5, h6, span, label, li {
 }
 
 .section-title {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
     color: var(--text-primary);
+}
+
+h3.section-title {
+    font-size: 1.25rem;
 }
 
 #month-title {
@@ -673,6 +677,15 @@ main {
     box-shadow: 0 0 0 3px var(--primary-focus-shadow);
 }
 
+/* Copy month dropdowns should size to content, not be wider than widest text */
+#copy-income-from-month,
+#copy-fixed-costs-from-month,
+#copy-variable-costs-from-month,
+#copy-unplanned-from-month {
+    width: auto !important;
+    min-width: fit-content;
+}
+
 .form-textarea {
     resize: vertical;
     min-height: 100px;
@@ -1041,7 +1054,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
    ============================================================================ */
 
 .btn {
-    padding: var(--spacing-xs) var(--spacing-md);
+    padding: 0.3rem 0.5rem;
     border: var(--border-width-standard) solid var(--border-color-black);
     border-radius: 0px;
     border-top-left-radius: 0px;
@@ -1052,9 +1065,16 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none;
     text-align: center;
+    min-height: 1.85rem;
+    height: 1.85rem;
+    box-sizing: border-box;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .btn-primary {
@@ -1641,7 +1661,11 @@ body.landing-page .view-card:focus {
     }
 
     .section-title {
-        font-size: 1.5rem;
+        font-size: 1.15rem;
+    }
+    
+    h3.section-title {
+        font-size: 1.15rem;
     }
 
     .view-card {
