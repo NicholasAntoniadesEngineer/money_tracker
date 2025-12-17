@@ -1,0 +1,33 @@
+/* ============================================================================
+   OVERVIEW PAGE STYLES
+   ============================================================================ */
+
+.summary-section {
+    background-color: rgba(215, 215, 215, 0.85);
+}
+
+.trend-item {
+    background-color: rgba(220, 220, 220, 0.85);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.trend-item h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.trend-item p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}

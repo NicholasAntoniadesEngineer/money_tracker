@@ -1,0 +1,54 @@
+/* ============================================================================
+   LANDING PAGE STYLES
+   ============================================================================ */
+
+.hero-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border: var(--border-width-standard) solid var(--border-color-dark);
+    border-radius: 0px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.views-section {
+    margin-top: var(--viewport-spacing-top);
+}
+
+.views-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.months-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+    .views-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .view-card {
+        padding: var(--spacing-md);
+        background-color: rgba(220, 220, 220, 0.85);
+    }
+    
+    body.landing-page .view-card {
+        background-color: rgba(225, 225, 225, 0.85);
+    }
+}

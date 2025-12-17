@@ -1,0 +1,189 @@
+/* ============================================================================
+   MONTHLY BUDGET PAGE STYLES
+   ============================================================================ */
+
+.month-selector-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border-radius: 0px;
+}
+
+.month-header-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: var(--spacing-md);
+}
+
+.month-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.month-selector-compact {
+    padding: 0.5rem 1rem;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-width: 180px;
+    max-width: 220px;
+}
+
+.month-selector-compact:hover {
+    background-color: var(--bg-input-hover, rgba(240, 240, 240, 0.9));
+}
+
+.month-selector-compact:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.month-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-selector-wrapper .form-label {
+    margin: 0;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.month-selector-wrapper .form-select {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.month-buttons-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.create-month-btn {
+    flex-shrink: 1;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#month-content > section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+@media (max-width: 1024px) {
+    .month-header-container {
+        gap: 0.75rem;
+    }
+    
+    .month-buttons-container {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .create-month-btn,
+    #load-example-button {
+        flex: 1 1 auto;
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .month-header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        padding: var(--spacing-sm);
+    }
+    
+    .month-title-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .month-title {
+        font-size: 1.5rem;
+    }
+    
+    .month-selector-compact {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .month-selector-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-select {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .month-buttons-container {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .create-month-btn,
+    #load-example-button {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .income-section > div:first-child,
+    .fixed-costs-section > div:first-child,
+    .variable-costs-section > div:first-child,
+    .unplanned-expenses-section > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .income-section > div:first-child > div:last-child,
+    .fixed-costs-section > div:first-child > div:last-child,
+    .variable-costs-section > div:first-child > div:last-child,
+    .unplanned-expenses-section > div:first-child > div:last-child {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .income-section > div:first-child > div:last-child select,
+    .fixed-costs-section > div:first-child > div:last-child select,
+    .variable-costs-section > div:first-child > div:last-child select,
+    .unplanned-expenses-section > div:first-child > div:last-child select {
+        width: 100%;
+    }
+
+    .income-section > div:first-child > div:last-child button,
+    .fixed-costs-section > div:first-child > div:last-child button,
+    .variable-costs-section > div:first-child > div:last-child button,
+    .unplanned-expenses-section > div:first-child > div:last-child button {
+        width: 100%;
+    }
+}

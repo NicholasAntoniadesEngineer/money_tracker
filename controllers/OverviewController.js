@@ -1,11 +1,13 @@
 /**
  * Overview Controller
  * Handles the overview/dashboard view logic
+ * @module controllers/OverviewController
  */
 
 const OverviewController = {
     /**
      * Initialize the overview page
+     * @returns {void}
      */
     init() {
         this.loadOverviewData();
@@ -13,6 +15,7 @@ const OverviewController = {
 
     /**
      * Load and display overview data
+     * @returns {void}
      */
     loadOverviewData() {
         const allMonths = DataManager.getAllMonths();
@@ -93,6 +96,9 @@ const OverviewController = {
 
     /**
      * Render trends analysis
+     * @param {Array<string>} monthKeys - Sorted array of month keys
+     * @param {Object} allMonths - Object containing all month data
+     * @returns {void}
      */
     renderTrends(monthKeys, allMonths) {
         const trendsContainer = document.getElementById('trends-container');
@@ -128,34 +134,23 @@ const OverviewController = {
 
     /**
      * Calculate trend for a specific metric
+     * @param {Array<string>} monthKeys - Sorted array of month keys
+     * @param {Object} allMonths - Object containing all month data
+     * @param {string} type - Type of metric ('income', 'expenses', 'savings')
+     * @returns {Object} Trend data with average, percentage, and direction
      */
     calculateTrend(monthKeys, allMonths, type) {
-        const values = monthKeys.map(key => {
-            const totals = DataManager.calculateMonthTotals(allMonths[key]);
-            switch(type) {
-                case 'income': return totals.income.actual;
-                case 'expenses': return totals.expenses.actual;
-                case 'savings': return totals.savings.actual;
-                default: return 0;
-            }
-        });
-
-        const average = values.reduce((a, b) => a + b, 0) / values.length;
-        
-        const firstHalf = values.slice(0, Math.floor(values.length / 2));
-        const secondHalf = values.slice(Math.floor(values.length / 2));
-        
-        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
-        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-        
-        const percentage = firstAvg !== 0 ? ((secondAvg - firstAvg) / Math.abs(firstAvg)) * 100 : 0;
-        const direction = percentage > 0 ? '↑ Increasing' : percentage < 0 ? '↓ Decreasing' : '→ Stable';
-
-        return { average, percentage, direction };
+        if (!window.CalculationService) {
+            throw new Error('CalculationService not available');
+        }
+        return window.CalculationService.calculateTrend(monthKeys, allMonths, type);
     },
 
     /**
      * Delete a month
+     * @param {string} monthKey - Month key to delete
+     * @param {string} monthName - Display name of the month
+     * @returns {void}
      */
     deleteMonth(monthKey, monthName) {
         const confirmMessage = `Are you sure you want to delete ${monthName}? This action cannot be undone.`;
@@ -175,6 +170,9 @@ const OverviewController = {
 
     /**
      * Helper: Set element text content
+     * @param {string} id - Element ID
+     * @param {string} text - Text content to set
+     * @returns {void}
      */
     setElementText(id, text) {
         const el = document.getElementById(id);

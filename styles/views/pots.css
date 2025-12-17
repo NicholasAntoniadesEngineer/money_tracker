@@ -1,0 +1,16 @@
+/* ============================================================================
+   POTS PAGE STYLES
+   ============================================================================ */
+
+.pots-main > section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+.pots-main table {
+    /* Inherits all styles from .data-table */
+}
+
+.hero-section-pots {
+    background-color: rgba(220, 220, 220, 0.85);
+}

@@ -1,0 +1,4110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - Home</title>
+    <style>
+/* ===== styles/variables.css ===== */
+/* ============================================================================
+   CSS VARIABLES (Design Tokens)
+   ============================================================================ */
+
+:root {
+    /* ============================================
+       COLOR PALETTE - Centralized Color Scheme
+       ============================================ */
+    
+    /* Primary Colors */
+    --primary-color: #b0b0b0;
+    --primary-hover: #a0a0a0;
+    --primary-focus-shadow: rgba(168, 168, 168, 0.3);
+    
+    /* Secondary Colors */
+    --secondary-color: #b5b1aa;
+    --secondary-hover: #c5bdbd;
+    
+    /* Status Colors */
+    --success-color: #7bab8a;
+    --success-hover: #4d6a57;
+    --warning-color: #b5a58a;
+    --danger-color: #b58a8a;
+    --action-color: #7b9bab;
+    --action-hover: #4d6a7a;
+    --danger-hover: #7d4545;
+    
+    /* Background Colors */
+    --background-color: #c5c3c3;
+    --surface-color: #d0d0d0;
+    --surface-color-darker: #c5c5c5;
+    --surface-overlay-light: rgba(200, 196, 196, 0.98);
+    --surface-overlay-medium: rgba(180, 180, 180, 1.0);
+    --surface-overlay-section: rgba(180, 180, 180, 0.85);
+    --surface-overlay-card: rgba(180, 180, 180, 0.75);
+    --surface-overlay-card-landing: rgba(180, 180, 180, 0.80);
+    --surface-overlay-button: rgba(255, 255, 255, 0.6);
+    --surface-overlay-button-hover: rgba(255, 255, 255, 0.8);
+    
+    /* Text Colors */
+    --text-primary: #1b1b1b;
+    --text-secondary: #1a1a1a;
+    --text-white: #f1f1f1;
+    --text-black: #000000;
+    --text-placeholder: #ffffff;
+    --text-positive: #006c22;
+    
+    /* Border Colors */
+    --border-color: #9d9d9d;
+    --border-color-dark: #1f1f1f;
+    --border-color-black: #000000;
+    --border-print: #000000;
+    
+    /* Border Widths */
+    --border-width-thin: 0.2px;
+    --border-width-standard: 1px;
+    --border-width-thick: 2px;
+    
+    /* Interactive States */
+    --hover-overlay: rgba(255, 255, 255, 0.7);
+    --landing-overlay: rgba(202, 202, 202, 0.5);
+    --table-row-hover: #d3d3d3;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55);
+    
+    /* Spacing */
+    --spacing-xs: 0.55rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    
+    /* Spacing Multipliers (for reduced spacing) */
+    --spacing-multiplier-reduced: 0.2;
+    --spacing-multiplier-medium: 0.3;
+    --spacing-multiplier-standard: 0.8;
+    
+    /* Typography */
+    --line-height-base: 1.28;
+    --line-height-reduced: 1.28;
+    
+    /* Layout */
+    --border-radius: 0px;
+    --border-radius-multiplier: 1;
+    --transition: all 0.5s ease-in-out;
+    
+    /* Layout Dimensions */
+    --max-width-content: 1200px;
+    --viewport-spacing-top: 5vh;
+    --month-title-padding-left: 5%;
+    
+    /* Background Images */
+    --site-background: url('../reference/site_background_image.jpg');
+}
+
+
+/* ===== styles/reset.css ===== */
+/* ============================================================================
+   RESET & BASE STYLES
+   ============================================================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: var(--line-height-base);
+    color: var(--text-primary);
+    background-color: var(--background-color);
+    background-image: var(--site-background);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--site-background);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    z-index: -2;
+    pointer-events: none;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--landing-overlay);
+    z-index: -1;
+    pointer-events: none;
+}
+
+
+/* ===== styles/typography.css ===== */
+/* ============================================================================
+   TYPOGRAPHY
+   ============================================================================ */
+
+/* Base Typography */
+p, h1, h2, h3, h4, h5, h6, span, label, li {
+    line-height: var(--line-height-reduced);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+h3.section-title {
+    font-size: 1.25rem;
+}
+
+#month-title {
+    padding-left: var(--month-title-padding-left);
+}
+
+.section-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    font-style: italic;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.hero-description {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+
+/* ===== styles/layout.css ===== */
+/* ============================================================================
+   LAYOUT COMPONENTS
+   ============================================================================ */
+
+/* Main Content */
+main {
+    flex: 1;
+    max-width: var(--max-width-content);
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-sm) var(--spacing-sm);
+}
+
+/* Footer */
+.main-footer {
+    background-color: rgba(210, 210, 210, 0.85);
+    border-top: var(--border-width-standard) solid var(--border-color);
+    padding: var(--spacing-sm);
+    text-align: center;
+    color: var(--text-secondary);
+    margin-top: auto;
+}
+
+
+/* ===== styles/components/navigation.css ===== */
+/* ============================================================================
+   NAVIGATION COMPONENT
+   ============================================================================ */
+
+/* Header - Consistent across all views (isolated from page-specific styles) */
+.main-header {
+    background-color: rgba(210, 210, 210, 0.85);
+    border-bottom: var(--border-width-standard) solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    isolation: isolate;
+    margin: 0;
+    padding: 0;
+    background-image: none;
+}
+
+body .main-header,
+body.landing-page .main-header,
+body:not(.landing-page) .main-header {
+    background-color: rgba(210, 210, 210, 0.85);
+    border-bottom: var(--border-width-standard) solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    background-image: none;
+}
+
+body .main-navigation,
+body.landing-page .main-navigation,
+body:not(.landing-page) .main-navigation {
+    max-width: var(--max-width-content);
+    margin: 0 auto;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--spacing-sm);
+}
+
+.main-navigation {
+    max-width: var(--max-width-content);
+    margin: 0 auto;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--spacing-sm);
+}
+
+.header-title-group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 1;
+    gap: var(--spacing-xs);
+    min-width: 0;
+}
+
+.header-title-group > .site-title {
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+}
+
+.header-title-group > .hamburger-menu {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.main-navigation > .nav-list {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    flex-shrink: 1;
+    white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
+    .main-navigation {
+        flex-wrap: nowrap !important;
+    }
+    
+    .header-title-group {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+    
+    .header-title-group > .site-title {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 1rem;
+    }
+    
+    .header-title-group > .hamburger-menu {
+        display: none !important;
+    }
+    
+    .main-navigation > .nav-list {
+        flex-shrink: 1;
+        min-width: 0;
+        display: flex !important;
+    }
+    
+    .nav-list {
+        gap: var(--spacing-xs);
+    }
+    
+    .nav-link {
+        font-size: 0.9rem;
+        padding: var(--spacing-xs);
+    }
+}
+
+.site-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
+    order: 1;
+}
+
+.nav-list {
+    display: flex;
+    list-style: none;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 0px;
+    transition: var(--transition);
+    display: inline-block;
+}
+
+.nav-link:hover,
+.nav-link.active,
+.nav-link[aria-current="page"] {
+    color: var(--text-primary);
+    background-color: var(--hover-overlay);
+}
+
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--spacing-sm);
+    flex-shrink: 0;
+    order: 2;
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 3px;
+    background-color: var(--text-primary);
+    border-radius: 0px;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu[aria-expanded="true"] .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+@media (max-width: 900px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
+    .main-navigation {
+        position: relative;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    .main-navigation > .site-title {
+        flex: 0 1 auto !important;
+        max-width: calc(100% - 40px) !important;
+        margin-right: 0 !important;
+    }
+    
+    .main-navigation > .hamburger-menu {
+        flex: 0 0 auto !important;
+        margin-left: var(--spacing-xs) !important;
+    }
+
+    .site-title {
+        font-size: 1rem;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: calc(100% - 40px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+        padding: 0;
+        order: 1;
+        line-height: 1.2;
+    }
+
+    .hamburger-menu {
+        display: flex !important;
+        width: 22px;
+        height: 18px;
+        margin-left: var(--spacing-xs);
+        flex-shrink: 0;
+        order: 2;
+        padding: 0;
+        min-width: 22px;
+    }
+
+    .hamburger-line {
+        height: 2px;
+    }
+}
+
+@media (max-width: 768px) {
+    body .main-navigation,
+    body.landing-page .main-navigation,
+    body:not(.landing-page) .main-navigation,
+    .main-navigation {
+        position: relative;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .site-title {
+        font-size: 0.9rem;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: calc(100% - 35px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+        padding: 0;
+        order: 1;
+        line-height: 1.2;
+    }
+
+    .main-navigation > .nav-list {
+        display: none !important;
+    }
+
+    .header-title-group > .hamburger-menu {
+        display: flex !important;
+        width: 22px;
+        height: 18px;
+        flex-shrink: 0;
+        padding: 0;
+        min-width: 22px;
+        margin: 0;
+    }
+    
+    .hamburger-menu {
+        display: flex !important;
+    }
+
+    .hamburger-line {
+        height: 2px;
+    }
+
+    .nav-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: rgba(210, 210, 210, 0.85);
+        border: var(--border-width-thin) solid var(--border-color-black);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-md);
+        flex-direction: column;
+        gap: 0;
+        padding: var(--spacing-sm) 0;
+        transform: translateY(-10px);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        width: 100%;
+        flex: 0 0 auto;
+        order: 3;
+        display: flex !important;
+    }
+
+    .main-navigation > .nav-list.nav-open {
+        display: flex !important;
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .nav-list.nav-open {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .nav-list li {
+        width: 100%;
+        text-align: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-list li:last-child {
+        border-bottom: none;
+    }
+
+    .nav-link {
+        display: block;
+        padding: var(--spacing-sm) var(--spacing-md);
+        width: 100%;
+        text-align: center;
+        border-radius: 0;
+    }
+
+    .nav-link:hover,
+    .nav-link.active,
+    .nav-link[aria-current="page"] {
+        background-color: var(--hover-overlay);
+    }
+}
+
+
+/* ===== styles/components/forms.css ===== */
+/* ============================================================================
+   FORM COMPONENTS
+   ============================================================================ */
+
+.form-section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border: var(--border-width-standard) solid var(--border-color-dark);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.working-section {
+    border-radius: 0px;
+}
+
+.months-comparison-section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+.form-group {
+    margin-bottom: var(--spacing-sm);
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: var(--transition);
+    font-family: inherit;
+    background-color: rgba(230, 230, 230, 0.85);
+    color: var(--text-primary);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-focus-shadow);
+}
+
+#copy-income-from-month,
+#copy-fixed-costs-from-month,
+#copy-variable-costs-from-month,
+#copy-unplanned-from-month {
+    width: auto !important;
+    min-width: fit-content;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    background-color: rgba(230, 230, 230, 0.85);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input::placeholder,
+textarea::placeholder,
+select::placeholder,
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder,
+select::-webkit-input-placeholder,
+input::-moz-placeholder,
+textarea::-moz-placeholder,
+select::-moz-placeholder,
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder,
+select:-ms-input-placeholder {
+    color: var(--text-placeholder);
+    opacity: 1;
+}
+
+
+/* ===== styles/components/tables.css ===== */
+/* ============================================================================
+   TABLE COMPONENTS
+   ============================================================================ */
+
+table:not(.data-table) {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: rgba(216, 216, 216, 0.85);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-lg);
+    border: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) th,
+table:not(.data-table) td {
+    line-height: var(--line-height-reduced);
+    padding-top: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
+    padding-bottom: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced));
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+    background-color: rgba(221, 221, 221, 0.85);
+    border: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) th:first-child,
+table:not(.data-table) td:first-child {
+    border-left: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) thead th {
+    border-top: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) thead th:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) tbody tr:last-child td,
+table:not(.data-table) tfoot tr:last-child td {
+    border-bottom: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) tbody tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+table:not(.data-table) tfoot tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: rgba(213, 213, 213, 0.85);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-lg);
+    border: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table th {
+    background-color: rgba(208, 208, 208, 0.85);
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-sm);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table th:first-child {
+    border-left: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table thead th {
+    border-top: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table thead th:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table td {
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
+    border: var(--border-width-thin) solid var(--border-color-black);
+    background-color: rgba(221, 221, 221, 0.85);
+}
+
+.data-table td:first-child {
+    border-left: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table tbody tr:last-child td,
+.data-table tfoot tr:last-child td {
+    border-bottom: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table tbody tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table tfoot tr:last-child td:last-child {
+    border-right: var(--border-width-thin) solid var(--border-color-black);
+}
+
+.data-table tr {
+    background-color: rgba(221, 221, 221, 0.85);
+}
+
+.data-table tr:hover {
+    background-color: rgba(208, 208, 208, 0.85);
+}
+
+.data-table input[type="number"],
+.data-table input[type="text"],
+.data-table input[type="date"],
+.data-table select,
+.data-table textarea {
+    width: 100%;
+    padding: var(--spacing-xs);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: 0px;
+    font-size: 0.875rem;
+    background-color: #ffffff;
+    color: var(--text-primary);
+}
+
+.data-table input::placeholder,
+.data-table textarea::placeholder,
+.data-table input::-webkit-input-placeholder,
+.data-table textarea::-webkit-input-placeholder,
+.data-table input::-moz-placeholder,
+.data-table textarea::-moz-placeholder,
+.data-table input:-ms-input-placeholder,
+.data-table textarea:-ms-input-placeholder {
+    color: var(--text-placeholder);
+    opacity: 1;
+}
+
+.data-table .total-row {
+    font-weight: 600;
+    background-color: rgba(200, 200, 200, 0.85);
+}
+
+#weekly-breakdown-table {
+    border-radius: 0px;
+    table-layout: auto;
+    width: 100%;
+}
+
+#weekly-breakdown-table th,
+#weekly-breakdown-table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+#weekly-breakdown-table th:first-child,
+#weekly-breakdown-table td:first-child {
+    width: 100px;
+    min-width: 80px;
+    max-width: 120px;
+}
+
+#weekly-breakdown-table th:nth-child(2),
+#weekly-breakdown-table td:nth-child(2) {
+    width: auto;
+    min-width: 180px;
+    max-width: 350px;
+}
+
+#weekly-breakdown-table th:nth-child(n+3):not(:nth-last-child(2)):not(:nth-last-child(3)):not(:last-child),
+#weekly-breakdown-table td:nth-child(n+3):not(:nth-last-child(2)):not(:nth-last-child(3)):not(:last-child) {
+    width: auto;
+    min-width: 150px;
+    max-width: 250px;
+}
+
+#weekly-breakdown-table th:nth-last-child(3),
+#weekly-breakdown-table td:nth-last-child(3) {
+    width: auto;
+    min-width: 100px;
+    max-width: 150px;
+}
+
+#weekly-breakdown-table th:nth-last-child(2),
+#weekly-breakdown-table td:nth-last-child(2) {
+    width: auto;
+    min-width: 100px;
+    max-width: 150px;
+}
+
+#weekly-breakdown-table th:last-child,
+#weekly-breakdown-table td:last-child {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+}
+
+#weekly-breakdown-tbody input,
+#weekly-breakdown-tbody textarea {
+    border-color: var(--border-color-black);
+}
+
+.delete-column-header {
+    width: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.data-table td:last-child:has(.delete-row-x) {
+    width: 40px;
+    padding: var(--spacing-xs);
+    border: none;
+    background: transparent;
+    text-align: center;
+}
+
+.delete-row-x {
+    cursor: pointer;
+    color: var(--danger-color);
+    font-size: 1.4rem;
+    font-weight: bold;
+    padding: 0.5rem;
+    line-height: 1;
+    user-select: none;
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    border-radius: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.delete-row-x:hover {
+    color: var(--danger-hover);
+    background-color: rgba(181, 138, 138, 0.2);
+}
+
+.delete-row-x:active {
+    transform: scale(0.9);
+}
+
+.data-table td:last-child:has(.btn):has(.delete-row-x) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: var(--spacing-xs);
+    width: auto;
+    min-width: 100px;
+}
+
+.data-table td:last-child:has(.btn):has(.delete-row-x) .delete-row-x {
+    margin-left: auto;
+}
+
+
+/* ===== styles/components/buttons.css ===== */
+/* ============================================================================
+   BUTTON COMPONENTS
+   ============================================================================ */
+
+.btn {
+    padding: 0.3rem 0.5rem;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-align: center;
+    min-height: 1.85rem;
+    height: 1.85rem;
+    box-sizing: border-box;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--text-white);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+    background-color: rgba(210, 210, 210, 0.85);
+    color: var(--text-black);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(200, 200, 200, 0.85);
+    color: var(--text-black);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: var(--text-white);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-hover);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: var(--text-white);
+}
+
+.btn-success:hover {
+    background-color: var(--success-hover);
+}
+
+.btn-action {
+    background-color: var(--action-color);
+    color: var(--text-white);
+}
+
+.btn-action:hover {
+    background-color: var(--action-hover);
+}
+
+.btn-sm {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#export-format-select {
+    background-color: var(--action-color) !important;
+    color: var(--text-white) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 0.5rem 1rem !important;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+#export-format-select:hover {
+    background-color: var(--action-hover) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
+}
+
+#export-format-select option {
+    background-color: var(--action-color);
+    color: var(--text-white);
+}
+
+
+/* ===== styles/components/cards.css ===== */
+/* ============================================================================
+   CARD COMPONENTS
+   ============================================================================ */
+
+.view-card {
+    background-color: rgba(220, 220, 220, 0.85) !important;
+    border: var(--border-width-standard) solid var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: var(--spacing-md) !important;
+    box-shadow: var(--shadow-md) !important;
+    backdrop-filter: blur(10px);
+    transition: var(--transition);
+    cursor: pointer;
+    color: inherit;
+    text-align: left;
+    display: block;
+    width: 100%;
+    text-decoration: none !important;
+}
+
+body.landing-page .view-card {
+    background-color: rgba(225, 225, 225, 0.85) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.view-card:hover,
+.view-card:focus {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    outline: var(--border-width-thick) solid var(--primary-color);
+    outline-offset: var(--border-width-thick);
+    background-color: rgba(210, 210, 210, 0.85);
+}
+
+body.landing-page .view-card:hover,
+body.landing-page .view-card:focus {
+    background-color: rgba(210, 210, 210, 0.85);
+}
+
+.view-card-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+    display: block;
+}
+
+.view-card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+    line-height: var(--line-height-reduced);
+}
+
+.view-card-description {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+    line-height: var(--line-height-reduced);
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.summary-card {
+    background-color: rgba(215, 215, 215, 0.85);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    padding: var(--spacing-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.summary-card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.summary-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.summary-card-value.positive {
+    color: var(--text-positive);
+}
+
+.summary-card-value.negative {
+    color: var(--danger-color);
+}
+
+.month-item {
+    background-color: rgba(220, 220, 220, 0.85);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    text-decoration: none;
+    color: var(--text-primary);
+    display: block;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+}
+
+.month-item:hover,
+.month-item:focus {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    outline: var(--border-width-thick) solid var(--primary-color);
+    outline-offset: var(--border-width-thick);
+}
+
+.month-item-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.month-item-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.action-button {
+    background-color: rgba(210, 210, 210, 0.85);
+    color: var(--text-primary);
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+}
+
+.action-button:hover,
+.action-button:focus {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    outline: var(--border-width-thick) solid var(--primary-color);
+    outline-offset: var(--border-width-thick);
+}
+
+.action-button:active {
+    transform: translateY(0);
+}
+
+.action-icon {
+    font-size: 1.25rem;
+}
+
+
+/* ===== styles/views/landing.css ===== */
+/* ============================================================================
+   LANDING PAGE STYLES
+   ============================================================================ */
+
+.hero-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border: var(--border-width-standard) solid var(--border-color-dark);
+    border-radius: 0px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.views-section {
+    margin-top: var(--viewport-spacing-top);
+}
+
+.views-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.months-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+    .views-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .view-card {
+        padding: var(--spacing-md);
+        background-color: rgba(220, 220, 220, 0.85);
+    }
+    
+    body.landing-page .view-card {
+        background-color: rgba(225, 225, 225, 0.85);
+    }
+}
+
+
+/* ===== styles/views/monthly-budget.css ===== */
+/* ============================================================================
+   MONTHLY BUDGET PAGE STYLES
+   ============================================================================ */
+
+.month-selector-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border-radius: 0px;
+}
+
+.month-header-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: var(--spacing-md);
+}
+
+.month-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.month-selector-compact {
+    padding: 0.5rem 1rem;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-width: 180px;
+    max-width: 220px;
+}
+
+.month-selector-compact:hover {
+    background-color: var(--bg-input-hover, rgba(240, 240, 240, 0.9));
+}
+
+.month-selector-compact:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.month-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-selector-wrapper .form-label {
+    margin: 0;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.month-selector-wrapper .form-select {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.month-buttons-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.create-month-btn {
+    flex-shrink: 1;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#month-content > section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+@media (max-width: 1024px) {
+    .month-header-container {
+        gap: 0.75rem;
+    }
+    
+    .month-buttons-container {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .create-month-btn,
+    #load-example-button {
+        flex: 1 1 auto;
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .month-header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        padding: var(--spacing-sm);
+    }
+    
+    .month-title-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .month-title {
+        font-size: 1.5rem;
+    }
+    
+    .month-selector-compact {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .month-selector-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-select {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .month-buttons-container {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .create-month-btn,
+    #load-example-button {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .income-section > div:first-child,
+    .fixed-costs-section > div:first-child,
+    .variable-costs-section > div:first-child,
+    .unplanned-expenses-section > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .income-section > div:first-child > div:last-child,
+    .fixed-costs-section > div:first-child > div:last-child,
+    .variable-costs-section > div:first-child > div:last-child,
+    .unplanned-expenses-section > div:first-child > div:last-child {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .income-section > div:first-child > div:last-child select,
+    .fixed-costs-section > div:first-child > div:last-child select,
+    .variable-costs-section > div:first-child > div:last-child select,
+    .unplanned-expenses-section > div:first-child > div:last-child select {
+        width: 100%;
+    }
+
+    .income-section > div:first-child > div:last-child button,
+    .fixed-costs-section > div:first-child > div:last-child button,
+    .variable-costs-section > div:first-child > div:last-child button,
+    .unplanned-expenses-section > div:first-child > div:last-child button {
+        width: 100%;
+    }
+}
+
+
+/* ===== styles/views/overview.css ===== */
+/* ============================================================================
+   OVERVIEW PAGE STYLES
+   ============================================================================ */
+
+.summary-section {
+    background-color: rgba(215, 215, 215, 0.85);
+}
+
+.trend-item {
+    background-color: rgba(220, 220, 220, 0.85);
+    border: var(--border-width-standard) solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.trend-item h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.trend-item p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ===== styles/views/pots.css ===== */
+/* ============================================================================
+   POTS PAGE STYLES
+   ============================================================================ */
+
+.pots-main > section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+.pots-main table {
+    /* Inherits all styles from .data-table */
+}
+
+.hero-section-pots {
+    background-color: rgba(220, 220, 220, 0.85);
+}
+
+
+/* ===== styles/views/settings.css ===== */
+/* ============================================================================
+   SETTINGS PAGE STYLES
+   ============================================================================ */
+
+/* Settings-specific styles can be added here */
+
+
+/* ===== styles/utilities.css ===== */
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.loading-message,
+.empty-message {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: var(--spacing-md);
+    font-style: italic;
+}
+
+
+/* ===== styles/responsive.css ===== */
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+    }
+
+    .data-table {
+        font-size: 0.875rem;
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 1.75rem;
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+    }
+    
+    h3.section-title {
+        font-size: 1.15rem;
+    }
+
+    .form-section {
+        padding: var(--spacing-md);
+    }
+}
+
+
+/* ===== styles/print.css ===== */
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+    .main-header,
+    .main-footer,
+    .action-button,
+    .btn {
+        display: none;
+    }
+
+    main {
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .view-card,
+    .summary-card,
+    .form-section {
+        box-shadow: none;
+        border: var(--border-width-standard) solid var(--border-print);
+        page-break-inside: avoid;
+    }
+}
+
+</style>
+    <link rel="icon" href="data:,">
+</head>
+<body class="landing-page">
+    <!-- Header will be injected by Header.js -->
+
+    <main class="landing-main" role="main">
+
+
+        <section class="views-section" aria-labelledby="views-heading">
+            <div class="views-grid">
+                <a href="views/monthly-budget.html" class="view-card" tabindex="0" role="button" aria-label="Go to Monthly Budget view">
+                    <h3 class="view-card-title">Monthly Budget</h3>
+                </a>
+
+                <a href="views/pots.html" class="view-card" tabindex="0" role="button" aria-label="Go to Pots & Investments view">
+                    <h3 class="view-card-title">Pots & Investments</h3>
+                </a>
+
+                <a href="views/overview.html" class="view-card" tabindex="0" role="button" aria-label="Go to Overview view">
+                    <h3 class="view-card-title">Overview</h3>
+                </a>
+            </div>
+        </section>
+
+        <section class="recent-months-section" aria-labelledby="recent-months-heading">
+            <h2 id="recent-months-heading" class="section-title">Recent Months</h2>
+            <div id="recent-months-container" class="months-list">
+                <p class="loading-message">Loading months...</p>
+            </div>
+        </section>
+
+        <section class="quick-actions-section" aria-labelledby="quick-actions-heading">
+            <h2 id="quick-actions-heading" class="section-title">Quick Actions</h2>
+            <div class="actions-grid">
+                <button id="create-new-month-button" class="action-button" aria-label="Create a new month budget">
+                    <span class="action-icon">➕</span>
+                    <span class="action-text">Create New Month</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
+    </footer>
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+<script>
+// ===== models/StorageService.js =====
+/**
+ * Storage Service
+ * Abstracted localStorage operations with error handling
+ * @module models/StorageService
+ */
+
+const StorageService = {
+    /**
+     * Get value from localStorage
+     * @param {string} key - Storage key
+     * @returns {*} Parsed value or null
+     */
+    get(key) {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : null;
+        } catch (error) {
+            console.error(`Error loading data for key ${key}:`, error);
+            return null;
+        }
+    },
+
+    /**
+     * Set value in localStorage
+     * @param {string} key - Storage key
+     * @param {*} value - Value to store
+     * @returns {boolean} Success status
+     */
+    set(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+            return true;
+        } catch (error) {
+            console.error(`Error saving data for key ${key}:`, error);
+            return false;
+        }
+    },
+
+    /**
+     * Remove value from localStorage
+     * @param {string} key - Storage key
+     * @returns {boolean} Success status
+     */
+    remove(key) {
+        try {
+            localStorage.removeItem(key);
+            return true;
+        } catch (error) {
+            console.error(`Error removing data for key ${key}:`, error);
+            return false;
+        }
+    },
+
+    /**
+     * Clear all localStorage
+     * @returns {boolean} Success status
+     */
+    clear() {
+        try {
+            localStorage.clear();
+            return true;
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+            return false;
+        }
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.StorageService = StorageService;
+}
+
+
+// ===== models/MonthFactory.js =====
+/**
+ * Month Factory
+ * Creates and manages month data structures
+ * @module models/MonthFactory
+ */
+
+const MonthFactory = {
+    /**
+     * Generate a month key from year and month
+     * @param {number} year - Year (e.g., 2025)
+     * @param {number} month - Month (1-12)
+     * @returns {string} Month key (e.g., "2025-11")
+     */
+    generateMonthKey(year, month) {
+        if (!year || !month || month < 1 || month > 12) {
+            throw new Error('Invalid year or month');
+        }
+        return `${year}-${String(month).padStart(2, '0')}`;
+    },
+
+    /**
+     * Parse month key to year and month
+     * @param {string} monthKey - Month key (e.g., "2025-11")
+     * @returns {Object} Object with year and month
+     */
+    parseMonthKey(monthKey) {
+        if (!monthKey || typeof monthKey !== 'string') {
+            throw new Error('Invalid month key');
+        }
+        const parts = monthKey.split('-');
+        if (parts.length !== 2) {
+            throw new Error('Invalid month key format');
+        }
+        return {
+            year: parseInt(parts[0], 10),
+            month: parseInt(parts[1], 10)
+        };
+    },
+
+    /**
+     * Get month name from month number
+     * @param {number} monthNumber - Month number (1-12)
+     * @returns {string} Month name
+     */
+    getMonthName(monthNumber) {
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        if (monthNumber < 1 || monthNumber > 12) {
+            throw new Error('Invalid month number');
+        }
+        return monthNames[monthNumber - 1] || '';
+    },
+
+    /**
+     * Create a new month with default structure
+     * @param {number} year - Year
+     * @param {number} month - Month (1-12)
+     * @param {Object} settings - Settings object with defaults
+     * @returns {Object} New month data object
+     */
+    createNewMonth(year, month, settings = {}) {
+        if (!year || !month || month < 1 || month > 12) {
+            throw new Error('Invalid year or month');
+        }
+
+        const monthKey = this.generateMonthKey(year, month);
+        const monthName = this.getMonthName(month);
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0);
+
+        const defaultVariableCategories = settings.defaultVariableCategories || ['Food', 'Travel/Transport', 'Activities'];
+        const variableCosts = defaultVariableCategories.map(category => ({
+            category: category,
+            estimatedAmount: 0,
+            actualAmount: 0,
+            comments: ''
+        }));
+
+        const newMonth = {
+            key: monthKey,
+            year: year,
+            month: month,
+            monthName: monthName,
+            dateRange: {
+                start: startDate.toISOString().split('T')[0],
+                end: endDate.toISOString().split('T')[0]
+            },
+            weeklyBreakdown: [],
+            fixedCosts: [],
+            variableCosts: variableCosts,
+            unplannedExpenses: [],
+            incomeSources: [],
+            pots: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        return newMonth;
+    },
+
+    /**
+     * Calculate number of weeks in a month
+     * @param {number} year - Year
+     * @param {number} month - Month (1-12)
+     * @returns {Array} Array of week objects with start and end dates
+     */
+    calculateWeeksInMonth(year, month) {
+        const weeks = [];
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+        const daysInMonth = lastDay.getDate();
+        
+        const firstDayOfWeek = firstDay.getDay();
+        const daysToMonday = firstDayOfWeek === 0 ? -6 : 1 - firstDayOfWeek;
+        
+        let weekStartDay = 1 + daysToMonday;
+        let weekEndDay = weekStartDay + 6;
+        
+        if (weekStartDay < 1) {
+            weekStartDay = 1;
+        }
+        
+        while (weekStartDay <= daysInMonth) {
+            if (weekEndDay > daysInMonth) {
+                weekEndDay = daysInMonth;
+            }
+            
+            weeks.push({
+                startDate: weekStartDay,
+                endDate: weekEndDay,
+                startFullDate: new Date(year, month - 1, weekStartDay),
+                endFullDate: new Date(year, month - 1, weekEndDay),
+                weekNumber: weeks.length + 1
+            });
+            
+            weekStartDay = weekEndDay + 1;
+            weekEndDay = weekStartDay + 6;
+        }
+        
+        return weeks;
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.MonthFactory = MonthFactory;
+}
+
+
+// ===== services/CalculationService.js =====
+/**
+ * Calculation Service
+ * Pure functions for all financial calculations
+ * @module services/CalculationService
+ */
+
+const CalculationService = {
+    /**
+     * Calculate totals for a month
+     * @param {Object} monthData - The month data object
+     * @returns {Object} Totals object with estimated and actual values
+     */
+    calculateMonthTotals(monthData) {
+        if (!monthData) {
+            throw new Error('Month data is required for calculation');
+        }
+
+        const totals = {
+            fixedCosts: { estimated: 0, actual: 0 },
+            variableCosts: { estimated: 0, actual: 0 },
+            unplannedExpenses: { actual: 0 },
+            income: { estimated: 0, actual: 0 },
+            pots: { estimated: 0, actual: 0 },
+            expenses: { estimated: 0, actual: 0 },
+            savings: { estimated: 0, actual: 0 }
+        };
+
+        if (monthData.fixedCosts && Array.isArray(monthData.fixedCosts)) {
+            monthData.fixedCosts.forEach(cost => {
+                totals.fixedCosts.estimated += this.parseNumber(cost.estimatedAmount || 0);
+                totals.fixedCosts.actual += this.parseNumber(cost.actualAmount || 0);
+            });
+        }
+
+        if (monthData.variableCosts && Array.isArray(monthData.variableCosts)) {
+            monthData.variableCosts.forEach(cost => {
+                totals.variableCosts.estimated += this.parseNumber(cost.monthlyBudget || cost.estimatedAmount || 0);
+                totals.variableCosts.actual += this.parseNumber(cost.actualSpent || cost.actualAmount || 0);
+            });
+        }
+
+        if (monthData.unplannedExpenses && Array.isArray(monthData.unplannedExpenses)) {
+            monthData.unplannedExpenses.forEach(expense => {
+                totals.unplannedExpenses.actual += this.parseNumber(expense.amount || 0);
+            });
+        }
+
+        if (monthData.incomeSources && Array.isArray(monthData.incomeSources)) {
+            monthData.incomeSources.forEach(income => {
+                totals.income.estimated += this.parseNumber(income.estimated || 0);
+                totals.income.actual += this.parseNumber(income.actual || 0);
+            });
+        } else if (monthData.income) {
+            totals.income.estimated = 
+                this.parseNumber(monthData.income.nicholasIncome?.estimated || 0) +
+                this.parseNumber(monthData.income.laraIncome?.estimated || 0) +
+                this.parseNumber(monthData.income.otherIncome?.estimated || 0);
+            
+            totals.income.actual = 
+                this.parseNumber(monthData.income.nicholasIncome?.actual || 0) +
+                this.parseNumber(monthData.income.laraIncome?.actual || 0) +
+                this.parseNumber(monthData.income.otherIncome?.actual || 0);
+        }
+
+        if (monthData.pots && Array.isArray(monthData.pots)) {
+            monthData.pots.forEach(pot => {
+                totals.pots.estimated += this.parseNumber(pot.estimatedAmount || 0);
+                totals.pots.actual += this.parseNumber(pot.actualAmount || 0);
+            });
+        }
+
+        totals.expenses.estimated = totals.fixedCosts.estimated + totals.variableCosts.estimated;
+        totals.expenses.actual = totals.fixedCosts.actual + totals.variableCosts.actual + totals.unplannedExpenses.actual;
+
+        totals.savings.estimated = totals.income.estimated - totals.expenses.estimated - totals.pots.estimated;
+        totals.savings.actual = totals.income.actual - totals.expenses.actual - totals.pots.actual;
+
+        return totals;
+    },
+
+    /**
+     * Calculate week totals from weekly breakdown
+     * @param {Array} weeklyBreakdown - Array of week objects
+     * @returns {Object} Totals for estimate and actual
+     */
+    calculateWeekTotals(weeklyBreakdown) {
+        if (!Array.isArray(weeklyBreakdown)) {
+            return { estimate: 0, actual: 0 };
+        }
+
+        const totals = weeklyBreakdown.reduce((acc, week) => {
+            acc.estimate += this.parseNumber(week.estimate || week.weeklyEstimate || 0);
+            acc.actual += this.parseNumber(week.actual || 0);
+            return acc;
+        }, { estimate: 0, actual: 0 });
+
+        return totals;
+    },
+
+    /**
+     * Calculate trend for a specific metric across months
+     * @param {Array<string>} monthKeys - Sorted array of month keys
+     * @param {Object} allMonths - Object containing all month data
+     * @param {string} type - Type of metric ('income', 'expenses', 'savings')
+     * @returns {Object} Trend data with average, percentage, and direction
+     */
+    calculateTrend(monthKeys, allMonths, type) {
+        if (!Array.isArray(monthKeys) || monthKeys.length < 2) {
+            return { average: 0, percentage: 0, direction: '→ Stable' };
+        }
+
+        const values = monthKeys.map(key => {
+            const monthData = allMonths[key];
+            if (!monthData) return 0;
+            
+            const totals = this.calculateMonthTotals(monthData);
+            switch(type) {
+                case 'income': return totals.income.actual;
+                case 'expenses': return totals.expenses.actual;
+                case 'savings': return totals.savings.actual;
+                default: return 0;
+            }
+        });
+
+        const average = values.reduce((a, b) => a + b, 0) / values.length;
+        
+        const firstHalf = values.slice(0, Math.floor(values.length / 2));
+        const secondHalf = values.slice(Math.floor(values.length / 2));
+        
+        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+        
+        const percentage = firstAvg !== 0 ? ((secondAvg - firstAvg) / Math.abs(firstAvg)) * 100 : 0;
+        const direction = percentage > 0 ? '↑ Increasing' : percentage < 0 ? '↓ Decreasing' : '→ Stable';
+
+        return { average, percentage, direction };
+    },
+
+    /**
+     * Calculate savings amount
+     * @param {number} income - Total income
+     * @param {number} expenses - Total expenses
+     * @param {number} pots - Total pots/investments
+     * @returns {number} Savings amount
+     */
+    calculateSavings(income, expenses, pots) {
+        return this.parseNumber(income) - this.parseNumber(expenses) - this.parseNumber(pots);
+    },
+
+    /**
+     * Parse number safely, returning 0 for invalid values
+     * @param {*} value - Value to parse
+     * @returns {number} Parsed number or 0
+     */
+    parseNumber(value) {
+        const parsed = parseFloat(value || 0);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.CalculationService = CalculationService;
+}
+
+
+// ===== services/FormHandler.js =====
+/**
+ * Form Handler Service
+ * Handles form input creation, validation, and data extraction
+ * @module services/FormHandler
+ */
+
+const FormHandler = {
+    /**
+     * Create a text input element
+     * @param {Object} options - Input options
+     * @param {string} options.type - Input type (text, number, date, etc.)
+     * @param {string} options.value - Initial value
+     * @param {string} options.placeholder - Placeholder text
+     * @param {string} options.className - CSS class name
+     * @param {string} options.id - Element ID
+     * @param {Function} options.onChange - Change event handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLInputElement} Created input element
+     */
+    createInput({ type = 'text', value = '', placeholder = '', className = '', id = '', onChange = null, attributes = {} }) {
+        const input = document.createElement('input');
+        input.type = type;
+        input.value = value || '';
+        input.placeholder = placeholder;
+        if (className) input.className = className;
+        if (id) input.id = id;
+        
+        Object.entries(attributes).forEach(([key, val]) => {
+            input.setAttribute(key, val);
+        });
+
+        if (onChange && typeof onChange === 'function') {
+            input.addEventListener('input', onChange);
+        }
+
+        return input;
+    },
+
+    /**
+     * Create a textarea element
+     * @param {Object} options - Textarea options
+     * @param {string} options.value - Initial value
+     * @param {string} options.placeholder - Placeholder text
+     * @param {string} options.className - CSS class name
+     * @param {string} options.id - Element ID
+     * @param {Function} options.onChange - Change event handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLTextAreaElement} Created textarea element
+     */
+    createTextarea({ value = '', placeholder = '', className = '', id = '', onChange = null, attributes = {} }) {
+        const textarea = document.createElement('textarea');
+        textarea.value = value || '';
+        textarea.placeholder = placeholder;
+        if (className) textarea.className = className;
+        if (id) textarea.id = id;
+        
+        Object.entries(attributes).forEach(([key, val]) => {
+            textarea.setAttribute(key, val);
+        });
+
+        if (onChange && typeof onChange === 'function') {
+            textarea.addEventListener('input', onChange);
+        }
+
+        return textarea;
+    },
+
+    /**
+     * Create a select element with options
+     * @param {Object} options - Select options
+     * @param {Array} options.options - Array of {value, text} objects
+     * @param {string} options.value - Selected value
+     * @param {string} options.className - CSS class name
+     * @param {string} options.id - Element ID
+     * @param {Function} options.onChange - Change event handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLSelectElement} Created select element
+     */
+    createSelect({ options = [], value = '', className = '', id = '', onChange = null, attributes = {} }) {
+        const select = document.createElement('select');
+        if (className) select.className = className;
+        if (id) select.id = id;
+        
+        Object.entries(attributes).forEach(([key, val]) => {
+            select.setAttribute(key, val);
+        });
+
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value || '';
+            optionElement.textContent = option.text || option.label || '';
+            if (option.value === value) {
+                optionElement.selected = true;
+            }
+            select.appendChild(optionElement);
+        });
+
+        if (onChange && typeof onChange === 'function') {
+            select.addEventListener('change', onChange);
+        }
+
+        return select;
+    },
+
+    /**
+     * Create a date input element
+     * @param {Object} options - Date input options
+     * @param {string} options.value - Initial date value (YYYY-MM-DD)
+     * @param {string} options.className - CSS class name
+     * @param {string} options.id - Element ID
+     * @param {Function} options.onChange - Change event handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLInputElement} Created date input element
+     */
+    createDateInput({ value = '', className = '', id = '', onChange = null, attributes = {} }) {
+        return this.createInput({
+            type: 'date',
+            value,
+            className,
+            id,
+            onChange,
+            attributes
+        });
+    },
+
+    /**
+     * Create a checkbox input element
+     * @param {Object} options - Checkbox options
+     * @param {boolean} options.checked - Initial checked state
+     * @param {string} options.className - CSS class name
+     * @param {string} options.id - Element ID
+     * @param {Function} options.onChange - Change event handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLInputElement} Created checkbox element
+     */
+    createCheckbox({ checked = false, className = '', id = '', onChange = null, attributes = {} }) {
+        const checkbox = this.createInput({
+            type: 'checkbox',
+            className,
+            id,
+            onChange,
+            attributes
+        });
+        checkbox.checked = checked;
+        return checkbox;
+    },
+
+    /**
+     * Get form data from a form element or container
+     * @param {HTMLElement} formElement - Form or container element
+     * @param {Object} fieldMappings - Optional field name mappings
+     * @returns {Object} Form data object
+     */
+    getFormData(formElement, fieldMappings = {}) {
+        if (!formElement) {
+            throw new Error('Form element is required');
+        }
+
+        const formData = {};
+        const inputs = formElement.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            const fieldName = fieldMappings[input.name] || input.name || input.id;
+            if (!fieldName) return;
+
+            if (input.type === 'checkbox') {
+                formData[fieldName] = input.checked;
+            } else if (input.type === 'number') {
+                formData[fieldName] = parseFloat(input.value) || 0;
+            } else {
+                formData[fieldName] = input.value || '';
+            }
+        });
+
+        return formData;
+    },
+
+    /**
+     * Validate form fields
+     * @param {HTMLElement} formElement - Form element to validate
+     * @param {Object} validationRules - Validation rules object
+     * @returns {Object} Validation result with isValid and errors
+     */
+    validateForm(formElement, validationRules = {}) {
+        if (!formElement) {
+            return { isValid: false, errors: ['Form element is required'] };
+        }
+
+        const errors = [];
+        const inputs = formElement.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            const fieldName = input.name || input.id;
+            if (!fieldName) return;
+
+            const rules = validationRules[fieldName];
+            if (!rules) return;
+
+            const value = input.type === 'checkbox' ? input.checked : input.value;
+
+            if (rules.required && !value) {
+                errors.push(`${fieldName} is required`);
+            }
+
+            if (rules.min && parseFloat(value) < rules.min) {
+                errors.push(`${fieldName} must be at least ${rules.min}`);
+            }
+
+            if (rules.max && parseFloat(value) > rules.max) {
+                errors.push(`${fieldName} must be at most ${rules.max}`);
+            }
+
+            if (rules.pattern && !rules.pattern.test(value)) {
+                errors.push(`${fieldName} format is invalid`);
+            }
+        });
+
+        return {
+            isValid: errors.length === 0,
+            errors
+        };
+    },
+
+    /**
+     * Set form values from data object
+     * @param {HTMLElement} formElement - Form element
+     * @param {Object} data - Data object with field names as keys
+     */
+    setFormData(formElement, data) {
+        if (!formElement || !data) {
+            return;
+        }
+
+        Object.entries(data).forEach(([key, value]) => {
+            const input = formElement.querySelector(`[name="${key}"], #${key}`);
+            if (!input) return;
+
+            if (input.type === 'checkbox') {
+                input.checked = Boolean(value);
+            } else {
+                input.value = value || '';
+            }
+        });
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.FormHandler = FormHandler;
+}
+
+
+// ===== services/TableRenderer.js =====
+/**
+ * Table Renderer Service
+ * Handles all table rendering and row creation logic
+ * @module services/TableRenderer
+ */
+
+const TableRenderer = {
+    /**
+     * Render a complete table with header and body
+     * @param {Object} options - Table rendering options
+     * @param {HTMLElement} options.container - Container element to render table into
+     * @param {Array} options.columns - Column definitions
+     * @param {Array} options.data - Data rows
+     * @param {Object} options.config - Table configuration
+     * @returns {HTMLTableElement} Created table element
+     */
+    renderTable({ container, columns, data = [], config = {} }) {
+        if (!container) {
+            throw new Error('Container element is required');
+        }
+
+        const table = document.createElement('table');
+        table.className = config.className || 'data-table';
+
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        
+        columns.forEach(column => {
+            const th = document.createElement('th');
+            th.textContent = column.header || column.label || '';
+            if (column.className) th.className = column.className;
+            if (column.width) th.style.width = column.width;
+            headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        if (config.tbodyId) tbody.id = config.tbodyId;
+
+        if (data.length === 0 && config.emptyMessage) {
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = columns.length;
+            emptyCell.textContent = config.emptyMessage;
+            emptyCell.className = 'empty-message';
+            emptyCell.style.textAlign = 'center';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+        } else {
+            data.forEach((rowData, index) => {
+                const row = this.renderRow({ columns, rowData, rowIndex: index, config });
+                tbody.appendChild(row);
+            });
+        }
+
+        table.appendChild(tbody);
+
+        if (config.showTotal && config.totalRowData) {
+            const tfoot = document.createElement('tfoot');
+            const totalRow = this.renderTotalRow({ columns, totalData: config.totalRowData, config });
+            tfoot.appendChild(totalRow);
+            table.appendChild(tfoot);
+        }
+
+        if (container.tagName === 'TBODY') {
+            container.parentNode.replaceChild(tbody, container);
+            return container.parentNode;
+        } else {
+            container.innerHTML = '';
+            container.appendChild(table);
+            return table;
+        }
+    },
+
+    /**
+     * Render a single table row
+     * @param {Object} options - Row rendering options
+     * @param {Array} options.columns - Column definitions
+     * @param {Object} options.rowData - Row data object
+     * @param {number} options.rowIndex - Row index
+     * @param {Object} options.config - Row configuration
+     * @returns {HTMLTableRowElement} Created row element
+     */
+    renderRow({ columns, rowData, rowIndex = 0, config = {} }) {
+        const row = document.createElement('tr');
+        if (config.rowClassName) {
+            row.className = config.rowClassName;
+        }
+        if (config.rowId) {
+            row.id = typeof config.rowId === 'function' ? config.rowId(rowData, rowIndex) : config.rowId;
+        }
+
+        columns.forEach((column, colIndex) => {
+            const cell = document.createElement('td');
+            
+            if (column.render && typeof column.render === 'function') {
+                const renderedContent = column.render(rowData, rowIndex, colIndex);
+                if (renderedContent instanceof HTMLElement) {
+                    cell.appendChild(renderedContent);
+                } else {
+                    cell.innerHTML = renderedContent;
+                }
+            } else if (column.field) {
+                const value = this.getNestedValue(rowData, column.field);
+                if (column.type === 'currency') {
+                    cell.textContent = window.Formatters ? window.Formatters.formatCurrency(value || 0) : `£${(value || 0).toFixed(2)}`;
+                } else if (column.type === 'date') {
+                    cell.textContent = window.Formatters ? window.Formatters.formatDate(value) : value || '';
+                } else if (column.type === 'boolean') {
+                    cell.textContent = value ? '✓' : '';
+                } else {
+                    cell.textContent = value || '';
+                }
+            }
+
+            if (column.cellClassName) {
+                cell.className = column.cellClassName;
+            }
+
+            row.appendChild(cell);
+        });
+
+        return row;
+    },
+
+    /**
+     * Render a total row
+     * @param {Object} options - Total row options
+     * @param {Array} options.columns - Column definitions
+     * @param {Object} options.totalData - Total data object
+     * @param {Object} options.config - Configuration
+     * @returns {HTMLTableRowElement} Created total row
+     */
+    renderTotalRow({ columns, totalData = {}, config = {} }) {
+        const row = document.createElement('tr');
+        row.className = 'total-row';
+
+        columns.forEach((column, index) => {
+            const cell = document.createElement('td');
+            
+            if (index === 0) {
+                cell.innerHTML = '<strong>TOTALS</strong>';
+            } else if (column.totalField) {
+                const value = this.getNestedValue(totalData, column.totalField);
+                if (column.type === 'currency') {
+                    cell.innerHTML = `<strong>${window.Formatters ? window.Formatters.formatCurrency(value || 0) : `£${(value || 0).toFixed(2)}`}</strong>`;
+                } else {
+                    cell.innerHTML = `<strong>${value || ''}</strong>`;
+                }
+            } else if (column.totalId) {
+                cell.id = column.totalId;
+            }
+
+            row.appendChild(cell);
+        });
+
+        return row;
+    },
+
+    /**
+     * Update table with new data
+     * @param {HTMLElement} tbody - Table body element
+     * @param {Array} data - New data array
+     * @param {Array} columns - Column definitions
+     * @param {Object} config - Configuration
+     */
+    updateTable(tbody, data, columns, config = {}) {
+        if (!tbody) {
+            throw new Error('Table body element is required');
+        }
+
+        tbody.innerHTML = '';
+
+        if (data.length === 0 && config.emptyMessage) {
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = columns.length;
+            emptyCell.textContent = config.emptyMessage;
+            emptyCell.className = 'empty-message';
+            emptyCell.style.textAlign = 'center';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+        } else {
+            data.forEach((rowData, index) => {
+                const row = this.renderRow({ columns, rowData, rowIndex: index, config });
+                tbody.appendChild(row);
+            });
+        }
+    },
+
+    /**
+     * Create an editable input cell
+     * @param {Object} options - Input cell options
+     * @param {string} options.type - Input type
+     * @param {*} options.value - Initial value
+     * @param {string} options.className - CSS class
+     * @param {Function} options.onChange - Change handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLElement} Input element
+     */
+    createInputCell({ type = 'text', value = '', className = '', onChange = null, attributes = {} }) {
+        if (window.FormHandler) {
+            return window.FormHandler.createInput({ type, value, className, onChange, attributes });
+        }
+        
+        const input = document.createElement('input');
+        input.type = type;
+        input.value = value || '';
+        if (className) input.className = className;
+        Object.entries(attributes).forEach(([key, val]) => {
+            input.setAttribute(key, val);
+        });
+        if (onChange) input.addEventListener('input', onChange);
+        return input;
+    },
+
+    /**
+     * Create an editable textarea cell
+     * @param {Object} options - Textarea cell options
+     * @param {string} options.value - Initial value
+     * @param {string} options.className - CSS class
+     * @param {Function} options.onChange - Change handler
+     * @param {Object} options.attributes - Additional attributes
+     * @returns {HTMLElement} Textarea element
+     */
+    createTextareaCell({ value = '', className = '', onChange = null, attributes = {} }) {
+        if (window.FormHandler) {
+            return window.FormHandler.createTextarea({ value, className, onChange, attributes });
+        }
+        
+        const textarea = document.createElement('textarea');
+        textarea.value = value || '';
+        if (className) textarea.className = className;
+        Object.entries(attributes).forEach(([key, val]) => {
+            textarea.setAttribute(key, val);
+        });
+        if (onChange) textarea.addEventListener('input', onChange);
+        return textarea;
+    },
+
+    /**
+     * Create a select cell
+     * @param {Object} options - Select cell options
+     * @param {Array} options.options - Option array
+     * @param {string} options.value - Selected value
+     * @param {string} options.className - CSS class
+     * @param {Function} options.onChange - Change handler
+     * @returns {HTMLElement} Select element
+     */
+    createSelectCell({ options = [], value = '', className = '', onChange = null }) {
+        if (window.FormHandler) {
+            return window.FormHandler.createSelect({ options, value, className, onChange });
+        }
+        
+        const select = document.createElement('select');
+        if (className) select.className = className;
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value || '';
+            optionElement.textContent = option.text || option.label || '';
+            if (option.value === value) optionElement.selected = true;
+            select.appendChild(optionElement);
+        });
+        if (onChange) select.addEventListener('change', onChange);
+        return select;
+    },
+
+    /**
+     * Get nested value from object using dot notation
+     * @param {Object} obj - Source object
+     * @param {string} path - Dot notation path
+     * @returns {*} Value at path
+     */
+    getNestedValue(obj, path) {
+        if (!obj || !path) return null;
+        return path.split('.').reduce((current, prop) => current?.[prop], obj);
+    },
+
+    /**
+     * Create delete button cell
+     * @param {Function} onDelete - Delete handler
+     * @param {string} ariaLabel - ARIA label
+     * @returns {HTMLElement} Delete button
+     */
+    createDeleteButton(onDelete, ariaLabel = 'Delete row') {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'delete-row-x';
+        button.textContent = '×';
+        button.setAttribute('aria-label', ariaLabel);
+        if (onDelete) {
+            button.addEventListener('click', onDelete);
+        }
+        return button;
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.TableRenderer = TableRenderer;
+}
+
+
+// ===== utils/formatters.js =====
+/**
+ * Utility Functions
+ * Shared formatting and helper functions
+ */
+
+const Formatters = {
+    /**
+     * Get currency symbol from settings
+     */
+    getCurrencySymbol() {
+        if (typeof window !== 'undefined' && window.DataManager) {
+            const settings = DataManager.getSettings();
+            if (settings && settings.currency) {
+                return settings.currency;
+            }
+        }
+        return '£'; // Default to £
+    },
+
+    /**
+     * Format currency amount
+     */
+    formatCurrency(amount) {
+        const currencySymbol = this.getCurrencySymbol();
+        return currencySymbol + parseFloat(amount || 0).toFixed(2);
+    },
+
+    /**
+     * Format date for display
+     */
+    formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString();
+    },
+
+    /**
+     * Parse number safely
+     */
+    parseNumber(value) {
+        const parsed = parseFloat(value || 0);
+        return isNaN(parsed) ? 0 : parsed;
+    },
+
+    /**
+     * Validate year input
+     */
+    validateYear(year) {
+        const yearNum = parseInt(year, 10);
+        return !isNaN(yearNum) && yearNum >= 2000 && yearNum <= 2100;
+    },
+
+    /**
+     * Validate month input
+     */
+    validateMonth(month) {
+        const monthNum = parseInt(month, 10);
+        return !isNaN(monthNum) && monthNum >= 1 && monthNum <= 12;
+    }
+};
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.Formatters = Formatters;
+}
+
+
+
+// ===== services/FileService.js =====
+/**
+ * File Service
+ * Handles all file I/O operations
+ * @module services/FileService
+ */
+
+const FileService = {
+    MONTHS_DIR: '/data/months/',
+
+    /**
+     * Load a month from individual JSON file
+     * @param {string} monthKey - Month key (e.g., "2025-11")
+     * @returns {Promise<Object|null>} Month data or null if not found
+     */
+    async loadMonthFromFile(monthKey) {
+        try {
+            if (window.location.protocol === 'file:') {
+                console.log(`Using file:// protocol - cannot load ${monthKey}.json directly.`);
+                console.log('Run: node scripts/sync-data.js load');
+                return null;
+            }
+            
+            const response = await fetch(`${this.MONTHS_DIR}${monthKey}.json`);
+            if (!response.ok) {
+                return null;
+            }
+            const monthData = await response.json();
+            console.log(`✓ Loaded ${monthKey}.json from files`);
+            return monthData;
+        } catch (error) {
+            console.error(`Error loading ${monthKey}.json:`, error);
+            return null;
+        }
+    },
+
+    /**
+     * Load all months from individual JSON files
+     * @returns {Promise<Object>} Object with all months keyed by monthKey
+     */
+    async loadAllMonthsFromFiles() {
+        if (window.location.protocol === 'file:') {
+            console.log('Using file:// protocol - loading from localStorage.');
+            console.log('To load from files, run: node scripts/sync-data.js load');
+            return {};
+        }
+        
+        const allMonths = {};
+        const currentYear = new Date().getFullYear();
+        const years = [currentYear - 1, currentYear, currentYear + 1];
+        let loadedCount = 0;
+
+        for (const year of years) {
+            for (let month = 1; month <= 12; month++) {
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                try {
+                    const monthData = await this.loadMonthFromFile(monthKey);
+                    if (monthData) {
+                        allMonths[monthKey] = monthData;
+                        loadedCount++;
+                    }
+                } catch (error) {
+                    // File doesn't exist, skip
+                }
+            }
+        }
+
+        if (loadedCount > 0) {
+            console.log(`✓ Loaded ${loadedCount} months from files`);
+        } else {
+            console.log('No month files found. Using localStorage data.');
+            console.log('To sync files, run: node scripts/sync-data.js load');
+        }
+
+        return allMonths;
+    },
+
+    /**
+     * Load months from file picker (File System Access API)
+     * @returns {Promise<Object>} Result object with success, count, months, etc.
+     */
+    async loadMonthsFromFilePicker() {
+        try {
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            if ('showDirectoryPicker' in window && !isFileProtocol) {
+                try {
+                    const directoryHandle = await window.showDirectoryPicker();
+                    const months = {};
+                    let loadedCount = 0;
+                    const htmlFiles = [];
+                    const csvFiles = [];
+                    
+                    for await (const entry of directoryHandle.values()) {
+                        if (entry.kind === 'file') {
+                            if (entry.name.endsWith('.json')) {
+                                try {
+                                    const file = await entry.getFile();
+                                    const content = await file.text();
+                                    const monthData = JSON.parse(content);
+                                    const monthKey = entry.name.replace('.json', '');
+                                    months[monthKey] = monthData;
+                                    loadedCount++;
+                                    console.log(`✓ Loaded ${monthKey}.json`);
+                                } catch (error) {
+                                    console.error(`Error loading ${entry.name}:`, error);
+                                }
+                            } else if (entry.name.endsWith('.csv')) {
+                                csvFiles.push(entry);
+                            } else if (entry.name.endsWith('.html')) {
+                                htmlFiles.push(entry);
+                            }
+                        }
+                    }
+                    
+                    if (csvFiles.length > 0 && window.CSVHandler) {
+                        for (const entry of csvFiles) {
+                            try {
+                                const file = await entry.getFile();
+                                const csvText = await file.text();
+                                const fileName = entry.name.toLowerCase();
+                                const monthData = this.parseMonthFromFileName(fileName, csvText, 'csv');
+                                if (monthData) {
+                                    const monthKey = monthData.key;
+                                    months[monthKey] = monthData;
+                                    loadedCount++;
+                                    console.log(`✓ Imported ${monthKey} from ${entry.name}`);
+                                }
+                            } catch (error) {
+                                console.error(`Error importing CSV ${entry.name}:`, error);
+                            }
+                        }
+                    }
+                    
+                    if (htmlFiles.length > 0 && window.ReferenceImporter) {
+                        for (const entry of htmlFiles) {
+                            try {
+                                const file = await entry.getFile();
+                                const fileName = entry.name.toLowerCase();
+                                const monthInfo = this.extractMonthInfoFromFileName(fileName);
+                                if (monthInfo) {
+                                    const monthData = await window.ReferenceImporter.importMonthFromFile(file, monthInfo.monthName, monthInfo.year);
+                                    if (monthData && monthData.key) {
+                                        months[monthData.key] = monthData;
+                                        loadedCount++;
+                                        console.log(`✓ Imported ${monthData.key} from ${entry.name}`);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`Error importing ${entry.name}:`, error);
+                            }
+                        }
+                    }
+                    
+                    if (loadedCount > 0) {
+                        return { success: true, count: loadedCount, months: months };
+                    } else {
+                        return { success: false, message: 'No valid month files found in directory' };
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('Directory picker failed:', error);
+                        return { success: false, message: error.message, useFileInput: true };
+                    } else {
+                        return { success: false, message: 'User cancelled' };
+                    }
+                }
+            }
+            
+            return { success: false, message: 'File System Access API not available. Please use the file input button.', useFileInput: true };
+        } catch (error) {
+            console.error('Error loading months from files:', error);
+            return { success: false, message: error.message, useFileInput: true };
+        }
+    },
+
+    /**
+     * Load months from file input (multiple files)
+     * @param {FileList} files - File list from input element
+     * @returns {Promise<Object>} Result object with success, count, errors, months
+     */
+    async loadMonthsFromFileInput(files) {
+        const months = {};
+        let loadedCount = 0;
+        let errorCount = 0;
+        const htmlFiles = [];
+        const csvFiles = [];
+        
+        for (const file of files) {
+            if (file.name.endsWith('.json')) {
+                try {
+                    const content = await file.text();
+                    const monthData = JSON.parse(content);
+                    const monthKey = file.name.replace('.json', '');
+                    months[monthKey] = monthData;
+                    loadedCount++;
+                    console.log(`✓ Loaded ${monthKey}.json`);
+                } catch (error) {
+                    console.error(`Error loading ${file.name}:`, error);
+                    errorCount++;
+                }
+            } else if (file.name.endsWith('.csv')) {
+                csvFiles.push(file);
+            } else if (file.name.endsWith('.html')) {
+                htmlFiles.push(file);
+            }
+        }
+        
+        if (csvFiles.length > 0) {
+            if (!window.CSVHandler) {
+                console.error('CSVHandler not available. Cannot import CSV files.');
+                errorCount += csvFiles.length;
+            } else {
+                for (const file of csvFiles) {
+                    try {
+                        const csvText = await file.text();
+                        const fileName = file.name.toLowerCase();
+                        const monthData = this.parseMonthFromFileName(fileName, csvText, 'csv');
+                        if (monthData && monthData.key) {
+                            months[monthData.key] = monthData;
+                            loadedCount++;
+                            console.log(`✓ Imported ${monthData.key} from ${file.name}`);
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error(`Error importing CSV ${file.name}:`, error);
+                        errorCount++;
+                    }
+                }
+            }
+        }
+        
+        if (htmlFiles.length > 0) {
+            if (!window.ReferenceImporter) {
+                console.error('ReferenceImporter not available. Cannot import HTML files.');
+                errorCount += htmlFiles.length;
+            } else {
+                for (const file of htmlFiles) {
+                    try {
+                        const fileName = file.name.toLowerCase();
+                        const monthInfo = this.extractMonthInfoFromFileName(fileName);
+                        if (monthInfo) {
+                            const monthData = await window.ReferenceImporter.importMonthFromFile(file, monthInfo.monthName, monthInfo.year);
+                            if (monthData && monthData.key) {
+                                months[monthData.key] = monthData;
+                                loadedCount++;
+                                console.log(`✓ Imported ${monthData.key} from ${file.name}`);
+                            } else {
+                                errorCount++;
+                            }
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error(`Error importing ${file.name}:`, error);
+                        errorCount++;
+                    }
+                }
+            }
+        }
+        
+        return { success: loadedCount > 0, count: loadedCount, errors: errorCount, months: months };
+    },
+
+    /**
+     * Extract month name and year from filename
+     * @param {string} fileName - Filename (lowercase)
+     * @returns {Object|null} Object with monthName and year, or null
+     */
+    extractMonthInfoFromFileName(fileName) {
+        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                          'july', 'august', 'september', 'october', 'november', 'december'];
+        
+        let monthName = null;
+        let year = new Date().getFullYear();
+        
+        for (const month of monthNames) {
+            if (fileName.includes(month)) {
+                monthName = month.charAt(0).toUpperCase() + month.slice(1);
+                break;
+            }
+        }
+        
+        const yearMatch = fileName.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+            year = parseInt(yearMatch[1], 10);
+        }
+        
+        if (!monthName) {
+            const nameMatch = fileName.match(/^([a-z]+)-(\d{4})\./i);
+            if (nameMatch) {
+                monthName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+                year = parseInt(nameMatch[2], 10);
+            } else {
+                return null;
+            }
+        }
+        
+        return { monthName, year };
+    },
+
+    /**
+     * Parse month data from filename and content
+     * @param {string} fileName - Filename (lowercase)
+     * @param {string} content - File content
+     * @param {string} format - File format ('csv' or 'html')
+     * @returns {Object|null} Month data or null
+     */
+    parseMonthFromFileName(fileName, content, format) {
+        const monthInfo = this.extractMonthInfoFromFileName(fileName);
+        if (!monthInfo) {
+            return null;
+        }
+
+        if (format === 'csv' && window.CSVHandler) {
+            return window.CSVHandler.csvToMonthData(content, monthInfo.monthName, monthInfo.year);
+        }
+
+        return null;
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.FileService = FileService;
+}
+
+
+// ===== services/ExportService.js =====
+/**
+ * Export Service
+ * Handles exporting month data to various formats
+ * @module services/ExportService
+ */
+
+const ExportService = {
+    /**
+     * Export month data to file
+     * @param {string} monthKey - Month key
+     * @param {Object} monthData - Month data object
+     * @param {string} format - Export format ('json', 'csv', 'html')
+     * @returns {Promise<boolean>} Success status
+     */
+    async exportMonthToFile(monthKey, monthData, format = 'json') {
+        try {
+            let blob;
+            let filename;
+            let mimeType;
+            let fileExtension;
+            
+            if (format === 'csv') {
+                if (!window.CSVHandler) {
+                    console.error('CSVHandler not available. Cannot export CSV.');
+                    return false;
+                }
+                const csvString = window.CSVHandler.monthDataToCSV(monthData);
+                blob = new Blob([csvString], { type: 'text/csv' });
+                filename = `${monthKey}.csv`;
+                mimeType = 'text/csv';
+                fileExtension = '.csv';
+            } else if (format === 'html') {
+                const htmlString = this.monthDataToHTML(monthData, monthKey);
+                blob = new Blob([htmlString], { type: 'text/html' });
+                filename = `${monthKey}.html`;
+                mimeType = 'text/html';
+                fileExtension = '.html';
+            } else {
+                const jsonString = JSON.stringify(monthData, null, 2);
+                blob = new Blob([jsonString], { type: 'application/json' });
+                filename = `${monthKey}.json`;
+                mimeType = 'application/json';
+                fileExtension = '.json';
+            }
+            
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: format === 'csv' ? 'CSV files' : format === 'html' ? 'HTML files' : 'JSON files',
+                            accept: { [mimeType]: [fileExtension] }
+                        }],
+                        startIn: 'downloads'
+                    });
+                    
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    console.log(`✓ Month ${monthKey} saved as ${format.toUpperCase()} directly to file system`);
+                    return true;
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('File System Access API failed, falling back to download:', error);
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            console.log(`✓ Month ${monthKey} downloaded as ${format.toUpperCase()}. Save it to data/months/ folder.`);
+            return true;
+        } catch (error) {
+            console.error('Error exporting month file:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Save all months to files
+     * @param {Object} allMonths - Object with all months
+     * @returns {Promise<Object>} Result object
+     */
+    async saveAllMonthsToFiles(allMonths) {
+        const monthKeys = Object.keys(allMonths);
+        
+        if (monthKeys.length === 0) {
+            return { success: false, message: 'No months to save' };
+        }
+        
+        try {
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            if ('showDirectoryPicker' in window && !isFileProtocol) {
+                try {
+                    const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    let savedCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const monthKey of monthKeys) {
+                        try {
+                            const monthData = allMonths[monthKey];
+                            
+                            const jsonString = JSON.stringify(monthData, null, 2);
+                            const jsonBlob = new Blob([jsonString], { type: 'application/json' });
+                            const jsonFileHandle = await directoryHandle.getFileHandle(`${monthKey}.json`, { create: true });
+                            const jsonWritable = await jsonFileHandle.createWritable();
+                            await jsonWritable.write(jsonBlob);
+                            await jsonWritable.close();
+                            
+                            if (window.CSVHandler) {
+                                try {
+                                    const csvString = window.CSVHandler.monthDataToCSV(monthData);
+                                    const csvBlob = new Blob([csvString], { type: 'text/csv' });
+                                    const csvFileHandle = await directoryHandle.getFileHandle(`${monthKey}.csv`, { create: true });
+                                    const csvWritable = await csvFileHandle.createWritable();
+                                    await csvWritable.write(csvBlob);
+                                    await csvWritable.close();
+                                    console.log(`✓ Saved ${monthKey}.csv`);
+                                } catch (csvError) {
+                                    console.warn(`Could not save ${monthKey}.csv:`, csvError);
+                                }
+                            }
+                            
+                            savedCount++;
+                            console.log(`✓ Saved ${monthKey}.json`);
+                        } catch (error) {
+                            console.error(`Error saving ${monthKey}:`, error);
+                            errorCount++;
+                        }
+                    }
+                    
+                    return { 
+                        success: savedCount > 0, 
+                        count: savedCount, 
+                        errors: errorCount,
+                        message: `Saved ${savedCount} months to directory${errorCount > 0 ? ` (${errorCount} errors)` : ''}` 
+                    };
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn('Directory picker failed, falling back to downloads:', error);
+                    } else {
+                        return { success: false, message: 'User cancelled' };
+                    }
+                }
+            }
+            
+            let downloadedCount = 0;
+            const downloadPromises = [];
+            
+            for (const monthKey of monthKeys) {
+                const monthData = allMonths[monthKey];
+                downloadPromises.push(
+                    this.exportMonthToFile(monthKey, monthData, 'json').then(() => {
+                        downloadedCount++;
+                    }).catch(error => {
+                        console.error(`Error downloading ${monthKey}.json:`, error);
+                    })
+                );
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                if (window.CSVHandler) {
+                    downloadPromises.push(
+                        this.exportMonthToFile(monthKey, monthData, 'csv').then(() => {
+                            // CSV download doesn't count separately
+                        }).catch(error => {
+                            console.warn(`Could not download ${monthKey}.csv:`, error);
+                        })
+                    );
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+            
+            await Promise.all(downloadPromises);
+            
+            const fileTypeText = window.CSVHandler ? 'JSON and CSV files' : 'JSON files';
+            return { 
+                success: downloadedCount > 0, 
+                count: downloadedCount,
+                message: `Downloaded ${downloadedCount} month ${fileTypeText}${downloadedCount !== 1 ? 's' : ''}. Save ${downloadedCount === 1 ? 'it' : 'them'} to data/months/ folder.` 
+            };
+        } catch (error) {
+            console.error('Error saving all months:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Generate HTML representation of month data
+     * @param {Object} monthData - Month data object
+     * @param {string} monthKey - Month key
+     * @returns {string} HTML string
+     */
+    monthDataToHTML(monthData, monthKey) {
+        if (!window.Formatters || !window.CalculationService) {
+            throw new Error('Formatters and CalculationService must be available');
+        }
+
+        const formatCurrency = (amount) => {
+            if (amount === null || amount === undefined) return window.Formatters.formatCurrency(0);
+            return window.Formatters.formatCurrency(amount);
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            try {
+                return new Date(dateString).toLocaleDateString('en-GB');
+            } catch {
+                return dateString;
+            }
+        };
+
+        const monthName = monthData.monthName || this.getMonthName(monthData.month);
+        const year = monthData.year;
+        const totals = window.CalculationService.calculateMonthTotals(monthData);
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${monthName} ${year} - Monthly Budget</title>
+    <style>
+        html { -webkit-print-color-adjust: exact; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+        html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #333; }
+        @media only screen { body { margin: 2em auto; max-width: 900px; background-color: #f8f9fa; } }
+        body { white-space: pre-wrap; background-color: white; }
+        .header { text-align: center; padding: 2rem 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 2rem; }
+        .header h1 { margin: 0; font-size: 2.5rem; font-weight: 300; }
+        .header p { margin: 0.5rem 0 0 0; opacity: 0.9; }
+        .section { margin-bottom: 2rem; background: white; border-radius: 0px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .section-header { background: #f8f9fa; padding: 1rem 1.5rem; border-bottom: 1px solid #e9ecef; }
+        .section-title { margin: 0; font-size: 1.5rem; font-weight: 600; color: #495057; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e9ecef; }
+        th { background-color: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; }
+        .total-row { background-color: #fff3cd; font-weight: 600; }
+        .total-row td { border-top: 2px solid #ffc107; }
+        .summary-section { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        .summary-section .section-title { color: white; }
+        .summary-section table { color: #333; }
+        .summary-section .total-row { background-color: rgba(255,255,255,0.2); color: white; }
+        .summary-section .total-row td { border-top: 2px solid rgba(255,255,255,0.5); }
+        .export-info { background: #e9ecef; padding: 1rem; margin-top: 2rem; border-radius: 0px; font-size: 0.875rem; color: #6c757d; }
+        .export-info strong { color: #495057; }
+        @media print { body { background: white !important; margin: 0 !important; max-width: none !important; } .section { box-shadow: none !important; border: 1px solid #ddd !important; } .export-info { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${monthName} ${year}</h1>
+        <p>Monthly Budget Report</p>
+    </div>
+    ${this.renderHTMLSection('Weekly Breakdown', monthData.weeklyBreakdown, [
+        { key: 'dateRange', label: 'Date Range' },
+        { key: 'paymentsDue', label: 'Payments Due' },
+        { key: 'groceries', label: 'Groceries' },
+        { key: 'transport', label: 'Transport' },
+        { key: 'activities', label: 'Activities' },
+        { key: 'estimate', label: 'Estimate', type: 'currency' },
+        { key: 'actual', label: 'Actual', type: 'currency' }
+    ], formatCurrency, formatDate)}
+    ${this.renderHTMLSection('Income Sources', monthData.incomeSources, [
+        { key: 'source', label: 'Source' },
+        { key: 'estimated', label: 'Estimated', type: 'currency' },
+        { key: 'actual', label: 'Actual', type: 'currency' },
+        { key: 'date', label: 'Date', type: 'date' },
+        { key: 'description', label: 'Description' },
+        { key: 'comments', label: 'Comments' }
+    ], formatCurrency, formatDate, totals.income)}
+    ${this.renderHTMLSection('Fixed Costs', monthData.fixedCosts, [
+        { key: 'category', label: 'Category' },
+        { key: 'estimatedAmount', label: 'Estimated', type: 'currency' },
+        { key: 'actualAmount', label: 'Actual', type: 'currency' },
+        { key: 'date', label: 'Date', type: 'date' },
+        { key: 'card', label: 'Card' },
+        { key: 'paid', label: 'Paid', type: 'boolean' },
+        { key: 'comments', label: 'Comments' }
+    ], formatCurrency, formatDate, totals.fixedCosts)}
+    ${this.renderHTMLSection('Variable Costs', monthData.variableCosts, [
+        { key: 'category', label: 'Category' },
+        { key: 'estimatedAmount', label: 'Budget', type: 'currency' },
+        { key: 'actualAmount', label: 'Actual', type: 'currency' },
+        { key: 'comments', label: 'Comments' }
+    ], formatCurrency, formatDate, totals.variableCosts)}
+    ${monthData.unplannedExpenses && monthData.unplannedExpenses.length > 0 ? this.renderHTMLSection('Unplanned Expenses', monthData.unplannedExpenses, [
+        { key: 'name', label: 'Name' },
+        { key: 'amount', label: 'Amount', type: 'currency' },
+        { key: 'date', label: 'Date', type: 'date' },
+        { key: 'card', label: 'Card' },
+        { key: 'status', label: 'Status' },
+        { key: 'comments', label: 'Comments' }
+    ], formatCurrency, formatDate, { actual: totals.unplannedExpenses.actual }) : ''}
+    ${monthData.pots && monthData.pots.length > 0 ? this.renderHTMLSection('Savings & Investments', monthData.pots, [
+        { key: 'category', label: 'Category' },
+        { key: 'estimatedAmount', label: 'Estimated', type: 'currency' },
+        { key: 'actualAmount', label: 'Actual', type: 'currency' }
+    ], formatCurrency, formatDate, totals.pots) : ''}
+    ${this.renderSummarySection(totals, formatCurrency)}
+    <div class="export-info">
+        <strong>Export Details:</strong><br>
+        Generated on ${new Date().toLocaleString()}<br>
+        Format: HTML Report<br>
+        Source: Money Tracker Application
+    </div>
+</body>
+</html>`;
+
+        return html;
+    },
+
+    /**
+     * Render HTML section for a data array
+     * @private
+     */
+    renderHTMLSection(title, items, columns, formatCurrency, formatDate, totals = null) {
+        if (!items || items.length === 0) return '';
+
+        const rows = items.map(item => {
+            const cells = columns.map(col => {
+                let value = item[col.key];
+                if (col.type === 'currency') {
+                    value = formatCurrency(value);
+                } else if (col.type === 'date') {
+                    value = formatDate(value);
+                } else if (col.type === 'boolean') {
+                    value = value ? '✓' : '';
+                }
+                return `<td>${value || ''}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        let totalRow = '';
+        if (totals) {
+            const totalCells = columns.map((col, idx) => {
+                if (idx === 0) return '<td><strong>Total</strong></td>';
+                if (col.type === 'currency') {
+                    const totalValue = totals.estimated !== undefined ? totals.estimated : totals.actual;
+                    return `<td><strong>${formatCurrency(totalValue)}</strong></td>`;
+                }
+                return '<td></td>';
+            }).join('');
+            totalRow = `<tr class="total-row">${totalCells}</tr>`;
+        }
+
+        return `
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">${title}</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>${columns.map(col => `<th>${col.label}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+                ${rows}
+                ${totalRow}
+            </tbody>
+        </table>
+    </div>`;
+    },
+
+    /**
+     * Render summary section
+     * @private
+     */
+    renderSummarySection(totals, formatCurrency) {
+        return `
+    <div class="section summary-section">
+        <div class="section-header">
+            <h2 class="section-title">Monthly Summary</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Estimated</th>
+                    <th>Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Total Income</strong></td>
+                    <td><strong>${formatCurrency(totals.income.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.income.actual)}</strong></td>
+                </tr>
+                <tr>
+                    <td>Total Fixed Costs</td>
+                    <td>${formatCurrency(totals.fixedCosts.estimated)}</td>
+                    <td>${formatCurrency(totals.fixedCosts.actual)}</td>
+                </tr>
+                <tr>
+                    <td>Total Variable Costs</td>
+                    <td>${formatCurrency(totals.variableCosts.estimated)}</td>
+                    <td>${formatCurrency(totals.variableCosts.actual)}</td>
+                </tr>
+                <tr>
+                    <td><strong>Total Expenses</strong></td>
+                    <td><strong>${formatCurrency(totals.expenses.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.expenses.actual)}</strong></td>
+                </tr>
+                <tr>
+                    <td>Total Unplanned Expenses</td>
+                    <td>—</td>
+                    <td>${formatCurrency(totals.unplannedExpenses.actual)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Grand Savings Total</strong></td>
+                    <td><strong>${formatCurrency(totals.savings.estimated)}</strong></td>
+                    <td><strong>${formatCurrency(totals.savings.actual)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>`;
+    },
+
+    /**
+     * Get month name from month number
+     * @private
+     */
+    getMonthName(monthNumber) {
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return monthNames[monthNumber - 1] || '';
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.ExportService = ExportService;
+}
+
+
+// ===== models/DataManager.js =====
+/**
+ * Data Manager Model
+ * Core data operations using localStorage and file services
+ * @module models/DataManager
+ */
+
+const DataManager = {
+    STORAGE_KEY_MONTHS: 'money_tracker_months',
+    STORAGE_KEY_POTS: 'money_tracker_pots',
+    STORAGE_KEY_SETTINGS: 'money_tracker_settings',
+
+    /**
+     * Initialize default settings if they don't exist
+     * @returns {Object} Settings object
+     */
+    initializeSettings() {
+        const existingSettings = this.getSettings();
+        if (!existingSettings) {
+            const defaultSettings = {
+                currency: '£',
+                defaultFixedCosts: [],
+                defaultVariableCategories: ['Food', 'Travel/Transport', 'Activities'],
+                defaultPots: []
+            };
+            this.saveSettings(defaultSettings);
+            return defaultSettings;
+        }
+        return existingSettings;
+    },
+
+    /**
+     * Get all months data from localStorage
+     * @returns {Object} Object with all months keyed by monthKey
+     */
+    getAllMonths() {
+        return window.StorageService.get(this.STORAGE_KEY_MONTHS) || {};
+    },
+
+    /**
+     * Save all months data to localStorage
+     * @param {Object} monthsData - Object with all months
+     * @returns {boolean} Success status
+     */
+    saveAllMonths(monthsData) {
+        return window.StorageService.set(this.STORAGE_KEY_MONTHS, monthsData);
+    },
+
+    /**
+     * Get a specific month's data from localStorage
+     * @param {string} monthKey - Month key (e.g., "2025-11")
+     * @returns {Object|null} Month data or null
+     */
+    getMonth(monthKey) {
+        const allMonths = this.getAllMonths();
+        return allMonths[monthKey] || null;
+    },
+
+    /**
+     * Save a specific month's data to localStorage and export as file
+     * @param {string} monthKey - Month key
+     * @param {Object} monthData - Month data object
+     * @param {boolean} exportFile - Whether to export to file
+     * @returns {boolean} Success status
+     */
+    saveMonth(monthKey, monthData, exportFile = true) {
+        if (!monthKey || !monthData) {
+            throw new Error('Month key and data are required');
+        }
+
+        monthData.updatedAt = new Date().toISOString();
+        if (!monthData.createdAt) {
+            monthData.createdAt = new Date().toISOString();
+        }
+        
+        const allMonths = this.getAllMonths();
+        allMonths[monthKey] = monthData;
+        const saved = this.saveAllMonths(allMonths);
+        
+        if (saved && exportFile && window.ExportService) {
+            window.ExportService.exportMonthToFile(monthKey, monthData, 'json').catch(error => {
+                console.error('Error exporting month file:', error);
+            });
+        }
+        
+        return saved;
+    },
+
+    /**
+     * Delete a month from localStorage
+     * @param {string} monthKey - Month key
+     * @returns {boolean} Success status
+     */
+    deleteMonth(monthKey) {
+        const allMonths = this.getAllMonths();
+        delete allMonths[monthKey];
+        return this.saveAllMonths(allMonths);
+    },
+
+    /**
+     * Load all months from individual JSON files into localStorage
+     * @returns {Promise<Object>} Object with all months
+     */
+    async loadMonthsFromFiles() {
+        if (!window.FileService) {
+            console.error('FileService not available');
+            return this.getAllMonths();
+        }
+
+        const fileMonths = await window.FileService.loadAllMonthsFromFiles();
+        const localStorageMonths = this.getAllMonths();
+        
+        const allMonths = { ...fileMonths };
+        Object.keys(localStorageMonths).forEach(key => {
+            if (!allMonths[key]) {
+                allMonths[key] = localStorageMonths[key];
+            }
+        });
+
+        if (Object.keys(fileMonths).length > 0) {
+            this.saveAllMonths(allMonths);
+        }
+
+        return allMonths;
+    },
+
+    /**
+     * Load months from file picker
+     * @returns {Promise<Object>} Result object
+     */
+    async loadMonthsFromFilePicker() {
+        if (!window.FileService) {
+            return { success: false, message: 'FileService not available', useFileInput: true };
+        }
+        return await window.FileService.loadMonthsFromFilePicker();
+    },
+
+    /**
+     * Load months from file input
+     * @param {FileList} files - File list
+     * @returns {Promise<Object>} Result object
+     */
+    async loadMonthsFromFileInput(files) {
+        if (!window.FileService) {
+            return { success: false, count: 0, errors: files.length, months: {} };
+        }
+        const result = await window.FileService.loadMonthsFromFileInput(files);
+        if (result.success && result.months) {
+            const allMonths = this.getAllMonths();
+            Object.assign(allMonths, result.months);
+            this.saveAllMonths(allMonths);
+        }
+        return result;
+    },
+
+    /**
+     * Save all months to files
+     * @returns {Promise<Object>} Result object
+     */
+    async saveAllMonthsToFiles() {
+        if (!window.ExportService) {
+            return { success: false, message: 'ExportService not available' };
+        }
+        const allMonths = this.getAllMonths();
+        return await window.ExportService.saveAllMonthsToFiles(allMonths);
+    },
+
+    /**
+     * Export month to file
+     * @param {string} monthKey - Month key
+     * @param {Object} monthData - Month data
+     * @param {string} format - Format ('json', 'csv', 'html')
+     * @returns {Promise<boolean>} Success status
+     */
+    async exportMonthToFile(monthKey, monthData, format = 'json') {
+        if (!window.ExportService) {
+            console.error('ExportService not available');
+            return false;
+        }
+        return await window.ExportService.exportMonthToFile(monthKey, monthData, format);
+    },
+
+    /**
+     * Get all pots data
+     * @returns {Object} Pots data object
+     */
+    getAllPots() {
+        return window.StorageService.get(this.STORAGE_KEY_POTS) || {};
+    },
+
+    /**
+     * Save all pots data
+     * @param {Object} potsData - Pots data object
+     * @returns {boolean} Success status
+     */
+    saveAllPots(potsData) {
+        return window.StorageService.set(this.STORAGE_KEY_POTS, potsData);
+    },
+
+    /**
+     * Get settings
+     * @returns {Object|null} Settings object or null
+     */
+    getSettings() {
+        return window.StorageService.get(this.STORAGE_KEY_SETTINGS);
+    },
+
+    /**
+     * Save settings
+     * @param {Object} settings - Settings object
+     * @returns {boolean} Success status
+     */
+    saveSettings(settings) {
+        return window.StorageService.set(this.STORAGE_KEY_SETTINGS, settings);
+    },
+
+    /**
+     * Generate a month key from year and month
+     * @param {number} year - Year
+     * @param {number} month - Month (1-12)
+     * @returns {string} Month key
+     */
+    generateMonthKey(year, month) {
+        return window.MonthFactory.generateMonthKey(year, month);
+    },
+
+    /**
+     * Parse month key to year and month
+     * @param {string} monthKey - Month key
+     * @returns {Object} Object with year and month
+     */
+    parseMonthKey(monthKey) {
+        return window.MonthFactory.parseMonthKey(monthKey);
+    },
+
+    /**
+     * Get month name from month number
+     * @param {number} monthNumber - Month number (1-12)
+     * @returns {string} Month name
+     */
+    getMonthName(monthNumber) {
+        return window.MonthFactory.getMonthName(monthNumber);
+    },
+
+    /**
+     * Create a new month with default structure
+     * @param {number} year - Year
+     * @param {number} month - Month (1-12)
+     * @returns {Object} New month data object
+     */
+    createNewMonth(year, month) {
+        const settings = this.getSettings() || this.initializeSettings();
+        const newMonth = window.MonthFactory.createNewMonth(year, month, settings);
+        const monthKey = newMonth.key;
+        this.saveMonth(monthKey, newMonth, true);
+        return newMonth;
+    },
+
+    /**
+     * Calculate totals for a month
+     * @param {Object} monthData - Month data object
+     * @returns {Object} Totals object
+     */
+    calculateMonthTotals(monthData) {
+        if (!window.CalculationService) {
+            throw new Error('CalculationService not available');
+        }
+        return window.CalculationService.calculateMonthTotals(monthData);
+    },
+
+    /**
+     * Generate HTML representation of month data
+     * @param {Object} monthData - Month data object
+     * @param {string} monthKey - Month key
+     * @returns {string} HTML string
+     */
+    monthDataToHTML(monthData, monthKey) {
+        if (!window.ExportService) {
+            throw new Error('ExportService not available');
+        }
+        return window.ExportService.monthDataToHTML(monthData, monthKey);
+    }
+};
+
+if (typeof window !== 'undefined') {
+    DataManager.initializeSettings();
+    window.DataManager = DataManager;
+}
+
+
+// ===== components/Header.js =====
+/**
+ * Shared Header Component
+ * Renders consistent navigation header across all pages
+ */
+
+class Header {
+    /**
+     * Get the current page name from the current URL
+     */
+    static getCurrentPage() {
+        const path = window.location.pathname;
+        const filename = path.split('/').pop() || 'index.html';
+        
+        if (filename === 'index.html' || filename === '') {
+            return 'Home';
+        } else if (filename.includes('monthly-budget')) {
+            return 'Monthly Budget';
+        } else if (filename.includes('pots')) {
+            return 'Pots & Investments';
+        } else if (filename.includes('overview')) {
+            return 'Overview';
+        } else if (filename.includes('settings')) {
+            return 'Settings';
+        } else if (filename.includes('import')) {
+            return 'Settings';
+        }
+        return 'Home';
+    }
+
+    /**
+     * Get the base path for navigation links
+     */
+    static getBasePath() {
+        const path = window.location.pathname;
+        // If we're in the views folder, go up one level
+        if (path.includes('/views/')) {
+            return '../';
+        }
+        return '';
+    }
+
+    /**
+     * Render the header HTML
+     */
+    static render() {
+        const currentPage = this.getCurrentPage();
+        const basePath = this.getBasePath();
+        
+        const navItems = [
+            { name: 'Home', href: basePath + 'index.html', page: 'Home' },
+            { name: 'Monthly Budget', href: basePath + 'views/monthly-budget.html', page: 'Monthly Budget' },
+            { name: 'Pots & Investments', href: basePath + 'views/pots.html', page: 'Pots & Investments' },
+            { name: 'Overview', href: basePath + 'views/overview.html', page: 'Overview' },
+            { name: 'Settings', href: basePath + 'views/settings.html', page: 'Settings' }
+        ];
+
+        const navLinks = navItems.map(item => {
+            const isActive = item.page === currentPage;
+            const activeClass = isActive ? ' active' : '';
+            const ariaCurrent = isActive ? ' aria-current="page"' : '';
+            return `<li><a href="${item.href}" class="nav-link${activeClass}"${ariaCurrent}>${item.name}</a></li>`;
+        }).join('\n                ');
+
+        return `
+    <header class="main-header">
+        <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+            <div class="header-title-group">
+                <h1 class="site-title">Money Tracker</h1>
+                <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+            </div>
+            <ul class="nav-list">
+                ${navLinks}
+            </ul>
+        </nav>
+    </header>`;
+    }
+
+    /**
+     * Initialize and inject header into the page
+     */
+    static init() {
+        // Find where to insert the header (before main or body's first child)
+        const main = document.querySelector('main');
+        const body = document.body;
+        
+        if (main) {
+            // Insert before main element
+            main.insertAdjacentHTML('beforebegin', this.render());
+        } else if (body) {
+            // Insert as first child of body
+            body.insertAdjacentHTML('afterbegin', this.render());
+        } else {
+            console.error('Header: Could not find insertion point');
+            return;
+        }
+
+        // Initialize hamburger menu functionality
+        this.initHamburgerMenu();
+    }
+
+    /**
+     * Initialize hamburger menu functionality
+     */
+    static initHamburgerMenu() {
+        const hamburgerBtn = document.querySelector('.hamburger-menu');
+        const navList = document.querySelector('.nav-list');
+
+        if (!hamburgerBtn || !navList) return;
+
+        hamburgerBtn.addEventListener('click', () => {
+            const isExpanded = hamburgerBtn.getAttribute('aria-expanded') === 'true';
+            hamburgerBtn.setAttribute('aria-expanded', !isExpanded);
+            navList.classList.toggle('nav-open');
+        });
+
+        // Close menu when clicking outside or on a link
+        document.addEventListener('click', (e) => {
+            if (!hamburgerBtn.contains(e.target) && !navList.contains(e.target)) {
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+                navList.classList.remove('nav-open');
+            }
+        });
+
+        // Close menu when a link is clicked
+        navList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-link')) {
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+                navList.classList.remove('nav-open');
+            }
+        });
+    }
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => Header.init());
+} else {
+    Header.init();
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Header;
+}
+
+
+
+// ===== utils/InitialData.js =====
+/**
+ * Initial Data Loader
+ * Loads initial months data from individual JSON files in data/months/
+ */
+
+const InitialData = {
+    /**
+     * Initialize with months from individual JSON files if localStorage is empty
+     */
+    async initializeIfEmpty() {
+        const allMonths = DataManager.getAllMonths();
+        
+        if (Object.keys(allMonths).length === 0) {
+            // Try to load from files (will fail gracefully with file:// protocol)
+            const loadedMonths = await DataManager.loadMonthsFromFiles();
+            if (Object.keys(loadedMonths).length > 0) {
+                console.log(`Initialized with ${Object.keys(loadedMonths).length} months from individual JSON files`);
+                return true;
+            } else {
+                // localStorage is empty and files couldn't be loaded (file:// protocol)
+                console.log('No months found. Use the Import page to load data from JSON files, or create a new month.');
+            }
+        } else {
+            // Months exist in localStorage, try to sync with files if possible
+            await DataManager.loadMonthsFromFiles();
+        }
+        return false;
+    }
+};
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.InitialData = InitialData;
+}
+
+
+// ===== controllers/LandingController.js =====
+/**
+ * Landing Page Controller
+ * Handles the landing page view logic
+ * @module controllers/LandingController
+ */
+
+const LandingController = {
+    /**
+     * Initialize the landing page
+     * @returns {Promise<void>}
+     */
+    async init() {
+        await this.loadRecentMonths();
+        this.setupEventListeners();
+    },
+
+    /**
+     * Load and display recent months
+     * @returns {Promise<void>}
+     */
+    async loadRecentMonths() {
+        const recentMonthsContainer = document.getElementById('recent-months-container');
+        if (!recentMonthsContainer) return;
+
+        // Ensure months are loaded from files
+        await DataManager.loadMonthsFromFiles();
+        
+        const allMonths = DataManager.getAllMonths();
+        const monthKeys = Object.keys(allMonths).sort().reverse().slice(0, 6);
+
+        if (monthKeys.length === 0) {
+            recentMonthsContainer.innerHTML = '<p class="empty-message">No months created yet. Click "Create New Month" to get started.</p>';
+            return;
+        }
+
+        recentMonthsContainer.innerHTML = monthKeys.map(monthKey => {
+            const monthData = allMonths[monthKey];
+            const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+            const year = monthData.year;
+            const dateRange = monthData.dateRange;
+            
+            return `
+                <a href="views/monthly-budget.html?month=${monthKey}" class="month-item">
+                    <div class="month-item-title">${monthName} ${year}</div>
+                    <div class="month-item-date">${dateRange?.start || ''} to ${dateRange?.end || ''}</div>
+                </a>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Setup event listeners
+     * @returns {void}
+     */
+    setupEventListeners() {
+        const createNewMonthButton = document.getElementById('create-new-month-button');
+
+        if (createNewMonthButton) {
+            createNewMonthButton.addEventListener('click', () => this.handleCreateNewMonth());
+        }
+    },
+
+    /**
+     * Handle create new month action
+     * @returns {Promise<void>}
+     */
+    async handleCreateNewMonth() {
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+
+        const yearInput = prompt('Enter year:', currentYear);
+        if (!yearInput) return;
+
+        if (!Formatters.validateYear(yearInput)) {
+            alert('Please enter a valid year between 2000 and 2100');
+            return;
+        }
+
+        const year = parseInt(yearInput, 10);
+        const monthInput = prompt('Enter month (1-12):', currentMonth);
+        if (!monthInput) return;
+
+        if (!Formatters.validateMonth(monthInput)) {
+            alert('Please enter a valid month between 1 and 12');
+            return;
+        }
+
+        const month = parseInt(monthInput, 10);
+        const monthKey = DataManager.generateMonthKey(year, month);
+        const allMonths = DataManager.getAllMonths();
+        const existingMonth = allMonths[monthKey];
+
+        if (existingMonth) {
+            if (confirm('A month for this period already exists. Do you want to open it instead?')) {
+                window.location.href = `views/monthly-budget.html?month=${monthKey}`;
+            }
+            return;
+        }
+
+        await DataManager.createNewMonth(year, month);
+        window.location.href = `views/monthly-budget.html?month=${monthKey}`;
+    },
+
+};
+
+// Make LandingController available globally
+window.LandingController = LandingController;
+
+// Initialize when DOM is ready (if not already initialized by index.html)
+document.addEventListener('DOMContentLoaded', () => {
+    if (!window.landingControllerInitialized) {
+        LandingController.init();
+    }
+});
+
+
+
+
+// ===== Inline Scripts =====
+
+// Inline script 1
+
+        // Initialize with all months data if no months exist
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize settings first
+            DataManager.initializeSettings();
+            
+            // Load months from files if localStorage is empty
+            await InitialData.initializeIfEmpty();
+            
+            // Mark as initialized to prevent double initialization
+            window.landingControllerInitialized = true;
+            
+            // Now initialize the LandingController
+            if (window.LandingController) {
+                await window.LandingController.init();
+            }
+        });
+    
+</script>
+</body>
+</html>
+

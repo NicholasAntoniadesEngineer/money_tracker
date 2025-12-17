@@ -1,11 +1,13 @@
 /**
  * Landing Page Controller
  * Handles the landing page view logic
+ * @module controllers/LandingController
  */
 
 const LandingController = {
     /**
      * Initialize the landing page
+     * @returns {Promise<void>}
      */
     async init() {
         await this.loadRecentMonths();
@@ -14,6 +16,7 @@ const LandingController = {
 
     /**
      * Load and display recent months
+     * @returns {Promise<void>}
      */
     async loadRecentMonths() {
         const recentMonthsContainer = document.getElementById('recent-months-container');
@@ -47,6 +50,7 @@ const LandingController = {
 
     /**
      * Setup event listeners
+     * @returns {void}
      */
     setupEventListeners() {
         const createNewMonthButton = document.getElementById('create-new-month-button');
@@ -58,6 +62,7 @@ const LandingController = {
 
     /**
      * Handle create new month action
+     * @returns {Promise<void>}
      */
     async handleCreateNewMonth() {
         const currentDate = new Date();
