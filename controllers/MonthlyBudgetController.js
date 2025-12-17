@@ -607,21 +607,27 @@ const MonthlyBudgetController = {
      */
     getVariableCostCategories() {
         if (!this.currentMonthData) return [];
-        const variableCosts = this.currentMonthData.variableCosts || [];
-        const categories = new Set();
+        // Read directly from DOM to preserve the order of rows
+        const variableCostRows = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)'));
+        const categories = [];
+        const seenCategories = new Set();
         
-        variableCosts.forEach(cost => {
-            const category = (cost.category || '').trim();
+        variableCostRows.forEach(row => {
+            const category = (row.querySelector('.variable-cost-category')?.value || '').trim();
             if (category) {
                 const categoryLower = category.toLowerCase();
                 // Exclude transport/travel as it's in fixed costs
                 if (!categoryLower.includes('transport') && !categoryLower.includes('travel')) {
-                    categories.add(category);
+                    // Only add if we haven't seen this category yet (preserve first occurrence order)
+                    if (!seenCategories.has(category)) {
+                        seenCategories.add(category);
+                        categories.push(category);
+                    }
                 }
             }
         });
         
-        return Array.from(categories).sort();
+        return categories;
     },
 
     /**
@@ -631,6 +637,17 @@ const MonthlyBudgetController = {
         const thead = document.getElementById('weekly-breakdown-thead');
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!thead || !tbody) return;
+        
+        // Refresh variable costs from DOM before getting categories to ensure we have the latest data
+        if (this.currentMonthData) {
+            const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+                category: row.querySelector('.variable-cost-category')?.value || '',
+                estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+                actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+                comments: row.querySelector('.variable-cost-comments')?.value || ''
+            }));
+            this.currentMonthData.variableCosts = variableCosts;
+        }
         
         const categories = this.getVariableCostCategories();
         const headerRow = thead.querySelector('tr');
@@ -942,11 +959,23 @@ const MonthlyBudgetController = {
         }));
         this.currentMonthData.variableCosts = variableCostsFromDOM;
         
+        // Refresh unplanned expenses from DOM to ensure we have the latest data
+        const unplannedExpensesFromDOM = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr:not(.total-row)')).map(row => ({
+            name: row.querySelector('.unplanned-name')?.value || '',
+            amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
+            date: row.querySelector('.unplanned-date')?.value || '',
+            card: row.querySelector('.unplanned-card')?.value || '',
+            paid: row.querySelector('.unplanned-paid')?.checked || false,
+            comments: row.querySelector('.unplanned-comments')?.value || ''
+        }));
+        this.currentMonthData.unplannedExpenses = unplannedExpensesFromDOM;
+        
         const year = this.currentMonthData.year;
         const month = this.currentMonthData.month;
         const weeks = this.calculateWeeksInMonth(year, month);
         const fixedCosts = this.currentMonthData.fixedCosts || [];
         const variableCosts = this.currentMonthData.variableCosts || [];
+        const unplannedExpenses = this.currentMonthData.unplannedExpenses || [];
         
         // Get all weekly rows (excluding total row)
         const weeklyRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)'));
@@ -954,8 +983,40 @@ const MonthlyBudgetController = {
         // Distribute variable costs across weeks (same for all weeks)
         const numWeeks = weeks.length;
         const weeklyVariableCosts = {};
+        // Get categories AFTER updating variableCosts to ensure we have the latest
         const categories = this.getVariableCostCategories();
         
+        // Verify that all categories have corresponding columns in the table
+        // If not, the table structure might be out of sync
+        if (weeklyRows.length > 0) {
+            const firstRow = weeklyRows[0];
+            const existingVariableTextareas = firstRow.querySelectorAll('textarea[class*="weekly-variable-"]');
+            const existingCategoryIds = Array.from(existingVariableTextareas).map(textarea => {
+                const classList = Array.from(textarea.classList);
+                const variableClass = classList.find(cls => cls.startsWith('weekly-variable-'));
+                return variableClass ? variableClass.replace('weekly-variable-', '') : null;
+            }).filter(id => id !== null);
+            
+            const expectedCategoryIds = categories.map(cat => this.sanitizeCategoryId(cat));
+            const missingCategories = expectedCategoryIds.filter(id => !existingCategoryIds.includes(id));
+            
+            // If categories are missing from the table, rebuild it
+            if (missingCategories.length > 0) {
+                this.rebuildWorkingSectionTable();
+                // Reload weekly breakdown to ensure columns are correct
+                if (this.currentMonthData.weeklyBreakdown) {
+                    this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown, true);
+                }
+                // Re-fetch weekly rows after rebuild
+                const newWeeklyRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)'));
+                if (newWeeklyRows.length > 0) {
+                    // Use the newly rebuilt rows
+                    weeklyRows.splice(0, weeklyRows.length, ...newWeeklyRows);
+                }
+            }
+        }
+        
+        // Build weeklyVariableCosts from variableCosts, preserving order and ensuring all categories are included
         variableCosts.forEach(cost => {
             const category = (cost.category || '').trim();
             if (!category) return;
@@ -967,8 +1028,7 @@ const MonthlyBudgetController = {
             }
             
             const monthlyBudget = Formatters.parseNumber(cost.estimatedAmount || 0);
-            if (monthlyBudget <= 0) return;
-            
+            // Include even if monthlyBudget is 0, so the category column exists
             const weeklyBudget = monthlyBudget / numWeeks;
             
             if (!weeklyVariableCosts[category]) {
@@ -982,13 +1042,21 @@ const MonthlyBudgetController = {
             });
         });
         
+        // Ensure all categories from the categories array have entries in weeklyVariableCosts
+        // This handles cases where a category exists but has no estimated amount yet
+        categories.forEach(category => {
+            if (!weeklyVariableCosts[category]) {
+                weeklyVariableCosts[category] = [];
+            }
+        });
+        
         // Process each week
         weeklyRows.forEach((row, weekIndex) => {
             if (weekIndex >= weeks.length) return;
             
             const paymentsDueTextarea = row.querySelector('.weekly-payments-due');
             
-            // Collect fixed costs for this week
+            // Collect fixed costs and unplanned expenses for this week
             const week = weeks[weekIndex];
             const weekFixedCosts = [];
             
@@ -1013,6 +1081,30 @@ const MonthlyBudgetController = {
                 }
             });
             
+            // Add unplanned expenses for this week to payments due field (for visibility)
+            // They will be excluded from estimate calculation but included in actual when paid
+            unplannedExpenses.forEach(expense => {
+                if (!expense.date) return;
+                
+                // Parse date - could be in various formats (DD, DD-MM, DD/MM, etc.)
+                const dateMatch = expense.date.toString().match(/(\d+)/);
+                if (dateMatch) {
+                    const day = parseInt(dateMatch[1], 10);
+                    if (day >= week.startDate && day <= week.endDate) {
+                        const amount = Formatters.parseNumber(expense.amount || 0);
+                        const name = expense.name || 'Unplanned Expense';
+                        weekFixedCosts.push({
+                            category: name,
+                            amount: amount,
+                            date: day,
+                            card: expense.card || '',
+                            paid: expense.paid || false,
+                            isUnplanned: true // Mark as unplanned expense
+                        });
+                    }
+                }
+            });
+            
             // Build payments due text (only if field is empty or contains auto-generated content)
             const currentPayments = paymentsDueTextarea?.value || '';
             const hasAutoGeneratedPayments = currentPayments.includes('Auto-generated');
@@ -1020,11 +1112,11 @@ const MonthlyBudgetController = {
             // Check if payments are all on one line and need reformatting (regardless of forceUpdate)
             // This handles cases where saved data has all payments concatenated on one line
             const lines = currentPayments.split('\n').filter(line => line.trim());
-            // If we have multiple fixed costs for this week but only one line of text, reformat it
+            // If we have multiple fixed costs/unplanned expenses for this week but only one line of text, reformat it
             // This ensures proper list format even if saved data was on one line
             const needsReformatting = lines.length === 1 && weekFixedCosts.length > 1 && currentPayments.trim().length > 0;
 
-            // If there are no fixed costs for this week, clear the payments due field
+            // If there are no fixed costs or unplanned expenses for this week, clear the payments due field
             if (weekFixedCosts.length === 0) {
                 paymentsDueTextarea.value = '';
                 this.autoSizeTextarea(paymentsDueTextarea);
@@ -1086,12 +1178,32 @@ const MonthlyBudgetController = {
             }
             
             // Populate each variable cost category column
+            // Get all variable cost textareas in the row to ensure we match correctly
+            const allVariableTextareas = row.querySelectorAll('textarea[class*="weekly-variable-"]');
+            const textareaMap = {};
+            allVariableTextareas.forEach(textarea => {
+                // Extract category from class name by removing 'weekly-variable-' prefix
+                const classList = Array.from(textarea.classList);
+                const variableClass = classList.find(cls => cls.startsWith('weekly-variable-'));
+                if (variableClass) {
+                    const categoryId = variableClass.replace('weekly-variable-', '');
+                    textareaMap[categoryId] = textarea;
+                }
+            });
+            
             categories.forEach(category => {
                 const categoryId = this.sanitizeCategoryId(category);
                 const categoryClass = 'weekly-variable-' + categoryId;
-                const categoryTextarea = row.querySelector('.' + categoryClass);
+                // Try to find textarea by class first, then by map
+                let categoryTextarea = row.querySelector('.' + categoryClass);
+                if (!categoryTextarea && textareaMap[categoryId]) {
+                    categoryTextarea = textareaMap[categoryId];
+                }
                 
-                if (!categoryTextarea) return;
+                if (!categoryTextarea) {
+                    // If textarea not found, it might not exist yet - skip this category
+                    return;
+                }
                 
                 const currentValue = categoryTextarea.value || '';
                 const hasAutoGenerated = currentValue.includes('Auto-generated');
@@ -1099,16 +1211,21 @@ const MonthlyBudgetController = {
                 const hasEquals = currentValue.includes('=');
                 
                 // Check if we have variable costs data for this category
-                const hasVariableCostsData = weeklyVariableCosts[category] && weeklyVariableCosts[category].length > 0;
+                // A category exists in weeklyVariableCosts if it's in the categories array
+                const hasVariableCostsData = weeklyVariableCosts[category] !== undefined;
+                const hasVariableCostsAmount = weeklyVariableCosts[category] && weeklyVariableCosts[category].length > 0;
                 
-                // Update if: we have data AND (empty, has auto-generated, or has estimate)
+                // Update if: category exists in our data AND (empty, has auto-generated, or has estimate)
                 // When forceUpdate=true, do NOT overwrite user-entered data - only update if field is empty or auto-generated
                 if (hasVariableCostsData) {
                     // Only update if empty, has auto-generated, or has estimate - NOT when forceUpdate is true with user data
                     const shouldUpdate = !currentValue.trim() || hasAutoGenerated || hasEstimate;
                     if (shouldUpdate) {
                     // Calculate total estimate for this category (sum of all variable costs in this category)
-                    const totalEstimate = weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0);
+                    // If no amounts, use 0
+                    const totalEstimate = hasVariableCostsAmount 
+                        ? weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0)
+                        : 0;
                     const baseEstimate = totalEstimate.toFixed(2);
                     
                     // Only replace if empty, has auto-generated, or has estimate
@@ -1620,11 +1737,15 @@ const MonthlyBudgetController = {
                     // Always populate working section immediately after rebuilding to ensure new category is included
                     requestAnimationFrame(() => {
                         this.populateWorkingSectionFromCosts(true);
+                        // Update calculations to ensure Estimate and Actual columns reflect the new category
+                        this.updateCalculations();
                     });
                 } else if (input.classList.contains('variable-cost-estimated') || input.classList.contains('variable-cost-actual')) {
                     // Repopulate working section immediately when amount changes (force update to ensure working section reflects new amounts)
                     requestAnimationFrame(() => {
                         this.populateWorkingSectionFromCosts(true);
+                        // Update calculations to ensure Estimate and Actual columns reflect the updated amounts
+                        this.updateCalculations();
                     });
                 }
             });
@@ -1654,29 +1775,41 @@ const MonthlyBudgetController = {
         }
         
         const updateWorkingSection = () => {
-            // Ensure currentMonthData is up to date before rebuilding
-            if (this.currentMonthData) {
-                const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                    category: row.querySelector('.variable-cost-category')?.value || '',
-                    estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                    actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                    comments: row.querySelector('.variable-cost-comments')?.value || ''
-                }));
-                this.currentMonthData.variableCosts = variableCosts;
-            }
-            
-            this.rebuildWorkingSectionTable();
-            if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
-                this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
-            } else {
-                // If no weekly breakdown exists yet, just load with empty data to create rows
-                this.loadWeeklyBreakdown([]);
-            }
-            // Always populate working section after rebuilding to ensure new variable costs are included
-            // Use setTimeout to ensure DOM is ready
-            setTimeout(() => {
-                this.populateWorkingSectionFromCosts(true);
-            }, 0);
+            // Use requestAnimationFrame to ensure the new row is fully in the DOM before reading
+            requestAnimationFrame(() => {
+                // Ensure currentMonthData is up to date before rebuilding - read from DOM again to get latest
+                if (this.currentMonthData) {
+                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+                        category: row.querySelector('.variable-cost-category')?.value || '',
+                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
+                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                    }));
+                    this.currentMonthData.variableCosts = variableCosts;
+                }
+                
+                // Now rebuild the table structure with the updated categories
+                // rebuildWorkingSectionTable will also refresh from DOM, but we do it here too for safety
+                this.rebuildWorkingSectionTable();
+                
+                // Use setTimeout to ensure table rebuild is complete before loading weekly breakdown
+                setTimeout(() => {
+                    if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
+                        this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
+                    } else {
+                        // If no weekly breakdown exists yet, just load with empty data to create rows
+                        this.loadWeeklyBreakdown([]);
+                    }
+                    
+                    // Use requestAnimationFrame to ensure weekly breakdown is loaded before populating
+                    requestAnimationFrame(() => {
+                        // Always populate working section after rebuilding to ensure new variable costs are included
+                        this.populateWorkingSectionFromCosts(true);
+                        // Update calculations after populating to ensure Estimate and Actual columns are correct
+                        this.updateCalculations();
+                    });
+                }, 0);
+            });
         };
         updateWorkingSection();
     },
@@ -1732,7 +1865,7 @@ const MonthlyBudgetController = {
             <td><input type="number" class="unplanned-amount" value="${expenseData?.amount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="text" class="unplanned-date" value="${expenseData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="unplanned-card" value="${expenseData?.card || ''}" placeholder="Card"></td>
-            <td><input type="text" class="unplanned-status" value="${expenseData?.status || ''}" placeholder="Status"></td>
+            <td><input type="checkbox" class="unplanned-paid" ${expenseData?.paid ? 'checked' : ''}></td>
             <td><input type="text" class="unplanned-comments" value="${expenseData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
@@ -1757,6 +1890,16 @@ const MonthlyBudgetController = {
                     this.populateWorkingSectionFromCosts(true);
                 });
             });
+            // Also listen for change events on checkboxes (checkboxes don't fire input events reliably)
+            if (input.type === 'checkbox') {
+                input.addEventListener('change', () => {
+                    this.updateCalculations();
+                    // Repopulate working section immediately when paid status changes
+                    requestAnimationFrame(() => {
+                        this.populateWorkingSectionFromCosts(true);
+                    });
+                });
+            }
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -1778,7 +1921,7 @@ const MonthlyBudgetController = {
                 amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
                 date: row.querySelector('.unplanned-date')?.value || '',
                 card: row.querySelector('.unplanned-card')?.value || '',
-                status: row.querySelector('.unplanned-status')?.value || '',
+                paid: row.querySelector('.unplanned-paid')?.checked || false,
                 comments: row.querySelector('.unplanned-comments')?.value || ''
             }));
             this.currentMonthData.unplannedExpenses = unplannedExpenses;
@@ -1993,8 +2136,25 @@ const MonthlyBudgetController = {
             // Calculate total directly from source data (more accurate than reading rounded input values)
             weeklyEstimateTotal += rowEstimate;
             
-            // Calculate actual: paid fixed costs + sum of "=" values from variable cost columns
-            const rowActual = paidFixedCostsForWeek + rowVariableTotal;
+            // Calculate paid unplanned expenses for this week (only those marked as paid)
+            let paidUnplannedForWeek = 0;
+            const unplannedExpenses = this.currentMonthData.unplannedExpenses || [];
+            unplannedExpenses.forEach(expense => {
+                if (!expense.date || !expense.paid) return; // Skip unpaid expenses
+                
+                // Parse date - could be in various formats (DD, DD-MM, DD/MM, etc.)
+                const dateMatch = expense.date.toString().match(/(\d+)/);
+                if (dateMatch) {
+                    const day = parseInt(dateMatch[1], 10);
+                    if (day >= week.startDate && day <= week.endDate) {
+                        const amount = Formatters.parseNumber(expense.amount || 0);
+                        paidUnplannedForWeek += amount;
+                    }
+                }
+            });
+            
+            // Calculate actual: paid fixed costs + paid unplanned expenses + sum of "=" values from variable cost columns
+            const rowActual = paidFixedCostsForWeek + paidUnplannedForWeek + rowVariableTotal;
             if (actualInput) {
                 actualInput.value = rowActual.toFixed(2);
             }
@@ -2064,7 +2224,7 @@ const MonthlyBudgetController = {
             amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
             date: row.querySelector('.unplanned-date')?.value || '',
             card: row.querySelector('.unplanned-card')?.value || '',
-            status: row.querySelector('.unplanned-status')?.value || '',
+            paid: row.querySelector('.unplanned-paid')?.checked || false,
             comments: row.querySelector('.unplanned-comments')?.value || ''
         }));
 
@@ -2420,6 +2580,17 @@ const MonthlyBudgetController = {
     calculatePaymentsDueTotal(paymentsDueText, estimatedOnly = true) {
         if (!paymentsDueText || !paymentsDueText.trim()) return 0;
         
+        // Get list of unplanned expense names to exclude from estimate calculation
+        const unplannedExpenseNames = new Set();
+        if (this.currentMonthData && this.currentMonthData.unplannedExpenses) {
+            this.currentMonthData.unplannedExpenses.forEach(expense => {
+                const name = (expense.name || '').trim();
+                if (name) {
+                    unplannedExpenseNames.add(name);
+                }
+            });
+        }
+        
         let total = 0;
         const lines = paymentsDueText.split('\n');
         const currencySymbol = Formatters.formatCurrency(0).charAt(0); // Get currency symbol (usually £)
@@ -2431,6 +2602,15 @@ const MonthlyBudgetController = {
             // Remove any "---" separators from the line
             const cleanedLine = line.replace(/---+/g, '').trim();
             if (!cleanedLine) return;
+            
+            // Extract category name (everything before the colon)
+            const categoryMatch = cleanedLine.match(/^([^:]+):/);
+            const categoryName = categoryMatch ? categoryMatch[1].trim() : '';
+            
+            // If calculating estimate and this is an unplanned expense, skip it
+            if (estimatedOnly && unplannedExpenseNames.has(categoryName)) {
+                return;
+            }
             
             // Check if line has actual amount in format: "Category: £Amount [Actual: £Amount]"
             const actualMatch = cleanedLine.match(/\[Actual:\s*([^\]]+)\]/i);
@@ -2449,11 +2629,27 @@ const MonthlyBudgetController = {
                     }
                 }
             } else {
+                // For actual calculation, only count items with a paid tick (✓)
+                const hasPaidTick = cleanedLine.includes('✓');
+                if (!hasPaidTick) return; // Skip items without paid tick
+                
                 // Extract actual amount if present
                 if (actualMatch) {
                     const actualText = actualMatch[1];
                     const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
                     const matches = actualText.match(amountRegex);
+                    
+                    if (matches && matches.length > 0) {
+                        const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
+                        const amount = parseFloat(amountStr);
+                        if (!isNaN(amount) && amount > 0) {
+                            total += amount;
+                        }
+                    }
+                } else {
+                    // If no [Actual:] but has paid tick, use the main amount
+                    const amountRegex = new RegExp(`${escapedSymbol}([\\d,]+(?:\\.\\d{2})?)`, 'g');
+                    const matches = cleanedLine.match(amountRegex);
                     
                     if (matches && matches.length > 0) {
                         const amountStr = matches[0].replace(currencySymbol, '').replace(/,/g, '');
