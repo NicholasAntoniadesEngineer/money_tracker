@@ -11,6 +11,7 @@ const SettingsController = {
     async init() {
         await DataManager.loadMonthsFromFiles();
         this.loadCurrencySetting();
+        this.loadMonthSelector();
         this.setupEventListeners();
     },
 
@@ -68,7 +69,6 @@ const SettingsController = {
 
         const importButton = document.getElementById('import-button');
         const fileInput = document.getElementById('file-input');
-        const loadMonthsBtn = document.getElementById('load-months-button');
         const exportButton = document.getElementById('export-button');
         const exportFormatSelect = document.getElementById('export-format-select');
         const monthSelector = document.getElementById('month-selector');
@@ -125,44 +125,6 @@ const SettingsController = {
             });
         }
 
-        // Primary import button - tries File System Access API first, falls back to file input
-        if (loadMonthsBtn) {
-            loadMonthsBtn.addEventListener('click', async () => {
-                loadMonthsBtn.disabled = true;
-                const statusElement = fileOperationsStatus || importStatus;
-                if (statusElement) {
-                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Loading months from files...</p>';
-                }
-                
-                try {
-                    const result = await DataManager.loadMonthsFromFilePicker();
-                    if (result.success) {
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--success-color);">Successfully loaded ' + result.count + ' months!</p>';
-                        }
-                        this.loadMonthSelector();
-                    } else if (result.useFileInput && fileInput) {
-                        // Fallback to file input if API not available
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--text-secondary);">Please select JSON, CSV, or HTML files to import...</p>';
-                        }
-                        fileInput.click();
-                    } else {
-                        if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--danger-color);">' + result.message + '</p>';
-                        }
-                    }
-                } catch (error) {
-                    if (statusElement) {
-                        statusElement.innerHTML = `<p style="color: var(--danger-color);">✗ Error: ${error.message}</p>`;
-                    }
-                    console.error('Error loading months:', error);
-                } finally {
-                    loadMonthsBtn.disabled = false;
-                }
-            });
-        }
-
         // File input change handler - show import button and year input if needed
         if (fileInput && yearInputGroup && importYear && importButton) {
             fileInput.addEventListener('change', () => {
@@ -186,18 +148,15 @@ const SettingsController = {
         }
 
 
-        // Export button - handles multiple selected months
+        // Export button - handles selected month or all months
         if (exportButton && exportFormatSelect && monthSelector) {
             exportButton.addEventListener('click', async () => {
-                const selectedOptions = Array.from(monthSelector.selectedOptions);
-                const selectedMonthKeys = selectedOptions
-                    .map(option => option.value)
-                    .filter(value => value && value !== '');
+                const selectedValue = monthSelector.value;
                 
-                if (selectedMonthKeys.length === 0) {
+                if (!selectedValue) {
                     const statusElement = fileOperationsStatus || importStatus;
                     if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--warning-color);">Please select at least one month to export.</p>';
+                        statusElement.innerHTML = '<p style="color: var(--warning-color);">Please select a month to export.</p>';
                     }
                     return;
                 }
@@ -215,56 +174,63 @@ const SettingsController = {
                 exportButton.disabled = true;
                 const formatUpper = format.toUpperCase();
                 const statusElement = fileOperationsStatus || importStatus;
-                const monthCount = selectedMonthKeys.length;
-                if (statusElement) {
-                    statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting ' + monthCount + ' month' + (monthCount !== 1 ? 's' : '') + ' as ' + formatUpper + '...</p>';
-                }
                 
                 try {
-                    let exportedCount = 0;
-                    let errorCount = 0;
-                    
-                    for (const monthKey of selectedMonthKeys) {
-                        try {
-                            const monthData = DataManager.getMonth(monthKey);
-                            if (!monthData) {
-                                throw new Error('Month data not found for ' + monthKey);
+                    if (selectedValue === 'all') {
+                        // Export all months
+                        const allMonths = DataManager.getAllMonths();
+                        const monthKeys = Object.keys(allMonths);
+                        
+                        if (monthKeys.length === 0) {
+                            if (statusElement) {
+                                statusElement.innerHTML = '<p style="color: var(--warning-color);">No months to export.</p>';
                             }
-                            
-                            const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
-                            if (success) {
-                                exportedCount++;
-                            } else {
-                                errorCount++;
-                            }
-                            // Small delay to avoid browser blocking multiple downloads
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                        } catch (error) {
-                            console.error('Error exporting ' + monthKey + ':', error);
-                            errorCount++;
+                            return;
                         }
-                    }
-                    
-                    if (exportedCount > 0) {
-                        const monthText = exportedCount !== 1 ? 'months' : 'month';
-                        let message = 'Successfully exported ' + exportedCount + ' ' + monthText + ' as ' + formatUpper + '!';
-                        if (errorCount > 0) {
-                            const errorText = errorCount !== 1 ? 'errors' : 'error';
-                            message += '<br/><span style="color: var(--warning-color);">' + errorCount + ' ' + errorText + ' occurred</span>';
-                        }
+                        
                         if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--success-color);">' + message + '</p>';
+                            statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting ' + monthKeys.length + ' months as ' + formatUpper + '...</p>';
+                        }
+                        
+                        let exportedCount = 0;
+                        for (const monthKey of monthKeys) {
+                            const monthData = allMonths[monthKey];
+                            const success = await DataManager.exportMonthToFile(monthKey, monthData, format);
+                            if (success) exportedCount++;
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                        
+                        if (statusElement) {
+                            statusElement.innerHTML = '<p style="color: var(--success-color);">Successfully exported ' + exportedCount + ' months as ' + formatUpper + '!</p>';
                         }
                     } else {
+                        // Export single month
                         if (statusElement) {
-                            statusElement.innerHTML = '<p style="color: var(--danger-color);">Failed to export any months.</p>';
+                            statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting as ' + formatUpper + '...</p>';
+                        }
+                        
+                        const monthData = DataManager.getMonth(selectedValue);
+                        if (!monthData) {
+                            throw new Error('Month data not found');
+                        }
+                        
+                        const success = await DataManager.exportMonthToFile(selectedValue, monthData, format);
+                        
+                        if (success) {
+                            const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                            if (statusElement) {
+                                statusElement.innerHTML = '<p style="color: var(--success-color);">Successfully exported ' + monthName + ' ' + monthData.year + ' as ' + formatUpper + '!</p>';
+                            }
+                        } else {
+                            if (statusElement) {
+                                statusElement.innerHTML = '<p style="color: var(--danger-color);">Failed to export month.</p>';
+                            }
                         }
                     }
                 } catch (error) {
-                    console.error('Error exporting months:', error);
-                    const statusElement = fileOperationsStatus || importStatus;
+                    console.error('Error exporting:', error);
                     if (statusElement) {
-                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting months: ' + error.message + '</p>';
+                        statusElement.innerHTML = '<p style="color: var(--danger-color);">Error exporting: ' + error.message + '</p>';
                     }
                 } finally {
                     exportButton.disabled = false;
@@ -272,21 +238,16 @@ const SettingsController = {
             });
         }
 
-        // Delete month button - works with first selected month only
+        // Delete month button
         if (deleteMonthBtn && monthSelector) {
             deleteMonthBtn.addEventListener('click', () => {
-                const selectedOptions = Array.from(monthSelector.selectedOptions);
-                const selectedMonthKeys = selectedOptions
-                    .map(option => option.value)
-                    .filter(value => value && value !== '');
+                const selectedMonthKey = monthSelector.value;
                 
-                if (selectedMonthKeys.length === 0) {
+                if (!selectedMonthKey) {
                     alert('No month selected');
                     return;
                 }
                 
-                // Use first selected month for delete
-                const selectedMonthKey = selectedMonthKeys[0];
                 const monthData = DataManager.getMonth(selectedMonthKey);
                 if (!monthData) {
                     alert('Month not found');
@@ -313,16 +274,12 @@ const SettingsController = {
             });
         }
 
-        // Month selector change handler - show/hide delete button
+        // Month selector change handler - show/hide delete button (hide for "all" option)
         if (monthSelector && deleteMonthBtn) {
             monthSelector.addEventListener('change', () => {
-                const selectedOptions = Array.from(monthSelector.selectedOptions);
-                const hasSelection = selectedOptions.some(option => option.value && option.value !== '');
-                if (hasSelection) {
-                    deleteMonthBtn.style.display = 'inline-block';
-                } else {
-                    deleteMonthBtn.style.display = 'none';
-                }
+                const selectedValue = monthSelector.value;
+                const showDelete = selectedValue && selectedValue !== '' && selectedValue !== 'all';
+                deleteMonthBtn.style.display = showDelete ? 'inline-block' : 'none';
             });
         }
     },
@@ -599,13 +556,17 @@ const SettingsController = {
         const allMonths = DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        selector.innerHTML = monthKeys.length > 0 
-            ? monthKeys.map(key => {
-                const monthData = allMonths[key];
-                const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
-            }).join('')
-            : '';
+        if (monthKeys.length > 0) {
+            selector.innerHTML = '<option value="">Select month...</option>' +
+                '<option value="all">Export All Months</option>' + 
+                monthKeys.map(key => {
+                    const monthData = allMonths[key];
+                    const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                    return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+                }).join('');
+        } else {
+            selector.innerHTML = '<option value="">No months available</option>';
+        }
     }
 };
 

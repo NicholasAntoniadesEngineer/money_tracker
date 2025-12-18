@@ -89,9 +89,8 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    flex-shrink: 1;
-    min-width: 0;
-    flex-wrap: wrap;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .create-month-btn {
@@ -109,62 +108,58 @@
     .month-header-container {
         gap: 0.75rem;
     }
-    
-    .month-buttons-container {
-        flex-wrap: wrap;
-        width: 100%;
-    }
-    
-    .create-month-btn,
-    #load-example-button {
-        flex: 1 1 auto;
-        min-width: 150px;
-    }
 }
 
 @media (max-width: 768px) {
     .month-header-container {
         flex-direction: column;
         align-items: stretch;
-        gap: 1rem;
+        gap: 0.75rem;
         padding: var(--spacing-sm);
     }
     
     .month-title-wrapper {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.75rem;
-    }
-    
-    .month-title {
-        font-size: 1.5rem;
-    }
-    
-    .month-selector-compact {
-        width: 100%;
-        max-width: 100%;
-    }
-    
-    .month-selector-wrapper {
-        flex-direction: column;
-        align-items: stretch;
+        flex-wrap: nowrap;
         gap: 0.5rem;
     }
     
+    .month-title {
+        font-size: 1.25rem;
+    }
+    
+    .month-selector-compact {
+        min-width: 140px;
+        max-width: none;
+        flex: 1;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.75rem;
+    }
+    
+    .month-selector-wrapper {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-label {
+        font-size: 0.9rem;
+    }
+    
     .month-selector-wrapper .form-select {
-        width: 100%;
-        max-width: 100%;
+        min-width: 140px;
+        max-width: none;
+        flex: 1;
     }
     
     .month-buttons-container {
-        width: 100%;
-        flex-direction: column;
+        justify-content: center;
     }
     
     .create-month-btn,
     #load-example-button {
-        width: 100%;
-        flex: 1 1 100%;
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
     }
 
     .section-actions-container {
@@ -192,6 +187,31 @@
 }
 
 @media (max-width: 480px) {
+    .month-title {
+        font-size: 1rem;
+    }
+    
+    .month-selector-compact {
+        min-width: 100px;
+        font-size: 0.8rem;
+        padding: 0.35rem 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-label {
+        font-size: 0.85rem;
+    }
+    
+    .month-selector-wrapper .form-select {
+        min-width: 100px;
+        font-size: 0.85rem;
+    }
+    
+    .create-month-btn,
+    #load-example-button {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.5rem;
+    }
+
     .section-actions-container {
         flex-direction: column !important;
         align-items: stretch !important;

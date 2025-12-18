@@ -11,143 +11,73 @@
     <!-- Header will be injected by Header.js -->
 
     <main class="settings-main" role="main">
-        <section class="hero-section">
-            <h2 class="hero-title">Settings</h2>
+
+        <section class="settings-section form-section">
+            <h2 class="section-title">General</h2>
+
+            <div class="settings-row">
+                <label for="currency-select" class="form-label">Currency:</label>
+                <select id="currency-select" class="form-select">
+                    <option value="£">£ (GBP)</option>
+                    <option value="$">$ (USD)</option>
+                    <option value="€">€ (EUR)</option>
+                    <option value="¥">¥ (JPY)</option>
+                    <option value="₹">₹ (INR)</option>
+                    <option value="A$">A$ (AUD)</option>
+                    <option value="C$">C$ (CAD)</option>
+                    <option value="CHF">CHF</option>
+                    <option value="NZ$">NZ$ (NZD)</option>
+                    <option value="R">R (ZAR)</option>
+                </select>
+                <div id="currency-status" class="settings-status"></div>
+            </div>
+
+            <div class="settings-row">
+                <label class="form-label">Cache:</label>
+                <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
+            </div>
         </section>
 
         <section class="settings-section form-section">
-            <h2 class="section-title">General Settings</h2>
-            <table class="settings-table">
-                <thead>
-                    <tr>
-                        <th>Setting</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <strong>Currency</strong>
-                            <p class="setting-description">Display currency symbol for all amounts</p>
-                        </td>
-                        <td>
-                            <select id="currency-select" class="form-select">
-                                <option value="£">£ (GBP - British Pound)</option>
-                                <option value="$">$ (USD - US Dollar)</option>
-                                <option value="€">€ (EUR - Euro)</option>
-                                <option value="¥">¥ (JPY - Japanese Yen)</option>
-                                <option value="₹">₹ (INR - Indian Rupee)</option>
-                                <option value="A$">A$ (AUD - Australian Dollar)</option>
-                                <option value="C$">C$ (CAD - Canadian Dollar)</option>
-                                <option value="CHF">CHF (Swiss Franc)</option>
-                                <option value="NZ$">NZ$ (NZD - New Zealand Dollar)</option>
-                                <option value="R">R (ZAR - South African Rand)</option>
-                            </select>
-                            <div id="currency-status" class="setting-status"></div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <strong>Clear Cache</strong>
-                            <p class="setting-description">Remove all months, pots, and settings from browser storage</p>
-                        </td>
-                        <td>
-                            <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <h2 class="section-title">Import</h2>
+
+            <div class="settings-row">
+                <label for="file-input" class="form-label">Files:</label>
+                <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple style="max-width: none;">
+            </div>
+
+            <div id="year-input-group" class="settings-inline-group" style="display: none;">
+                <label for="import-year" class="form-label">Year:</label>
+                <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100" style="width: 100px;">
+                <button id="import-button" class="btn btn-action">Import</button>
+            </div>
+
+            <div id="import-status" class="settings-status"></div>
         </section>
 
         <section class="settings-section form-section">
-            <h2 class="section-title">Import Data</h2>
-            <table class="settings-table">
-                <thead>
-                    <tr>
-                        <th>Option</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <strong>Quick Import</strong>
-                            <p class="setting-description">Select a folder or multiple files to import at once</p>
-                        </td>
-                        <td>
-                            <button id="load-months-button" class="btn btn-primary">Select Folder or Files</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <strong>Manual File Import</strong>
-                            <p class="setting-description">Select individual JSON, CSV, or HTML files</p>
-                        </td>
-                        <td>
-                            <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
-                            <div id="year-input-group" class="import-year-group" style="display: none;">
-                                <label for="import-year" class="form-label">Year:</label>
-                                <input type="number" id="import-year" class="form-input import-year-input" value="2025" min="2000" max="2100">
-                            </div>
-                            <button id="import-button" class="btn btn-action import-button" style="display: none;">Import Selected Files</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <div id="import-status" class="status-container"></div>
+            <h2 class="section-title">Export & Delete</h2>
+            
+            <div class="settings-row">
+                <label for="month-selector" class="form-label">Month:</label>
+                <select id="month-selector" class="form-select">
+                    <option value="">Select month...</option>
+                </select>
+            </div>
+
+            <div class="settings-row">
+                <label for="export-format-select" class="form-label">Format:</label>
+                <select id="export-format-select" class="form-select" style="max-width: 120px;">
+                    <option value="json">JSON</option>
+                    <option value="csv">CSV</option>
+                    <option value="html">HTML</option>
+                </select>
+                <button id="export-button" class="btn btn-action">Export</button>
+                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete</button>
+            </div>
         </section>
 
-        <section class="settings-section form-section">
-            <h2 class="section-title">Export & Delete Data</h2>
-            <table class="settings-table">
-                <thead>
-                    <tr>
-                        <th>Option</th>
-                        <th>Selection / Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <strong>Select Months</strong>
-                            <p class="setting-description">Hold Ctrl/Cmd to select multiple months</p>
-                        </td>
-                        <td>
-                            <select id="month-selector" class="form-select month-selector-multi" multiple>
-                                <option value="">Loading...</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <strong>Export Format</strong>
-                            <p class="setting-description">Choose output format for export</p>
-                        </td>
-                        <td>
-                            <select id="export-format-select" class="form-select">
-                                <option value="json">JSON</option>
-                                <option value="csv">CSV</option>
-                                <option value="html">HTML</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <strong>Actions</strong>
-                            <p class="setting-description">Export or delete selected months</p>
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <button id="export-button" class="btn btn-action">Export</button>
-                                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete</button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
-
-        <div id="file-operations-status" class="status-container"></div>
+        <div id="file-operations-status" class="settings-status"></div>
     </main>
 
     <footer class="main-footer" role="contentinfo">
@@ -178,4 +108,3 @@
     </script>
 </body>
 </html>
-

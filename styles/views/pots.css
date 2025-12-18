@@ -14,3 +14,16 @@
 .hero-section-pots {
     background-color: rgba(220, 220, 220, 0.85);
 }
+
+.pots-main .summary-grid {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.pots-main .summary-card {
+    flex: 0 1 auto;
+    min-width: 200px;
+    max-width: 300px;
+}
