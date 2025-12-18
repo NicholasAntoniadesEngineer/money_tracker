@@ -11,21 +11,27 @@
     text-align: center;
 }
 
+.summary-section {
+    margin-bottom: var(--spacing-md);
+}
+
 .views-section {
-    margin-top: var(--viewport-spacing-top);
+    margin-bottom: var(--spacing-md);
 }
 
 .views-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
 }
 
 .months-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: var(--spacing-xs);
+}
+
+.quick-actions-section {
     margin-bottom: var(--spacing-md);
 }
 
@@ -33,7 +39,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
 }
 
 @media (max-width: 768px) {

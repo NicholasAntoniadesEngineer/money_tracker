@@ -11,9 +11,16 @@ const path = require('path');
 // Define the order of JavaScript files to load
 const JS_ORDER = {
     'index.html': [
-        'components/Header.js',
-        'models/DataManager.js',
+        'models/StorageService.js',
+        'models/MonthFactory.js',
+        'services/CalculationService.js',
+        'services/FormHandler.js',
+        'services/TableRenderer.js',
         'utils/formatters.js',
+        'services/FileService.js',
+        'services/ExportService.js',
+        'models/DataManager.js',
+        'components/Header.js',
         'utils/InitialData.js',
         'controllers/LandingController.js'
     ],
@@ -30,12 +37,6 @@ const JS_ORDER = {
         'models/DataManager.js',
         'utils/formatters.js',
         'controllers/PotsController.js'
-    ],
-    'views/overview.html': [
-        'components/Header.js',
-        'models/DataManager.js',
-        'utils/formatters.js',
-        'controllers/OverviewController.js'
     ],
     'views/settings.html': [
         'components/Header.js',
@@ -217,7 +218,6 @@ function build() {
         'index.html',
         'views/monthly-budget.html',
         'views/pots.html',
-        'views/overview.html',
         'views/settings.html'
     ];
     

@@ -200,24 +200,56 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     max-width: 40px;
 }
 
+#weekly-breakdown-table .delete-column-header {
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-sm);
+    border: none !important;
+    background-color: transparent !important;
+    text-align: center;
+}
+
+#weekly-breakdown-table td:last-child {
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
+    border: none !important;
+    background-color: transparent !important;
+    text-align: center;
+}
+
 #weekly-breakdown-tbody input,
 #weekly-breakdown-tbody textarea {
     border-color: var(--border-color-black);
 }
 
-.delete-column-header {
+.data-table:not(#weekly-breakdown-table) .delete-column-header {
     width: 40px;
-    padding: 0;
-    border: none;
-    background: transparent;
+    min-width: 40px;
+    max-width: 40px;
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-sm);
+    border: none !important;
+    background-color: transparent !important;
+    text-align: center;
 }
 
-.data-table td:last-child:has(.delete-row-x) {
+.data-table:not(#weekly-breakdown-table) td:last-child:has(.delete-row-x) {
     width: 40px;
-    padding: var(--spacing-xs);
-    border: none;
-    background: transparent;
+    min-width: 40px;
+    max-width: 40px;
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
+    border: none !important;
+    background-color: transparent !important;
     text-align: center;
+}
+
+.data-table tbody tr:last-child td:last-child,
+.data-table tfoot tr:last-child td:last-child,
+.data-table .total-row td:last-child {
+    border: none !important;
+    background-color: rgba(221, 221, 221, 0.85) !important;
+}
+
+#weekly-breakdown-table tbody tr:last-child td:last-child,
+#weekly-breakdown-table .total-row td:last-child {
+    border: none !important;
+    background-color: rgba(221, 221, 221, 0.85) !important;
 }
 
 .delete-row-x {
@@ -225,13 +257,13 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     color: var(--danger-color);
     font-size: 1.4rem;
     font-weight: bold;
-    padding: 0.5rem;
+    padding: 0;
     line-height: 1;
     user-select: none;
     background: transparent;
     border: none;
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;

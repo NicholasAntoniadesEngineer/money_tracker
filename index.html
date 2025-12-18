@@ -10,8 +10,31 @@
 <body class="landing-page">
     <!-- Header will be injected by Header.js -->
 
-    <main class="landing-main" role="main">
+    <main class="landing-main overview-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Financial Overview</h2>
+        </section>
 
+        <section class="summary-section" aria-labelledby="summary-heading">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Income</div>
+                    <div id="overall-income" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Expenses</div>
+                    <div id="overall-expenses" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Savings</div>
+                    <div id="overall-savings" class="summary-card-value">£0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots/Investments</div>
+                    <div id="overall-pots" class="summary-card-value">£0.00</div>
+                </div>
+            </div>
+        </section>
 
         <section class="views-section" aria-labelledby="views-heading">
             <div class="views-grid">
@@ -22,17 +45,34 @@
                 <a href="views/pots.html" class="view-card" tabindex="0" role="button" aria-label="Go to Pots & Investments view">
                     <h3 class="view-card-title">Pots & Investments</h3>
                 </a>
-
-                <a href="views/overview.html" class="view-card" tabindex="0" role="button" aria-label="Go to Overview view">
-                    <h3 class="view-card-title">Overview</h3>
-                </a>
             </div>
         </section>
 
-        <section class="recent-months-section" aria-labelledby="recent-months-heading">
-            <h2 id="recent-months-heading" class="section-title">Recent Months</h2>
-            <div id="recent-months-container" class="months-list">
-                <p class="loading-message">Loading months...</p>
+        <section class="months-comparison-section form-section" aria-labelledby="months-comparison-heading">
+            <h2 id="months-comparison-heading" class="section-title">Monthly Comparison</h2>
+            <table class="data-table" id="months-comparison-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Income</th>
+                        <th>Fixed Costs</th>
+                        <th>Variable Costs</th>
+                        <th>Unplanned</th>
+                        <th>Total Expenses</th>
+                        <th>Pots</th>
+                        <th>Savings</th>
+                        <th class="delete-column-header"></th>
+                    </tr>
+                </thead>
+                <tbody id="months-comparison-tbody">
+                </tbody>
+            </table>
+        </section>
+
+        <section class="trends-section form-section" aria-labelledby="trends-heading">
+            <h2 id="trends-heading" class="section-title">Trends</h2>
+            <div id="trends-container">
+                <p class="loading-message">Calculating trends...</p>
             </div>
         </section>
 
@@ -40,7 +80,7 @@
             <h2 id="quick-actions-heading" class="section-title">Quick Actions</h2>
             <div class="actions-grid">
                 <button id="create-new-month-button" class="action-button" aria-label="Create a new month budget">
-                    <span class="action-icon">➕</span>
+                    <span class="action-icon">+</span>
                     <span class="action-text">Create New Month</span>
                 </button>
             </div>
@@ -51,9 +91,16 @@
         <p>&copy; 2025 Money Tracker. All data stored locally in your browser.</p>
     </footer>
 
-    <script src="components/Header.js"></script>
-    <script src="models/DataManager.js"></script>
+    <script src="models/StorageService.js"></script>
+    <script src="models/MonthFactory.js"></script>
+    <script src="services/CalculationService.js"></script>
+    <script src="services/FormHandler.js"></script>
+    <script src="services/TableRenderer.js"></script>
     <script src="utils/formatters.js"></script>
+    <script src="services/FileService.js"></script>
+    <script src="services/ExportService.js"></script>
+    <script src="models/DataManager.js"></script>
+    <script src="components/Header.js"></script>
     <script src="utils/InitialData.js"></script>
     <script>
         // Initialize with all months data if no months exist
