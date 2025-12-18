@@ -36,8 +36,8 @@
 }
 
 .actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--spacing-sm);
 }
 
@@ -55,5 +55,32 @@
     
     body.landing-page .view-card {
         background-color: rgba(225, 225, 225, 0.85);
+    }
+}
+
+.months-comparison-section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#months-comparison-table {
+    min-width: 800px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .months-comparison-section {
+        overflow-x: auto;
+    }
+    
+    #months-comparison-table {
+        min-width: 700px;
+    }
+    
+    #months-comparison-table th,
+    #months-comparison-table td {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-xs);
     }
 }

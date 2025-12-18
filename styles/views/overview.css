@@ -28,6 +28,51 @@
 
 @media (max-width: 768px) {
     .summary-grid {
-        grid-template-columns: 1fr;
+        display: table;
+        width: 100%;
+        border-collapse: collapse;
+        background-color: rgba(215, 215, 215, 0.85);
+        border: var(--border-width-standard) solid var(--border-color);
+        border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+        overflow: hidden;
+    }
+
+    .summary-card {
+        display: table-row;
+        background-color: transparent;
+        border: none;
+        border-bottom: var(--border-width-thin) solid var(--border-color);
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .summary-card:last-child {
+        border-bottom: none;
+    }
+
+    .summary-card:nth-child(even) {
+        background-color: rgba(221, 221, 221, 0.85);
+    }
+
+    .summary-card-title {
+        display: table-cell;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: normal;
+        color: var(--text-primary);
+        vertical-align: middle;
+        text-align: left;
+    }
+
+    .summary-card-value {
+        display: table-cell;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: right;
+        vertical-align: middle;
+        white-space: nowrap;
     }
 }

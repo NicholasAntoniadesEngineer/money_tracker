@@ -51,8 +51,14 @@
 
         <section class="pots-by-month-section form-section">
             <h2 class="section-title">Pots by Month</h2>
+            <div style="margin-bottom: 1rem;">
+                <label for="month-selector-pots" class="form-label">Select Month:</label>
+                <select id="month-selector-pots" class="form-select">
+                    <option value="">Select a month...</option>
+                </select>
+            </div>
             <div id="pots-by-month-container">
-                <p class="loading-message">Loading monthly pot data...</p>
+                <p class="empty-message">Please select a month to view pots.</p>
             </div>
         </section>
     </main>

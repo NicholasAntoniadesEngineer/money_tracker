@@ -22,6 +22,13 @@ const PotsController = {
         if (addPotBtn) {
             addPotBtn.addEventListener('click', () => this.addPotRow());
         }
+
+        const monthSelector = document.getElementById('month-selector-pots');
+        if (monthSelector) {
+            monthSelector.addEventListener('change', (e) => {
+                this.renderSelectedMonthPots(e.target.value);
+            });
+        }
     },
 
     /**
@@ -109,73 +116,106 @@ const PotsController = {
     },
 
     /**
-     * Render pots by month
+     * Render pots by month - populates dropdown and shows selected month
      */
     renderPotsByMonth() {
+        const monthSelector = document.getElementById('month-selector-pots');
         const container = document.getElementById('pots-by-month-container');
-        if (!container) return;
+        
+        if (!monthSelector || !container) return;
 
         const allMonths = DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         if (monthKeys.length === 0) {
+            monthSelector.innerHTML = '<option value="">No monthly data available</option>';
             container.innerHTML = '<p class="empty-message">No monthly data available.</p>';
             return;
         }
 
-        container.innerHTML = monthKeys.map(monthKey => {
-            const monthData = allMonths[monthKey];
-            const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-            const pots = monthData.pots || [];
+        // Populate dropdown
+        monthSelector.innerHTML = '<option value="">Select a month...</option>' + 
+            monthKeys.map(monthKey => {
+                const monthData = allMonths[monthKey];
+                const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+                return `<option value="${monthKey}">${monthName} ${monthData.year}</option>`;
+            }).join('');
 
-            if (pots.length === 0) {
-                return `
-                    <div class="form-section" style="margin-bottom: 1rem;">
-                        <h3>${monthName} ${monthData.year}</h3>
-                        <p class="empty-message">No pots for this month.</p>
-                        <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action">Edit Month</a>
-                    </div>
-                `;
-            }
+        // Show initial message
+        container.innerHTML = '<p class="empty-message">Please select a month to view pots.</p>';
+    },
 
-            const potsHtml = pots.map(pot => `
-                <tr>
-                    <td>${pot.category || 'Unnamed'}</td>
-                    <td>${Formatters.formatCurrency(pot.estimatedAmount || 0)}</td>
-                    <td>${Formatters.formatCurrency(pot.actualAmount || 0)}</td>
-                </tr>
-            `).join('');
+    /**
+     * Render pots for selected month
+     */
+    renderSelectedMonthPots(monthKey) {
+        const container = document.getElementById('pots-by-month-container');
+        if (!container) return;
 
-            const totals = pots.reduce((acc, pot) => {
-                acc.estimated += Formatters.parseNumber(pot.estimatedAmount);
-                acc.actual += Formatters.parseNumber(pot.actualAmount);
-                return acc;
-            }, { estimated: 0, actual: 0 });
+        if (!monthKey || monthKey === '') {
+            container.innerHTML = '<p class="empty-message">Please select a month to view pots.</p>';
+            return;
+        }
 
-            return `
+        const allMonths = DataManager.getAllMonths();
+        const monthData = allMonths[monthKey];
+
+        if (!monthData) {
+            container.innerHTML = '<p class="empty-message">Month data not found.</p>';
+            return;
+        }
+
+        const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+        const pots = monthData.pots || [];
+
+        if (pots.length === 0) {
+            container.innerHTML = `
                 <div class="form-section" style="margin-bottom: 1rem;">
                     <h3>${monthName} ${monthData.year}</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Category</th>
-                                <th>Estimated Amount</th>
-                                <th>Actual Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${potsHtml}
-                            <tr class="total-row">
-                                <td><strong>Total</strong></td>
-                                <td><strong>${Formatters.formatCurrency(totals.estimated)}</strong></td>
-                                <td><strong>${Formatters.formatCurrency(totals.actual)}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action" style="margin-top: 1rem;">Edit Month</a>
+                    <p class="empty-message">No pots for this month.</p>
+                    <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action">Edit Month</a>
                 </div>
             `;
-        }).join('');
+            return;
+        }
+
+        const potsHtml = pots.map(pot => `
+            <tr>
+                <td>${pot.category || 'Unnamed'}</td>
+                <td>${Formatters.formatCurrency(pot.estimatedAmount || 0)}</td>
+                <td>${Formatters.formatCurrency(pot.actualAmount || 0)}</td>
+            </tr>
+        `).join('');
+
+        const totals = pots.reduce((acc, pot) => {
+            acc.estimated += Formatters.parseNumber(pot.estimatedAmount);
+            acc.actual += Formatters.parseNumber(pot.actualAmount);
+            return acc;
+        }, { estimated: 0, actual: 0 });
+
+        container.innerHTML = `
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <h3>${monthName} ${monthData.year}</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${potsHtml}
+                        <tr class="total-row">
+                            <td><strong>Total</strong></td>
+                            <td><strong>${Formatters.formatCurrency(totals.estimated)}</strong></td>
+                            <td><strong>${Formatters.formatCurrency(totals.actual)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action" style="margin-top: 1rem;">Edit Month</a>
+            </div>
+        `;
     },
 
     /**

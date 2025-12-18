@@ -59,7 +59,7 @@ body.landing-page .view-card:focus {
 
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--spacing-sm);
 }
 
@@ -137,12 +137,14 @@ body.landing-page .view-card:focus {
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-xs);
     box-shadow: var(--shadow-md);
     backdrop-filter: blur(10px);
+    width: auto;
+    white-space: nowrap;
 }
 
 .action-button:hover,

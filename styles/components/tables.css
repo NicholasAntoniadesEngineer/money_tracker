@@ -70,6 +70,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     font-weight: 600;
     color: var(--text-primary);
     border: var(--border-width-thin) solid var(--border-color-black);
+    white-space: nowrap;
 }
 
 .data-table th:first-child {
@@ -88,6 +89,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
     border: var(--border-width-thin) solid var(--border-color-black);
     background-color: rgba(221, 221, 221, 0.85);
+    white-space: nowrap;
 }
 
 .data-table td:first-child {
@@ -154,8 +156,7 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
 
 #weekly-breakdown-table th,
 #weekly-breakdown-table td {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    white-space: nowrap;
 }
 
 #weekly-breakdown-table th:first-child,
@@ -229,6 +230,20 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     text-align: center;
 }
 
+#months-comparison-table .delete-column-header {
+    width: auto;
+    min-width: 120px;
+    max-width: 150px;
+}
+
+#months-comparison-table td:last-child {
+    width: auto;
+    min-width: 120px;
+    max-width: 150px;
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
+}
+
 .data-table:not(#weekly-breakdown-table) td:last-child:has(.delete-row-x) {
     width: 40px;
     min-width: 40px;
@@ -285,11 +300,37 @@ table:not(.data-table) tfoot tr:last-child td:last-child {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: var(--spacing-xs);
+    padding: calc(var(--spacing-xs) * var(--spacing-multiplier-medium)) var(--spacing-sm);
     width: auto;
-    min-width: 100px;
+    min-width: 120px;
+    max-width: 150px;
+}
+
+#months-comparison-table td:last-child:has(.btn):has(.delete-row-x) {
+    min-width: 120px;
+    max-width: 150px;
 }
 
 .data-table td:last-child:has(.btn):has(.delete-row-x) .delete-row-x {
     margin-left: auto;
+}
+
+/* ============================================================================
+   DATE AND CARD COLUMN MINIMUM WIDTHS
+   Ensures these columns never shrink narrower than their content
+   ============================================================================ */
+
+/* Date inputs - compact width for date text (e.g., "31st") */
+.data-table .income-date,
+.data-table .fixed-cost-date,
+.data-table .unplanned-date {
+    min-width: 4em;
+    width: 5em;
+}
+
+/* Card inputs - compact width */
+.data-table .fixed-cost-card,
+.data-table .unplanned-card {
+    min-width: 5em;
+    width: 7em;
 }
