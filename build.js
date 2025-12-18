@@ -48,10 +48,8 @@ const JS_ORDER = {
     ]
 };
 
-// CSS files to inline
-const CSS_FILES = [
-    'styles/main.css'
-];
+// CSS files to inline (in dependency order - will be resolved from main.css imports)
+const CSS_MAIN_FILE = 'styles/main.css';
 
 /**
  * Read and return file contents
@@ -63,6 +61,40 @@ function readFile(filePath) {
         console.error(`Error reading file ${filePath}:`, error.message);
         return '';
     }
+}
+
+/**
+ * Resolve CSS @import statements and inline all CSS content
+ * @param {string} cssFilePath - Path to the CSS file
+ * @param {Set} processedFiles - Set of already processed files to avoid circular imports
+ * @returns {string} - Bundled CSS content with all imports resolved
+ */
+function resolveAndInlineCssImports(cssFilePath, processedFiles = new Set()) {
+    const absolutePath = path.resolve(cssFilePath);
+    
+    if (processedFiles.has(absolutePath)) {
+        return '';
+    }
+    processedFiles.add(absolutePath);
+    
+    const cssContent = readFile(cssFilePath);
+    if (!cssContent) {
+        console.warn(`Warning: Could not read CSS file: ${cssFilePath}`);
+        return '';
+    }
+    
+    const cssDirectory = path.dirname(cssFilePath);
+    
+    const resolvedCssContent = cssContent.replace(
+        /@import\s+url\(['"]?([^'")\s]+)['"]?\)\s*;?/g,
+        (match, importPath) => {
+            const resolvedImportPath = path.join(cssDirectory, importPath);
+            const importedCssContent = resolveAndInlineCssImports(resolvedImportPath, processedFiles);
+            return `\n/* ===== Imported from: ${importPath} ===== */\n${importedCssContent}\n`;
+        }
+    );
+    
+    return resolvedCssContent;
 }
 
 /**
@@ -85,21 +117,18 @@ function bundleJavaScript(htmlFile) {
 }
 
 /**
- * Bundle CSS files
+ * Bundle CSS files by resolving all @import statements
  */
 function bundleCSS() {
-    let bundledCSS = '';
+    console.log(`  Resolving CSS imports from ${CSS_MAIN_FILE}...`);
+    const bundledCssContent = resolveAndInlineCssImports(CSS_MAIN_FILE);
     
-    CSS_FILES.forEach(cssFile => {
-        const content = readFile(cssFile);
-        if (content) {
-            bundledCSS += `\n/* ===== ${cssFile} ===== */\n`;
-            bundledCSS += content;
-            bundledCSS += '\n';
-        }
-    });
+    if (!bundledCssContent) {
+        console.error(`Error: Failed to bundle CSS from ${CSS_MAIN_FILE}`);
+        return '';
+    }
     
-    return bundledCSS;
+    return bundledCssContent;
 }
 
 /**
