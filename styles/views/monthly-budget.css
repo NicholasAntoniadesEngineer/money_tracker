@@ -95,9 +95,9 @@
 
 /* Copy month select dropdowns - match button height */
 .copy-month-select {
-    height: 1.85rem !important;
-    min-height: 1.85rem !important;
-    max-height: 1.85rem !important;
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    max-height: 1.9rem !important;
     padding: 0.3rem 0.5rem !important;
     font-size: 1rem !important;
     line-height: 1 !important;

@@ -32,17 +32,12 @@
                 <div id="currency-status" class="settings-status"></div>
             </div>
 
-            <div class="settings-row">
-                <label class="form-label">Cache:</label>
-                <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
-            </div>
         </section>
 
         <section class="settings-section form-section">
             <h2 class="section-title">Import</h2>
 
             <div class="settings-row">
-                <label for="file-input" class="form-label">Files:</label>
                 <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple style="max-width: none;">
             </div>
 
@@ -59,14 +54,12 @@
             <h2 class="section-title">Export & Delete</h2>
             
             <div class="settings-row">
-                <label for="month-selector" class="form-label">Month:</label>
                 <select id="month-selector" class="form-select">
                     <option value="">Select month...</option>
                 </select>
             </div>
 
-            <div class="settings-row">
-                <label for="export-format-select" class="form-label">Format:</label>
+            <div class="settings-row settings-export-row">
                 <select id="export-format-select" class="form-select" style="max-width: 120px;">
                     <option value="json">JSON</option>
                     <option value="csv">CSV</option>
@@ -74,6 +67,10 @@
                 </select>
                 <button id="export-button" class="btn btn-action">Export</button>
                 <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete</button>
+            </div>
+
+            <div class="settings-row">
+                <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
             </div>
         </section>
 
