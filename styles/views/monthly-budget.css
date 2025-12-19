@@ -93,6 +93,16 @@
     flex-wrap: nowrap;
 }
 
+/* Copy month select dropdowns - match button height */
+.copy-month-select {
+    height: 1.85rem;
+    min-height: 1.85rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 1rem;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
 .create-month-btn {
     flex-shrink: 1;
     white-space: nowrap;
