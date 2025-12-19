@@ -95,12 +95,13 @@
 
 /* Copy month select dropdowns - match button height */
 .copy-month-select {
-    height: 1.85rem;
-    min-height: 1.85rem;
-    padding: 0.3rem 0.5rem;
-    font-size: 1rem;
-    line-height: 1;
-    box-sizing: border-box;
+    height: 1.85rem !important;
+    min-height: 1.85rem !important;
+    max-height: 1.85rem !important;
+    padding: 0.3rem 0.5rem !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
 }
 
 .create-month-btn {
