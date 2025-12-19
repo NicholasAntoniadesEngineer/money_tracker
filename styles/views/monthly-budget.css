@@ -213,7 +213,7 @@
     }
 
     .section-actions-container {
-        flex-direction: column !important;
+        flex-wrap: wrap !important;
         align-items: stretch !important;
         width: 100% !important;
         text-align: left !important;
@@ -221,14 +221,25 @@
         gap: 0.5rem !important;
     }
 
-    .copy-month-select {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+    /* Add button goes first on its own row */
+    .section-actions-container button:last-child {
+        order: -1;
+        width: 100%;
+        flex: 1 1 100%;
     }
 
-    .section-actions-container button {
-        width: 100%;
+    /* Copy row container: select + copy button stay together */
+    .section-actions-container .copy-month-select {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    .section-actions-container button:not(:last-child) {
+        order: 1;
+        flex: 0 0 auto;
+        width: auto;
     }
 
     .data-table th,
