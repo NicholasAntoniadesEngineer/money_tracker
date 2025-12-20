@@ -19,19 +19,19 @@
             <div class="summary-grid">
                 <div class="summary-card">
                     <div class="summary-card-title">Total Income:</div>
-                    <div id="overall-income" class="summary-card-value">£0.00</div>
+                    <div id="overall-income" class="summary-card-value">0.00</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-title">Total Expenses:</div>
-                    <div id="overall-expenses" class="summary-card-value">£0.00</div>
+                    <div id="overall-expenses" class="summary-card-value">0.00</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-title">Total Savings:</div>
-                    <div id="overall-savings" class="summary-card-value">£0.00</div>
+                    <div id="overall-savings" class="summary-card-value">0.00</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-title">Total Pots/Investments:</div>
-                    <div id="overall-pots" class="summary-card-value">£0.00</div>
+                    <div id="overall-pots" class="summary-card-value">0.00</div>
                 </div>
             </div>
         </section>
@@ -78,6 +78,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             // Initialize settings first
             DataManager.initializeSettings();
+            DataManager.applyFontSize();
             
             // Load months from files if localStorage is empty
             await InitialData.initializeIfEmpty();

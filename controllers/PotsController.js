@@ -108,8 +108,8 @@ const PotsController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total</strong></td>
-            <td id="pots-total-estimated"><strong>£0.00</strong></td>
-            <td id="pots-total-actual"><strong>£0.00</strong></td>
+            <td id="pots-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="pots-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
         `;
         tbody.appendChild(totalRow);

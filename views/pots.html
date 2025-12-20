@@ -19,11 +19,11 @@
             <div class="summary-grid">
                 <div class="summary-card">
                     <div class="summary-card-title">Total Pots (Estimated)</div>
-                    <div id="total-pots-estimated" class="summary-card-value">£0.00</div>
+                    <div id="total-pots-estimated" class="summary-card-value">0.00</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-title">Total Pots (Actual)</div>
-                    <div id="total-pots-actual" class="summary-card-value">£0.00</div>
+                    <div id="total-pots-actual" class="summary-card-value">0.00</div>
                 </div>
             </div>
         </section>
@@ -80,6 +80,7 @@
         // Initialize settings and load months
         document.addEventListener('DOMContentLoaded', async function() {
             DataManager.initializeSettings();
+            DataManager.applyFontSize();
             await DataManager.loadMonthsFromFiles();
             
             // Now initialize the controller

@@ -472,7 +472,7 @@ const MonthlyBudgetController = {
                 totalRowHTML += `<td id="${categoryId}"></td>`;
             });
             
-            totalRowHTML += '<td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td><td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td><td></td>';
+            totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong>${Formatters.formatCurrency(0)}</strong></td><td id="weekly-breakdown-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td><td></td>`;
             totalRow.innerHTML = totalRowHTML;
         }
         
@@ -1022,7 +1022,7 @@ const MonthlyBudgetController = {
             totalRowHTML += `<td id="${categoryId}"></td>`;
         });
         
-        totalRowHTML += '<td id="weekly-breakdown-total-estimate"><strong>£0.00</strong></td><td id="weekly-breakdown-total-actual"><strong>£0.00</strong></td><td></td>';
+        totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong>${Formatters.formatCurrency(0)}</strong></td><td id="weekly-breakdown-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td><td></td>`;
 
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
@@ -1159,8 +1159,8 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Income</strong></td>
-            <td id="income-total-estimated"><strong>£0.00</strong></td>
-            <td id="income-total-actual"><strong>£0.00</strong></td>
+            <td id="income-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="income-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1313,8 +1313,8 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Fixed Costs</strong></td>
-            <td id="fixed-costs-total-estimated"><strong>£0.00</strong></td>
-            <td id="fixed-costs-total-actual"><strong>£0.00</strong></td>
+            <td id="fixed-costs-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="fixed-costs-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1534,9 +1534,9 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Variable Costs</strong></td>
-            <td id="variable-costs-total-budget"><strong>£0.00</strong></td>
-            <td id="variable-costs-total-actual"><strong>£0.00</strong></td>
-            <td id="variable-costs-total-remaining"><strong>£0.00</strong></td>
+            <td id="variable-costs-total-budget"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="variable-costs-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="variable-costs-total-remaining"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
             <td></td>
         `;
@@ -1650,7 +1650,7 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Unplanned Expenses</strong></td>
-            <td id="unplanned-expenses-total"><strong>£0.00</strong></td>
+            <td id="unplanned-expenses-total"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1716,8 +1716,8 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Savings/Investments</strong></td>
-            <td id="pots-total-estimated"><strong>£0.00</strong></td>
-            <td id="pots-total-actual"><strong>£0.00</strong></td>
+            <td id="pots-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="pots-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
             <td></td>
         `;
 
