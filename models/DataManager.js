@@ -18,12 +18,18 @@ const DataManager = {
         if (!existingSettings) {
             const defaultSettings = {
                 currency: '£',
+                fontSize: '16',
                 defaultFixedCosts: [],
                 defaultVariableCategories: ['Food', 'Travel/Transport', 'Activities'],
                 defaultPots: []
             };
             this.saveSettings(defaultSettings);
             return defaultSettings;
+        }
+        // Ensure fontSize exists for existing settings
+        if (!existingSettings.fontSize) {
+            existingSettings.fontSize = '16';
+            this.saveSettings(existingSettings);
         }
         return existingSettings;
     },
@@ -214,6 +220,15 @@ const DataManager = {
     },
 
     /**
+     * Apply font size setting to the document
+     */
+    applyFontSize() {
+        const settings = this.getSettings();
+        const fontSize = settings && settings.fontSize ? settings.fontSize : '16';
+        document.documentElement.style.fontSize = fontSize + 'px';
+    },
+
+    /**
      * Generate a month key from year and month
      * @param {number} year - Year
      * @param {number} month - Month (1-12)
@@ -283,5 +298,6 @@ const DataManager = {
 
 if (typeof window !== 'undefined') {
     DataManager.initializeSettings();
+    DataManager.applyFontSize();
     window.DataManager = DataManager;
 }

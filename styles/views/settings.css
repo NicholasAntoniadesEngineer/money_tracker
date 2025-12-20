@@ -77,19 +77,9 @@
     font-size: 0.875rem;
 }
 
-/* Export row - format selector and button same height */
+/* Export row layout */
 .settings-export-row {
     justify-content: flex-start;
-}
-
-.settings-export-row #export-format-select {
-    height: 1.85rem !important;
-    min-height: 1.85rem !important;
-    max-height: 1.85rem !important;
-    padding: 0.3rem 0.5rem !important;
-    font-size: 1rem !important;
-    line-height: 1 !important;
-    box-sizing: border-box !important;
 }
 
 @media (max-width: 480px) {

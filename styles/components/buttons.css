@@ -15,8 +15,8 @@
     justify-content: center;
     text-decoration: none;
     text-align: center;
-    min-height: 1.85rem;
-    height: 1.85rem;
+    min-height: 1.9rem;
+    height: 1.9rem;
     box-sizing: border-box;
     line-height: 1;
     white-space: nowrap;
@@ -77,10 +77,16 @@
     background-color: var(--action-color) !important;
     color: var(--text-white) !important;
     border: var(--border-width-standard) solid var(--border-color-black) !important;
-    border-radius: var(--border-radius) !important;
-    padding: 0.5rem 1rem !important;
+    border-radius: 0px !important;
+    padding: 0.3rem 0.5rem !important;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 1rem;
+    font-weight: 500;
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    max-height: 1.9rem !important;
+    line-height: 1;
+    box-sizing: border-box;
 }
 
 #export-format-select:hover {

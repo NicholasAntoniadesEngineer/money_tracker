@@ -266,15 +266,7 @@ const ExportService = {
         <h1>${monthName} ${year}</h1>
         <p>Monthly Budget Report</p>
     </div>
-    ${this.renderHTMLSection('Weekly Breakdown', monthData.weeklyBreakdown, [
-        { key: 'dateRange', label: 'Date Range' },
-        { key: 'paymentsDue', label: 'Payments Due' },
-        { key: 'groceries', label: 'Groceries' },
-        { key: 'transport', label: 'Transport' },
-        { key: 'activities', label: 'Activities' },
-        { key: 'estimate', label: 'Estimate', type: 'currency' },
-        { key: 'actual', label: 'Actual', type: 'currency' }
-    ], formatCurrency, formatDate)}
+    ${this.renderWeeklyBreakdownHTML(monthData, formatCurrency, formatDate)}
     ${this.renderHTMLSection('Income Sources', monthData.incomeSources, [
         { key: 'source', label: 'Source' },
         { key: 'estimated', label: 'Estimated', type: 'currency' },
@@ -322,6 +314,61 @@ const ExportService = {
 </html>`;
 
         return html;
+    },
+
+    /**
+     * Render weekly breakdown HTML with dynamic variable cost categories
+     * @private
+     */
+    renderWeeklyBreakdownHTML(monthData, formatCurrency, formatDate) {
+        if (!monthData.weeklyBreakdown || monthData.weeklyBreakdown.length === 0) return '';
+
+        // Get dynamic categories from variable costs
+        const categories = monthData.variableCosts && monthData.variableCosts.length > 0
+            ? monthData.variableCosts.map(cost => cost.category)
+            : ['Groceries', 'Transport', 'Activities'];
+
+        // Build columns dynamically
+        const columns = [
+            { key: 'dateRange', label: 'Date Range' },
+            { key: 'paymentsDue', label: 'Payments Due' }
+        ];
+
+        categories.forEach(category => {
+            columns.push({ key: category, label: category });
+        });
+
+        columns.push({ key: 'estimate', label: 'Estimate', type: 'currency' });
+        columns.push({ key: 'actual', label: 'Actual', type: 'currency' });
+
+        const rows = monthData.weeklyBreakdown.map(item => {
+            const cells = columns.map(col => {
+                let value = item[col.key] || item[col.key.toLowerCase()] || '';
+                if (col.type === 'currency') {
+                    value = formatCurrency(value);
+                } else if (typeof value === 'string') {
+                    // Preserve line breaks for display
+                    value = value.replace(/\n/g, '<br>');
+                }
+                return `<td>${value}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        return `
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Weekly Breakdown</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>${columns.map(col => `<th>${col.label}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    </div>`;
     },
 
     /**

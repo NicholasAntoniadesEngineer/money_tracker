@@ -1,26 +1,45 @@
 /**
  * CSV Handler Utility
  * Handles conversion between month data and CSV format
+ * Supports dynamic variable cost categories in weekly breakdown
  */
 
 const CSVHandler = {
     /**
+     * Get dynamic variable cost category names from month data
+     * @param {Object} monthData - Month data object
+     * @returns {Array} Array of category names
+     */
+    getVariableCostCategories(monthData) {
+        if (!monthData.variableCosts || !Array.isArray(monthData.variableCosts)) {
+            return ['Groceries', 'Transport', 'Activities'];
+        }
+        return monthData.variableCosts.map(cost => cost.category);
+    },
+
+    /**
      * Convert month data to CSV format
+     * Handles dynamic variable cost categories
      */
     monthDataToCSV(monthData) {
         const lines = [];
+        const categories = this.getVariableCostCategories(monthData);
         
         // Header line
         lines.push('Section,Category,Field,Value,Date,Card,Paid,Description,Comments');
         
-        // Weekly Breakdown
+        // Weekly Breakdown - with dynamic categories
         if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
             monthData.weeklyBreakdown.forEach((week, index) => {
                 lines.push(`Weekly Breakdown,Week ${index + 1},Date Range,"${week.dateRange || week.weekRange || ''}",,,,`);
-                lines.push(`Weekly Breakdown,Week ${index + 1},Payments Due,"${(week.paymentsDue || '').replace(/"/g, '""')}",,,,`);
-                lines.push(`Weekly Breakdown,Week ${index + 1},Groceries,"${(week.groceries || '').replace(/"/g, '""')}",,,,`);
-                lines.push(`Weekly Breakdown,Week ${index + 1},Transport,"${(week.transport || '').replace(/"/g, '""')}",,,,`);
-                lines.push(`Weekly Breakdown,Week ${index + 1},Activities,"${(week.activities || '').replace(/"/g, '""')}",,,,`);
+                lines.push(`Weekly Breakdown,Week ${index + 1},Payments Due,"${this.escapeCSV(week.paymentsDue || '')}",,,,`);
+                
+                // Add dynamic category columns
+                categories.forEach(category => {
+                    const value = week[category] || week[category.toLowerCase()] || '';
+                    lines.push(`Weekly Breakdown,Week ${index + 1},${category},"${this.escapeCSV(value)}",,,,`);
+                });
+                
                 lines.push(`Weekly Breakdown,Week ${index + 1},Estimate,${week.estimate || week.weeklyEstimate || 0},,,,`);
                 lines.push(`Weekly Breakdown,Week ${index + 1},Actual,${week.actual || 0},,,,`);
             });
@@ -29,40 +48,40 @@ const CSVHandler = {
         // Income
         if (monthData.incomeSources && monthData.incomeSources.length > 0) {
             monthData.incomeSources.forEach((income, index) => {
-                lines.push(`Income,${income.source || `Income ${index + 1}`},Source,"${(income.source || '').replace(/"/g, '""')}",${income.date || ''},,,"${(income.description || '').replace(/"/g, '""')}","${(income.comments || '').replace(/"/g, '""')}"`);
-                lines.push(`Income,${income.source || `Income ${index + 1}`},Estimated,${income.estimated || 0},${income.date || ''},,,,"${(income.comments || '').replace(/"/g, '""')}"`);
-                lines.push(`Income,${income.source || `Income ${index + 1}`},Actual,${income.actual || 0},${income.date || ''},,,,"${(income.comments || '').replace(/"/g, '""')}"`);
+                lines.push(`Income,${income.source || `Income ${index + 1}`},Source,"${this.escapeCSV(income.source || '')}",${income.date || ''},,,"${this.escapeCSV(income.description || '')}","${this.escapeCSV(income.comments || '')}"`);
+                lines.push(`Income,${income.source || `Income ${index + 1}`},Estimated,${income.estimated || 0},${income.date || ''},,,,"${this.escapeCSV(income.comments || '')}"`);
+                lines.push(`Income,${income.source || `Income ${index + 1}`},Actual,${income.actual || 0},${income.date || ''},,,,"${this.escapeCSV(income.comments || '')}"`);
             });
         }
         
         // Fixed Costs
         if (monthData.fixedCosts && monthData.fixedCosts.length > 0) {
             monthData.fixedCosts.forEach((cost) => {
-                lines.push(`Fixed Costs,"${(cost.category || '').replace(/"/g, '""')}",Estimated,${cost.estimatedAmount || 0},${cost.date || ''},${cost.card || ''},${cost.paid ? 'Yes' : 'No'},"","${(cost.comments || '').replace(/"/g, '""')}"`);
-                lines.push(`Fixed Costs,"${(cost.category || '').replace(/"/g, '""')}",Actual,${cost.actualAmount || 0},${cost.date || ''},${cost.card || ''},${cost.paid ? 'Yes' : 'No'},"","${(cost.comments || '').replace(/"/g, '""')}"`);
+                lines.push(`Fixed Costs,"${this.escapeCSV(cost.category || '')}",Estimated,${cost.estimatedAmount || 0},${cost.date || ''},${cost.card || ''},${cost.paid ? 'Yes' : 'No'},"","${this.escapeCSV(cost.comments || '')}"`);
+                lines.push(`Fixed Costs,"${this.escapeCSV(cost.category || '')}",Actual,${cost.actualAmount || 0},${cost.date || ''},${cost.card || ''},${cost.paid ? 'Yes' : 'No'},"","${this.escapeCSV(cost.comments || '')}"`);
             });
         }
         
         // Variable Costs
         if (monthData.variableCosts && monthData.variableCosts.length > 0) {
             monthData.variableCosts.forEach((cost) => {
-                lines.push(`Variable Costs,"${(cost.category || '').replace(/"/g, '""')}",Monthly Budget,${cost.estimatedAmount || cost.monthlyBudget || 0},,,,,"${(cost.comments || '').replace(/"/g, '""')}"`);
-                lines.push(`Variable Costs,"${(cost.category || '').replace(/"/g, '""')}",Actual Spent,${cost.actualAmount || cost.actualSpent || 0},,,,,"${(cost.comments || '').replace(/"/g, '""')}"`);
+                lines.push(`Variable Costs,"${this.escapeCSV(cost.category || '')}",Monthly Budget,${cost.estimatedAmount || cost.monthlyBudget || 0},,,,,"${this.escapeCSV(cost.comments || '')}"`);
+                lines.push(`Variable Costs,"${this.escapeCSV(cost.category || '')}",Actual Spent,${cost.actualAmount || cost.actualSpent || 0},,,,,"${this.escapeCSV(cost.comments || '')}"`);
             });
         }
         
         // Unplanned Expenses
         if (monthData.unplannedExpenses && monthData.unplannedExpenses.length > 0) {
             monthData.unplannedExpenses.forEach((expense) => {
-                lines.push(`Unplanned Expenses,"${(expense.name || '').replace(/"/g, '""')}",Amount,${expense.amount || 0},${expense.date || ''},${expense.card || ''},,${expense.status || ''},"${(expense.comments || '').replace(/"/g, '""')}"`);
+                lines.push(`Unplanned Expenses,"${this.escapeCSV(expense.name || '')}",Amount,${expense.amount || 0},${expense.date || ''},${expense.card || ''},${expense.paid ? 'Yes' : 'No'},${expense.status || ''},"${this.escapeCSV(expense.comments || '')}"`);
             });
         }
         
         // Pots
         if (monthData.pots && monthData.pots.length > 0) {
             monthData.pots.forEach((pot) => {
-                lines.push(`Pots,"${(pot.category || '').replace(/"/g, '""')}",Estimated,${pot.estimatedAmount || 0},,,,`);
-                lines.push(`Pots,"${(pot.category || '').replace(/"/g, '""')}",Actual,${pot.actualAmount || 0},,,,`);
+                lines.push(`Pots,"${this.escapeCSV(pot.category || '')}",Estimated,${pot.estimatedAmount || 0},,,,`);
+                lines.push(`Pots,"${this.escapeCSV(pot.category || '')}",Actual,${pot.actualAmount || 0},,,,`);
             });
         }
         
@@ -70,7 +89,24 @@ const CSVHandler = {
     },
 
     /**
+     * Escape special characters for CSV
+     */
+    escapeCSV(value) {
+        if (!value) return '';
+        return String(value).replace(/"/g, '""').replace(/\r?\n/g, '\\n');
+    },
+
+    /**
+     * Unescape CSV special characters
+     */
+    unescapeCSV(value) {
+        if (!value) return '';
+        return String(value).replace(/\\n/g, '\n').replace(/""/g, '"');
+    },
+
+    /**
      * Parse CSV and convert to month data structure
+     * Handles dynamic variable cost categories
      */
     csvToMonthData(csvText, monthName, year) {
         const lines = csvText.split('\n').filter(line => line.trim());
@@ -86,11 +122,13 @@ const CSVHandler = {
             monthName: monthName,
             year: year,
             weeklyBreakdown: [],
-            income: [],
+            incomeSources: [],
             fixedCosts: [],
             variableCosts: [],
             unplannedExpenses: [],
-            pots: []
+            pots: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
         
         // Parse CSV lines
@@ -101,6 +139,9 @@ const CSVHandler = {
         const unplannedExpensesMap = new Map();
         const potsMap = new Map();
         
+        // Track all unique categories found in weekly breakdown
+        const weeklyCategories = new Set();
+        
         dataLines.forEach(line => {
             // Parse CSV line (handle quoted fields)
             const fields = this.parseCSVLine(line);
@@ -109,7 +150,7 @@ const CSVHandler = {
             const section = fields[0] || '';
             const category = fields[1] || '';
             const field = fields[2] || '';
-            const value = fields[3] || '';
+            const value = this.unescapeCSV(fields[3] || '');
             const date = fields[4] || '';
             const card = fields[5] || '';
             const paid = fields[6] || '';
@@ -121,29 +162,36 @@ const CSVHandler = {
                 if (!weeklyBreakdownMap.has(weekKey)) {
                     weeklyBreakdownMap.set(weekKey, {
                         dateRange: '',
+                        weekRange: '',
                         paymentsDue: '',
-                        groceries: '',
-                        transport: '',
-                        activities: '',
                         estimate: 0,
+                        weeklyEstimate: 0,
                         actual: 0
                     });
                 }
                 const week = weeklyBreakdownMap.get(weekKey);
                 
-                if (field === 'Date Range') week.dateRange = value;
-                else if (field === 'Payments Due') week.paymentsDue = value;
-                else if (field === 'Groceries') week.groceries = value;
-                else if (field === 'Transport') week.transport = value;
-                else if (field === 'Activities') week.activities = value;
-                else if (field === 'Estimate') week.estimate = parseFloat(value) || 0;
-                else if (field === 'Actual') week.actual = parseFloat(value) || 0;
+                if (field === 'Date Range') {
+                    week.dateRange = value;
+                    week.weekRange = value;
+                } else if (field === 'Payments Due') {
+                    week.paymentsDue = value;
+                } else if (field === 'Estimate') {
+                    week.estimate = parseFloat(value) || 0;
+                    week.weeklyEstimate = parseFloat(value) || 0;
+                } else if (field === 'Actual') {
+                    week.actual = parseFloat(value) || 0;
+                } else {
+                    // Dynamic category (e.g., Groceries, Transport, Activities, etc.)
+                    week[field] = value;
+                    weeklyCategories.add(field);
+                }
             }
             else if (section === 'Income') {
                 const incomeKey = category;
                 if (!incomeMap.has(incomeKey)) {
                     incomeMap.set(incomeKey, {
-                        source: '',
+                        source: category,
                         estimated: 0,
                         actual: 0,
                         date: '',
@@ -153,7 +201,7 @@ const CSVHandler = {
                 }
                 const income = incomeMap.get(incomeKey);
                 
-                if (field === 'Source') income.source = value;
+                if (field === 'Source') income.source = value || category;
                 else if (field === 'Estimated') income.estimated = parseFloat(value) || 0;
                 else if (field === 'Actual') income.actual = parseFloat(value) || 0;
                 if (date) income.date = date;
@@ -185,15 +233,15 @@ const CSVHandler = {
                 if (!variableCostsMap.has(category)) {
                     variableCostsMap.set(category, {
                         category: category,
-                        monthlyBudget: 0,
-                        actualSpent: 0,
+                        estimatedAmount: 0,
+                        actualAmount: 0,
                         comments: ''
                     });
                 }
                 const cost = variableCostsMap.get(category);
                 
-                if (field === 'Monthly Budget') cost.monthlyBudget = parseFloat(value) || 0;
-                else if (field === 'Actual Spent') cost.actualSpent = parseFloat(value) || 0;
+                if (field === 'Monthly Budget') cost.estimatedAmount = parseFloat(value) || 0;
+                else if (field === 'Actual Spent') cost.actualAmount = parseFloat(value) || 0;
                 if (comments) cost.comments = comments;
             }
             else if (section === 'Unplanned Expenses') {
@@ -203,6 +251,7 @@ const CSVHandler = {
                         amount: 0,
                         date: '',
                         card: '',
+                        paid: false,
                         status: '',
                         comments: ''
                     });
@@ -212,6 +261,7 @@ const CSVHandler = {
                 if (field === 'Amount') expense.amount = parseFloat(value) || 0;
                 if (date) expense.date = date;
                 if (card) expense.card = card;
+                if (paid.toLowerCase() === 'yes') expense.paid = true;
                 if (description) expense.status = description;
                 if (comments) expense.comments = comments;
             }
@@ -232,20 +282,23 @@ const CSVHandler = {
         
         // Convert maps to arrays
         monthData.weeklyBreakdown = Array.from(weeklyBreakdownMap.values());
-        // Convert to application format
         monthData.incomeSources = Array.from(incomeMap.values());
         monthData.fixedCosts = Array.from(fixedCostsMap.values());
-
-        // Convert variable costs to use estimatedAmount/actualAmount
-        monthData.variableCosts = Array.from(variableCostsMap.values()).map(cost => ({
-            category: cost.category,
-            estimatedAmount: cost.monthlyBudget,
-            actualAmount: cost.actualSpent,
-            comments: cost.comments
-        }));
-
+        monthData.variableCosts = Array.from(variableCostsMap.values());
         monthData.unplannedExpenses = Array.from(unplannedExpensesMap.values());
         monthData.pots = Array.from(potsMap.values());
+
+        // If no variable costs were defined but we found categories in weekly breakdown, create them
+        if (monthData.variableCosts.length === 0 && weeklyCategories.size > 0) {
+            weeklyCategories.forEach(category => {
+                monthData.variableCosts.push({
+                    category: category,
+                    estimatedAmount: 0,
+                    actualAmount: 0,
+                    comments: ''
+                });
+            });
+        }
         
         return monthData;
     },

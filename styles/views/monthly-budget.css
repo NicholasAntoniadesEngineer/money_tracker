@@ -93,16 +93,6 @@
     flex-wrap: nowrap;
 }
 
-/* Copy month select dropdowns - match button height */
-.copy-month-select {
-    height: 1.9rem !important;
-    min-height: 1.9rem !important;
-    max-height: 1.9rem !important;
-    padding: 0.3rem 0.5rem !important;
-    font-size: 1rem !important;
-    line-height: 1 !important;
-    box-sizing: border-box !important;
-}
 
 .create-month-btn {
     flex-shrink: 1;
@@ -165,12 +155,9 @@
         justify-content: center;
     }
     
-    .create-month-btn,
-    #load-example-button {
+    .create-month-btn {
         flex: 1 1 auto;
         min-width: 0;
-        font-size: 0.85rem;
-        padding: 0.5rem 0.75rem;
     }
 
     .section-actions-container {
@@ -217,11 +204,6 @@
         font-size: 0.85rem;
     }
     
-    .create-month-btn,
-    #load-example-button {
-        font-size: 0.75rem;
-        padding: 0.4rem 0.5rem;
-    }
 
     .section-actions-container {
         flex-wrap: wrap !important;
@@ -265,6 +247,33 @@
     .data-table textarea {
         font-size: 0.75rem;
         padding: calc(var(--spacing-xs) * 0.75);
+    }
+}
+
+@media (max-width: 400px) {
+    .month-title-wrapper {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .month-title {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .month-selector-compact {
+        width: 100%;
+    }
+    
+    .month-buttons-container {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .create-month-btn {
+        width: 100%;
+        flex: 1 1 100%;
     }
 }
 

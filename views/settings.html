@@ -32,6 +32,17 @@
                 <div id="currency-status" class="settings-status"></div>
             </div>
 
+            <div class="settings-row">
+                <label for="font-size-select" class="form-label">Font Size:</label>
+                <select id="font-size-select" class="form-select">
+                    <option value="14">Small (14px)</option>
+                    <option value="16">Default (16px)</option>
+                    <option value="18">Medium (18px)</option>
+                    <option value="20">Large (20px)</option>
+                    <option value="22">Extra Large (22px)</option>
+                </select>
+            </div>
+
         </section>
 
         <section class="settings-section form-section">
@@ -45,6 +56,11 @@
                 <label for="import-year" class="form-label">Year:</label>
                 <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100" style="width: 100px;">
                 <button id="import-button" class="btn btn-action">Import</button>
+            </div>
+
+            <div class="settings-row" style="gap: 0.5rem;">
+                <button id="load-example-data-button" class="btn btn-action">Load Example Data</button>
+                <button id="remove-example-data-button" class="btn btn-danger">Remove Example Data</button>
             </div>
 
             <div id="import-status" class="settings-status"></div>
@@ -93,6 +109,7 @@
     <script src="../services/ExportService.js"></script>
     <script src="../models/DataManager.js"></script>
     <script src="../components/Header.js"></script>
+    <script src="../utils/ExampleData.js"></script>
     <script src="../controllers/SettingsController.js"></script>
     <script>
         // Initialize settings

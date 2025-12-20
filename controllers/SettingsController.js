@@ -11,6 +11,7 @@ const SettingsController = {
     async init() {
         await DataManager.loadMonthsFromFiles();
         this.loadCurrencySetting();
+        this.loadFontSizeSetting();
         this.loadMonthSelector();
         this.setupEventListeners();
     },
@@ -45,6 +46,35 @@ const SettingsController = {
     },
 
     /**
+     * Load and display current font size setting
+     */
+    loadFontSizeSetting() {
+        const fontSizeSelect = document.getElementById('font-size-select');
+        if (!fontSizeSelect) return;
+
+        const settings = DataManager.getSettings();
+        const currentFontSize = settings && settings.fontSize ? settings.fontSize : '16';
+        
+        fontSizeSelect.value = currentFontSize;
+    },
+
+    /**
+     * Save font size setting and apply to page
+     */
+    saveFontSizeSetting(fontSize) {
+        const settings = DataManager.getSettings() || DataManager.initializeSettings();
+        settings.fontSize = fontSize;
+        const success = DataManager.saveSettings(settings);
+        
+        if (success) {
+            // Apply font size immediately
+            document.documentElement.style.fontSize = fontSize + 'px';
+        }
+        
+        return success;
+    },
+
+    /**
      * Setup event listeners
      */
     setupEventListeners() {
@@ -67,6 +97,15 @@ const SettingsController = {
             });
         }
 
+        // Font size selector
+        const fontSizeSelect = document.getElementById('font-size-select');
+        if (fontSizeSelect) {
+            fontSizeSelect.addEventListener('change', () => {
+                const selectedFontSize = fontSizeSelect.value;
+                this.saveFontSizeSetting(selectedFontSize);
+            });
+        }
+
         const importButton = document.getElementById('import-button');
         const fileInput = document.getElementById('file-input');
         const exportButton = document.getElementById('export-button');
@@ -78,6 +117,22 @@ const SettingsController = {
         const yearInputGroup = document.getElementById('year-input-group');
         const importYear = document.getElementById('import-year');
         const clearAllDataBtn = document.getElementById('clear-all-data-button');
+        const loadExampleDataBtn = document.getElementById('load-example-data-button');
+        const removeExampleDataBtn = document.getElementById('remove-example-data-button');
+
+        // Load example data button
+        if (loadExampleDataBtn) {
+            loadExampleDataBtn.addEventListener('click', () => {
+                this.loadExampleData();
+            });
+        }
+
+        // Remove example data button
+        if (removeExampleDataBtn) {
+            removeExampleDataBtn.addEventListener('click', () => {
+                this.removeExampleData();
+            });
+        }
 
         // Clear all cached data button
         if (clearAllDataBtn) {
@@ -566,6 +621,116 @@ const SettingsController = {
                 }).join('');
         } else {
             selector.innerHTML = '<option value="">No months available</option>';
+        }
+    },
+
+    /**
+     * Load all example data
+     */
+    loadExampleData() {
+        const importStatus = document.getElementById('import-status');
+        const loadExampleDataBtn = document.getElementById('load-example-data-button');
+
+        if (!window.ExampleData) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">ExampleData library not loaded.</p>';
+            }
+            return;
+        }
+
+        if (loadExampleDataBtn) {
+            loadExampleDataBtn.disabled = true;
+            loadExampleDataBtn.textContent = 'Loading...';
+        }
+
+        try {
+            const exampleMonths = window.ExampleData.getAllExampleMonths();
+            let loadedCount = 0;
+
+            for (const monthData of exampleMonths) {
+                if (monthData && monthData.key) {
+                    DataManager.saveMonth(monthData.key, monthData);
+                    loadedCount++;
+                }
+            }
+
+            this.loadMonthSelector();
+
+            if (importStatus) {
+                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully loaded ${loadedCount} example months (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
+            }
+
+        } catch (error) {
+            console.error('Error loading example data:', error);
+            if (importStatus) {
+                importStatus.innerHTML = `<p style="color: var(--danger-color);">Failed to load example data: ${error.message}</p>`;
+            }
+        } finally {
+            if (loadExampleDataBtn) {
+                loadExampleDataBtn.disabled = false;
+                loadExampleDataBtn.textContent = 'Load Example Data';
+            }
+        }
+    },
+
+    /**
+     * Remove all example data
+     */
+    removeExampleData() {
+        const importStatus = document.getElementById('import-status');
+        const removeExampleDataBtn = document.getElementById('remove-example-data-button');
+
+        if (!window.ExampleData) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--danger-color);">ExampleData library not loaded.</p>';
+            }
+            return;
+        }
+
+        const exampleMonthKeys = window.ExampleData.getExampleMonthKeys();
+        const allMonths = DataManager.getAllMonths();
+        
+        // Check if any example months exist
+        const existingExampleMonths = exampleMonthKeys.filter(key => allMonths[key]);
+        
+        if (existingExampleMonths.length === 0) {
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--warning-color);">No example data found to remove.</p>';
+            }
+            return;
+        }
+
+        if (removeExampleDataBtn) {
+            removeExampleDataBtn.disabled = true;
+            removeExampleDataBtn.textContent = 'Removing...';
+        }
+
+        try {
+            let removedCount = 0;
+
+            for (const monthKey of exampleMonthKeys) {
+                if (allMonths[monthKey]) {
+                    DataManager.deleteMonth(monthKey);
+                    removedCount++;
+                }
+            }
+
+            this.loadMonthSelector();
+
+            if (importStatus) {
+                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully removed ${removedCount} example months.</p>`;
+            }
+
+        } catch (error) {
+            console.error('Error removing example data:', error);
+            if (importStatus) {
+                importStatus.innerHTML = `<p style="color: var(--danger-color);">Failed to remove example data: ${error.message}</p>`;
+            }
+        } finally {
+            if (removeExampleDataBtn) {
+                removeExampleDataBtn.disabled = false;
+                removeExampleDataBtn.textContent = 'Remove Example Data';
+            }
         }
     }
 };
