@@ -13,6 +13,12 @@
     white-space: nowrap;
 }
 
+/* Ensure working section can scroll horizontally on all screen sizes */
+.working-section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .month-selector-section {
     background-color: rgba(225, 225, 225, 0.85);
     border-radius: 0px;

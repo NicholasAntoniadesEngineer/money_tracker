@@ -290,6 +290,9 @@ const MonthlyBudgetController = {
         // Populate working section with variable costs data (similar to copy function)
         this.populateWorkingSectionFromCosts();
 
+        // Update variable cost actuals from working section data
+        this.updateVariableCostActualsFromWorkingSection();
+
         const monthContent = document.getElementById('month-content');
         const noMonthMessage = document.getElementById('no-month-message');
         if (monthContent) monthContent.style.display = 'block';
@@ -318,14 +321,10 @@ const MonthlyBudgetController = {
         variableCostRows.forEach(row => {
             const category = (row.querySelector('.variable-cost-category')?.value || '').trim();
             if (category) {
-                const categoryLower = category.toLowerCase();
-                // Exclude transport/travel as it's in fixed costs
-                if (!categoryLower.includes('transport') && !categoryLower.includes('travel')) {
-                    // Only add if we haven't seen this category yet (preserve first occurrence order)
-                    if (!seenCategories.has(category)) {
-                        seenCategories.add(category);
-                        categories.push(category);
-                    }
+                // Only add if we haven't seen this category yet (preserve first occurrence order)
+                if (!seenCategories.has(category)) {
+                    seenCategories.add(category);
+                    categories.push(category);
                 }
             }
         });
@@ -1366,7 +1365,7 @@ const MonthlyBudgetController = {
         row.innerHTML = `
             <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Expense Category"></td>
             <td><input type="number" class="variable-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00" readonly></td>
             <td class="variable-cost-remaining">${Formatters.formatCurrency(remaining)}</td>
             <td><input type="text" class="variable-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
@@ -1730,6 +1729,9 @@ const MonthlyBudgetController = {
     updateCalculations() {
         if (!this.currentMonthData) return;
 
+        // Update variable cost actuals from working section data
+        this.updateVariableCostActualsFromWorkingSection();
+
         const totals = DataManager.calculateMonthTotals(this.getCurrentMonthDataFromForm());
 
         // Update income totals
@@ -1798,6 +1800,9 @@ const MonthlyBudgetController = {
             const fixedCosts = this.currentMonthData.fixedCosts || [];
             const week = weeks[weekIndex];
 
+            // Skip processing if this row doesn't correspond to a valid week
+            if (!week) return;
+
             fixedCosts.forEach(cost => {
                 if (!cost.date || !cost.paid) return; // Skip unpaid costs
 
@@ -1844,7 +1849,7 @@ const MonthlyBudgetController = {
             const unplannedExpenses = this.currentMonthData.unplannedExpenses || [];
             unplannedExpenses.forEach(expense => {
                 if (!expense.date || !expense.paid) return; // Skip unpaid expenses
-                
+
                 // Parse date - could be in various formats (DD, DD-MM, DD/MM, etc.)
                 const dateMatch = expense.date.toString().match(/(\d+)/);
                 if (dateMatch) {
@@ -2428,6 +2433,65 @@ const MonthlyBudgetController = {
         } catch (error) {
             return NaN;
         }
+    },
+
+    /**
+     * Calculate actual total for a variable cost category from working section table
+     * Sums all "= value" entries in the corresponding column
+     * @param {string} category - The variable cost category name
+     * @returns {number} Total actual spending for this category
+     */
+    calculateVariableCostActualFromWorkingSection(category) {
+        if (!category) return 0;
+
+        const categoryId = this.sanitizeCategoryId(category);
+        const categoryClass = 'weekly-variable-' + categoryId;
+        let total = 0;
+
+        // Find all textareas for this category in the working section table
+        const textareas = document.querySelectorAll('#weekly-breakdown-tbody .' + categoryClass);
+        textareas.forEach(textarea => {
+            const text = textarea.value || '';
+            // Use calculateVariableCostTotal to parse the "= value" from each textarea
+            const actualForRow = this.calculateVariableCostTotal(text, false);
+            total += actualForRow;
+        });
+
+        return total;
+    },
+
+    /**
+     * Update all variable cost actual amounts based on working section data
+     */
+    updateVariableCostActualsFromWorkingSection() {
+        const variableCostRows = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)'));
+
+        variableCostRows.forEach(row => {
+            const categoryInput = row.querySelector('.variable-cost-category');
+            const actualInput = row.querySelector('.variable-cost-actual');
+            const remainingCell = row.querySelector('.variable-cost-remaining');
+
+            if (categoryInput && actualInput) {
+                const category = categoryInput.value.trim();
+                if (category) {
+                    // Calculate actual total from working section
+                    const actualTotal = this.calculateVariableCostActualFromWorkingSection(category);
+
+                    // Update the actual input field
+                    actualInput.value = actualTotal.toFixed(2);
+
+                    // Update remaining calculation
+                    const estimatedInput = row.querySelector('.variable-cost-estimated');
+                    const estimated = Formatters.parseNumber(estimatedInput?.value || 0);
+                    const actual = actualTotal;
+                    const remaining = estimated - actual;
+
+                    if (remainingCell) {
+                        remainingCell.textContent = Formatters.formatCurrency(remaining);
+                    }
+                }
+            }
+        });
     },
 
     /**

@@ -180,16 +180,13 @@ const SettingsController = {
             });
         }
 
-        // File input change handler - show import button and year input if needed
-        if (fileInput && yearInputGroup && importYear && importButton) {
+        // File input change handler - handle year input if needed
+        if (fileInput && yearInputGroup && importYear) {
             fileInput.addEventListener('change', () => {
                 const files = fileInput.files;
                 if (files && files.length > 0) {
-                    // Show import button when files are selected
-                    importButton.style.display = 'inline-block';
                     this.handleFileInputChange(fileInput, yearInputGroup, importYear);
                 } else {
-                    importButton.style.display = 'none';
                     yearInputGroup.style.display = 'none';
                 }
             });
@@ -596,7 +593,6 @@ const SettingsController = {
         if (yearInputGroup) yearInputGroup.style.display = 'none';
         if (importButton) {
             importButton.disabled = false;
-            importButton.style.display = 'none';
         }
         this.loadMonthSelector();
     },

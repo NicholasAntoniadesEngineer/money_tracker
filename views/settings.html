@@ -48,14 +48,14 @@
         <section class="settings-section form-section">
             <h2 class="section-title">Import</h2>
 
-            <div class="settings-row">
-                <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple style="max-width: none;">
+            <div class="settings-row" style="gap: 0.5rem;">
+                <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple style="max-width: none; flex: 1;">
+                <button id="import-button" class="btn btn-action">Import</button>
             </div>
 
             <div id="year-input-group" class="settings-inline-group" style="display: none;">
                 <label for="import-year" class="form-label">Year:</label>
                 <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100" style="width: 100px;">
-                <button id="import-button" class="btn btn-action">Import</button>
             </div>
 
             <div class="settings-row" style="gap: 0.5rem;">
