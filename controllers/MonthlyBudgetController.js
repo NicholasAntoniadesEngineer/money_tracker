@@ -487,7 +487,7 @@ const MonthlyBudgetController = {
                 totalRowHTML += `<td id="${categoryId}"></td>`;
             });
             
-            totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong>${Formatters.formatCurrency(0)}</strong></td><td id="weekly-breakdown-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td><td></td>`;
+            totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td><td id="weekly-breakdown-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td><td></td>`;
             totalRow.innerHTML = totalRowHTML;
         }
         
@@ -1140,7 +1140,7 @@ const MonthlyBudgetController = {
             totalRowHTML += `<td id="${categoryId}"></td>`;
         });
         
-        totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong>${Formatters.formatCurrency(0)}</strong></td><td id="weekly-breakdown-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td><td></td>`;
+        totalRowHTML += `<td id="weekly-breakdown-total-estimate"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td><td id="weekly-breakdown-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td><td></td>`;
 
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
@@ -1277,8 +1277,8 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Income</strong></td>
-            <td id="income-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
-            <td id="income-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="income-total-estimated"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
+            <td id="income-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1431,8 +1431,8 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Fixed Costs</strong></td>
-            <td id="fixed-costs-total-estimated"><strong>${Formatters.formatCurrency(0)}</strong></td>
-            <td id="fixed-costs-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="fixed-costs-total-estimated"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
+            <td id="fixed-costs-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1485,7 +1485,7 @@ const MonthlyBudgetController = {
             <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Expense Category"></td>
             <td><input type="number" class="variable-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00" readonly></td>
-            <td class="variable-cost-remaining">${Formatters.formatCurrency(remaining)}</td>
+            <td class="variable-cost-remaining"><em>${Formatters.formatCurrency(remaining)}</em></td>
             <td><input type="text" class="variable-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
@@ -1524,7 +1524,7 @@ const MonthlyBudgetController = {
             const remaining = estimated - actual;
 
             if (remainingCell) {
-                remainingCell.textContent = Formatters.formatCurrency(remaining);
+                remainingCell.innerHTML = '<em>' + Formatters.formatCurrency(remaining) + '</em>';
             }
 
             this.updateCalculations();
@@ -1652,9 +1652,9 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Variable Costs</strong></td>
-            <td id="variable-costs-total-budget"><strong>${Formatters.formatCurrency(0)}</strong></td>
-            <td id="variable-costs-total-actual"><strong>${Formatters.formatCurrency(0)}</strong></td>
-            <td id="variable-costs-total-remaining"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="variable-costs-total-budget"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
+            <td id="variable-costs-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
+            <td id="variable-costs-total-remaining"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td></td>
             <td></td>
         `;
@@ -1768,7 +1768,7 @@ const MonthlyBudgetController = {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td><strong>Total Unplanned Expenses</strong></td>
-            <td id="unplanned-expenses-total"><strong>${Formatters.formatCurrency(0)}</strong></td>
+            <td id="unplanned-expenses-total"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td></td>
             <td></td>
             <td></td>
@@ -1854,32 +1854,32 @@ const MonthlyBudgetController = {
         const totals = DataManager.calculateMonthTotals(this.getCurrentMonthDataFromForm());
 
         // Update income totals
-        this.setElementHTML('income-total-estimated', '<strong>' + Formatters.formatCurrency(totals.income.estimated) + '</strong>');
-        this.setElementHTML('income-total-actual', '<strong>' + Formatters.formatCurrency(totals.income.actual) + '</strong>');
+        this.setElementHTML('income-total-estimated', '<strong><em>' + Formatters.formatCurrency(totals.income.estimated) + '</em></strong>');
+        this.setElementHTML('income-total-actual', '<strong><em>' + Formatters.formatCurrency(totals.income.actual) + '</em></strong>');
         
         // Update fixed costs totals
-        this.setElementHTML('fixed-costs-total-estimated', '<strong>' + Formatters.formatCurrency(totals.fixedCosts.estimated) + '</strong>');
-        this.setElementHTML('fixed-costs-total-actual', '<strong>' + Formatters.formatCurrency(totals.fixedCosts.actual) + '</strong>');
+        this.setElementHTML('fixed-costs-total-estimated', '<strong><em>' + Formatters.formatCurrency(totals.fixedCosts.estimated) + '</em></strong>');
+        this.setElementHTML('fixed-costs-total-actual', '<strong><em>' + Formatters.formatCurrency(totals.fixedCosts.actual) + '</em></strong>');
         
         // Update variable costs totals
-        this.setElementHTML('variable-costs-total-budget', '<strong>' + Formatters.formatCurrency(totals.variableCosts.estimated) + '</strong>');
-        this.setElementHTML('variable-costs-total-actual', '<strong>' + Formatters.formatCurrency(totals.variableCosts.actual) + '</strong>');
+        this.setElementHTML('variable-costs-total-budget', '<strong><em>' + Formatters.formatCurrency(totals.variableCosts.estimated) + '</em></strong>');
+        this.setElementHTML('variable-costs-total-actual', '<strong><em>' + Formatters.formatCurrency(totals.variableCosts.actual) + '</em></strong>');
         const variableRemaining = totals.variableCosts.estimated - totals.variableCosts.actual;
-        this.setElementHTML('variable-costs-total-remaining', '<strong>' + Formatters.formatCurrency(variableRemaining) + '</strong>');
+        this.setElementHTML('variable-costs-total-remaining', '<strong><em>' + Formatters.formatCurrency(variableRemaining) + '</em></strong>');
         
         // Update unplanned expenses totals
-        this.setElementHTML('unplanned-expenses-total', '<strong>' + Formatters.formatCurrency(totals.unplannedExpenses.actual) + '</strong>');
+        this.setElementHTML('unplanned-expenses-total', '<strong><em>' + Formatters.formatCurrency(totals.unplannedExpenses.actual) + '</em></strong>');
 
         // Update summary section
-        this.setElementHTML('summary-income-estimated', '<strong>' + Formatters.formatCurrency(totals.income.estimated) + '</strong>');
-        this.setElementHTML('summary-income-actual', '<strong>' + Formatters.formatCurrency(totals.income.actual) + '</strong>');
-        this.setElementHTML('summary-fixed-costs-estimated', Formatters.formatCurrency(totals.fixedCosts.estimated));
-        this.setElementHTML('summary-fixed-costs-actual', Formatters.formatCurrency(totals.fixedCosts.actual));
-        this.setElementHTML('summary-variable-costs-estimated', Formatters.formatCurrency(totals.variableCosts.estimated));
-        this.setElementHTML('summary-variable-costs-actual', Formatters.formatCurrency(totals.variableCosts.actual));
-        this.setElementHTML('summary-expenses-estimated', '<strong>' + Formatters.formatCurrency(totals.expenses.estimated) + '</strong>');
-        this.setElementHTML('summary-expenses-actual', '<strong>' + Formatters.formatCurrency(totals.expenses.actual) + '</strong>');
-        this.setElementHTML('summary-unplanned-actual', Formatters.formatCurrency(totals.unplannedExpenses.actual));
+        this.setElementHTML('summary-income-estimated', '<strong><em>' + Formatters.formatCurrency(totals.income.estimated) + '</em></strong>');
+        this.setElementHTML('summary-income-actual', '<strong><em>' + Formatters.formatCurrency(totals.income.actual) + '</em></strong>');
+        this.setElementHTML('summary-fixed-costs-estimated', '<em>' + Formatters.formatCurrency(totals.fixedCosts.estimated) + '</em>');
+        this.setElementHTML('summary-fixed-costs-actual', '<em>' + Formatters.formatCurrency(totals.fixedCosts.actual) + '</em>');
+        this.setElementHTML('summary-variable-costs-estimated', '<em>' + Formatters.formatCurrency(totals.variableCosts.estimated) + '</em>');
+        this.setElementHTML('summary-variable-costs-actual', '<em>' + Formatters.formatCurrency(totals.variableCosts.actual) + '</em>');
+        this.setElementHTML('summary-expenses-estimated', '<strong><em>' + Formatters.formatCurrency(totals.expenses.estimated) + '</em></strong>');
+        this.setElementHTML('summary-expenses-actual', '<strong><em>' + Formatters.formatCurrency(totals.expenses.actual) + '</em></strong>');
+        this.setElementHTML('summary-unplanned-actual', '<em>' + Formatters.formatCurrency(totals.unplannedExpenses.actual) + '</em>');
         
         // Grand Savings Total = Income - Expenses - Pots
         // Note: totals.expenses.actual already includes unplanned expenses
@@ -1990,15 +1990,15 @@ const MonthlyBudgetController = {
         });
         
         // Set calculated totals - simple sums (one number per column)
-        this.setElementHTML('weekly-breakdown-total-estimate', '<strong>' + Formatters.formatCurrency(weeklyEstimateTotal) + '</strong>');
-        this.setElementHTML('weekly-breakdown-total-actual', '<strong>' + Formatters.formatCurrency(weeklyActualTotal) + '</strong>');
-        this.setElementHTML('weekly-breakdown-total-payments', '<strong>' + Formatters.formatCurrency(weeklyPaymentsTotal) + '</strong>');
+        this.setElementHTML('weekly-breakdown-total-estimate', '<strong><em>' + Formatters.formatCurrency(weeklyEstimateTotal) + '</em></strong>');
+        this.setElementHTML('weekly-breakdown-total-actual', '<strong><em>' + Formatters.formatCurrency(weeklyActualTotal) + '</em></strong>');
+        this.setElementHTML('weekly-breakdown-total-payments', '<strong><em>' + Formatters.formatCurrency(weeklyPaymentsTotal) + '</em></strong>');
         
         // Set variable cost totals - simple sums (one number per column)
         categories.forEach(category => {
             const categoryId = 'weekly-breakdown-total-' + this.sanitizeCategoryId(category);
             const total = weeklyVariableCostsTotal[category];
-            this.setElementHTML(categoryId, '<strong>' + Formatters.formatCurrency(total) + '</strong>');
+            this.setElementHTML(categoryId, '<strong><em>' + Formatters.formatCurrency(total) + '</em></strong>');
         });
     },
 
@@ -2631,7 +2631,7 @@ const MonthlyBudgetController = {
                     const remaining = estimated - actual;
 
                     if (remainingCell) {
-                        remainingCell.textContent = Formatters.formatCurrency(remaining);
+                        remainingCell.innerHTML = '<em>' + Formatters.formatCurrency(remaining) + '</em>';
                     }
                 }
             }

@@ -284,6 +284,26 @@
 }
 
 /* ============================================================================
+   CALCULATED VALUES STYLES (Italicized)
+   ============================================================================ */
+
+/* Calculated input fields (read-only, auto-calculated) */
+.weekly-estimate,
+.weekly-actual {
+    font-style: italic;
+}
+
+/* Calculated cells (remaining amounts, totals) */
+.variable-cost-remaining {
+    font-style: italic;
+}
+
+/* Weekly variable cost textareas - italicize only the Estimate line (first line) */
+textarea[class*="weekly-variable-"]::first-line {
+    font-style: italic;
+}
+
+/* ============================================================================
    HELP BUTTON STYLES
    ============================================================================ */
 
