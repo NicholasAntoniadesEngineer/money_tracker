@@ -219,19 +219,11 @@ const MonthlyBudgetController = {
      * Load a specific month
      */
     loadMonth(monthKey) {
-        console.log('[loadMonth] Loading month:', monthKey);
         const monthData = DataManager.getMonth(monthKey);
         
         if (!monthData) {
             alert('Month not found');
             return;
-        }
-
-        console.log('[loadMonth] Retrieved monthData, weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
-        if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
-            console.log('[loadMonth] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
-            console.log('[loadMonth] First week weekly-variable-food:', monthData.weeklyBreakdown[0]['weekly-variable-food']);
-            console.log('[loadMonth] First week Food:', monthData.weeklyBreakdown[0]['Food']);
         }
 
         this.currentMonthData = monthData;
@@ -293,11 +285,6 @@ const MonthlyBudgetController = {
         this.loadPots(monthData.pots || []);
 
         // Load weekly breakdown after costs are loaded so we can populate them
-        console.log('[loadMonth] About to call loadWeeklyBreakdown, weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
-        if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
-            console.log('[loadMonth] First week of weeklyBreakdown:', monthData.weeklyBreakdown[0]);
-            console.log('[loadMonth] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
-        }
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
 
         // Only populate working section if it's empty or needs initialization
@@ -519,7 +506,6 @@ const MonthlyBudgetController = {
      * Load weekly breakdown
      */
     loadWeeklyBreakdown(weeklyBreakdown, forceRepopulate = false) {
-        console.log('[loadWeeklyBreakdown] START', { weeklyBreakdownLength: weeklyBreakdown?.length, forceRepopulate });
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -532,45 +518,26 @@ const MonthlyBudgetController = {
         
         // If weekly breakdown exists and has data, use it but ensure we have the right number of weeks
         if (weeklyBreakdown && weeklyBreakdown.length > 0) {
-            console.log('[loadWeeklyBreakdown] Found weeklyBreakdown data, first week keys:', Object.keys(weeklyBreakdown[0]));
-            // Log sample data from first week
-            if (weeklyBreakdown[0]) {
-                const firstWeek = weeklyBreakdown[0];
-                console.log('[loadWeeklyBreakdown] First week sample data:', {
-                    'weekly-variable-food': firstWeek['weekly-variable-food'],
-                    'Food': firstWeek['Food'],
-                    'weekly-variable-activities': firstWeek['weekly-variable-activities'],
-                    'Activities': firstWeek['Activities']
-                });
-            }
-            
             // Create a map of existing weeks by date range
             const existingWeeksMap = new Map();
             weeklyBreakdown.forEach(week => {
                 const dateRange = week.dateRange || week.weekRange || '';
                 existingWeeksMap.set(dateRange, week);
-                console.log('[loadWeeklyBreakdown] Mapping saved week:', dateRange, 'with keys:', Object.keys(week));
             });
-            
-            console.log('[loadWeeklyBreakdown] existingWeeksMap keys:', Array.from(existingWeeksMap.keys()));
             
             // Generate weeks, preserving existing data where possible
             weeks.forEach((week, index) => {
                 const dateRange = this.formatWeekDateRange(week);
-                console.log('[loadWeeklyBreakdown] Looking for week with dateRange:', dateRange, 'week object:', week);
                 let existingWeek = existingWeeksMap.get(dateRange);
                 
                 // If no match by date range, try matching by index (fallback)
                 if (!existingWeek && index < weeklyBreakdown.length) {
                     existingWeek = weeklyBreakdown[index];
-                    console.log('[loadWeeklyBreakdown] No date range match, using week by index:', index);
                 }
                 
                 if (existingWeek) {
-                    console.log('[loadWeeklyBreakdown] FOUND MATCH! Adding row with existing week data for', dateRange, 'existingWeek keys:', Object.keys(existingWeek));
                     this.addWeeklyBreakdownRow(existingWeek);
         } else {
-                    console.log('[loadWeeklyBreakdown] NO MATCH for', dateRange, '- creating new week');
                     // Create new week with date range
                     this.addWeeklyBreakdownRow({
                         dateRange: dateRange,
@@ -598,17 +565,11 @@ const MonthlyBudgetController = {
             return Object.keys(week).some(key => {
                 if (key.startsWith('weekly-variable-') || key === 'Food' || key === 'Travel' || key === 'Activities') {
                     const value = week[key];
-                    const hasData = typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
-                    if (hasData) {
-                        console.log('[loadWeeklyBreakdown] Found loaded data in week:', key, value.substring(0, 50));
-                    }
-                    return hasData;
+                    return typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
                 }
                 return false;
             });
         });
-        
-        console.log('[loadWeeklyBreakdown] hasLoadedData:', hasLoadedData, 'forceRepopulate:', forceRepopulate);
         
         // Check if textareas already have data (from addWeeklyBreakdownRow)
         const textareasHaveData = Array.from(document.querySelectorAll('#weekly-breakdown-tbody textarea[class*="weekly-variable-"]')).some(textarea => {
@@ -616,16 +577,11 @@ const MonthlyBudgetController = {
             return value.includes('Estimate:') && value.includes('=') && value.trim().length > 10;
         });
         
-        console.log('[loadWeeklyBreakdown] textareasHaveData:', textareasHaveData);
-        
         // Only populate if we don't have loaded data AND textareas don't have data, or if forceRepopulate is true
         // This preserves loaded calculations from saved/example data
         if ((!hasLoadedData && !textareasHaveData) || forceRepopulate) {
-            console.log('[loadWeeklyBreakdown] Calling populateWorkingSectionFromCosts');
             // Populate fixed costs and variable costs into working section
             this.populateWorkingSectionFromCosts(forceRepopulate);
-        } else {
-            console.log('[loadWeeklyBreakdown] Skipping populateWorkingSectionFromCosts to preserve loaded data');
         }
         
         // Auto-size all textareas after loading
@@ -657,25 +613,19 @@ const MonthlyBudgetController = {
             
             let existingValue = '';
             if (weekData) {
-                console.log(`[addWeeklyBreakdownRow] Looking for category: ${category}, categoryClass: ${categoryClass}`);
-                console.log(`[addWeeklyBreakdownRow] weekData keys:`, Object.keys(weekData));
-                
                 // Try to find matching data by checking all possible key variations
                 // Priority 1: Check for full textarea content in categoryClass (most complete)
                 // This is the primary key used when saving data
                 if (weekData[categoryClass] && typeof weekData[categoryClass] === 'string' && weekData[categoryClass].trim()) {
                     existingValue = weekData[categoryClass];
-                    console.log(`[addWeeklyBreakdownRow] Found via categoryClass (${categoryClass}):`, existingValue);
                 }
                 // Priority 2: Check for full textarea content in category name (case-sensitive)
                 else if (weekData[category] && typeof weekData[category] === 'string' && weekData[category].trim()) {
                     existingValue = weekData[category];
-                    console.log(`[addWeeklyBreakdownRow] Found via category name (${category}):`, existingValue);
                 }
                 // Priority 3: Check for lowercase category name
                 else if (weekData[category.toLowerCase()] && typeof weekData[category.toLowerCase()] === 'string' && weekData[category.toLowerCase()].trim()) {
                     existingValue = weekData[category.toLowerCase()];
-                    console.log(`[addWeeklyBreakdownRow] Found via lowercase category:`, existingValue);
                 }
                 // Priority 4: Search through all keys in weekData to find a match
                 // This handles cases where the key might be slightly different (e.g., "groceries" vs "Groceries")
@@ -692,13 +642,9 @@ const MonthlyBudgetController = {
                                 keyLower.replace('weekly-variable-', '') === categoryIdLower ||
                                 keyLower.replace('weekly-variable-', '') === categoryLower.replace(/[^a-z0-9]+/g, '-')) {
                                 existingValue = weekData[key];
-                                console.log(`[addWeeklyBreakdownRow] Found via key search (${key}):`, existingValue);
                                 break;
                             }
                         }
-                    }
-                    if (!existingValue) {
-                        console.log(`[addWeeklyBreakdownRow] No value found for category: ${category}`);
                     }
                 }
                 
@@ -738,7 +684,6 @@ const MonthlyBudgetController = {
                 }
             }
             
-            console.log(`[addWeeklyBreakdownRow] Final existingValue for ${category}:`, existingValue);
             rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
         });
         
@@ -1083,13 +1028,10 @@ const MonthlyBudgetController = {
                 const hasAutoGenerated = currentValue.includes('Auto-generated');
                 const hasEstimate = currentValue.includes('Estimate:');
                 
-                console.log(`[populateWorkingSectionFromCosts] Category: ${category}, currentValue:`, currentValue.substring(0, 50) + '...', 'hasEstimate:', hasEstimate);
-                
                 // Check if this textarea already has loaded data from weeklyBreakdown
                 // If it has Estimate: line, preserve it completely - this is loaded data
                 // This prevents overwriting data that was just loaded from saved/example data
                 if (hasEstimate) {
-                    console.log(`[populateWorkingSectionFromCosts] Preserving loaded data for ${category}`);
                     // Data was loaded - preserve it completely, don't modify
                     this.autoSizeTextarea(categoryTextarea);
                     return;

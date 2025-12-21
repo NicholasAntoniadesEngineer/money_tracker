@@ -685,17 +685,9 @@ const SettingsController = {
 
             for (const monthData of exampleMonths) {
                 if (monthData && monthData.key) {
-                    console.log('[loadExampleData] Processing month:', monthData.key);
-                    console.log('[loadExampleData] weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
-                    if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
-                        console.log('[loadExampleData] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
-                        console.log('[loadExampleData] First week weekly-variable-food:', monthData.weeklyBreakdown[0]['weekly-variable-food']);
-                        console.log('[loadExampleData] First week Food:', monthData.weeklyBreakdown[0]['Food']);
-                    }
                     // Process example data through JSON parse/stringify to ensure
                     // it's identical to imported JSON data
                     const processedMonthData = JSON.parse(JSON.stringify(monthData));
-                    console.log('[loadExampleData] After JSON processing, first week weekly-variable-food:', processedMonthData.weeklyBreakdown?.[0]?.['weekly-variable-food']);
                     DataManager.saveMonth(processedMonthData.key, processedMonthData);
                     loadedCount++;
                 }
