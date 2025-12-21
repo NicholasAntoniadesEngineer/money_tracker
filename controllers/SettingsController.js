@@ -148,25 +148,65 @@ const SettingsController = {
                 }
 
                 try {
-                    // Clear all localStorage data
+                    // Set flag to prevent auto-reload from files after page reload (set first)
+                    sessionStorage.setItem('skipFileLoadAfterClear', 'true');
+
+                    // Get all months and delete them individually to ensure proper cleanup
+                    const allMonths = DataManager.getAllMonths();
+                    const monthKeys = Object.keys(allMonths);
+                    let deletedCount = 0;
+
+                    for (const monthKey of monthKeys) {
+                        const deleted = DataManager.deleteMonth(monthKey);
+                        if (deleted) {
+                            deletedCount++;
+                        }
+                    }
+
+                    // Clear all localStorage data to ensure everything is removed
                     localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
                     localStorage.removeItem(DataManager.STORAGE_KEY_POTS);
                     localStorage.removeItem(DataManager.STORAGE_KEY_SETTINGS);
 
-                    // Reset to default settings
+                    // Clear all remaining localStorage to ensure no cached data remains
+                    localStorage.clear();
+
+                    // Reset to default settings (after clearing, so it creates fresh defaults)
                     DataManager.initializeSettings();
 
                     // Clear any cached data
-                    DataManager._monthsCache = null;
+                    if (DataManager._monthsCache !== undefined) {
+                        DataManager._monthsCache = null;
+                    }
+
+                    // Verify deletion by checking localStorage directly
+                    const remainingMonths = localStorage.getItem(DataManager.STORAGE_KEY_MONTHS);
+                    if (remainingMonths) {
+                        console.warn('Months still exist in localStorage after clear, forcing removal');
+                        localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
+                    }
+
+                    // Double-check: verify all months are actually gone
+                    const finalCheck = DataManager.getAllMonths();
+                    const remainingCount = Object.keys(finalCheck).length;
+                    if (remainingCount > 0) {
+                        console.warn(`Warning: ${remainingCount} months still exist after clear operation`);
+                        localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
+                    }
 
                     // Reload month selector to show empty state
                     this.loadMonthSelector();
 
                     if (fileOperationsStatus) {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">✓ All cached data has been cleared. Settings have been reset to defaults.</p>';
+                        fileOperationsStatus.innerHTML = `<p style="color: var(--success-color);">✓ All cached data has been cleared. ${deletedCount} month(s) deleted. Settings have been reset to defaults.</p>`;
                     }
 
-                    // Optional: Reload the page to ensure clean state
+                    // Clear the skip flag after page reloads and initializes (give it time for all controllers to check)
+                    setTimeout(() => {
+                        sessionStorage.removeItem('skipFileLoadAfterClear');
+                    }, 5000);
+
+                    // Reload the page to ensure clean state
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -174,7 +214,7 @@ const SettingsController = {
                 } catch (error) {
                     console.error('Error clearing cached data:', error);
                     if (fileOperationsStatus) {
-                        fileOperationsStatus.innerHTML = '<p style="color: var(--danger-color);">Error clearing cached data. Please try again.</p>';
+                        fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">Error clearing cached data: ${error.message}. Please try again.</p>`;
                     }
                 }
             });
@@ -645,7 +685,18 @@ const SettingsController = {
 
             for (const monthData of exampleMonths) {
                 if (monthData && monthData.key) {
-                    DataManager.saveMonth(monthData.key, monthData);
+                    console.log('[loadExampleData] Processing month:', monthData.key);
+                    console.log('[loadExampleData] weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
+                    if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
+                        console.log('[loadExampleData] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
+                        console.log('[loadExampleData] First week weekly-variable-food:', monthData.weeklyBreakdown[0]['weekly-variable-food']);
+                        console.log('[loadExampleData] First week Food:', monthData.weeklyBreakdown[0]['Food']);
+                    }
+                    // Process example data through JSON parse/stringify to ensure
+                    // it's identical to imported JSON data
+                    const processedMonthData = JSON.parse(JSON.stringify(monthData));
+                    console.log('[loadExampleData] After JSON processing, first week weekly-variable-food:', processedMonthData.weeklyBreakdown?.[0]?.['weekly-variable-food']);
+                    DataManager.saveMonth(processedMonthData.key, processedMonthData);
                     loadedCount++;
                 }
             }
@@ -653,7 +704,17 @@ const SettingsController = {
             this.loadMonthSelector();
 
             if (importStatus) {
-                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully loaded ${loadedCount} example months (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
+                let message = `<p style="color: var(--success-color);">Successfully loaded ${loadedCount} example months (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
+                if (loadedCount > 0) {
+                    message += '<p style="margin-top: 0.5rem;">View months:</p><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                    for (const monthData of exampleMonths) {
+                        if (monthData && monthData.key) {
+                            message += `<li><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">${monthData.monthName} ${monthData.year}</a></li>`;
+                        }
+                    }
+                    message += '</ul>';
+                }
+                importStatus.innerHTML = message;
             }
 
         } catch (error) {

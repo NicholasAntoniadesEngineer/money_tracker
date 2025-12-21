@@ -23,6 +23,7 @@ const ExampleData = {
      */
     getExampleMonthKeys() {
         return [
+            `${this.EXAMPLE_YEAR}-01`,
             `${this.EXAMPLE_YEAR}-09`,
             `${this.EXAMPLE_YEAR}-10`,
             `${this.EXAMPLE_YEAR}-11`
@@ -35,10 +36,169 @@ const ExampleData = {
      */
     getAllExampleMonths() {
         return [
+            this.getExampleJanuary(),
             this.getExampleSeptember(),
             this.getExampleOctober(),
             this.getExampleNovember()
         ];
+    },
+
+    /**
+     * January - Test month identical to reference/2026-01.json
+     * Shows: Exact same structure as working imported file
+     */
+    getExampleJanuary() {
+        const exampleYear = this.EXAMPLE_YEAR;
+        return {
+            "key": `${exampleYear}-01`,
+            "year": exampleYear,
+            "month": 1,
+            "monthName": "January",
+            "dateRange": {
+                "start": `${exampleYear-1}-12-31`,
+                "end": `${exampleYear}-01-30`
+            },
+            "weeklyBreakdown": [
+                {
+                    "dateRange": "1-5",
+                    "weekRange": "1-5",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 22,
+                    "weekly-variable-food": "Estimate: £2.80\n= 10",
+                    "Food": "Estimate: £2.80\n= 10",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=12",
+                    "Activities": "Estimate: £2.80\n=12"
+                },
+                {
+                    "dateRange": "6-12",
+                    "weekRange": "6-12",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 30,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=20 + 10",
+                    "Activities": "Estimate: £2.80\n=20 + 10"
+                },
+                {
+                    "dateRange": "13-19",
+                    "weekRange": "13-19",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                },
+                {
+                    "dateRange": "20-26",
+                    "weekRange": "20-26",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                },
+                {
+                    "dateRange": "27-31",
+                    "weekRange": "27-31",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                }
+            ],
+            "fixedCosts": [
+                {
+                    "category": "",
+                    "estimatedAmount": 0,
+                    "actualAmount": 0,
+                    "date": "",
+                    "card": "",
+                    "paid": false,
+                    "comments": ""
+                }
+            ],
+            "variableCosts": [
+                {
+                    "category": "Food",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "Travel",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "Activities",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "",
+                    "estimatedAmount": 0,
+                    "actualAmount": 0,
+                    "comments": ""
+                }
+            ],
+            "unplannedExpenses": [
+                {
+                    "name": "",
+                    "amount": 0,
+                    "date": "",
+                    "card": "",
+                    "paid": false,
+                    "comments": ""
+                }
+            ],
+            "incomeSources": [
+                {
+                    "source": "",
+                    "estimated": 0,
+                    "actual": 0,
+                    "date": "",
+                    "description": "",
+                    "comments": ""
+                },
+                {
+                    "source": "",
+                    "estimated": 0,
+                    "actual": 0,
+                    "date": "",
+                    "description": "",
+                    "comments": ""
+                }
+            ],
+            "pots": [],
+            "createdAt": new Date().toISOString(),
+            "updatedAt": new Date().toISOString()
+        };
     },
 
     /**
@@ -54,84 +214,148 @@ const ExampleData = {
             "monthName": "September",
             "dateRange": {
                 "start": `${exampleYear}-08-31`,
-                "end": `${exampleYear}-09-29`
+                "end": `${exampleYear}-09-30`
             },
             "weeklyBreakdown": [
                 {
-                    "dateRange": "1-7",
-                    "weekRange": "1-7",
-                    "paymentsDue": "Rent 1200 ✓",
-                    "groceries": "80= 45",
-                    "transport": "",
-                    "activities": "40= 25",
-                    "estimate": 1320,
-                    "weeklyEstimate": 1320,
-                    "actual": 1270
-                },
-                {
-                    "dateRange": "8-14",
-                    "weekRange": "8-14",
-                    "paymentsDue": "Electricity 65",
-                    "groceries": "80= 78",
-                    "transport": "",
-                    "activities": "40= 0",
-                    "estimate": 185,
-                    "weeklyEstimate": 185,
-                    "actual": 143
-                },
-                {
-                    "dateRange": "15-21",
-                    "weekRange": "15-21",
-                    "paymentsDue": "Phone 35",
-                    "groceries": "80= 92",
-                    "transport": "",
-                    "activities": "40= 55",
-                    "estimate": 155,
-                    "weeklyEstimate": 155,
-                    "actual": 182
-                },
-                {
-                    "dateRange": "22-30",
-                    "weekRange": "22-30",
-                    "paymentsDue": "Internet 45",
-                    "groceries": "80= 68",
-                    "transport": "",
-                    "activities": "40= 30",
-                    "estimate": 165,
-                    "weeklyEstimate": 165,
-                    "actual": 143
-                },
-                {
-                    "dateRange": "Totals",
-                    "weekRange": "Totals",
+                    "dateRange": "1-4",
+                    "weekRange": "1-4",
                     "paymentsDue": "",
-                    "groceries": "",
-                    "transport": "",
-                    "activities": "",
-                    "estimate": 0,
-                    "weeklyEstimate": 0,
-                    "actual": 0
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 22,
+                    "weekly-variable-food": "Estimate: £2.80\n= 10",
+                    "Food": "Estimate: £2.80\n= 10",
+                    "weekly-variable-travel": "Estimate: £2.80\n=12",
+                    "Travel": "Estimate: £2.80\n=12",
+                    "weekly-variable-activities": "Estimate: £2.80\n=12",
+                    "Activities": "Estimate: £2.80\n=12"
+                },
+                {
+                    "dateRange": "5-11",
+                    "weekRange": "5-11",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 30,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=20 + 10",
+                    "Activities": "Estimate: £2.80\n=20 + 10"
+                },
+                {
+                    "dateRange": "12-18",
+                    "weekRange": "12-18",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                },
+                {
+                    "dateRange": "19-25",
+                    "weekRange": "19-25",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                },
+                {
+                    "dateRange": "26-30",
+                    "weekRange": "26-30",
+                    "paymentsDue": "",
+                    "estimate": 5.6,
+                    "weeklyEstimate": 5.6,
+                    "actual": 0,
+                    "weekly-variable-food": "Estimate: £2.80\n=",
+                    "Food": "Estimate: £2.80\n=",
+                    "weekly-variable-travel": "Estimate: £2.80\n=",
+                    "Travel": "Estimate: £2.80\n=",
+                    "weekly-variable-activities": "Estimate: £2.80\n=",
+                    "Activities": "Estimate: £2.80\n="
+                }
+            ],
+            "fixedCosts": [
+                {
+                    "category": "",
+                    "estimatedAmount": 0,
+                    "actualAmount": 0,
+                    "date": "",
+                    "card": "",
+                    "paid": false,
+                    "comments": ""
+                }
+            ],
+            "variableCosts": [
+                {
+                    "category": "Food",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "Travel",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "Activities",
+                    "estimatedAmount": 14,
+                    "actualAmount": 0,
+                    "comments": ""
+                },
+                {
+                    "category": "",
+                    "estimatedAmount": 0,
+                    "actualAmount": 0,
+                    "comments": ""
+                }
+            ],
+            "unplannedExpenses": [
+                {
+                    "name": "",
+                    "amount": 0,
+                    "date": "",
+                    "card": "",
+                    "paid": false,
+                    "comments": ""
                 }
             ],
             "incomeSources": [
-                { "source": "Salary", "estimated": 2800, "actual": 2800, "date": "1st", "description": "Monthly salary" }
+                {
+                    "source": "",
+                    "estimated": 0,
+                    "actual": 0,
+                    "date": "",
+                    "description": "",
+                    "comments": ""
+                },
+                {
+                    "source": "",
+                    "estimated": 0,
+                    "actual": 0,
+                    "date": "",
+                    "description": "",
+                    "comments": ""
+                }
             ],
-            "fixedCosts": [
-                { "category": "Rent", "estimatedAmount": 1200, "actualAmount": 1200, "date": "1st", "card": "Bank Transfer", "paid": true },
-                { "category": "Electricity", "estimatedAmount": 65, "actualAmount": 62, "date": "10th", "card": "Debit Card", "paid": true },
-                { "category": "Phone Plan", "estimatedAmount": 35, "actualAmount": 35, "date": "15th", "card": "Debit Card", "paid": true },
-                { "category": "Internet", "estimatedAmount": 45, "actualAmount": 45, "date": "25th", "card": "Debit Card", "paid": true }
-            ],
-            "variableCosts": [
-                { "category": "Groceries", "estimatedAmount": 320, "actualAmount": 283 },
-                { "category": "Entertainment", "estimatedAmount": 160, "actualAmount": 110 }
-            ],
-            "unplannedExpenses": [],
-            "pots": [
-                { "category": "Emergency Fund", "estimatedAmount": 500, "actualAmount": 500 }
-            ],
-            "createdAt": new Date().toISOString(),
-            "updatedAt": new Date().toISOString()
+            "pots": [],
+            "createdAt": "2025-12-20T17:23:10.982Z",
+            "updatedAt": "2025-12-20T17:24:56.414Z"
         };
     },
 
@@ -154,10 +378,13 @@ const ExampleData = {
                 {
                     "dateRange": "1-7",
                     "weekRange": "1-7",
-                    "paymentsDue": "Rent 1200 ✓ Gym 40 ✓ Spotify 12 ✓ Netflix 15 ✓",
-                    "groceries": "100-25-30-18= 73",
-                    "transport": "50= 42",
-                    "activities": "75-20-35= 55",
+                    "paymentsDue": "Rent/Mortgage: £1,200.00 (Bank Transfer) ✓\nGym Membership: £40.00 (Credit Card) ✓\nSpotify Premium: £12.00 (Credit Card) ✓\nNetflix: £15.00 (Credit Card) ✓",
+                    "weekly-variable-food": "Estimate: £85.00\n= 25+30+18+27",
+                    "Food": "Estimate: £85.00\n= 25+30+18+27",
+                    "weekly-variable-travel": "Estimate: £40.00\n= 42",
+                    "Travel": "Estimate: £40.00\n= 42",
+                    "weekly-variable-activities": "Estimate: £50.00\n= 20+35+15",
+                    "Activities": "Estimate: £50.00\n= 20+35+15",
                     "estimate": 1492,
                     "weeklyEstimate": 1492,
                     "actual": 1437
@@ -165,10 +392,13 @@ const ExampleData = {
                 {
                     "dateRange": "8-14",
                     "weekRange": "8-14",
-                    "paymentsDue": "Electricity 72 ✓ Water 28 ✓ Cloud Storage 10 ✓",
-                    "groceries": "100-45-22-33= 100",
-                    "transport": "50= 65",
-                    "activities": "75= 45",
+                    "paymentsDue": "Electricity: £72.00 (Debit Card) ✓\nWater Bill: £28.00 (Debit Card) ✓\nCloud Storage: £10.00 (Credit Card) ✓",
+                    "weekly-variable-food": "Estimate: £85.00\n= 45+22+33",
+                    "Food": "Estimate: £85.00\n= 45+22+33",
+                    "weekly-variable-travel": "Estimate: £40.00\n= 65",
+                    "Travel": "Estimate: £40.00\n= 65",
+                    "weekly-variable-activities": "Estimate: £50.00\n= 45",
+                    "Activities": "Estimate: £50.00\n= 45",
                     "estimate": 335,
                     "weeklyEstimate": 335,
                     "actual": 320
@@ -176,10 +406,13 @@ const ExampleData = {
                 {
                     "dateRange": "15-21",
                     "weekRange": "15-21",
-                    "paymentsDue": "Phone 45 ✓ Insurance 85 ✓ Subscriptions 25 ✓",
-                    "groceries": "100-28-42-15-20= 105",
-                    "transport": "50= 38",
-                    "activities": "75-60= 60",
+                    "paymentsDue": "Phone Plan: £45.00 (Debit Card) ✓\nHealth Insurance: £85.00 (Bank Transfer) ✓\nApp Subscriptions: £25.00 (Credit Card) ✓",
+                    "weekly-variable-food": "Estimate: £85.00\n= 28+42+15+20",
+                    "Food": "Estimate: £85.00\n= 28+42+15+20",
+                    "weekly-variable-travel": "Estimate: £40.00\n= 38",
+                    "Travel": "Estimate: £40.00\n= 38",
+                    "weekly-variable-activities": "Estimate: £50.00\n= 60+15",
+                    "Activities": "Estimate: £50.00\n= 60+15",
                     "estimate": 380,
                     "weeklyEstimate": 380,
                     "actual": 358
@@ -187,24 +420,16 @@ const ExampleData = {
                 {
                     "dateRange": "22-31",
                     "weekRange": "22-31",
-                    "paymentsDue": "Internet 55 ✓ Car Payment 250 ✓",
-                    "groceries": "100-35-28-40= 103",
-                    "transport": "50= 55",
-                    "activities": "75-40-25= 65",
+                    "paymentsDue": "Internet: £55.00 (Debit Card) ✓\nCar Payment: £250.00 (Bank Transfer) ✓",
+                    "weekly-variable-food": "Estimate: £85.00\n= 35+28+40",
+                    "Food": "Estimate: £85.00\n= 35+28+40",
+                    "weekly-variable-travel": "Estimate: £40.00\n= 55",
+                    "Travel": "Estimate: £40.00\n= 55",
+                    "weekly-variable-activities": "Estimate: £50.00\n= 40+25+15",
+                    "Activities": "Estimate: £50.00\n= 40+25+15",
                     "estimate": 530,
                     "weeklyEstimate": 530,
                     "actual": 528
-                },
-                {
-                    "dateRange": "Totals",
-                    "weekRange": "Totals",
-                    "paymentsDue": "",
-                    "groceries": "",
-                    "transport": "",
-                    "activities": "",
-                    "estimate": 0,
-                    "weeklyEstimate": 0,
-                    "actual": 0
                 }
             ],
             "incomeSources": [
@@ -213,28 +438,28 @@ const ExampleData = {
                 { "source": "Dividend Income", "estimated": 50, "actual": 48, "date": "20th", "description": "Quarterly dividend" }
             ],
             "fixedCosts": [
-                { "category": "Rent/Mortgage", "estimatedAmount": 1200, "actualAmount": 1200, "date": "1st", "card": "Bank Transfer", "paid": true },
-                { "category": "Gym Membership", "estimatedAmount": 40, "actualAmount": 40, "date": "1st", "card": "Credit Card", "paid": true },
-                { "category": "Spotify Premium", "estimatedAmount": 12, "actualAmount": 12, "date": "3rd", "card": "Credit Card", "paid": true },
-                { "category": "Netflix", "estimatedAmount": 15, "actualAmount": 15, "date": "5th", "card": "Credit Card", "paid": true },
-                { "category": "Electricity", "estimatedAmount": 70, "actualAmount": 72, "date": "8th", "card": "Debit Card", "paid": true },
-                { "category": "Water Bill", "estimatedAmount": 30, "actualAmount": 28, "date": "10th", "card": "Debit Card", "paid": true },
-                { "category": "Cloud Storage", "estimatedAmount": 10, "actualAmount": 10, "date": "12th", "card": "Credit Card", "paid": true },
-                { "category": "Phone Plan", "estimatedAmount": 45, "actualAmount": 45, "date": "15th", "card": "Debit Card", "paid": true },
-                { "category": "Health Insurance", "estimatedAmount": 85, "actualAmount": 85, "date": "18th", "card": "Bank Transfer", "paid": true },
-                { "category": "App Subscriptions", "estimatedAmount": 25, "actualAmount": 25, "date": "20th", "card": "Credit Card", "paid": true },
-                { "category": "Internet", "estimatedAmount": 55, "actualAmount": 55, "date": "22nd", "card": "Debit Card", "paid": true },
-                { "category": "Car Payment", "estimatedAmount": 250, "actualAmount": 250, "date": "28th", "card": "Bank Transfer", "paid": true }
+                { "category": "Rent/Mortgage", "estimatedAmount": 1200, "actualAmount": 1200, "date": "1", "card": "Bank Transfer", "paid": true },
+                { "category": "Gym Membership", "estimatedAmount": 40, "actualAmount": 40, "date": "1", "card": "Credit Card", "paid": true },
+                { "category": "Spotify Premium", "estimatedAmount": 12, "actualAmount": 12, "date": "3", "card": "Credit Card", "paid": true },
+                { "category": "Netflix", "estimatedAmount": 15, "actualAmount": 15, "date": "5", "card": "Credit Card", "paid": true },
+                { "category": "Electricity", "estimatedAmount": 70, "actualAmount": 72, "date": "8", "card": "Debit Card", "paid": true },
+                { "category": "Water Bill", "estimatedAmount": 30, "actualAmount": 28, "date": "10", "card": "Debit Card", "paid": true },
+                { "category": "Cloud Storage", "estimatedAmount": 10, "actualAmount": 10, "date": "12", "card": "Credit Card", "paid": true },
+                { "category": "Phone Plan", "estimatedAmount": 45, "actualAmount": 45, "date": "15", "card": "Debit Card", "paid": true },
+                { "category": "Health Insurance", "estimatedAmount": 85, "actualAmount": 85, "date": "18", "card": "Bank Transfer", "paid": true },
+                { "category": "App Subscriptions", "estimatedAmount": 25, "actualAmount": 25, "date": "20", "card": "Credit Card", "paid": true },
+                { "category": "Internet", "estimatedAmount": 55, "actualAmount": 55, "date": "22", "card": "Debit Card", "paid": true },
+                { "category": "Car Payment", "estimatedAmount": 250, "actualAmount": 250, "date": "28", "card": "Bank Transfer", "paid": true }
             ],
             "variableCosts": [
-                { "category": "Groceries", "estimatedAmount": 400, "actualAmount": 381 },
-                { "category": "Transport/Fuel", "estimatedAmount": 200, "actualAmount": 200 },
-                { "category": "Entertainment", "estimatedAmount": 300, "actualAmount": 225 }
+                { "category": "Food", "estimatedAmount": 400, "actualAmount": 381 },
+                { "category": "Travel", "estimatedAmount": 200, "actualAmount": 200 },
+                { "category": "Activities", "estimatedAmount": 300, "actualAmount": 225 }
             ],
             "unplannedExpenses": [
-                { "name": "Car Service", "amount": 180, "date": "12th", "card": "Credit Card", "paid": true },
-                { "name": "Birthday Gift", "amount": 45, "date": "18th", "card": "Debit Card", "paid": true },
-                { "name": "Urgent Plumber", "amount": 120, "date": "25th", "card": "Debit Card", "paid": true }
+                { "name": "Car Service", "amount": 180, "date": "12", "card": "Credit Card", "paid": true },
+                { "name": "Birthday Gift", "amount": 45, "date": "18", "card": "Debit Card", "paid": true },
+                { "name": "Urgent Plumber", "amount": 120, "date": "25", "card": "Debit Card", "paid": true }
             ],
             "pots": [
                 { "category": "Emergency Fund", "estimatedAmount": 3000, "actualAmount": 3200 },
@@ -266,98 +491,106 @@ const ExampleData = {
                 {
                     "dateRange": "1-7",
                     "weekRange": "1-7",
-                    "paymentsDue": "Rent 1200 ✓ Gym 40 ✓ Streaming Services 35 ✓",
-                    "groceries": "90-22-35-28= 85",
-                    "transport": "40= 38",
-                    "activities": "60-45= 45",
-                    "estimate": 1465,
-                    "weeklyEstimate": 1465,
-                    "actual": 1443
+                    "paymentsDue": "Rent: £1,200.00 (Bank Transfer) ✓\nGym Membership: £40.00 (Credit Card) ✓\nStreaming Services: £35.00 (Credit Card) ✓",
+                    "weekly-variable-food": "Estimate: £68.00\n= 22+35+28",
+                    "Food": "Estimate: £68.00\n= 22+35+28",
+                    "weekly-variable-travel": "Estimate: £32.00\n= 38",
+                    "Travel": "Estimate: £32.00\n= 38",
+                    "weekly-variable-activities": "Estimate: £40.00\n= 45+20",
+                    "Activities": "Estimate: £40.00\n= 45+20",
+                    "estimate": 1410,
+                    "weeklyEstimate": 1410,
+                    "actual": 1388
                 },
                 {
                     "dateRange": "8-14",
                     "weekRange": "8-14",
-                    "paymentsDue": "Utilities 95 ✓ Phone 45",
-                    "groceries": "90-40-25-30= 95",
-                    "transport": "40= 52",
-                    "activities": "60= 35",
-                    "estimate": 330,
-                    "weeklyEstimate": 330,
-                    "actual": 322
+                    "paymentsDue": "Electricity: £68.00 (Debit Card) ✓\nWater: £25.00 (Debit Card) ✓",
+                    "weekly-variable-food": "Estimate: £68.00\n= 30+25+18+22",
+                    "Food": "Estimate: £68.00\n= 30+25+18+22",
+                    "weekly-variable-travel": "Estimate: £32.00\n= 45",
+                    "Travel": "Estimate: £32.00\n= 45",
+                    "weekly-variable-activities": "Estimate: £40.00\n= 30",
+                    "Activities": "Estimate: £40.00\n= 30",
+                    "estimate": 268,
+                    "weeklyEstimate": 268,
+                    "actual": 263
                 },
                 {
                     "dateRange": "15-21",
                     "weekRange": "15-21",
-                    "paymentsDue": "Insurance 85 ✓ Subscriptions 20",
-                    "groceries": "90-55-20-40-15= 130",
-                    "transport": "40= 28",
-                    "activities": "60-80-45= 125",
-                    "estimate": 295,
-                    "weeklyEstimate": 295,
-                    "actual": 388
+                    "paymentsDue": "Phone Plan: £42.00 (Debit Card) ✓\nHealth Insurance: £85.00 (Bank Transfer) ✓",
+                    "weekly-variable-food": "Estimate: £68.00\n= 28+35+20",
+                    "Food": "Estimate: £68.00\n= 28+35+20",
+                    "weekly-variable-travel": "Estimate: £32.00\n=35",
+                    "Travel": "Estimate: £32.00\n=35",
+                    "weekly-variable-activities": "Estimate: £40.00\n= 65+25",
+                    "Activities": "Estimate: £40.00\n= 65+25",
+                    "estimate": 337,
+                    "weeklyEstimate": 337,
+                    "actual": 335
                 },
                 {
-                    "dateRange": "22-30",
-                    "weekRange": "22-30",
-                    "paymentsDue": "Internet 55 Car 250",
-                    "groceries": "90-65-45-30= 140",
-                    "transport": "40= 45",
-                    "activities": "60-35-20= 55",
-                    "estimate": 495,
-                    "weeklyEstimate": 495,
-                    "actual": 545
+                    "dateRange": "22-28",
+                    "weekRange": "22-28",
+                    "paymentsDue": "Internet: £50.00 (Debit Card)\nCar Insurance: £75.00 (Bank Transfer)",
+                    "weekly-variable-food": "Estimate: £68.00\n= 35+28+22",
+                    "Food": "Estimate: £68.00\n= 35+28+22",
+                    "weekly-variable-travel": "Estimate: £32.00\n= 35",
+                    "Travel": "Estimate: £32.00\n= 35",
+                    "weekly-variable-activities": "Estimate: £40.00\n= 40+25",
+                    "Activities": "Estimate: £40.00\n= 40+25",
+                    "estimate": 300,
+                    "weeklyEstimate": 300,
+                    "actual": 275
                 },
                 {
-                    "dateRange": "Totals",
-                    "weekRange": "Totals",
+                    "dateRange": "29-30",
+                    "weekRange": "29-30",
                     "paymentsDue": "",
-                    "groceries": "",
-                    "transport": "",
-                    "activities": "",
-                    "estimate": 0,
-                    "weeklyEstimate": 0,
+                    "weekly-variable-food": "Estimate: £68.00\n=",
+                    "Food": "Estimate: £68.00\n=",
+                    "weekly-variable-travel": "Estimate: £32.00\n=",
+                    "Travel": "Estimate: £32.00\n=",
+                    "weekly-variable-activities": "Estimate: £40.00\n=",
+                    "Activities": "Estimate: £40.00\n=",
+                    "estimate": 85,
+                    "weeklyEstimate": 85,
                     "actual": 0
                 }
             ],
             "incomeSources": [
-                { "source": "Salary", "estimated": 3200, "actual": 3200, "date": "1st", "description": "Monthly salary" },
-                { "source": "Side Project", "estimated": 200, "actual": 0, "date": "", "description": "Pending payment" }
+                { "source": "Salary", "estimated": 3100, "actual": 3100, "date": "1st", "description": "Monthly salary" },
+                { "source": "Side Project", "estimated": 200, "actual": 175, "date": "20th", "description": "Consulting work" }
             ],
             "fixedCosts": [
-                { "category": "Rent", "estimatedAmount": 1200, "actualAmount": 1200, "date": "1st", "card": "Bank Transfer", "paid": true },
-                { "category": "Gym", "estimatedAmount": 40, "actualAmount": 40, "date": "1st", "card": "Credit Card", "paid": true },
-                { "category": "Streaming Bundle", "estimatedAmount": 35, "actualAmount": 35, "date": "5th", "card": "Credit Card", "paid": true },
-                { "category": "Electricity & Gas", "estimatedAmount": 95, "actualAmount": 98, "date": "10th", "card": "Debit Card", "paid": true },
-                { "category": "Phone", "estimatedAmount": 45, "actualAmount": 45, "date": "15th", "card": "Debit Card", "paid": false },
-                { "category": "Health Insurance", "estimatedAmount": 85, "actualAmount": 85, "date": "18th", "card": "Bank Transfer", "paid": true },
-                { "category": "App Subscriptions", "estimatedAmount": 20, "actualAmount": 20, "date": "20th", "card": "Credit Card", "paid": false },
-                { "category": "Internet", "estimatedAmount": 55, "actualAmount": 55, "date": "25th", "card": "Debit Card", "paid": false },
-                { "category": "Car Payment", "estimatedAmount": 250, "actualAmount": 250, "date": "28th", "card": "Bank Transfer", "paid": false }
+                { "category": "Rent", "estimatedAmount": 1200, "actualAmount": 1200, "date": "1", "card": "Bank Transfer", "paid": true },
+                { "category": "Gym Membership", "estimatedAmount": 40, "actualAmount": 40, "date": "1", "card": "Credit Card", "paid": true },
+                { "category": "Streaming Services", "estimatedAmount": 35, "actualAmount": 35, "date": "5", "card": "Credit Card", "paid": true },
+                { "category": "Electricity", "estimatedAmount": 70, "actualAmount": 68, "date": "8", "card": "Debit Card", "paid": true },
+                { "category": "Water", "estimatedAmount": 25, "actualAmount": 25, "date": "10", "card": "Debit Card", "paid": true },
+                { "category": "Phone Plan", "estimatedAmount": 42, "actualAmount": 42, "date": "15", "card": "Debit Card", "paid": true },
+                { "category": "Health Insurance", "estimatedAmount": 85, "actualAmount": 85, "date": "18", "card": "Bank Transfer", "paid": true },
+                { "category": "Internet", "estimatedAmount": 50, "actualAmount": 50, "date": "22", "card": "Debit Card", "paid": false },
+                { "category": "Car Insurance", "estimatedAmount": 75, "actualAmount": 75, "date": "25", "card": "Bank Transfer", "paid": false }
             ],
             "variableCosts": [
-                { "category": "Groceries", "estimatedAmount": 360, "actualAmount": 450 },
-                { "category": "Transport", "estimatedAmount": 160, "actualAmount": 163 },
-                { "category": "Entertainment", "estimatedAmount": 240, "actualAmount": 260 }
+                { "category": "Food", "estimatedAmount": 340, "actualAmount": 265 },
+                { "category": "Travel", "estimatedAmount": 160, "actualAmount": 118 },
+                { "category": "Activities", "estimatedAmount": 200, "actualAmount": 185 }
             ],
             "unplannedExpenses": [
-                { "name": "Black Friday Deals", "amount": 185, "date": "24th", "card": "Credit Card", "paid": true },
-                { "name": "Winter Coat", "amount": 95, "date": "15th", "card": "Debit Card", "paid": true }
+                { "name": "Black Friday Deals", "amount": 150, "date": "25", "card": "Credit Card", "paid": true, "comments": "Holiday shopping" },
+                { "name": "Thanksgiving Dinner", "amount": 85, "date": "28", "card": "Debit Card", "paid": true }
             ],
             "pots": [
-                { "category": "Emergency Fund", "estimatedAmount": 3500, "actualAmount": 3400 },
-                { "category": "Holiday Savings", "estimatedAmount": 2000, "actualAmount": 1850 },
-                { "category": "Christmas Budget", "estimatedAmount": 500, "actualAmount": 320 }
+                { "category": "Emergency Fund", "estimatedAmount": 500, "actualAmount": 500 },
+                { "category": "Christmas Savings", "estimatedAmount": 400, "actualAmount": 400 },
+                { "category": "Travel Fund", "estimatedAmount": 200, "actualAmount": 200 }
             ],
             "createdAt": new Date().toISOString(),
             "updatedAt": new Date().toISOString()
         };
-    },
-
-    /**
-     * Legacy method for backward compatibility
-     */
-    getExampleMonth() {
-        return this.getExampleNovember();
     }
 };
 

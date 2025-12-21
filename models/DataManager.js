@@ -107,6 +107,11 @@ const DataManager = {
      * @returns {Promise<Object>} Object with all months
      */
     async loadMonthsFromFiles() {
+        const skipFileLoad = sessionStorage.getItem('skipFileLoadAfterClear');
+        if (skipFileLoad) {
+            return this.getAllMonths();
+        }
+
         if (!window.FileService) {
             console.error('FileService not available');
             return this.getAllMonths();

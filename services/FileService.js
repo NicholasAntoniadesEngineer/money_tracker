@@ -15,8 +15,6 @@ const FileService = {
     async loadMonthFromFile(monthKey) {
         try {
             if (window.location.protocol === 'file:') {
-                console.log(`Using file:// protocol - cannot load ${monthKey}.json directly.`);
-                console.log('Run: node scripts/sync-data.js load');
                 return null;
             }
             
@@ -28,7 +26,6 @@ const FileService = {
             console.log(`✓ Loaded ${monthKey}.json from files`);
             return monthData;
         } catch (error) {
-            console.error(`Error loading ${monthKey}.json:`, error);
             return null;
         }
     },
@@ -39,8 +36,6 @@ const FileService = {
      */
     async loadAllMonthsFromFiles() {
         if (window.location.protocol === 'file:') {
-            console.log('Using file:// protocol - loading from localStorage.');
-            console.log('To load from files, run: node scripts/sync-data.js load');
             return {};
         }
         
@@ -66,9 +61,6 @@ const FileService = {
 
         if (loadedCount > 0) {
             console.log(`✓ Loaded ${loadedCount} months from files`);
-        } else {
-            console.log('No month files found. Using localStorage data.');
-            console.log('To sync files, run: node scripts/sync-data.js load');
         }
 
         return allMonths;

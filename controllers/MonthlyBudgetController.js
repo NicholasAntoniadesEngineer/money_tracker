@@ -219,11 +219,19 @@ const MonthlyBudgetController = {
      * Load a specific month
      */
     loadMonth(monthKey) {
+        console.log('[loadMonth] Loading month:', monthKey);
         const monthData = DataManager.getMonth(monthKey);
         
         if (!monthData) {
             alert('Month not found');
             return;
+        }
+
+        console.log('[loadMonth] Retrieved monthData, weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
+        if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
+            console.log('[loadMonth] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
+            console.log('[loadMonth] First week weekly-variable-food:', monthData.weeklyBreakdown[0]['weekly-variable-food']);
+            console.log('[loadMonth] First week Food:', monthData.weeklyBreakdown[0]['Food']);
         }
 
         this.currentMonthData = monthData;
@@ -285,10 +293,31 @@ const MonthlyBudgetController = {
         this.loadPots(monthData.pots || []);
 
         // Load weekly breakdown after costs are loaded so we can populate them
+        console.log('[loadMonth] About to call loadWeeklyBreakdown, weeklyBreakdown length:', monthData.weeklyBreakdown?.length);
+        if (monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0) {
+            console.log('[loadMonth] First week of weeklyBreakdown:', monthData.weeklyBreakdown[0]);
+            console.log('[loadMonth] First week keys:', Object.keys(monthData.weeklyBreakdown[0]));
+        }
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
 
-        // Populate working section with variable costs data (similar to copy function)
-        this.populateWorkingSectionFromCosts();
+        // Only populate working section if it's empty or needs initialization
+        // Don't overwrite data that was just loaded from saved format
+        // Check if weeklyBreakdown had data - if so, skip populateWorkingSectionFromCosts
+        const weeklyBreakdownHadData = monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0 && monthData.weeklyBreakdown.some(week => {
+            return Object.keys(week).some(key => {
+                if (key.startsWith('weekly-variable-') || key === 'Food' || key === 'Travel' || key === 'Activities') {
+                    const value = week[key];
+                    return typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
+                }
+                return false;
+            });
+        });
+        
+        // Only populate if weeklyBreakdown had no data
+        // This preserves loaded calculations from saved/example data
+        if (!weeklyBreakdownHadData) {
+            this.populateWorkingSectionFromCosts();
+        }
 
         // Update variable cost actuals from working section data
         this.updateVariableCostActualsFromWorkingSection();
@@ -490,6 +519,7 @@ const MonthlyBudgetController = {
      * Load weekly breakdown
      */
     loadWeeklyBreakdown(weeklyBreakdown, forceRepopulate = false) {
+        console.log('[loadWeeklyBreakdown] START', { weeklyBreakdownLength: weeklyBreakdown?.length, forceRepopulate });
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -502,20 +532,45 @@ const MonthlyBudgetController = {
         
         // If weekly breakdown exists and has data, use it but ensure we have the right number of weeks
         if (weeklyBreakdown && weeklyBreakdown.length > 0) {
+            console.log('[loadWeeklyBreakdown] Found weeklyBreakdown data, first week keys:', Object.keys(weeklyBreakdown[0]));
+            // Log sample data from first week
+            if (weeklyBreakdown[0]) {
+                const firstWeek = weeklyBreakdown[0];
+                console.log('[loadWeeklyBreakdown] First week sample data:', {
+                    'weekly-variable-food': firstWeek['weekly-variable-food'],
+                    'Food': firstWeek['Food'],
+                    'weekly-variable-activities': firstWeek['weekly-variable-activities'],
+                    'Activities': firstWeek['Activities']
+                });
+            }
+            
             // Create a map of existing weeks by date range
             const existingWeeksMap = new Map();
             weeklyBreakdown.forEach(week => {
                 const dateRange = week.dateRange || week.weekRange || '';
                 existingWeeksMap.set(dateRange, week);
+                console.log('[loadWeeklyBreakdown] Mapping saved week:', dateRange, 'with keys:', Object.keys(week));
             });
+            
+            console.log('[loadWeeklyBreakdown] existingWeeksMap keys:', Array.from(existingWeeksMap.keys()));
             
             // Generate weeks, preserving existing data where possible
             weeks.forEach((week, index) => {
                 const dateRange = this.formatWeekDateRange(week);
-                const existingWeek = existingWeeksMap.get(dateRange);
+                console.log('[loadWeeklyBreakdown] Looking for week with dateRange:', dateRange, 'week object:', week);
+                let existingWeek = existingWeeksMap.get(dateRange);
+                
+                // If no match by date range, try matching by index (fallback)
+                if (!existingWeek && index < weeklyBreakdown.length) {
+                    existingWeek = weeklyBreakdown[index];
+                    console.log('[loadWeeklyBreakdown] No date range match, using week by index:', index);
+                }
+                
                 if (existingWeek) {
+                    console.log('[loadWeeklyBreakdown] FOUND MATCH! Adding row with existing week data for', dateRange, 'existingWeek keys:', Object.keys(existingWeek));
                     this.addWeeklyBreakdownRow(existingWeek);
         } else {
+                    console.log('[loadWeeklyBreakdown] NO MATCH for', dateRange, '- creating new week');
                     // Create new week with date range
                     this.addWeeklyBreakdownRow({
                         dateRange: dateRange,
@@ -537,8 +592,41 @@ const MonthlyBudgetController = {
         // Always add the total row at the end
         this.addWeeklyBreakdownTotalRow();
         
-        // Populate fixed costs and variable costs into working section
-        this.populateWorkingSectionFromCosts(forceRepopulate);
+        // Check if we have loaded data in weeklyBreakdown - if so, skip populateWorkingSectionFromCosts
+        // to preserve the loaded calculations
+        const hasLoadedData = weeklyBreakdown && weeklyBreakdown.length > 0 && weeklyBreakdown.some(week => {
+            return Object.keys(week).some(key => {
+                if (key.startsWith('weekly-variable-') || key === 'Food' || key === 'Travel' || key === 'Activities') {
+                    const value = week[key];
+                    const hasData = typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
+                    if (hasData) {
+                        console.log('[loadWeeklyBreakdown] Found loaded data in week:', key, value.substring(0, 50));
+                    }
+                    return hasData;
+                }
+                return false;
+            });
+        });
+        
+        console.log('[loadWeeklyBreakdown] hasLoadedData:', hasLoadedData, 'forceRepopulate:', forceRepopulate);
+        
+        // Check if textareas already have data (from addWeeklyBreakdownRow)
+        const textareasHaveData = Array.from(document.querySelectorAll('#weekly-breakdown-tbody textarea[class*="weekly-variable-"]')).some(textarea => {
+            const value = textarea.value || '';
+            return value.includes('Estimate:') && value.includes('=') && value.trim().length > 10;
+        });
+        
+        console.log('[loadWeeklyBreakdown] textareasHaveData:', textareasHaveData);
+        
+        // Only populate if we don't have loaded data AND textareas don't have data, or if forceRepopulate is true
+        // This preserves loaded calculations from saved/example data
+        if ((!hasLoadedData && !textareasHaveData) || forceRepopulate) {
+            console.log('[loadWeeklyBreakdown] Calling populateWorkingSectionFromCosts');
+            // Populate fixed costs and variable costs into working section
+            this.populateWorkingSectionFromCosts(forceRepopulate);
+        } else {
+            console.log('[loadWeeklyBreakdown] Skipping populateWorkingSectionFromCosts to preserve loaded data');
+        }
         
         // Auto-size all textareas after loading
         setTimeout(() => {
@@ -566,7 +654,91 @@ const MonthlyBudgetController = {
         categories.forEach(category => {
             const categoryId = this.sanitizeCategoryId(category);
             const categoryClass = 'weekly-variable-' + categoryId;
-            const existingValue = weekData && weekData[categoryClass] ? weekData[categoryClass] : (weekData && weekData[category] ? weekData[category] : '');
+            
+            let existingValue = '';
+            if (weekData) {
+                console.log(`[addWeeklyBreakdownRow] Looking for category: ${category}, categoryClass: ${categoryClass}`);
+                console.log(`[addWeeklyBreakdownRow] weekData keys:`, Object.keys(weekData));
+                
+                // Try to find matching data by checking all possible key variations
+                // Priority 1: Check for full textarea content in categoryClass (most complete)
+                // This is the primary key used when saving data
+                if (weekData[categoryClass] && typeof weekData[categoryClass] === 'string' && weekData[categoryClass].trim()) {
+                    existingValue = weekData[categoryClass];
+                    console.log(`[addWeeklyBreakdownRow] Found via categoryClass (${categoryClass}):`, existingValue);
+                }
+                // Priority 2: Check for full textarea content in category name (case-sensitive)
+                else if (weekData[category] && typeof weekData[category] === 'string' && weekData[category].trim()) {
+                    existingValue = weekData[category];
+                    console.log(`[addWeeklyBreakdownRow] Found via category name (${category}):`, existingValue);
+                }
+                // Priority 3: Check for lowercase category name
+                else if (weekData[category.toLowerCase()] && typeof weekData[category.toLowerCase()] === 'string' && weekData[category.toLowerCase()].trim()) {
+                    existingValue = weekData[category.toLowerCase()];
+                    console.log(`[addWeeklyBreakdownRow] Found via lowercase category:`, existingValue);
+                }
+                // Priority 4: Search through all keys in weekData to find a match
+                // This handles cases where the key might be slightly different (e.g., "groceries" vs "Groceries")
+                else {
+                    const categoryLower = category.toLowerCase();
+                    const categoryIdLower = categoryId.toLowerCase();
+                    for (const key in weekData) {
+                        if (typeof weekData[key] === 'string' && weekData[key].trim()) {
+                            const keyLower = key.toLowerCase();
+                            // Check if key matches category (with or without prefix)
+                            if (keyLower === categoryLower || 
+                                keyLower === categoryIdLower ||
+                                keyLower === 'weekly-variable-' + categoryIdLower ||
+                                keyLower.replace('weekly-variable-', '') === categoryIdLower ||
+                                keyLower.replace('weekly-variable-', '') === categoryLower.replace(/[^a-z0-9]+/g, '-')) {
+                                existingValue = weekData[key];
+                                console.log(`[addWeeklyBreakdownRow] Found via key search (${key}):`, existingValue);
+                                break;
+                            }
+                        }
+                    }
+                    if (!existingValue) {
+                        console.log(`[addWeeklyBreakdownRow] No value found for category: ${category}`);
+                    }
+                }
+                
+                // If we found a value, check if it needs format conversion
+                if (existingValue) {
+                    // Check if it's already in the new format (has Estimate: and newline with =)
+                    const hasNewFormat = existingValue.includes('Estimate:') && existingValue.includes('\n') && existingValue.includes('=');
+                    
+                    if (!hasNewFormat) {
+                        // Old format detected - parse it and preserve calculation string
+                        const oldValue = existingValue;
+                        const equalsIndex = oldValue.indexOf('=');
+                        if (equalsIndex >= 0) {
+                            // Extract calculation part (before =) and result part (after =)
+                            const beforeEquals = oldValue.substring(0, equalsIndex).trim();
+                            const afterEquals = oldValue.substring(equalsIndex + 1).trim();
+                            
+                            // Calculate estimate by summing all numbers before = (handles "90-55-20-40-15")
+                            const numbers = beforeEquals.match(/[\d\.]+/g) || [];
+                            const estimate = numbers.reduce((sum, num) => sum + parseFloat(num), 0);
+                            
+                            // Build new format - preserve the calculation string in the equals line
+                            // If afterEquals has content, preserve it; otherwise use beforeEquals as the calculation
+                            if (afterEquals) {
+                                // Old format like "90-55-20-40-15= 130" - preserve the calculation before =
+                                existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n= ${beforeEquals}`;
+                            } else {
+                                // Format like "90-55-20-40-15=" - preserve the calculation
+                                existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n= ${beforeEquals}`;
+                            }
+                        } else {
+                            // No = found, treat entire value as estimate
+                            const estimate = Formatters.parseNumber(oldValue);
+                            existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n=`;
+                        }
+                    }
+                }
+            }
+            
+            console.log(`[addWeeklyBreakdownRow] Final existingValue for ${category}:`, existingValue);
             rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
         });
         
@@ -910,86 +1082,91 @@ const MonthlyBudgetController = {
                 const currentValue = categoryTextarea.value || '';
                 const hasAutoGenerated = currentValue.includes('Auto-generated');
                 const hasEstimate = currentValue.includes('Estimate:');
-                const hasEquals = currentValue.includes('=');
+                
+                console.log(`[populateWorkingSectionFromCosts] Category: ${category}, currentValue:`, currentValue.substring(0, 50) + '...', 'hasEstimate:', hasEstimate);
+                
+                // Check if this textarea already has loaded data from weeklyBreakdown
+                // If it has Estimate: line, preserve it completely - this is loaded data
+                // This prevents overwriting data that was just loaded from saved/example data
+                if (hasEstimate) {
+                    console.log(`[populateWorkingSectionFromCosts] Preserving loaded data for ${category}`);
+                    // Data was loaded - preserve it completely, don't modify
+                    this.autoSizeTextarea(categoryTextarea);
+                    return;
+                }
                 
                 // Check if we have variable costs data for this category
                 // A category exists in weeklyVariableCosts if it's in the categories array
                 const hasVariableCostsData = weeklyVariableCosts[category] !== undefined;
                 const hasVariableCostsAmount = weeklyVariableCosts[category] && weeklyVariableCosts[category].length > 0;
                 
-                // Update if: category exists in our data AND (empty, has auto-generated, or has estimate)
-                // When forceUpdate=true, do NOT overwrite user-entered data - only update if field is empty or auto-generated
+                // Calculate total estimate for this category (sum of all variable costs in this category)
+                const totalEstimate = hasVariableCostsAmount 
+                    ? weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0)
+                    : 0;
+                const baseEstimate = totalEstimate.toFixed(2);
+                
+                // Parse existing content to extract actual spending (the = line)
+                const lines = currentValue.split('\n');
+                const existingEqualsLine = lines.find(line => {
+                    const trimmed = line.trim();
+                    return trimmed.startsWith('=') && trimmed.length > 1;
+                });
+                const hasActualSpending = existingEqualsLine && existingEqualsLine.trim().length > 1;
+                
+                // Only update if:
+                // 1. Field is completely empty, OR
+                // 2. Has auto-generated content, OR
+                // 3. Has estimate but no actual spending (empty = line or no = line)
+                // DO NOT update if field has actual spending data (preserve user input)
                 if (hasVariableCostsData) {
-                    // Only update if empty, has auto-generated, or has estimate - NOT when forceUpdate is true with user data
-                    const shouldUpdate = !currentValue.trim() || hasAutoGenerated || hasEstimate;
-                    if (shouldUpdate) {
-                    // Calculate total estimate for this category (sum of all variable costs in this category)
-                    // If no amounts, use 0
-                    const totalEstimate = hasVariableCostsAmount 
-                        ? weeklyVariableCosts[category].reduce((sum, cost) => sum + cost.weeklyBudget, 0)
-                        : 0;
-                    const baseEstimate = totalEstimate.toFixed(2);
-                    
-                    // Only replace if empty, has auto-generated, or has estimate
-                    if (hasAutoGenerated || hasEstimate || !currentValue.trim()) {
-                        // Build new content: Estimate line with formatted amount, then empty = line for user input
+                    if (!currentValue.trim() || hasAutoGenerated || (hasEstimate && !hasActualSpending)) {
+                        // Build new content: Estimate line with formatted amount
                         const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
                         let newContent = estimateLine;
                         
-                        // Check if user has already filled in the "=" line
-                        const lines = currentValue.split('\n');
-                        const existingEqualsLine = lines.find(line => line.trim().startsWith('='));
-                        if (existingEqualsLine && existingEqualsLine.trim().length > 1) {
-                            // User has entered actual spending, preserve it
+                        // Preserve existing actual spending if it exists
+                        if (hasActualSpending) {
                             newContent += '\n' + existingEqualsLine.trim();
                         } else {
-                            // Empty "=" line for user to fill in actual spending
-                            newContent += '\n=';
+                            // Check if there's old format data (like "90-55-20-40-15= 130")
+                            // Extract just the part after = if it exists
+                            const oldFormatMatch = currentValue.match(/=?\s*([\d\s\+\-\.]+)/);
+                            if (oldFormatMatch && oldFormatMatch[1]) {
+                                // Found old format, extract the actual spending part
+                                newContent += '\n= ' + oldFormatMatch[1].trim();
+                            } else {
+                                // Empty "=" line for user to fill in actual spending
+                                newContent += '\n=';
+                            }
                         }
                         
                         categoryTextarea.value = newContent;
                     } else {
-                        // Preserve existing content but update estimate line if it's in old format
-                        const lines = currentValue.split('\n');
+                        // Field has actual spending data - preserve it completely
+                        // Only update the estimate line if it's missing or in old format
                         const firstLine = lines[0]?.trim() || '';
                         
-                        // Check if first line is old format (just a number) or new format (Estimate:)
-                        if (/^[\d.]+$/.test(firstLine)) {
-                            // Old format - replace with new format
+                        if (!hasEstimate) {
+                            // No estimate line - add it at the beginning, preserve all existing content
                             const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
-                            lines[0] = estimateLine;
-                            
-                            // Ensure "=" line exists
-                            const hasEqualsLine = lines.some(line => line.trim().startsWith('='));
-                            if (!hasEqualsLine) {
-                                lines.push('=');
-                            }
-                            
-                            categoryTextarea.value = lines.join('\n');
+                            categoryTextarea.value = estimateLine + '\n' + currentValue;
                         } else if (firstLine.startsWith('Estimate:')) {
-                            // Already in new format, just update the estimate value
+                            // Already has estimate line with actual spending - preserve everything as-is
+                            // Don't modify anything, just ensure the textarea is properly sized
+                        } else {
+                            // Old format (just a number) - convert to new format but preserve equals line
                             const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
-                            lines[0] = estimateLine;
-                            
-                            // Ensure "=" line exists
-                            const hasEqualsLine = lines.some(line => line.trim().startsWith('='));
-                            if (!hasEqualsLine) {
-                                lines.push('=');
-                            }
-                            
-                            categoryTextarea.value = lines.join('\n');
+                            const remainingLines = lines.slice(1);
+                            categoryTextarea.value = estimateLine + '\n' + remainingLines.join('\n');
                         }
-                        // If neither format, keep existing content as-is
                     }
                     
                     // Auto-size the textarea
                     this.autoSizeTextarea(categoryTextarea);
-                    } else {
-                        // Field has user data and forceUpdate is true - just update the total line, don't overwrite content
-                        this.updateVariableCostTotal(categoryTextarea);
-                    }
                 } else {
-                    // Always ensure total line exists and is calculated, even if content hasn't changed
+                    // No variable costs data for this category - ensure total line exists
+                    const hasEquals = currentValue.includes('=');
                     if (!hasEquals || currentValue.trim()) {
                         this.updateVariableCostTotal(categoryTextarea);
                     }
@@ -1903,8 +2080,33 @@ const MonthlyBudgetController = {
                 const categoryId = this.sanitizeCategoryId(category);
                 const categoryClass = 'weekly-variable-' + categoryId;
                 const categoryValue = row.querySelector('.' + categoryClass)?.value || '';
+                
+                // Save full textarea content in categoryClass (for full data preservation)
+                // This is the primary key that should always be used when loading
                 weekData[categoryClass] = categoryValue;
-                weekData[category] = categoryValue; // Also store by category name for backwards compatibility
+                
+                // Also save full content in category name for backwards compatibility with example data
+                // This ensures example data format works correctly
+                if (categoryValue.trim()) {
+                    weekData[category] = categoryValue;
+                }
+                
+                // Parse and save in new structure: separate estimate and actual (for backwards compatibility)
+                const lines = categoryValue.split('\n');
+                const estimateLine = lines.find(line => line.trim().startsWith('Estimate:'));
+                const actualLine = lines.find(line => {
+                    const trimmed = line.trim();
+                    return trimmed.startsWith('=') && trimmed.length > 1;
+                });
+                
+                // Extract and save estimate value (for backwards compatibility)
+                if (estimateLine) {
+                    const estimateMatch = estimateLine.match(/Estimate:\s*[^\d]*([\d\.]+)/);
+                    if (estimateMatch) {
+                        const estimateKey = category + ' estimates';
+                        weekData[estimateKey] = estimateMatch[1];
+                    }
+                }
             });
             
             return weekData;

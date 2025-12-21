@@ -8,6 +8,11 @@ const InitialData = {
      * Initialize with months from individual JSON files if localStorage is empty
      */
     async initializeIfEmpty() {
+        const skipFileLoad = sessionStorage.getItem('skipFileLoadAfterClear');
+        if (skipFileLoad) {
+            return false;
+        }
+
         const allMonths = DataManager.getAllMonths();
         
         if (Object.keys(allMonths).length === 0) {
@@ -17,7 +22,6 @@ const InitialData = {
                 console.log(`Initialized with ${Object.keys(loadedMonths).length} months from individual JSON files`);
                 return true;
             } else {
-                // localStorage is empty and files couldn't be loaded (file:// protocol)
                 console.log('No months found. Use the Import page to load data from JSON files, or create a new month.');
             }
         } else {

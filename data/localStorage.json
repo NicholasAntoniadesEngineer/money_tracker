@@ -1,0 +1,2167 @@
+{
+  "months": {
+    "2025-02": {
+      "key": "2025-02",
+      "year": 2025,
+      "month": 2,
+      "monthName": "February",
+      "dateRange": {
+        "start": "2025-01-31",
+        "end": "2025-02-27"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "30-9",
+          "weekRange": "30-9",
+          "paymentsDue": "The Basement Gym 39.99 ✓London Borough of Haringey 145.00✓Spotify 19.99 ✓Barclays iPhone repayments 41.62 ✓",
+          "groceries": "100 -55.14 -4.60 -1.99 -9.30 -1.80 -1  -1.20 -17.45 -16.54 -10.25 = -19.27Spent 119.27",
+          "transport": "75 -2.10 -2.10 -3.80 -4.20 -9.20 -1.90 -6.00 -6.70-6.70 -10.50 -6 = 15.8Spent 59.20",
+          "activities": "50-5.90-18.20-5 -1.80 = 19.10Spent 30.90",
+          "estimate": 501.66,
+          "weeklyEstimate": 501.66,
+          "actual": 455.97
+        },
+        {
+          "dateRange": "10-16",
+          "weekRange": "10-16",
+          "paymentsDue": "M A Dos Santos Rent 2100.00 ✓VOXI 10.00 ✓Apple iCloud 8.99 ✓Adobe 29.48✓Adobe Storage 9.89✓OVO Energy LTD 127.32 X",
+          "groceries": "100-65.61-7.89-6.40 -0.85= 19.25Spent 80.75",
+          "transport": "75-3.80-10.00 -6.00-4.00-5.75-5.75= 39.70Spent 35.30",
+          "activities": "50-9.99-7.99-10-2.99-2.65 -6.25 -7.99-7.60= -5.46Spent 55.46",
+          "estimate": 2510.29,
+          "weeklyEstimate": 2510.29,
+          "actual": 2457.19
+        },
+        {
+          "dateRange": "17-23",
+          "weekRange": "17-23",
+          "paymentsDue": "OVO Energy LTD 176.56✓Virgin Media 28.83✓",
+          "groceries": "100-14.30-52.50-4.80-10-4.20-5.36-3.75= 5.09Spent 94.91",
+          "transport": "75 -4.20-4-4-4.70-21.30-6-6= 24.8Spent 50.20",
+          "activities": "50-8.40-8-5-8-55.50-20-8.40=-63.3Spent 113.3",
+          "estimate": 381.15,
+          "weeklyEstimate": 381.15,
+          "actual": 463.8
+        },
+        {
+          "dateRange": "24-28",
+          "weekRange": "24-28",
+          "paymentsDue": "Urban Jungle Insurance 18.45Cursor AI 34.66EE 10.00The Basement Gym 54.99Barclays iPhone repayments 41.62",
+          "groceries": "100-52.38-42.57-6.80-4.40-8.45= -14.60Spent 114.60",
+          "transport": "75-4-4-2.45-36.99= 27.56Spent 47.44",
+          "activities": "50-7.99= 42.01Spent 7.99",
+          "estimate": 278.11,
+          "weeklyEstimate": 278.11,
+          "actual": 374.72
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3745.03,
+          "actual": 3854.32,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 1781.25,
+          "actual": 2085,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 2100,
+          "actualAmount": 2100,
+          "date": "10th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "OVO Energy LTD",
+          "estimatedAmount": 127.32,
+          "actualAmount": 176.56,
+          "date": "18th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Virgin Media",
+          "estimatedAmount": 28.83,
+          "actualAmount": 28.83,
+          "date": "18th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "London Borough of Haringey",
+          "estimatedAmount": 145,
+          "actualAmount": 145,
+          "date": "3rd",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 41.62,
+          "actualAmount": 41.62,
+          "date": "4th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Urban Jungle Insurance",
+          "estimatedAmount": 18.45,
+          "actualAmount": 0,
+          "date": "30th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Voxi",
+          "estimatedAmount": 20,
+          "actualAmount": 10,
+          "date": "11th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "EE",
+          "estimatedAmount": 10,
+          "actualAmount": 10,
+          "date": "25th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "The Basement Gym",
+          "estimatedAmount": 54.99,
+          "actualAmount": 39.99,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "The Basement Gym",
+          "estimatedAmount": 54.99,
+          "actualAmount": 39.99,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 19.99,
+          "actualAmount": 19.99,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Apple Storage iCloud",
+          "estimatedAmount": 0,
+          "actualAmount": 8.99,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud All Apps 100GB",
+          "estimatedAmount": 28.48,
+          "actualAmount": 28.48,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud Files Storage 1 TB",
+          "estimatedAmount": 9.98,
+          "actualAmount": 9.98,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 19.99,
+          "actualAmount": 19.99,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Capture One",
+          "estimatedAmount": 4.49,
+          "actualAmount": 4.49,
+          "date": "19th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Cursor AI",
+          "estimatedAmount": 34.66,
+          "actualAmount": 0,
+          "date": "24th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "X Ai",
+          "estimatedAmount": 11,
+          "actualAmount": 11,
+          "date": "",
+          "card": "",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 400,
+          "actualAmount": 0
+        },
+        {
+          "category": "Travel/Transport",
+          "estimatedAmount": 300,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 200,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [
+        {
+          "name": "Government Legalisation",
+          "amount": 50.5,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Uoe Store",
+          "amount": 4.55,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Post Office",
+          "amount": 3.95,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Government Documents",
+          "amount": 120.3,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Amazon Camera Gear",
+          "amount": 66.66,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Sumru",
+          "amount": 150,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Ampath Blood Work",
+          "amount": 169.28,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Lara Monzo Flex Pay Out",
+          "amount": 67.47,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Nicholas Amazon Work Things",
+          "amount": 27.26,
+          "date": "",
+          "card": "",
+          "status": ""
+        }
+      ],
+      "pots": [
+        {
+          "category": "Apple Care Pot",
+          "estimatedAmount": 17,
+          "actualAmount": 17
+        },
+        {
+          "category": "Birthday Present Pot",
+          "estimatedAmount": 40,
+          "actualAmount": 40
+        },
+        {
+          "category": "Clothes",
+          "estimatedAmount": 30,
+          "actualAmount": 30
+        },
+        {
+          "category": "Cosmetic Pot",
+          "estimatedAmount": 51,
+          "actualAmount": 51
+        },
+        {
+          "category": "House/Breakages Pot",
+          "estimatedAmount": 100,
+          "actualAmount": 100
+        },
+        {
+          "category": "So Nicholas Can See Pot",
+          "estimatedAmount": 18,
+          "actualAmount": 18
+        },
+        {
+          "category": "Emergency Pot",
+          "estimatedAmount": 200,
+          "actualAmount": 200
+        },
+        {
+          "category": "Lara Business Pot",
+          "estimatedAmount": 41,
+          "actualAmount": 41
+        },
+        {
+          "category": "Nicholas Business",
+          "estimatedAmount": 30,
+          "actualAmount": 30
+        }
+      ],
+      "createdAt": "2025-12-12T22:34:39.456Z",
+      "updatedAt": "2025-12-12T22:34:39.456Z"
+    },
+    "2025-03": {
+      "key": "2025-03",
+      "year": 2025,
+      "month": 3,
+      "monthName": "March",
+      "dateRange": {
+        "start": "2025-02-28",
+        "end": "2025-03-30"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "28-9",
+          "weekRange": "28-9",
+          "paymentsDue": "Spotify 19.99 ✓London Borough of Haringey 145.00✓Barclays Partner Finance 41.62 ✓The Basement Gym 54.99 ✓Urban Jungle Insurance 20.07✓Google Photos 8.00 ✓X Ai 11.00 ✓",
+          "groceries": "120-24.50-8.65-16.20-9.20-70.48=-9.03Spent 129.03",
+          "transport": "75-4-9.90-10.50-3.80=46.8Spent 28.20",
+          "activities": "75-7.99-7.99-7.99-4.60-6.99-7.99-70-7.99=-46.54Spent 121.54",
+          "estimate": 601.17,
+          "weeklyEstimate": 601.17,
+          "actual": 579.44
+        },
+        {
+          "dateRange": "10-16",
+          "weekRange": "10-16",
+          "paymentsDue": "Rent/Lease 2100.00✓Voxi 10.00✓Apple Storage iCloud 8.99✓Creative Cloud All Apps 100GB 28.48✓Creative Cloud Files Storage 1TB 9.98✓ChatGPT 19.99✓Spent 2177.44",
+          "groceries": "120-71-9.40-36.96-1.85-2.20-8.85-8.73-21.50-2.99-2.79-7.76=-54.03Spent 174.03",
+          "transport": "75-4.20-18.99-12.75-3.10-3.10-6.90-41.30-17.70-4.85-4.85-5.20-4.19-0.10=-52.23Spent 127.23",
+          "activities": "120-7.99+6.60-5.50-7-15.80-4.60-17.50-12.60-5.20-11.05-3.99-3.99-8.34-1.60= 21.44Spent 141.44",
+          "estimate": 2497.44,
+          "weeklyEstimate": 2497.44,
+          "actual": 2620.14
+        },
+        {
+          "dateRange": "17-23",
+          "weekRange": "17-23",
+          "paymentsDue": "OVO Energy LTD 176.56✓Virgin Media 28.83Capture One 4.49✓",
+          "groceries": "120-20.20-12.90-26.95-2.70-6.65= 50.6Spent 69.40",
+          "transport": "75-6.90-16.30-3.80-3.10-18.99-4.85= 21.06Spent 53.94",
+          "activities": "50-3.49= 46.51Spent 3.49",
+          "estimate": 454.88,
+          "weeklyEstimate": 454.88,
+          "actual": 307.88
+        },
+        {
+          "dateRange": "24-30",
+          "weekRange": "24-30",
+          "paymentsDue": "Cursor AI 15.52✓The Basement Gym 54.99✓EE 10✓Google Storage 7.90✓The Basement Gym 54.99✓X Ai 11✓Barclays Partner Finance 41.62 ✓Urban Jungle Insurance 20.07✓",
+          "groceries": "120-50.67-3.45-3.45-55.27-10.40-22.10= -25.34Spent 145.3",
+          "transport": "75-4.20-2.16-10.50-2.10-6.20-2.45= 47.39Spent 27.61",
+          "activities": "50-8-8.60-3.45-7.99-7.99-10-9.99-6.98= -13Spent 63",
+          "estimate": 315.83,
+          "weeklyEstimate": 315.83,
+          "actual": 452
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3854.32,
+          "actual": 3854.32,
+          "date": "27th",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 2868.75,
+          "actual": 2868.75,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 196,
+          "actual": 171.71,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "London Borough of Haringey",
+          "estimatedAmount": 145,
+          "actualAmount": 145,
+          "date": "3rd",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Voxi",
+          "estimatedAmount": 10,
+          "actualAmount": 10,
+          "date": "11th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 2100,
+          "actualAmount": 2100,
+          "date": "10th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "OVO Energy LTD",
+          "estimatedAmount": 176.56,
+          "actualAmount": 176.56,
+          "date": "18th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Virgin Media",
+          "estimatedAmount": 28.83,
+          "actualAmount": 28.83,
+          "date": "18th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "EE",
+          "estimatedAmount": 10,
+          "actualAmount": 10,
+          "date": "25th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 41.62,
+          "actualAmount": 41.62,
+          "date": "28th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Urban Jungle Insurance",
+          "estimatedAmount": 20.07,
+          "actualAmount": 20.07,
+          "date": "28th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 19.99,
+          "actualAmount": 19.99,
+          "date": "1st",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Apple Storage iCloud",
+          "estimatedAmount": 8.99,
+          "actualAmount": 8.99,
+          "date": "11th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 0,
+          "actualAmount": 9.99,
+          "date": "11th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 19.99,
+          "actualAmount": 19.99,
+          "date": "15th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud All Apps 100GB",
+          "estimatedAmount": 28.48,
+          "actualAmount": 28.48,
+          "date": "16th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud Files Storage 1 TB",
+          "estimatedAmount": 9.98,
+          "actualAmount": 9.98,
+          "date": "16th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Capture One",
+          "estimatedAmount": 4.49,
+          "actualAmount": 4.49,
+          "date": "19th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Cursor AI",
+          "estimatedAmount": 15.84,
+          "actualAmount": 15.52,
+          "date": "24th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "The Basement Gym Nicholas",
+          "estimatedAmount": 54.99,
+          "actualAmount": 54.99,
+          "date": "27th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "The Basement Gym Lara",
+          "estimatedAmount": 54.99,
+          "actualAmount": 54.99,
+          "date": "27th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 0,
+          "actualAmount": 8,
+          "date": "27th",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "X Ai",
+          "estimatedAmount": 11,
+          "actualAmount": 11,
+          "date": "27th",
+          "card": "",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 480,
+          "actualAmount": 517.76
+        },
+        {
+          "category": "Travel/Transport",
+          "estimatedAmount": 300,
+          "actualAmount": 236.98
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 300,
+          "actualAmount": 329.47
+        }
+      ],
+      "unplannedExpenses": [
+        {
+          "name": "Lara’s Flex (Previous Months expenses, Books, Eating Out, High Commission Cypriot Passport, Carhartt, Levi’s)",
+          "amount": 926.33,
+          "date": "",
+          "card": "",
+          "status": "Paid"
+        },
+        {
+          "name": "Past Electricity Overdue",
+          "amount": 148.28,
+          "date": "",
+          "card": "",
+          "status": "Paid"
+        },
+        {
+          "name": "Nicholas Flex",
+          "amount": 141,
+          "date": "",
+          "card": "",
+          "status": ""
+        },
+        {
+          "name": "Carharrt Jeans",
+          "amount": 110,
+          "date": "31st Mar",
+          "card": "Business Card",
+          "status": ""
+        }
+      ],
+      "pots": [
+        {
+          "category": "Cosmetic Pot",
+          "estimatedAmount": 100,
+          "actualAmount": 100
+        },
+        {
+          "category": "Apple Care Pot",
+          "estimatedAmount": 17,
+          "actualAmount": 17
+        },
+        {
+          "category": "So Nicholas Can See Pot",
+          "estimatedAmount": 18,
+          "actualAmount": 18
+        },
+        {
+          "category": "House/Breakages Pot",
+          "estimatedAmount": 200,
+          "actualAmount": 200
+        },
+        {
+          "category": "Clothes",
+          "estimatedAmount": 100,
+          "actualAmount": 100
+        },
+        {
+          "category": "Birthday Present Pot",
+          "estimatedAmount": 100,
+          "actualAmount": 100
+        },
+        {
+          "category": "Emergency Pot",
+          "estimatedAmount": 200,
+          "actualAmount": 200
+        },
+        {
+          "category": "Business Pot",
+          "estimatedAmount": 200,
+          "actualAmount": 200
+        }
+      ],
+      "createdAt": "2025-12-12T22:34:39.461Z",
+      "updatedAt": "2025-12-12T22:34:39.461Z"
+    },
+    "2025-06": {
+      "key": "2025-06",
+      "year": 2025,
+      "month": 6,
+      "monthName": "June",
+      "dateRange": {
+        "start": "2025-05-31",
+        "end": "2025-06-29"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "1st-8th",
+          "weekRange": "1st-8th",
+          "paymentsDue": "",
+          "groceries": "-14.80-44.44-57.57= -116.81",
+          "transport": "",
+          "activities": "-12-2.15-3.40-3.63-6.84-3.63-5.55-4.30-2.15-4.60-4.90-17-2.99-14-50-7.09-4.64-30= -178.87",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "9th - 15th",
+          "weekRange": "9th - 15th",
+          "paymentsDue": "",
+          "groceries": "-6.44-5.60-88.50-55.68-4.63-12.15= -173",
+          "transport": "",
+          "activities": "-1.20-23-3.31-1.99-3.45-11-4.90-11.30=-60.15",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "16th - 22nd",
+          "weekRange": "16th - 22nd",
+          "paymentsDue": "",
+          "groceries": "-14.23-64.93-22.10-2.79= -104.05",
+          "transport": "",
+          "activities": "-34-5-7.50-1.90-2.49=-50.89",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "23rd - 30th",
+          "weekRange": "23rd - 30th",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 2111.29,
+          "actualAmount": 2111.29,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Transport",
+          "estimatedAmount": 196.54,
+          "actualAmount": 196.54,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Storage",
+          "estimatedAmount": 436.84,
+          "actualAmount": 436.84,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 48.56,
+          "actualAmount": 0,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 23.32,
+          "actualAmount": 23.32,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 11.66,
+          "actualAmount": 11.66,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Apple Storage iCloud",
+          "estimatedAmount": 10.49,
+          "actualAmount": 10.49,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 23.32,
+          "actualAmount": 23.32,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud All Apps 100GB",
+          "estimatedAmount": 33.23,
+          "actualAmount": 33.23,
+          "date": "",
+          "card": "",
+          "paid": false
+        },
+        {
+          "category": "Creative Cloud Files Storage 1 TB",
+          "estimatedAmount": 11.64,
+          "actualAmount": 11.64,
+          "date": "",
+          "card": "",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 550,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 400,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [],
+      "pots": [],
+      "createdAt": "2025-12-12T22:34:39.460Z",
+      "updatedAt": "2025-12-12T22:34:39.460Z"
+    },
+    "2025-07": {
+      "key": "2025-07",
+      "year": 2025,
+      "month": 7,
+      "monthName": "July",
+      "dateRange": {
+        "start": "2025-06-30",
+        "end": "2025-07-30"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "30th - 6th",
+          "weekRange": "30th - 6th",
+          "paymentsDue": "Rent 2043.20 ✓Spotify 23.32 ✓Barclays Partner Finance 48.23 ✓Audible 10.96✓= -2125.71",
+          "groceries": "137.5-1.32-4.42+7.69-40.65-4.09-72.22-7.39-74.04-124.12= -183.06+73.41Spent -247.15",
+          "transport": "",
+          "activities": "137.25-14.78-16.05-4.91-2.19-25.91= 73.41-73.41= 0",
+          "estimate": -2400.71,
+          "weeklyEstimate": -2400.71,
+          "actual": -2774.18
+        },
+        {
+          "dateRange": "7th - 13th",
+          "weekRange": "7th - 13th",
+          "paymentsDue": "Storage 436.84 ✓iCloud+ 2TB Storage 11.54 ✓(Fitinn Wien Rathauspla 140.12) ✓(Alpinacom Gmbh -22.02) ✓= -588.5",
+          "groceries": "137.5-1.49-30.59-3.18-121.31-0.75-21.72-62.31-41.68-6.55= -152.08Spent -289.58",
+          "transport": "",
+          "activities": "137.25-11.60-11.60-56-61.80-20-8.78= -32.53Spent -170.03",
+          "estimate": -863.5,
+          "weeklyEstimate": -863.5,
+          "actual": -1142.1
+        },
+        {
+          "dateRange": "14th - 20th",
+          "weekRange": "14th - 20th",
+          "paymentsDue": "(Alpinacom Gmbh -22.02) ✓(Weed 69.29) ✓Adobe All Apps 100GB 33.23 ✓Cs Addtl Storage (Creative Cloud 1TB) 11.70 ✓ChatGPT 23.08✓Xai LLC 25.93 ✓= -159.32",
+          "groceries": "137.5-2.29-0.75-0.75-11.55-29.65-20.73-201.10-101.94=",
+          "transport": "",
+          "activities": "137.25-10-9.40-5.83-9.40-22.58-31.23-26.60-10-12.14-23-5.80-5.80",
+          "estimate": -434.32,
+          "weeklyEstimate": -434.32,
+          "actual": 0
+        },
+        {
+          "dateRange": "21st - 29th",
+          "weekRange": "21st - 29th",
+          "paymentsDue": "Google Storage Photos 9.04",
+          "groceries": "137.50",
+          "transport": "",
+          "activities": "137.50",
+          "estimate": -284.04,
+          "weeklyEstimate": -284.04,
+          "actual": 0
+        },
+        {
+          "dateRange": "Totals",
+          "weekRange": "Totals",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3080,
+          "actual": 4900.67,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 2123.7,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Lara Flex",
+          "estimatedAmount": 328.18,
+          "actualAmount": 328.18,
+          "date": "28th June",
+          "card": "Lara Flex",
+          "paid": false
+        },
+        {
+          "category": "Nicholas Flex",
+          "estimatedAmount": 703.24,
+          "actualAmount": 689.55,
+          "date": "30th June",
+          "card": "Nicholas Flex",
+          "paid": false
+        },
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 2043.2,
+          "actualAmount": 2163.64,
+          "date": "27th Jun",
+          "card": "Joint Amex",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 48.56,
+          "actualAmount": 48.23,
+          "date": "30th June",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Transport",
+          "estimatedAmount": 196.54,
+          "actualAmount": 0,
+          "date": "6th July",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Storage",
+          "estimatedAmount": 436.84,
+          "actualAmount": 436.84,
+          "date": "8th July",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Weed",
+          "estimatedAmount": 69.29,
+          "actualAmount": 69.29,
+          "date": "15th July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 23.32,
+          "actualAmount": 23.32,
+          "date": "1st July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 11.66,
+          "actualAmount": 10.96,
+          "date": "2nd July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Fitinn Wien Rathauspla x 2",
+          "estimatedAmount": 60,
+          "actualAmount": 140.12,
+          "date": "9th July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "iCloud+ 2TB Storage",
+          "estimatedAmount": 10.49,
+          "actualAmount": 11.54,
+          "date": "11th July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Adobe All Apps 100GB",
+          "estimatedAmount": 33.23,
+          "actualAmount": 32.89,
+          "date": "16th July",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Cs Addtl Storage (Creative Cloud 1TB)",
+          "estimatedAmount": 11.7,
+          "actualAmount": 11.53,
+          "date": "16th July",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Xai LLC",
+          "estimatedAmount": 25.93,
+          "actualAmount": 25.93,
+          "date": "17th July",
+          "card": "Nicholas Flex",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 23.32,
+          "actualAmount": 23.08,
+          "date": "17th July",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 9.04,
+          "actualAmount": 0,
+          "date": "27th July",
+          "card": "Monzo Joint",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 550,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 549,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [
+        {
+          "name": "Levi’s Jeans — Nicholas",
+          "amount": 263.37,
+          "date": "1st July",
+          "card": "Nicholas Flex",
+          "status": ""
+        }
+      ],
+      "pots": [
+        {
+          "category": "Catalogue Refresh",
+          "estimatedAmount": 400.52,
+          "actualAmount": 0
+        },
+        {
+          "category": "Website Refresh",
+          "estimatedAmount": 109.38,
+          "actualAmount": 0
+        },
+        {
+          "category": "Sugimoto Pricelist (14 Hours)",
+          "estimatedAmount": 225,
+          "actualAmount": 0
+        },
+        {
+          "category": "Sugimoto Photoshoot (Half Day)",
+          "estimatedAmount": 350,
+          "actualAmount": 0
+        },
+        {
+          "category": "Maomi Information Sheet (6 Hours)",
+          "estimatedAmount": 115,
+          "actualAmount": 0
+        },
+        {
+          "category": "AW25 Photograph Edits  (16 hours)",
+          "estimatedAmount": 300,
+          "actualAmount": 0
+        },
+        {
+          "category": "Driver Photoshoot  + Edits (Full Day)",
+          "estimatedAmount": 750,
+          "actualAmount": 0
+        }
+      ],
+      "createdAt": "2025-12-12T22:34:39.458Z",
+      "updatedAt": "2025-12-12T22:34:39.458Z"
+    },
+    "2025-09": {
+      "key": "2025-09",
+      "year": 2025,
+      "month": 9,
+      "monthName": "September",
+      "dateRange": {
+        "start": "2025-08-31",
+        "end": "2025-09-29"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "1-7",
+          "weekRange": "1-7",
+          "paymentsDue": "Rent/Lease 1751.13 ✓Spotify 23.32 ✓Barclays Partner Finance 48.23 ✓Audible 10.96 ✓Alpinacom Gmbh 22.02 ✓",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 1833.64,
+          "weeklyEstimate": 1833.64,
+          "actual": 0
+        },
+        {
+          "dateRange": "8-14",
+          "weekRange": "8-14",
+          "paymentsDue": "Alpinacom Gmbh 22.02 ✓iCloud+ 2TB Storage 11.54 Fitinn Wien Rathauspla 140.12 Transport 226.84",
+          "groceries": "125 -31.15-3.98=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 625.52,
+          "weeklyEstimate": 625.52,
+          "actual": 0
+        },
+        {
+          "dateRange": "15-21",
+          "weekRange": "15-21",
+          "paymentsDue": "Weed 69.29Adobe All Apps 100GB 33.23Cs Addtl Storage (Creative Cloud 1TB) 11.70 ChatGPT 23.08Xai LLC 25.93",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 388.23,
+          "weeklyEstimate": 388.23,
+          "actual": 0
+        },
+        {
+          "dateRange": "22-28",
+          "weekRange": "22-28",
+          "paymentsDue": "Google Storage Photos 9.04",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 234.04,
+          "weeklyEstimate": 234.04,
+          "actual": 0
+        },
+        {
+          "dateRange": "Totals",
+          "weekRange": "Totals",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3080,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 1491,
+          "actualAmount": 1491,
+          "date": "2nd",
+          "card": "Joint Amex",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 48.23,
+          "actualAmount": 48.23,
+          "date": "28th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Transport",
+          "estimatedAmount": 196.54,
+          "actualAmount": 0,
+          "date": "9th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Weed",
+          "estimatedAmount": 69.29,
+          "actualAmount": 0,
+          "date": "15th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 23.32,
+          "actualAmount": 23.32,
+          "date": "1st",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 10.96,
+          "actualAmount": 10.96,
+          "date": "2nd",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Alpinacom Gmbh x2",
+          "estimatedAmount": 44.04,
+          "actualAmount": 44.04,
+          "date": "8th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Fitinn Wien Rathauspla x 2",
+          "estimatedAmount": 140.12,
+          "actualAmount": 0,
+          "date": "9th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "iCloud+ 2TB Storage",
+          "estimatedAmount": 11.54,
+          "actualAmount": 0,
+          "date": "11th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Adobe All Apps 100GB",
+          "estimatedAmount": 32.89,
+          "actualAmount": 0,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Cs Addtl Storage (Creative Cloud 1TB)",
+          "estimatedAmount": 11.53,
+          "actualAmount": 0,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Xai LLC",
+          "estimatedAmount": 25.93,
+          "actualAmount": 0,
+          "date": "17th",
+          "card": "Nicholas Flex",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 23.08,
+          "actualAmount": 0,
+          "date": "17th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 9.04,
+          "actualAmount": 0,
+          "date": "27th",
+          "card": "Monzo Joint",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 500,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 400,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [],
+      "pots": [],
+      "createdAt": "2025-12-12T22:34:39.464Z",
+      "updatedAt": "2025-12-12T22:34:39.464Z"
+    },
+    "2025-10": {
+      "key": "2025-10",
+      "year": 2025,
+      "month": 10,
+      "monthName": "October",
+      "dateRange": {
+        "start": "2025-09-30",
+        "end": "2025-10-30"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "1-7",
+          "weekRange": "1-7",
+          "paymentsDue": "Rent/Lease 1751.13 Spotify 23.32 Barclays Partner Finance 48.23 Audible 10.96 Alpinacom Gmbh 22.02 (Lara)",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 1833.64,
+          "weeklyEstimate": 1833.64,
+          "actual": 0
+        },
+        {
+          "dateRange": "8-14",
+          "weekRange": "8-14",
+          "paymentsDue": "Alpinacom Gmbh 22.02 iCloud+ 2TB Storage 11.54 Fitinn Wien Rathauspla 140.12 Transport 226.84",
+          "groceries": "125 =Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 625.52,
+          "weeklyEstimate": 625.52,
+          "actual": 0
+        },
+        {
+          "dateRange": "15-21",
+          "weekRange": "15-21",
+          "paymentsDue": "Weed 69.29Adobe All Apps 100GB 33.23Cs Addtl Storage (Creative Cloud 1TB) 11.70 ChatGPT 23.08Xai LLC 25.93",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 388.23,
+          "weeklyEstimate": 388.23,
+          "actual": 0
+        },
+        {
+          "dateRange": "22-28",
+          "weekRange": "22-28",
+          "paymentsDue": "Google Storage Photos 9.04",
+          "groceries": "125=Spent:",
+          "transport": "",
+          "activities": "100= Spent:",
+          "estimate": 234.04,
+          "weeklyEstimate": 234.04,
+          "actual": 0
+        },
+        {
+          "dateRange": "Totals",
+          "weekRange": "Totals",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3080,
+          "actual": 3155.64,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 1491,
+          "actualAmount": 0,
+          "date": "2nd",
+          "card": "Joint Amex",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 48.23,
+          "actualAmount": 0,
+          "date": "28th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Transport",
+          "estimatedAmount": 196.54,
+          "actualAmount": 0,
+          "date": "9th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Weed",
+          "estimatedAmount": 130,
+          "actualAmount": 0,
+          "date": "15th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 23.32,
+          "actualAmount": 0,
+          "date": "1st",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 10.96,
+          "actualAmount": 0,
+          "date": "2nd",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Alpinacom Gmbh x2 (Data)",
+          "estimatedAmount": 44,
+          "actualAmount": 0,
+          "date": "8th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Fitinn Wien Rathauspla x 2",
+          "estimatedAmount": 140.12,
+          "actualAmount": 0,
+          "date": "9th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "iCloud+ 2TB Storage",
+          "estimatedAmount": 11.54,
+          "actualAmount": 0,
+          "date": "11th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Adobe All Apps 100GB",
+          "estimatedAmount": 32.89,
+          "actualAmount": 0,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Cs Addtl Storage (Creative Cloud 1TB)",
+          "estimatedAmount": 11.53,
+          "actualAmount": 0,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Xai LLC (Grok)",
+          "estimatedAmount": 25.93,
+          "actualAmount": 0,
+          "date": "17th",
+          "card": "Nicholas Flex",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 23.08,
+          "actualAmount": 0,
+          "date": "17th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 9.04,
+          "actualAmount": 0,
+          "date": "27th",
+          "card": "Monzo Joint",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 450,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 200,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [],
+      "pots": [],
+      "createdAt": "2025-12-12T22:34:39.446Z",
+      "updatedAt": "2025-12-12T22:34:39.446Z"
+    },
+    "2025-11": {
+      "key": "2025-11",
+      "year": 2025,
+      "month": 11,
+      "monthName": "November",
+      "dateRange": {
+        "start": "2025-10-31",
+        "end": "2025-11-29"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "1-7",
+          "weekRange": "1-7",
+          "paymentsDue": "Rent/Lease 1,491 ✓Spotify 22.69 ✓OneMobility x2 (Transport) 196.60 ✓",
+          "groceries": "120-1.31-2.24-88.72-6.60-46.71-11.35-10.57-20.79= -68.29 + 50Spent: 188.29",
+          "transport": "",
+          "activities": "50-50= 0Spent: 0",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 1948.58
+        },
+        {
+          "dateRange": "8-16",
+          "weekRange": "8-16",
+          "paymentsDue": "Alpinacom Gmbh 22.02 ✓iCloud+ 2TB Storage 10.22 ✓Audibile Account 11.37 ✓Cs Addtl Storage 11.35 ✓",
+          "groceries": "120-7.04-6.04-1.00-4.25-20.80-26.57-29.69-6.45-12.75-38.68-38-5.88-4.93-19.95-11-22.87-14.15= -150.05Spent: 270.05",
+          "transport": "",
+          "activities": "50-6.68-35.17-10.10= -1.95Spent: 51.95",
+          "estimate": 343.68,
+          "weeklyEstimate": 343.68,
+          "actual": 0
+        },
+        {
+          "dateRange": "17-23",
+          "weekRange": "17-23",
+          "paymentsDue": "Adobe All Apps 100GB 37.81 ✓",
+          "groceries": "120-19.90-7.75-26.52-53.10= 12.73Spent: 107.27",
+          "transport": "",
+          "activities": "50= Spent:",
+          "estimate": 388.23,
+          "weeklyEstimate": 388.23,
+          "actual": 0
+        },
+        {
+          "dateRange": "24-30",
+          "weekRange": "24-30",
+          "paymentsDue": "Google Storage Photos 9.04Barclays Partner Finance 48.23 Alpinacom Gmbh 22.02 ChatGPT 23.08Xai LLC 25.93 Fitinn Wien Rathauspla 140.12",
+          "groceries": "120=Spent:",
+          "transport": "",
+          "activities": "50= Spent:",
+          "estimate": 234.04,
+          "weeklyEstimate": 234.04,
+          "actual": 0
+        },
+        {
+          "dateRange": "Totals",
+          "weekRange": "Totals",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3080,
+          "actual": 3155.64,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 2551.3,
+          "actual": 2521.3,
+          "date": "",
+          "description": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)"
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "Spotify",
+          "estimatedAmount": 23.32,
+          "actualAmount": 22.69,
+          "date": "1st",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 1491,
+          "actualAmount": 1491,
+          "date": "3rd",
+          "card": "Joint Amex",
+          "paid": false
+        },
+        {
+          "category": "Transport",
+          "estimatedAmount": 196.54,
+          "actualAmount": 196.6,
+          "date": "3rd",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Alpinacom Gmbh (Data)",
+          "estimatedAmount": 24.99,
+          "actualAmount": 22.02,
+          "date": "",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 11.34,
+          "actualAmount": 11.37,
+          "date": "11th",
+          "card": "Lara Monzo Flex",
+          "paid": false
+        },
+        {
+          "category": "Weed",
+          "estimatedAmount": 130,
+          "actualAmount": 175.77,
+          "date": "15th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "iCloud+ 2TB Storage",
+          "estimatedAmount": 10.2,
+          "actualAmount": 10.22,
+          "date": "15th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Adobe All Apps 100GB",
+          "estimatedAmount": 32.89,
+          "actualAmount": 37.81,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Cs Addtl Storage (Creative Cloud 1TB)",
+          "estimatedAmount": 11.53,
+          "actualAmount": 11.35,
+          "date": "16th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Fitinn Wien Rathauspla x 2",
+          "estimatedAmount": 140.12,
+          "actualAmount": 0,
+          "date": "",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Xai LLC (Grok)",
+          "estimatedAmount": 26.38,
+          "actualAmount": 0,
+          "date": "25th",
+          "card": "Joint Amex",
+          "paid": false
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 22.69,
+          "actualAmount": 0,
+          "date": "17th",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 9.22,
+          "actualAmount": 0,
+          "date": "28th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 47.37,
+          "actualAmount": 0,
+          "date": "28th",
+          "card": "Monzo Joint",
+          "paid": false
+        },
+        {
+          "category": "Alpinacom Gmbh (Data)",
+          "estimatedAmount": 24.99,
+          "actualAmount": 0,
+          "date": "31st",
+          "card": "Apple Monzo Joint",
+          "paid": false
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "Food",
+          "estimatedAmount": 500,
+          "actualAmount": 0
+        },
+        {
+          "category": "Activities",
+          "estimatedAmount": 200,
+          "actualAmount": 0
+        }
+      ],
+      "unplannedExpenses": [
+        {
+          "name": "Robert Kolinski",
+          "amount": 50,
+          "date": "",
+          "card": "Joint Monzo",
+          "status": ""
+        }
+      ],
+      "pots": [
+        {
+          "category": "Remaining Debt",
+          "estimatedAmount": 2041.96,
+          "actualAmount": 2041.96
+        }
+      ],
+      "createdAt": "2025-12-12T22:34:39.463Z",
+      "updatedAt": "2025-12-12T22:34:39.463Z"
+    },
+    "2026-01": {
+      "key": "2026-01",
+      "year": 2026,
+      "month": 1,
+      "monthName": "January",
+      "dateRange": {
+        "start": "2025-12-31",
+        "end": "2026-01-30"
+      },
+      "weeklyBreakdown": [],
+      "fixedCosts": [],
+      "variableCosts": [],
+      "unplannedExpenses": [],
+      "incomeSources": [],
+      "pots": [],
+      "createdAt": "2025-12-13T21:46:34.562Z",
+      "updatedAt": "2025-12-13T21:46:34.562Z"
+    },
+    "2026-02": {
+      "key": "2026-02",
+      "year": 2026,
+      "month": 2,
+      "monthName": "February",
+      "dateRange": {
+        "start": "2026-01-31",
+        "end": "2026-02-27"
+      },
+      "weeklyBreakdown": [
+        {
+          "dateRange": "1-1",
+          "weekRange": "1-1",
+          "paymentsDue": "--- Auto-generated Fixed Costs ---\nSpotify: £19.99",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "2-8",
+          "weekRange": "2-8",
+          "paymentsDue": "--- Auto-generated Fixed Costs ---\nLondon Borough of Haringey: £145.00\nVirgin Media: £28.83",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "9-15",
+          "weekRange": "9-15",
+          "paymentsDue": "--- Auto-generated Fixed Costs ---\nVoxi: £27.00\nRent/Lease: £2100.00\nApple Storage iCloud: £8.99\nAudible: £9.99\nChatGPT: £19.99",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "16-22",
+          "weekRange": "16-22",
+          "paymentsDue": "--- Auto-generated Fixed Costs ---\nOVO Energy LTD: £103.09\nCreative Cloud All Apps 100GB: £28.48\nCreative Cloud Files Storage 1 TB: £9.98",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "23-28",
+          "weekRange": "23-28",
+          "paymentsDue": "--- Auto-generated Fixed Costs ---\nEE: £10.00\nBarclays Partner Finance: £41.62\nUrban Jungle Insurance: £20.07\nCursor AI: £15.52\nThe Basement Gym Lara: £54.99\nGoogle Storage Photos: £8.00\nX Ai: £11.00",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        },
+        {
+          "dateRange": "",
+          "weekRange": "",
+          "paymentsDue": "",
+          "groceries": "",
+          "transport": "",
+          "activities": "",
+          "estimate": 0,
+          "weeklyEstimate": 0,
+          "actual": 0
+        }
+      ],
+      "fixedCosts": [
+        {
+          "category": "London Borough of Haringey",
+          "estimatedAmount": 0,
+          "actualAmount": 145,
+          "date": "3rd",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Virgin Media",
+          "estimatedAmount": 28.83,
+          "actualAmount": 28,
+          "date": "7th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Voxi",
+          "estimatedAmount": 27,
+          "actualAmount": 10,
+          "date": "11th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Rent/Lease",
+          "estimatedAmount": 2100,
+          "actualAmount": 2100,
+          "date": "10th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "OVO Energy LTD",
+          "estimatedAmount": 103.09,
+          "actualAmount": 176.56,
+          "date": "18th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "EE",
+          "estimatedAmount": 0,
+          "actualAmount": 10,
+          "date": "25th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Barclays Partner Finance",
+          "estimatedAmount": 0,
+          "actualAmount": 41.62,
+          "date": "28th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Urban Jungle Insurance",
+          "estimatedAmount": 0,
+          "actualAmount": 20.07,
+          "date": "28th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Spotify",
+          "estimatedAmount": 19.99,
+          "actualAmount": 19.99,
+          "date": "1st",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Apple Storage iCloud",
+          "estimatedAmount": 8.99,
+          "actualAmount": 8.99,
+          "date": "11th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Audible",
+          "estimatedAmount": 9.99,
+          "actualAmount": 9.99,
+          "date": "11th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "ChatGPT",
+          "estimatedAmount": 0,
+          "actualAmount": 19.99,
+          "date": "15th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Creative Cloud All Apps 100GB",
+          "estimatedAmount": 0,
+          "actualAmount": 28.48,
+          "date": "16th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Creative Cloud Files Storage 1 TB",
+          "estimatedAmount": 0,
+          "actualAmount": 9.98,
+          "date": "16th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Cursor AI",
+          "estimatedAmount": 0,
+          "actualAmount": 15.52,
+          "date": "24th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "The Basement Gym Lara",
+          "estimatedAmount": 0,
+          "actualAmount": 54.99,
+          "date": "27th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "Google Storage Photos",
+          "estimatedAmount": 0,
+          "actualAmount": 8,
+          "date": "27th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "X Ai",
+          "estimatedAmount": 0,
+          "actualAmount": 11,
+          "date": "27th",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        },
+        {
+          "category": "",
+          "estimatedAmount": 0,
+          "actualAmount": 0,
+          "date": "",
+          "card": "",
+          "paid": false,
+          "comments": ""
+        }
+      ],
+      "variableCosts": [
+        {
+          "category": "",
+          "estimatedAmount": 0,
+          "actualAmount": 0,
+          "comments": ""
+        }
+      ],
+      "unplannedExpenses": [
+        {
+          "name": "",
+          "amount": 0,
+          "date": "",
+          "card": "",
+          "status": "",
+          "comments": ""
+        }
+      ],
+      "incomeSources": [
+        {
+          "source": "Nicholas Income",
+          "estimated": 3080,
+          "actual": 0,
+          "date": "",
+          "description": "",
+          "comments": ""
+        },
+        {
+          "source": "Lara Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "",
+          "comments": ""
+        },
+        {
+          "source": "Other Income",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "Other Income (e.g., sales of cloths, household)",
+          "comments": ""
+        },
+        {
+          "source": "",
+          "estimated": 0,
+          "actual": 0,
+          "date": "",
+          "description": "",
+          "comments": ""
+        }
+      ],
+      "pots": [],
+      "createdAt": "2025-12-13T21:52:18.287Z",
+      "updatedAt": "2025-12-13T21:53:57.711Z",
+      "income": {}
+    }
+  },
+  "pots": {},
+  "settings": {
+    "currency": "£",
+    "defaultFixedCosts": [],
+    "defaultVariableCategories": [
+      "Food",
+      "Travel/Transport",
+      "Activities"
+    ],
+    "defaultPots": []
+  }
+}
