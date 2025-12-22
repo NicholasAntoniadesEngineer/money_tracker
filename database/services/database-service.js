@@ -273,25 +273,53 @@ const DatabaseService = {
             // Test the client with a simple query (with timeout)
             console.log('[DatabaseService] Testing Supabase client with query...');
             try {
-                // Try to query a table that should exist (user_months or example_months)
-                // This will help us determine if it's a connection issue or table-specific
+                // First, try a direct fetch to see if we can reach the API
+                console.log('[DatabaseService] Testing direct fetch to Supabase REST API...');
+                const directFetchUrl = `${this.client.supabaseUrl}/rest/v1/user_months?select=id&limit=1`;
+                console.log('[DatabaseService] Direct fetch URL:', directFetchUrl);
+                
+                try {
+                    const directFetchResult = await Promise.race([
+                        fetch(directFetchUrl, {
+                            method: 'GET',
+                            headers: {
+                                'apikey': this.client.supabaseKey,
+                                'Authorization': `Bearer ${this.client.supabaseKey}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            }
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Direct fetch timeout')), 5000))
+                    ]);
+                    
+                    console.log('[DatabaseService] Direct fetch completed - Status:', directFetchResult.status);
+                    console.log('[DatabaseService] Direct fetch headers:', Object.fromEntries(directFetchResult.headers.entries()));
+                    
+                    if (directFetchResult.ok) {
+                        const directData = await directFetchResult.json();
+                        console.log('[DatabaseService] Direct fetch successful - data:', directData);
+                    } else {
+                        const errorText = await directFetchResult.text();
+                        console.error('[DatabaseService] Direct fetch failed - Status:', directFetchResult.status);
+                        console.error('[DatabaseService] Direct fetch error:', errorText);
+                    }
+                } catch (directFetchError) {
+                    console.error('[DatabaseService] Direct fetch error:', directFetchError);
+                }
+                
+                // Now try the Supabase client query
+                console.log('[DatabaseService] Testing Supabase client query...');
                 const testQuery = this.client.from('user_months').select('id').limit(1);
                 console.log('[DatabaseService] Test query created, testing connection...');
                 console.log('[DatabaseService] Client object:', this.client);
                 console.log('[DatabaseService] Client supabaseUrl:', this.client.supabaseUrl);
                 console.log('[DatabaseService] Client supabaseKey present:', !!this.client.supabaseKey);
-                
-                // Log what the actual request URL will be
-                const expectedUrl = `${this.client.supabaseUrl}/rest/v1/user_months?id=not.null&limit=1&select=id`;
-                console.log('[DatabaseService] Expected request URL:', expectedUrl);
-                console.log('[DatabaseService] Check Network tab for requests to:', this.client.supabaseUrl);
-                console.log('[DatabaseService] Look for requests containing: /rest/v1/user_months');
+                console.log('[DatabaseService] Client type/version:', this.client.constructor?.name);
                 
                 // Set a short timeout for the test
                 const testTimeout = setTimeout(() => {
                     console.warn('[DatabaseService] Query test timed out - queries are not completing');
-                    console.warn('[DatabaseService] Check browser Network tab for failed requests');
-                    console.warn('[DatabaseService] Verify Supabase project is not paused');
+                    console.warn('[DatabaseService] If direct fetch worked but client query didn\'t, there\'s an issue with the Supabase JS client');
                 }, 3000);
                 
                 const testStartTime = Date.now();
@@ -303,14 +331,8 @@ const DatabaseService = {
                     const elapsed = Date.now() - testStartTime;
                     if (err.message === 'Test timeout') {
                         console.error(`[DatabaseService] Query test failed after ${elapsed}ms - queries are timing out`);
-                        console.error('[DatabaseService] Possible causes:');
-                        console.error('[DatabaseService] 1. RLS policies still blocking (check verify-rls-policies.sql)');
-                        console.error('[DatabaseService] 2. Supabase project is paused (check dashboard)');
-                        console.error('[DatabaseService] 3. Network/CORS blocking requests (check browser Network tab)');
-                        console.error('[DatabaseService] 4. API key restrictions (check Supabase dashboard)');
-                        console.error('[DatabaseService] 5. Browser extension blocking requests');
-                        console.error('[DatabaseService] ACTION: Open browser DevTools > Network tab and look for requests to supabase.co');
-                        console.error('[DatabaseService] ACTION: Check if requests are being sent and what status codes they return');
+                        console.error('[DatabaseService] If direct fetch worked, the Supabase JS client may have an issue');
+                        console.error('[DatabaseService] Check: Supabase JS library version compatibility');
                     }
                     return { data: null, error: err };
                 });
@@ -320,8 +342,6 @@ const DatabaseService = {
                     console.warn('[DatabaseService] Query test returned error:', testResult.error);
                     console.warn('[DatabaseService] Error code:', testResult.error.code);
                     console.warn('[DatabaseService] Error message:', testResult.error.message);
-                    console.warn('[DatabaseService] Error details:', testResult.error.details);
-                    console.warn('[DatabaseService] Error hint:', testResult.error.hint);
                 } else if (testResult && testResult.data !== undefined) {
                     console.log('[DatabaseService] Query test successful - client is working');
                     console.log('[DatabaseService] Test result:', testResult);
@@ -914,25 +934,56 @@ const DatabaseService = {
                         // Check if singleBuilder is a promise
                         console.log('[DatabaseService] singleBuilder is Promise:', singleBuilder instanceof Promise);
                         console.log('[DatabaseService] singleBuilder type:', typeof singleBuilder);
+                        console.log('[DatabaseService] singleBuilder object:', singleBuilder);
                         
                         // Try to see if there's a then method (promise-like)
                         if (singleBuilder && typeof singleBuilder.then === 'function') {
                             console.log('[DatabaseService] singleBuilder has then() method - it is a promise');
+                            
+                            // Check if it's actually a Supabase PostgrestQueryBuilder
+                            if (singleBuilder.constructor && singleBuilder.constructor.name) {
+                                console.log('[DatabaseService] singleBuilder constructor:', singleBuilder.constructor.name);
+                            }
+                            
+                            // Try to manually trigger the request by calling then immediately
+                            console.log('[DatabaseService] Attempting to trigger request by calling then()...');
+                            const manualTrigger = singleBuilder.then(
+                                data => {
+                                    console.log('[DatabaseService] Manual trigger success:', data);
+                                    return data;
+                                },
+                                err => {
+                                    console.error('[DatabaseService] Manual trigger error:', err);
+                                    throw err;
+                                }
+                            );
+                            console.log('[DatabaseService] Manual trigger promise created:', manualTrigger);
                         } else {
                             console.error('[DatabaseService] singleBuilder is NOT a promise!');
+                            console.error('[DatabaseService] This means the query builder chain is broken');
+                            throw new Error('Query builder did not return a promise');
                         }
                         
                         const queryStartTime = Date.now();
                         console.log(`[DatabaseService] About to await query at ${queryStartTime}ms`);
+                        console.log('[DatabaseService] Network tab should show requests to:', this.client.supabaseUrl);
+                        console.log('[DatabaseService] Expected URL pattern: /rest/v1/settings?id=eq.1&select=*');
                         
                         // Add a progress check every second
                         const progressInterval = setInterval(() => {
                             const elapsed = Date.now() - queryStartTime;
                             console.log(`[DatabaseService] Query still waiting... (${elapsed}ms elapsed)`);
+                            if (elapsed === 1000) {
+                                console.warn('[DatabaseService] After 1 second - check Network tab for requests to supabase.co');
+                            }
+                            if (elapsed === 3000) {
+                                console.error('[DatabaseService] After 3 seconds - if no requests in Network tab, query is not executing');
+                            }
                         }, 1000);
                         
                         let result;
                         try {
+                            console.log('[DatabaseService] Awaiting promise - this should trigger HTTP request...');
                             result = await singleBuilder;
                             clearInterval(progressInterval);
                             const queryElapsed = Date.now() - queryStartTime;
