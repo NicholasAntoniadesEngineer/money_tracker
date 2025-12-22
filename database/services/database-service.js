@@ -281,6 +281,12 @@ const DatabaseService = {
                 console.log('[DatabaseService] Client supabaseUrl:', this.client.supabaseUrl);
                 console.log('[DatabaseService] Client supabaseKey present:', !!this.client.supabaseKey);
                 
+                // Log what the actual request URL will be
+                const expectedUrl = `${this.client.supabaseUrl}/rest/v1/user_months?id=not.null&limit=1&select=id`;
+                console.log('[DatabaseService] Expected request URL:', expectedUrl);
+                console.log('[DatabaseService] Check Network tab for requests to:', this.client.supabaseUrl);
+                console.log('[DatabaseService] Look for requests containing: /rest/v1/user_months');
+                
                 // Set a short timeout for the test
                 const testTimeout = setTimeout(() => {
                     console.warn('[DatabaseService] Query test timed out - queries are not completing');
