@@ -124,12 +124,19 @@ const DataManager = {
      * Delete a month from database
      * @param {string} monthKey - Month key
      * @returns {Promise<boolean>} Success status
+     * @throws {Error} If attempting to delete example data
      */
     async deleteMonth(monthKey) {
         try {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
+            
+            // Check if this is example data before attempting deletion
+            if (window.DatabaseService.isExampleData(monthKey)) {
+                throw new Error('Example data (year 2045) cannot be deleted. This data is protected and locked.');
+            }
+            
             return await window.DatabaseService.deleteMonth(monthKey);
         } catch (error) {
             console.error(`Error deleting month ${monthKey}:`, error);

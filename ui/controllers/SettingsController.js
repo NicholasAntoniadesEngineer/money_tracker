@@ -156,9 +156,18 @@ const SettingsController = {
                     let deletedCount = 0;
 
                     for (const monthKey of monthKeys) {
-                        const deleted = await DataManager.deleteMonth(monthKey);
-                        if (deleted) {
-                            deletedCount++;
+                        // Skip example data - it's protected
+                        if (window.DatabaseService && window.DatabaseService.isExampleData(monthKey)) {
+                            continue;
+                        }
+                        try {
+                            const deleted = await DataManager.deleteMonth(monthKey);
+                            if (deleted) {
+                                deletedCount++;
+                            }
+                        } catch (error) {
+                            // Skip protected example data
+                            console.warn(`Skipped protected month: ${monthKey}`);
                         }
                     }
 
@@ -348,19 +357,29 @@ const SettingsController = {
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
                 const year = monthData.year;
 
+                // Check if this is example data before attempting deletion
+                if (window.DatabaseService && window.DatabaseService.isExampleData(selectedMonthKey)) {
+                    alert('Example data (year 2045) cannot be deleted. This data is protected and locked.');
+                    return;
+                }
+
                 const confirmMessage = `Are you sure you want to delete ${monthName} ${year}? This action cannot be undone.`;
                 if (!confirm(confirmMessage)) {
                     return;
                 }
 
-                const success = await DataManager.deleteMonth(selectedMonthKey);
+                try {
+                    const success = await DataManager.deleteMonth(selectedMonthKey);
 
-                if (success) {
-                    alert(`${monthName} ${year} has been deleted.`);
-                    await this.loadMonthSelector();
-                    if (deleteMonthBtn) deleteMonthBtn.style.display = 'none';
-                } else {
-                    alert('Error deleting month. Please try again.');
+                    if (success) {
+                        alert(`${monthName} ${year} has been deleted.`);
+                        await this.loadMonthSelector();
+                        if (deleteMonthBtn) deleteMonthBtn.style.display = 'none';
+                    } else {
+                        alert('Error deleting month. Please try again.');
+                    }
+                } catch (error) {
+                    alert(error.message || 'Error deleting month. Please try again.');
                 }
             });
         }
@@ -766,63 +785,16 @@ const SettingsController = {
         const importStatus = document.getElementById('import-status');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
-        // Example data configuration (year 2045)
-        const EXAMPLE_YEAR = 2045;
-        const exampleMonthKeys = [
-            `${EXAMPLE_YEAR}-01`,
-            `${EXAMPLE_YEAR}-09`,
-            `${EXAMPLE_YEAR}-10`,
-            `${EXAMPLE_YEAR}-11`
-        ];
-
-        const allMonths = await DataManager.getAllMonths();
-        
-        // Check if any example months exist
-        const existingExampleMonths = exampleMonthKeys.filter(key => allMonths[key]);
-        
-        if (existingExampleMonths.length === 0) {
-            if (importStatus) {
-                importStatus.innerHTML = '<p style="color: var(--warning-color);">No example data found to remove.</p>';
-            }
-            return;
+        // Example data is protected and cannot be deleted
+        if (importStatus) {
+            importStatus.innerHTML = '<p style="color: var(--warning-color);">Example data (year 2045) is protected and cannot be deleted. This data is locked to preserve the example functionality.</p>';
         }
-
-        const confirmMessage = `Are you sure you want to remove ${existingExampleMonths.length} example month(s) from Supabase? This action cannot be undone.`;
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-
+        
+        // Disable the button to make it clear it's not available
         if (removeExampleDataBtn) {
             removeExampleDataBtn.disabled = true;
-            removeExampleDataBtn.textContent = 'Removing...';
-        }
-
-        try {
-            let removedCount = 0;
-
-            for (const monthKey of exampleMonthKeys) {
-                if (allMonths[monthKey]) {
-                    await DataManager.deleteMonth(monthKey);
-                    removedCount++;
-                }
-            }
-
-            await this.loadMonthSelector();
-
-            if (importStatus) {
-                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully removed ${removedCount} example month(s) from Supabase.</p>`;
-            }
-
-        } catch (error) {
-            console.error('Error removing example data:', error);
-            if (importStatus) {
-                importStatus.innerHTML = `<p style="color: var(--danger-color);">Failed to remove example data: ${error.message}</p>`;
-            }
-        } finally {
-            if (removeExampleDataBtn) {
-                removeExampleDataBtn.disabled = false;
-                removeExampleDataBtn.textContent = 'Remove Example Data';
-            }
+            removeExampleDataBtn.textContent = 'Example Data Protected';
+            removeExampleDataBtn.title = 'Example data cannot be deleted - it is protected';
         }
     }
 };

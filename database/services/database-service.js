@@ -6,6 +6,77 @@
 
 const DatabaseService = {
     client: null,
+    monthsCache: null,
+    cacheTimestamp: null,
+    CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    CACHE_STORAGE_KEY: 'money_tracker_months_cache',
+    CACHE_TIMESTAMP_KEY: 'money_tracker_cache_timestamp',
+    EXAMPLE_YEAR: 2045, // Example data year - protected from deletion
+    
+    /**
+     * Check if a month key is example data (protected)
+     * @param {string} monthKey - Month key
+     * @returns {boolean} True if example data
+     */
+    isExampleData(monthKey) {
+        try {
+            const { year } = this.parseMonthKey(monthKey);
+            return year === this.EXAMPLE_YEAR;
+        } catch (error) {
+            return false;
+        }
+    },
+    
+    /**
+     * Load cache from localStorage
+     * @returns {Object|null} Cached months or null
+     */
+    loadCacheFromStorage() {
+        try {
+            const cachedData = localStorage.getItem(this.CACHE_STORAGE_KEY);
+            const cachedTimestamp = localStorage.getItem(this.CACHE_TIMESTAMP_KEY);
+            
+            if (cachedData && cachedTimestamp) {
+                const timestamp = parseInt(cachedTimestamp, 10);
+                const now = Date.now();
+                
+                // Check if cache is still valid (within 24 hours)
+                if (now - timestamp < this.CACHE_DURATION) {
+                    return JSON.parse(cachedData);
+                }
+            }
+        } catch (error) {
+            console.warn('Error loading cache from storage:', error);
+        }
+        return null;
+    },
+    
+    /**
+     * Save cache to localStorage
+     * @param {Object} monthsData - Months data object
+     */
+    saveCacheToStorage(monthsData) {
+        try {
+            localStorage.setItem(this.CACHE_STORAGE_KEY, JSON.stringify(monthsData));
+            localStorage.setItem(this.CACHE_TIMESTAMP_KEY, Date.now().toString());
+        } catch (error) {
+            console.warn('Error saving cache to storage:', error);
+        }
+    },
+    
+    /**
+     * Clear cache (both memory and storage)
+     */
+    clearCache() {
+        this.monthsCache = null;
+        this.cacheTimestamp = null;
+        try {
+            localStorage.removeItem(this.CACHE_STORAGE_KEY);
+            localStorage.removeItem(this.CACHE_TIMESTAMP_KEY);
+        } catch (error) {
+            console.warn('Error clearing cache from storage:', error);
+        }
+    },
     
     /**
      * Initialize database service with Supabase client
@@ -23,7 +94,16 @@ const DatabaseService = {
                 throw new Error('Failed to initialize Supabase client');
             }
             
-            console.log('Database service initialized');
+            // Load cache from localStorage on initialization
+            const cachedData = this.loadCacheFromStorage();
+            if (cachedData) {
+                this.monthsCache = cachedData;
+                this.cacheTimestamp = Date.now();
+                console.log('Database service initialized with cached data');
+            } else {
+                console.log('Database service initialized');
+            }
+            
             return true;
         } catch (error) {
             console.error('Error initializing database service:', error);
@@ -32,15 +112,28 @@ const DatabaseService = {
     },
     
     /**
-     * Get all months from database
+     * Get all months from database (with caching)
+     * @param {boolean} forceRefresh - Force refresh from database, bypass cache
      * @returns {Promise<Object>} Object with all months keyed by monthKey
      */
-    async getAllMonths() {
+    async getAllMonths(forceRefresh = false) {
         try {
             if (!this.client) {
                 await this.initialize();
             }
             
+            // Check cache first (unless force refresh)
+            if (!forceRefresh && this.monthsCache && this.cacheTimestamp) {
+                const now = Date.now();
+                // Use cache if it's less than 24 hours old
+                if (now - this.cacheTimestamp < this.CACHE_DURATION) {
+                    console.log('Using cached months data');
+                    return { ...this.monthsCache }; // Return copy to prevent mutation
+                }
+            }
+            
+            // Fetch from database
+            console.log('Fetching months from database...');
             const { data, error } = await this.client
                 .from('months')
                 .select('*')
@@ -59,19 +152,32 @@ const DatabaseService = {
                 });
             }
             
+            // Update cache
+            this.monthsCache = monthsObject;
+            this.cacheTimestamp = Date.now();
+            this.saveCacheToStorage(monthsObject);
+            
             return monthsObject;
         } catch (error) {
             console.error('Error getting all months:', error);
+            
+            // If database fetch fails, try to use cache as fallback
+            if (this.monthsCache) {
+                console.warn('Database fetch failed, using cached data as fallback');
+                return { ...this.monthsCache };
+            }
+            
             throw error;
         }
     },
     
     /**
-     * Get a specific month by monthKey
+     * Get a specific month by monthKey (with caching)
      * @param {string} monthKey - Month key (e.g., "2025-11")
+     * @param {boolean} forceRefresh - Force refresh from database, bypass cache
      * @returns {Promise<Object|null>} Month data or null
      */
-    async getMonth(monthKey) {
+    async getMonth(monthKey, forceRefresh = false) {
         try {
             if (!monthKey) {
                 throw new Error('Month key is required');
@@ -81,6 +187,19 @@ const DatabaseService = {
                 await this.initialize();
             }
             
+            // Check cache first (unless force refresh)
+            if (!forceRefresh && this.monthsCache && this.cacheTimestamp) {
+                const now = Date.now();
+                // Use cache if it's less than 24 hours old
+                if (now - this.cacheTimestamp < this.CACHE_DURATION) {
+                    if (this.monthsCache[monthKey]) {
+                        console.log(`Using cached data for month ${monthKey}`);
+                        return { ...this.monthsCache[monthKey] }; // Return copy to prevent mutation
+                    }
+                }
+            }
+            
+            // If not in cache or cache expired, fetch from database
             const { year, month } = this.parseMonthKey(monthKey);
             
             const { data, error } = await this.client
@@ -97,9 +216,24 @@ const DatabaseService = {
                 throw error;
             }
             
-            return data ? this.transformMonthFromDatabase(data) : null;
+            const monthData = data ? this.transformMonthFromDatabase(data) : null;
+            
+            // Update cache if we got data
+            if (monthData && this.monthsCache) {
+                this.monthsCache[monthKey] = monthData;
+                this.saveCacheToStorage(this.monthsCache);
+            }
+            
+            return monthData;
         } catch (error) {
             console.error(`Error getting month ${monthKey}:`, error);
+            
+            // If database fetch fails, try to use cache as fallback
+            if (this.monthsCache && this.monthsCache[monthKey]) {
+                console.warn(`Database fetch failed for ${monthKey}, using cached data as fallback`);
+                return { ...this.monthsCache[monthKey] };
+            }
+            
             throw error;
         }
     },
@@ -132,6 +266,14 @@ const DatabaseService = {
                 throw error;
             }
             
+            // Update cache after save
+            if (!this.monthsCache) {
+                this.monthsCache = {};
+            }
+            this.monthsCache[monthKey] = monthData;
+            this.cacheTimestamp = Date.now();
+            this.saveCacheToStorage(this.monthsCache);
+            
             return true;
         } catch (error) {
             console.error(`Error saving month ${monthKey}:`, error);
@@ -143,11 +285,17 @@ const DatabaseService = {
      * Delete a month from database
      * @param {string} monthKey - Month key
      * @returns {Promise<boolean>} Success status
+     * @throws {Error} If attempting to delete example data
      */
     async deleteMonth(monthKey) {
         try {
             if (!monthKey) {
                 throw new Error('Month key is required');
+            }
+            
+            // Protect example data from deletion
+            if (this.isExampleData(monthKey)) {
+                throw new Error('Example data (year 2045) cannot be deleted. This data is protected.');
             }
             
             if (!this.client) {
@@ -164,6 +312,13 @@ const DatabaseService = {
             
             if (error) {
                 throw error;
+            }
+            
+            // Update cache after deletion
+            if (this.monthsCache && this.monthsCache[monthKey]) {
+                delete this.monthsCache[monthKey];
+                this.cacheTimestamp = Date.now();
+                this.saveCacheToStorage(this.monthsCache);
             }
             
             return true;

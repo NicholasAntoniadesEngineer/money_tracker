@@ -2144,36 +2144,51 @@ const MonthlyBudgetController = {
         const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
         const year = monthData.year;
 
+        // Check if this is example data before attempting deletion
+        if (window.DatabaseService && window.DatabaseService.isExampleData(this.currentMonthKey)) {
+            alert('Example data (year 2045) cannot be deleted. This data is protected and locked.');
+            return;
+        }
+
         const confirmMessage = `Are you sure you want to delete ${monthName} ${year}? This action cannot be undone.`;
         if (!confirm(confirmMessage)) {
             return;
         }
 
-        const success = await DataManager.deleteMonth(this.currentMonthKey);
+        try {
+            const success = await DataManager.deleteMonth(this.currentMonthKey);
 
-        if (success) {
-            alert(`${monthName} ${year} has been deleted.`);
-            this.currentMonthKey = null;
-            this.currentMonthData = null;
+            if (success) {
+                alert(`${monthName} ${year} has been deleted.`);
+                this.currentMonthKey = null;
+                this.currentMonthData = null;
 
-            const monthContent = document.getElementById('month-content');
-            const noMonthMessage = document.getElementById('no-month-message');
-            const monthTitleWrapper = document.getElementById('month-title-wrapper');
-            const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
-            if (monthContent) monthContent.style.display = 'none';
-            if (noMonthMessage) noMonthMessage.style.display = 'block';
-            if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
-            if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
+                const monthContent = document.getElementById('month-content');
+                const noMonthMessage = document.getElementById('no-month-message');
+                const monthTitleWrapper = document.getElementById('month-title-wrapper');
+                const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
+                if (monthContent) monthContent.style.display = 'none';
+                if (noMonthMessage) noMonthMessage.style.display = 'block';
+                if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
+                if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
 
-            await this.loadMonthSelector();
+                await this.loadMonthSelector();
 
-            const allMonths = await DataManager.getAllMonths();
-            const monthKeys = Object.keys(allMonths).sort().reverse();
-            if (monthKeys.length > 0) {
-                await this.loadMonth(monthKeys[0]);
+                const allMonths = await DataManager.getAllMonths();
+                const monthKeys = Object.keys(allMonths).sort().reverse();
+                if (monthKeys.length > 0) {
+                    await this.loadMonth(monthKeys[0]);
+                } else {
+                    const monthContent = document.getElementById('month-content');
+                    const noMonthMessage = document.getElementById('no-month-message');
+                    if (monthContent) monthContent.style.display = 'none';
+                    if (noMonthMessage) noMonthMessage.style.display = 'block';
+                }
+            } else {
+                alert('Error deleting month. Please try again.');
             }
-        } else {
-            alert('Error deleting month. Please try again.');
+        } catch (error) {
+            alert(error.message || 'Error deleting month. Please try again.');
         }
     },
 
