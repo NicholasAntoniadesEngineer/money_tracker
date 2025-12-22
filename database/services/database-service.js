@@ -277,24 +277,34 @@ const DatabaseService = {
                 // This will help us determine if it's a connection issue or table-specific
                 const testQuery = this.client.from('user_months').select('id').limit(1);
                 console.log('[DatabaseService] Test query created, testing connection...');
+                console.log('[DatabaseService] Client object:', this.client);
+                console.log('[DatabaseService] Client supabaseUrl:', this.client.supabaseUrl);
+                console.log('[DatabaseService] Client supabaseKey present:', !!this.client.supabaseKey);
                 
                 // Set a short timeout for the test
                 const testTimeout = setTimeout(() => {
                     console.warn('[DatabaseService] Query test timed out - queries are not completing');
+                    console.warn('[DatabaseService] Check browser Network tab for failed requests');
+                    console.warn('[DatabaseService] Verify Supabase project is not paused');
                 }, 3000);
                 
+                const testStartTime = Date.now();
                 const testResult = await Promise.race([
                     testQuery,
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
                 ]).catch(err => {
                     clearTimeout(testTimeout);
+                    const elapsed = Date.now() - testStartTime;
                     if (err.message === 'Test timeout') {
-                        console.error('[DatabaseService] Query test failed - queries are timing out');
-                        console.error('[DatabaseService] This suggests:');
-                        console.error('[DatabaseService] 1. Network/connectivity issue');
-                        console.error('[DatabaseService] 2. RLS (Row Level Security) policies blocking all queries');
-                        console.error('[DatabaseService] 3. API key is invalid or expired');
-                        console.error('[DatabaseService] 4. Supabase project configuration issue');
+                        console.error(`[DatabaseService] Query test failed after ${elapsed}ms - queries are timing out`);
+                        console.error('[DatabaseService] Possible causes:');
+                        console.error('[DatabaseService] 1. RLS policies still blocking (check verify-rls-policies.sql)');
+                        console.error('[DatabaseService] 2. Supabase project is paused (check dashboard)');
+                        console.error('[DatabaseService] 3. Network/CORS blocking requests (check browser Network tab)');
+                        console.error('[DatabaseService] 4. API key restrictions (check Supabase dashboard)');
+                        console.error('[DatabaseService] 5. Browser extension blocking requests');
+                        console.error('[DatabaseService] ACTION: Open browser DevTools > Network tab and look for requests to supabase.co');
+                        console.error('[DatabaseService] ACTION: Check if requests are being sent and what status codes they return');
                     }
                     return { data: null, error: err };
                 });
@@ -304,11 +314,17 @@ const DatabaseService = {
                     console.warn('[DatabaseService] Query test returned error:', testResult.error);
                     console.warn('[DatabaseService] Error code:', testResult.error.code);
                     console.warn('[DatabaseService] Error message:', testResult.error.message);
-                } else {
+                    console.warn('[DatabaseService] Error details:', testResult.error.details);
+                    console.warn('[DatabaseService] Error hint:', testResult.error.hint);
+                } else if (testResult && testResult.data !== undefined) {
                     console.log('[DatabaseService] Query test successful - client is working');
+                    console.log('[DatabaseService] Test result:', testResult);
+                } else {
+                    console.warn('[DatabaseService] Query test returned unexpected result:', testResult);
                 }
             } catch (testError) {
                 console.warn('[DatabaseService] Query test error:', testError);
+                console.warn('[DatabaseService] Error stack:', testError.stack);
             }
             
             // Always initialize fresh - never load cache from localStorage
