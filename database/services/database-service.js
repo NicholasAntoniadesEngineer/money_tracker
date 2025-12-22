@@ -256,7 +256,7 @@ const DatabaseService = {
                     if (fetchResult) {
                         const fetchElapsed = Date.now() - fetchStart;
                         console.log(`[DatabaseService] HTTP connectivity test successful (${fetchElapsed}ms) - Status: ${fetchResult.status}`);
-                    } else {
+            } else {
                         console.error('[DatabaseService] HTTP connectivity test failed - cannot reach Supabase server');
                         console.error('[DatabaseService] Possible issues:');
                         console.error('[DatabaseService] 1. Network connectivity problem');
@@ -790,7 +790,7 @@ const DatabaseService = {
                 // Use a simple query with count to check table existence and row count
                 console.log('[DatabaseService] Executing table existence and row count check...');
                 const tableCheckQuery = this.client
-                    .from('settings')
+                .from('settings')
                     .select('*', { count: 'exact', head: false })
                     .limit(1);
                 
@@ -1190,6 +1190,7 @@ const DatabaseService = {
     
     /**
      * Parse month key to year and month
+     * Handles both formats: "2026-01" (year-month) and "january-2026" (monthname-year)
      * @param {string} monthKey - Month key
      * @returns {Object} Object with year and month
      */
@@ -1197,14 +1198,47 @@ const DatabaseService = {
         if (!monthKey || typeof monthKey !== 'string') {
             throw new Error('Invalid month key');
         }
+        
         const parts = monthKey.split('-');
         if (parts.length !== 2) {
             throw new Error('Invalid month key format');
         }
-        return {
-            year: parseInt(parts[0], 10),
-            month: parseInt(parts[1], 10)
-        };
+        
+        // Check if first part is a month name (text) or year (number)
+        const firstPart = parts[0].toLowerCase();
+        const secondPart = parts[1].toLowerCase();
+        
+        // Month names for conversion
+        const monthNames = [
+            'january', 'february', 'march', 'april', 'may', 'june',
+            'july', 'august', 'september', 'october', 'november', 'december'
+        ];
+        
+        let year, month;
+        
+        // Check if format is "monthname-year" (e.g., "january-2026")
+        if (monthNames.includes(firstPart)) {
+            month = monthNames.indexOf(firstPart) + 1; // Convert to 1-12
+            year = parseInt(secondPart, 10);
+            if (isNaN(year)) {
+                throw new Error(`Invalid year in month key: ${monthKey}`);
+            }
+        }
+        // Check if format is "year-month" (e.g., "2026-01")
+        else {
+            year = parseInt(firstPart, 10);
+            month = parseInt(secondPart, 10);
+            if (isNaN(year) || isNaN(month)) {
+                throw new Error(`Invalid year or month in month key: ${monthKey}`);
+            }
+        }
+        
+        // Validate month is 1-12
+        if (month < 1 || month > 12) {
+            throw new Error(`Invalid month number: ${month} (must be 1-12)`);
+        }
+        
+        return { year, month };
     },
     
     /**
