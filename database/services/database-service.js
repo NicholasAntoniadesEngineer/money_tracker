@@ -223,6 +223,41 @@ const DatabaseService = {
                 throw new Error('Failed to initialize Supabase client');
             }
             
+            // Test the client connection by trying a simple query
+            console.log('[DatabaseService] Testing client connection...');
+            try {
+                // Try to query a table that should exist (user_months or example_months)
+                // This will help us determine if it's a connection issue or table-specific
+                const testQuery = this.client.from('user_months').select('id').limit(1);
+                console.log('[DatabaseService] Test query created, testing connection...');
+                
+                // Set a short timeout for the test
+                const testTimeout = setTimeout(() => {
+                    console.warn('[DatabaseService] Connection test timed out - there may be a network or configuration issue');
+                }, 3000);
+                
+                const testResult = await Promise.race([
+                    testQuery,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
+                ]).catch(err => {
+                    clearTimeout(testTimeout);
+                    if (err.message === 'Test timeout') {
+                        console.error('[DatabaseService] Connection test failed - queries are timing out');
+                        console.error('[DatabaseService] This suggests a network issue, RLS policy blocking, or table doesn\'t exist');
+                    }
+                    return { data: null, error: err };
+                });
+                
+                clearTimeout(testTimeout);
+                if (testResult && testResult.error) {
+                    console.warn('[DatabaseService] Connection test returned error (this may be expected if tables are empty):', testResult.error);
+                } else {
+                    console.log('[DatabaseService] Connection test successful - client is working');
+                }
+            } catch (testError) {
+                console.warn('[DatabaseService] Connection test error (non-fatal):', testError);
+            }
+            
             // Always initialize fresh - never load cache from localStorage
             // User data is always loaded from user_months table on every page load
             // Example data is loaded from example_months table
@@ -694,6 +729,81 @@ const DatabaseService = {
             console.log('[DatabaseService] Client type:', typeof this.client);
             console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
             
+            // First, check if the settings table exists and has any data
+            console.log('[DatabaseService] Checking if settings table exists and has data...');
+            try {
+                const tableCheckStart = Date.now();
+                
+                // Use a simple query with count to check table existence and row count
+                console.log('[DatabaseService] Executing table existence and row count check...');
+                const tableCheckQuery = this.client
+                    .from('settings')
+                    .select('*', { count: 'exact', head: false })
+                    .limit(1);
+                
+                const tableCheckResult = await Promise.race([
+                    tableCheckQuery,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Table check timeout')), 3000))
+                ]);
+                
+                const tableCheckElapsed = Date.now() - tableCheckStart;
+                console.log(`[DatabaseService] Table check completed in ${tableCheckElapsed}ms`);
+                console.log('[DatabaseService] Table check result:', tableCheckResult);
+                
+                if (tableCheckResult && tableCheckResult.error) {
+                    console.error('[DatabaseService] Settings table check returned error:', tableCheckResult.error);
+                    const errorMsg = tableCheckResult.error.message || '';
+                    const errorCode = tableCheckResult.error.code || '';
+                    
+                    if (errorMsg.includes('relation') && errorMsg.includes('does not exist')) {
+                        console.warn('[DatabaseService] Settings table does not exist - returning null');
+                        return null;
+                    }
+                    
+                    if (errorCode === 'PGRST116' || errorMsg.includes('No rows found')) {
+                        console.warn('[DatabaseService] Settings table exists but is empty (PGRST116) - returning null');
+                        return null;
+                    }
+                    
+                    // If it's a different error, log it but continue with main query
+                    console.warn('[DatabaseService] Table check error (continuing anyway):', tableCheckResult.error);
+                }
+                
+                // Check if we got data back
+                if (tableCheckResult && tableCheckResult.data !== undefined) {
+                    const rowCount = Array.isArray(tableCheckResult.data) ? tableCheckResult.data.length : 0;
+                    const count = tableCheckResult.count !== undefined ? tableCheckResult.count : rowCount;
+                    
+                    console.log(`[DatabaseService] Settings table row count: ${count} (from data array: ${rowCount})`);
+                    
+                    if (count === 0 || rowCount === 0) {
+                        console.warn('[DatabaseService] Settings table exists but is empty - returning null');
+                        return null;
+                    }
+                    
+                    console.log('[DatabaseService] Settings table exists and has data - proceeding with main query');
+                } else {
+                    console.warn('[DatabaseService] Table check returned no data - table may be empty or inaccessible');
+                    // Continue with main query to see if we get a more specific error
+                }
+            } catch (tableCheckError) {
+                console.warn('[DatabaseService] Table check failed (non-fatal):', tableCheckError);
+                const errorMsg = tableCheckError.message || '';
+                
+                if (errorMsg.includes('does not exist') || errorMsg.includes('relation')) {
+                    console.warn('[DatabaseService] Settings table does not exist - returning null');
+                    return null;
+                }
+                
+                if (errorMsg.includes('timeout')) {
+                    console.warn('[DatabaseService] Table check timed out - there may be a connection issue');
+                    // Continue with main query to see if it works
+                } else {
+                    // Continue with the main query even if the check failed
+                    console.log('[DatabaseService] Continuing with main query despite check failure');
+                }
+            }
+            
             // Wrap the entire query in a timeout to prevent indefinite hanging
             const queryWithTimeout = async () => {
                 return new Promise(async (resolve, reject) => {
@@ -726,14 +836,47 @@ const DatabaseService = {
                         console.log('[DatabaseService] Single() added, executing query...');
                         console.log('[DatabaseService] Query builder chain complete, awaiting result...');
                         
-                        const queryStartTime = Date.now();
-                        const result = await singleBuilder;
-                        const queryElapsed = Date.now() - queryStartTime;
+                        // Check if singleBuilder is a promise
+                        console.log('[DatabaseService] singleBuilder is Promise:', singleBuilder instanceof Promise);
+                        console.log('[DatabaseService] singleBuilder type:', typeof singleBuilder);
                         
-                        console.log(`[DatabaseService] Query completed in ${queryElapsed}ms, result:`, result);
-                        console.log('[DatabaseService] Result type:', typeof result);
-                        console.log('[DatabaseService] Result has data:', 'data' in result);
-                        console.log('[DatabaseService] Result has error:', 'error' in result);
+                        // Try to see if there's a then method (promise-like)
+                        if (singleBuilder && typeof singleBuilder.then === 'function') {
+                            console.log('[DatabaseService] singleBuilder has then() method - it is a promise');
+                        } else {
+                            console.error('[DatabaseService] singleBuilder is NOT a promise!');
+                        }
+                        
+                        const queryStartTime = Date.now();
+                        console.log(`[DatabaseService] About to await query at ${queryStartTime}ms`);
+                        
+                        // Add a progress check every second
+                        const progressInterval = setInterval(() => {
+                            const elapsed = Date.now() - queryStartTime;
+                            console.log(`[DatabaseService] Query still waiting... (${elapsed}ms elapsed)`);
+                        }, 1000);
+                        
+                        let result;
+                        try {
+                            result = await singleBuilder;
+                            clearInterval(progressInterval);
+                            const queryElapsed = Date.now() - queryStartTime;
+                            
+                            console.log(`[DatabaseService] Query completed in ${queryElapsed}ms, result:`, result);
+                            console.log('[DatabaseService] Result type:', typeof result);
+                            console.log('[DatabaseService] Result has data:', 'data' in result);
+                            console.log('[DatabaseService] Result has error:', 'error' in result);
+                            
+                            if (result) {
+                                console.log('[DatabaseService] Result.data:', result.data);
+                                console.log('[DatabaseService] Result.error:', result.error);
+                            }
+                        } catch (awaitError) {
+                            clearInterval(progressInterval);
+                            const queryElapsed = Date.now() - queryStartTime;
+                            console.error(`[DatabaseService] Await threw error after ${queryElapsed}ms:`, awaitError);
+                            throw awaitError;
+                        }
                         
                         clearTimeout(timeoutId);
                         console.log('[DatabaseService] Timeout cleared, resolving with result');
