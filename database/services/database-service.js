@@ -29,25 +29,24 @@ const DatabaseService = {
             }
             
             const { year, month } = this.parseMonthKey(monthKey);
-            console.log(`[DatabaseService] Checking example_months for year=${year}, month=${month}...`);
+            console.log(`[DatabaseService] Checking example_months for year=${year}, month=${month} using direct fetch...`);
             
-            const { data, error } = await this.client
-                .from('example_months')
-                .select('id')
-                .eq('year', year)
-                .eq('month', month)
-                .single();
+            const { data, error } = await this.directFetch('example_months', {
+                select: 'id',
+                filter: { year: year, month: month },
+                limit: 1
+            });
             
             if (error) {
-                if (error.code === 'PGRST116') {
-                    console.log(`[DatabaseService] ${monthKey} not found in example_months (PGRST116) - not example data`);
+                if (error.code === 'PGRST116' || error.status === 404) {
+                    console.log(`[DatabaseService] ${monthKey} not found in example_months - not example data`);
                     return false; // Not found in example_months
                 }
                 console.error(`[DatabaseService] Error checking example_months:`, error);
-                throw error;
+                return false;
             }
             
-            const isExample = data !== null;
+            const isExample = data !== null && Array.isArray(data) && data.length > 0;
             console.log(`[DatabaseService] ${monthKey} isExampleData result: ${isExample}`);
             return isExample;
         } catch (error) {
@@ -371,6 +370,92 @@ const DatabaseService = {
      * @param {boolean} forceRefresh - Deprecated, always fetches fresh
      * @returns {Promise<Object>} Object with all months keyed by monthKey
      */
+    /**
+     * Direct fetch helper - bypasses Supabase JS client when it hangs
+     * Always fetches fresh data from database - no caching
+     */
+    async directFetch(table, queryParams = {}) {
+        const url = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+        
+        // Add query parameters for GET requests
+        if (queryParams.method === 'GET' || !queryParams.method) {
+            if (queryParams.select) {
+                url.searchParams.append('select', queryParams.select);
+            }
+            if (queryParams.filter) {
+                Object.entries(queryParams.filter).forEach(([key, value]) => {
+                    url.searchParams.append(key, `eq.${value}`);
+                });
+            }
+            if (queryParams.order) {
+                queryParams.order.forEach(({ column, ascending }) => {
+                    url.searchParams.append('order', `${column}.${ascending ? 'asc' : 'desc'}`);
+                });
+            }
+            if (queryParams.limit) {
+                url.searchParams.append('limit', queryParams.limit);
+            }
+        }
+        
+        const headers = {
+            'apikey': this.client.supabaseKey,
+            'Authorization': `Bearer ${this.client.supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+        
+        // For upsert operations, add resolution header
+        if (queryParams.onConflict) {
+            headers['Prefer'] = `resolution=merge-duplicates,return=representation`;
+        }
+        
+        const response = await fetch(url.toString(), {
+            method: queryParams.method || 'GET',
+            headers: headers,
+            body: queryParams.body ? JSON.stringify(queryParams.body) : undefined
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorObj;
+            try {
+                errorObj = JSON.parse(errorText);
+            } catch {
+                errorObj = { message: errorText };
+            }
+            return { 
+                data: null, 
+                error: { 
+                    message: errorObj.message || errorText, 
+                    code: errorObj.code,
+                    details: errorObj.details,
+                    hint: errorObj.hint,
+                    status: response.status 
+                } 
+            };
+        }
+        
+        // Handle response body - read once
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const text = await response.text();
+            if (!text || text.trim() === '') {
+                return { data: null, error: null };
+            }
+            try {
+                const data = JSON.parse(text);
+                return { data, error: null };
+            } catch (e) {
+                console.error('[DatabaseService] Failed to parse JSON response:', e);
+                console.error('[DatabaseService] Response text:', text);
+                return { data: null, error: { message: 'Invalid JSON response', status: response.status } };
+            }
+        }
+        
+        // Non-JSON response or empty
+        return { data: null, error: null };
+    },
+
     async getAllMonths(forceRefresh = false) {
         try {
             console.log('[DatabaseService] getAllMonths() called, forceRefresh:', forceRefresh);
@@ -383,13 +468,23 @@ const DatabaseService = {
             // Always fetch fresh from database - no caching
             console.log('[DatabaseService] Fetching months from database...');
             
-            // Fetch user months
-            console.log('[DatabaseService] Querying user_months table...');
-            const { data: userMonthsData, error: userMonthsError } = await this.client
-                .from('user_months')
-                .select('*')
-                .order('year', { ascending: false })
-                .order('month', { ascending: false });
+            // Fetch user months using direct fetch (Supabase JS client is hanging)
+            console.log('[DatabaseService] Querying user_months table using direct fetch...');
+            const userMonthsResult = await Promise.race([
+                this.directFetch('user_months', {
+                    select: '*',
+                    order: [
+                        { column: 'year', ascending: false },
+                        { column: 'month', ascending: false }
+                    ]
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('User months fetch timeout')), 10000))
+            ]).catch(err => {
+                console.error('[DatabaseService] Direct fetch for user_months failed:', err);
+                return { data: null, error: err };
+            });
+            
+            const { data: userMonthsData, error: userMonthsError } = userMonthsResult;
             
             if (userMonthsError) {
                 console.error('[DatabaseService] Error fetching user_months:', userMonthsError);
@@ -401,14 +496,24 @@ const DatabaseService = {
                 console.log('[DatabaseService] user_months data:', userMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             }
             
-            // Fetch example months
-            console.log('[DatabaseService] Querying example_months table...');
+            // Fetch example months using direct fetch
+            console.log('[DatabaseService] Querying example_months table using direct fetch...');
             let exampleMonthsData = [];
-            const { data: exampleData, error: exampleMonthsError } = await this.client
-                .from('example_months')
-                .select('*')
-                .order('year', { ascending: false })
-                .order('month', { ascending: false });
+            const exampleMonthsResult = await Promise.race([
+                this.directFetch('example_months', {
+                    select: '*',
+                    order: [
+                        { column: 'year', ascending: false },
+                        { column: 'month', ascending: false }
+                    ]
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Example months fetch timeout')), 10000))
+            ]).catch(err => {
+                console.error('[DatabaseService] Direct fetch for example_months failed:', err);
+                return { data: null, error: err };
+            });
+            
+            const { data: exampleData, error: exampleMonthsError } = exampleMonthsResult;
             
             if (exampleMonthsError) {
                 // If table doesn't exist yet, log warning but don't fail
@@ -417,7 +522,8 @@ const DatabaseService = {
                     exampleMonthsData = [];
                 } else {
                     console.error('[DatabaseService] Error fetching example_months:', exampleMonthsError);
-                    throw exampleMonthsError;
+                    // Don't throw - just log and continue with empty array
+                    exampleMonthsData = [];
                 }
             } else {
                 exampleMonthsData = exampleData || [];
@@ -497,59 +603,57 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Always fetch fresh from database - check both tables
+            // Always fetch fresh from database - check both tables using direct fetch
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            // First check example_months
-            console.log(`[DatabaseService] Checking example_months for ${year}-${month}...`);
-            let { data, error } = await this.client
-                .from('example_months')
-                .select('*')
-                .eq('year', year)
-                .eq('month', month)
-                .single();
+            // First check example_months using direct fetch
+            console.log(`[DatabaseService] Checking example_months for ${year}-${month} using direct fetch...`);
+            let fetchResult = await this.directFetch('example_months', {
+                select: '*',
+                filter: { year: year, month: month },
+                limit: 1
+            });
             
-            // If not found in example_months, check user_months
-            if (error && error.code === 'PGRST116') {
-                console.log(`[DatabaseService] Not found in example_months, checking user_months...`);
-                const { data: userData, error: userError } = await this.client
-                    .from('user_months')
-                    .select('*')
-                    .eq('year', year)
-                    .eq('month', month)
-                    .single();
-                
-                if (userError) {
-                    if (userError.code === 'PGRST116') {
-                        console.log(`[DatabaseService] Month ${monthKey} not found in either table`);
-                        return null; // Not found in either table
-                    }
-                    console.error(`[DatabaseService] Error fetching from user_months:`, userError);
-                    throw userError;
-                }
-                
-                console.log(`[DatabaseService] Found month ${monthKey} in user_months table`);
-                data = userData;
-                error = null;
-            } else if (error) {
-                console.error(`[DatabaseService] Error fetching from example_months:`, error);
-                throw error;
-            } else {
+            let data = null;
+            let error = null;
+            
+            // Check if we got data from example_months
+            if (fetchResult.data && Array.isArray(fetchResult.data) && fetchResult.data.length > 0) {
+                data = fetchResult.data[0];
                 console.log(`[DatabaseService] Found month ${monthKey} in example_months table`);
+            } else if (fetchResult.error && (fetchResult.error.code === 'PGRST116' || fetchResult.error.status === 404)) {
+                // Not found in example_months, check user_months
+                console.log(`[DatabaseService] Not found in example_months, checking user_months using direct fetch...`);
+                const userFetchResult = await this.directFetch('user_months', {
+                    select: '*',
+                    filter: { year: year, month: month },
+                    limit: 1
+                });
+                
+                if (userFetchResult.data && Array.isArray(userFetchResult.data) && userFetchResult.data.length > 0) {
+                    data = userFetchResult.data[0];
+                    console.log(`[DatabaseService] Found month ${monthKey} in user_months table`);
+                } else if (userFetchResult.error && (userFetchResult.error.code === 'PGRST116' || userFetchResult.error.status === 404)) {
+                    console.log(`[DatabaseService] Month ${monthKey} not found in either table`);
+                    return null; // Not found in either table
+                } else if (userFetchResult.error) {
+                    console.error(`[DatabaseService] Error fetching from user_months:`, userFetchResult.error);
+                    error = userFetchResult.error;
+                }
+            } else if (fetchResult.error) {
+                console.error(`[DatabaseService] Error fetching from example_months:`, fetchResult.error);
+                error = fetchResult.error;
+            }
+            
+            if (error) {
+                throw error;
             }
             
             const monthData = data ? this.transformMonthFromDatabase(data) : null;
             console.log(`[DatabaseService] getMonth() completed for ${monthKey}:`, monthData ? 'Found' : 'Not found');
             
-            // Update in-memory cache for current session only
-            if (monthData) {
-                if (!this.monthsCache) {
-                    this.monthsCache = {};
-                }
-                this.monthsCache[monthKey] = monthData;
-            }
-            
+            // No caching - always return fresh data from database
             return monthData;
         } catch (error) {
             console.error(`[DatabaseService] Error getting month ${monthKey}:`, error);
@@ -557,15 +661,11 @@ const DatabaseService = {
                 message: error.message,
                 code: error.code,
                 details: error.details,
-                hint: error.hint
+                hint: error.hint,
+                status: error.status
             });
             
-            // If database fetch fails, try to use in-memory cache as fallback
-            if (this.monthsCache && this.monthsCache[monthKey]) {
-                console.warn(`[DatabaseService] Database fetch failed for ${monthKey}, using in-memory cache as fallback`);
-                return { ...this.monthsCache[monthKey] };
-            }
-            
+            // No fallback to cache - fail hard to ensure data accuracy
             throw error;
         }
     },
@@ -612,34 +712,75 @@ const DatabaseService = {
                 console.log(`[DatabaseService] Using ${tableName} table (determined from monthKey)`);
             }
             
-            console.log(`[DatabaseService] Upserting to ${tableName} table...`);
-            const { data, error } = await this.client
-                .from(tableName)
-                .upsert(monthRecord, { onConflict: 'year,month' })
-                .select();
+            console.log(`[DatabaseService] Upserting to ${tableName} table using direct fetch...`);
             
-            if (error) {
-                console.error(`[DatabaseService] Error upserting to ${tableName}:`, error);
-                console.error('[DatabaseService] Error details:', {
-                    message: error.message,
-                    code: error.code,
-                    details: error.details,
-                    hint: error.hint
+            // Use PATCH method with Prefer header for upsert (Supabase REST API)
+            // Upsert = update if exists, insert if not
+            const upsertUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${tableName}`);
+            upsertUrl.searchParams.append('year', `eq.${year}`);
+            upsertUrl.searchParams.append('month', `eq.${month}`);
+            upsertUrl.searchParams.append('select', '*');
+            
+            // Try PATCH first (update if exists)
+            let upsertResponse = await fetch(upsertUrl.toString(), {
+                method: 'PATCH',
+                headers: {
+                    'apikey': this.client.supabaseKey,
+                    'Authorization': `Bearer ${this.client.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(monthRecord)
+            });
+            
+            // If PATCH returns 404 or no rows updated, use POST (insert)
+            if (!upsertResponse.ok || upsertResponse.status === 404) {
+                console.log(`[DatabaseService] PATCH returned ${upsertResponse.status}, trying POST for insert...`);
+                const insertUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${tableName}`);
+                upsertResponse = await fetch(insertUrl.toString(), {
+                    method: 'POST',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(monthRecord)
                 });
+            }
+            
+            if (!upsertResponse.ok) {
+                const errorText = await upsertResponse.text();
+                let errorObj;
+                try {
+                    errorObj = JSON.parse(errorText);
+                } catch {
+                    errorObj = { message: errorText };
+                }
+                const error = {
+                    message: errorObj.message || errorText,
+                    code: errorObj.code,
+                    details: errorObj.details,
+                    hint: errorObj.hint,
+                    status: upsertResponse.status
+                };
+                console.error(`[DatabaseService] Error upserting to ${tableName}:`, error);
+                console.error('[DatabaseService] Error details:', error);
                 throw error;
             }
             
+            const upsertData = await upsertResponse.json();
             console.log(`[DatabaseService] Successfully saved month ${monthKey} to ${tableName} table`);
-            if (data && data.length > 0) {
-                console.log(`[DatabaseService] Upsert returned data:`, data[0]);
+            if (upsertData && Array.isArray(upsertData) && upsertData.length > 0) {
+                console.log(`[DatabaseService] Upsert returned data:`, upsertData[0]);
+            } else if (upsertData) {
+                console.log(`[DatabaseService] Upsert returned data:`, upsertData);
             }
             
-            // Update in-memory cache for current session only
-            if (!this.monthsCache) {
-                this.monthsCache = {};
+            // Clear cache to ensure next fetch gets fresh data
+            if (this.monthsCache && this.monthsCache[monthKey]) {
+                delete this.monthsCache[monthKey];
             }
-            this.monthsCache[monthKey] = monthData;
-            this.cacheTimestamp = Date.now();
             
             // Don't save to localStorage - data is in database, will be loaded fresh on next page load
             // User data is always saved to user_months table and loaded fresh
@@ -687,35 +828,54 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            // Only delete from user_months (never from example_months)
-            console.log(`[DatabaseService] Deleting from user_months table...`);
-            const { data, error } = await this.client
-                .from('user_months')
-                .delete()
-                .eq('year', year)
-                .eq('month', month)
-                .select();
+            // Only delete from user_months (never from example_months) using direct fetch
+            console.log(`[DatabaseService] Deleting from user_months table using direct fetch...`);
             
-            if (error) {
+            // Build delete URL with filters
+            const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
+            deleteUrl.searchParams.append('year', `eq.${year}`);
+            deleteUrl.searchParams.append('month', `eq.${month}`);
+            deleteUrl.searchParams.append('select', '*');
+            
+            const deleteResponse = await fetch(deleteUrl.toString(), {
+                method: 'DELETE',
+                headers: {
+                    'apikey': this.client.supabaseKey,
+                    'Authorization': `Bearer ${this.client.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                }
+            });
+            
+            if (!deleteResponse.ok) {
+                const errorText = await deleteResponse.text();
+                let errorObj;
+                try {
+                    errorObj = JSON.parse(errorText);
+                } catch {
+                    errorObj = { message: errorText };
+                }
+                const error = {
+                    message: errorObj.message || errorText,
+                    code: errorObj.code,
+                    details: errorObj.details,
+                    hint: errorObj.hint,
+                    status: deleteResponse.status
+                };
                 console.error(`[DatabaseService] Error deleting from user_months:`, error);
-                console.error('[DatabaseService] Error details:', {
-                    message: error.message,
-                    code: error.code,
-                    details: error.details,
-                    hint: error.hint
-                });
+                console.error('[DatabaseService] Error details:', error);
                 throw error;
             }
             
+            const deletedData = await deleteResponse.json();
             console.log(`[DatabaseService] Successfully deleted month ${monthKey} from user_months`);
-            if (data && data.length > 0) {
-                console.log(`[DatabaseService] Delete returned data:`, data);
+            if (deletedData && deletedData.length > 0) {
+                console.log(`[DatabaseService] Delete returned data:`, deletedData);
             }
             
-            // Update in-memory cache after deletion
+            // Clear cache to ensure next fetch gets fresh data
             if (this.monthsCache && this.monthsCache[monthKey]) {
                 delete this.monthsCache[monthKey];
-                this.cacheTimestamp = Date.now();
                 console.log(`[DatabaseService] Removed ${monthKey} from in-memory cache`);
             }
             
@@ -790,14 +950,18 @@ const DatabaseService = {
             
             const potsRecords = potsArray.map(pot => this.transformPotToDatabase(pot));
             
-            const { error } = await this.client
-                .from('pots')
-                .upsert(potsRecords);
+            console.log('[DatabaseService] Upserting pots using direct fetch...');
+            const upsertResult = await this.directFetch('pots', {
+                method: 'POST',
+                body: potsRecords
+            });
             
-            if (error) {
-                throw error;
+            if (upsertResult.error) {
+                console.error('[DatabaseService] Error saving pots:', upsertResult.error);
+                throw upsertResult.error;
             }
             
+            console.log('[DatabaseService] Successfully saved pots');
             return true;
         } catch (error) {
             console.error('Error saving pots:', error);
@@ -824,20 +988,18 @@ const DatabaseService = {
             console.log('[DatabaseService] Client type:', typeof this.client);
             console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
             
-            // First, check if the settings table exists and has any data
+            // First, check if the settings table exists and has any data using direct fetch
             console.log('[DatabaseService] Checking if settings table exists and has data...');
             try {
                 const tableCheckStart = Date.now();
                 
-                // Use a simple query with count to check table existence and row count
-                console.log('[DatabaseService] Executing table existence and row count check...');
-                const tableCheckQuery = this.client
-                .from('settings')
-                    .select('*', { count: 'exact', head: false })
-                    .limit(1);
-                
+                // Use direct fetch to check table existence and row count
+                console.log('[DatabaseService] Executing table existence and row count check using direct fetch...');
                 const tableCheckResult = await Promise.race([
-                    tableCheckQuery,
+                    this.directFetch('settings', {
+                        select: '*',
+                        limit: 1
+                    }),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Table check timeout')), 3000))
                 ]);
                 
@@ -899,134 +1061,38 @@ const DatabaseService = {
                 }
             }
             
-            // Wrap the entire query in a timeout to prevent indefinite hanging
-            const queryWithTimeout = async () => {
-                return new Promise(async (resolve, reject) => {
-                    console.log('[DatabaseService] Setting up timeout wrapper...');
-                    
-                    // Set up timeout
-                    const timeoutId = setTimeout(() => {
-                        const elapsed = Date.now() - startTime;
-                        console.error(`[DatabaseService] Settings query timeout after 5 seconds (elapsed: ${elapsed}ms) - returning null`);
-                        resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
-                    }, 5000);
-                    
-                    console.log('[DatabaseService] Timeout set for 5 seconds');
-                    
-                    try {
-                        console.log('[DatabaseService] Creating query builder...');
-                        const queryBuilder = this.client.from('settings');
-                        console.log('[DatabaseService] Query builder created:', typeof queryBuilder);
-                        
-                        console.log('[DatabaseService] Adding select...');
-                        const selectBuilder = queryBuilder.select('*');
-                        console.log('[DatabaseService] Select added:', typeof selectBuilder);
-                        
-                        console.log('[DatabaseService] Adding eq filter...');
-                        const eqBuilder = selectBuilder.eq('id', 1);
-                        console.log('[DatabaseService] Eq filter added:', typeof eqBuilder);
-                        
-                        console.log('[DatabaseService] Adding single()...');
-                        const singleBuilder = eqBuilder.single();
-                        console.log('[DatabaseService] Single() added, executing query...');
-                        console.log('[DatabaseService] Query builder chain complete, awaiting result...');
-                        
-                        // Check if singleBuilder is a promise
-                        console.log('[DatabaseService] singleBuilder is Promise:', singleBuilder instanceof Promise);
-                        console.log('[DatabaseService] singleBuilder type:', typeof singleBuilder);
-                        console.log('[DatabaseService] singleBuilder object:', singleBuilder);
-                        
-                        // Try to see if there's a then method (promise-like)
-                        if (singleBuilder && typeof singleBuilder.then === 'function') {
-                            console.log('[DatabaseService] singleBuilder has then() method - it is a promise');
-                            
-                            // Check if it's actually a Supabase PostgrestQueryBuilder
-                            if (singleBuilder.constructor && singleBuilder.constructor.name) {
-                                console.log('[DatabaseService] singleBuilder constructor:', singleBuilder.constructor.name);
-                            }
-                            
-                            // Try to manually trigger the request by calling then immediately
-                            console.log('[DatabaseService] Attempting to trigger request by calling then()...');
-                            const manualTrigger = singleBuilder.then(
-                                data => {
-                                    console.log('[DatabaseService] Manual trigger success:', data);
-                                    return data;
-                                },
-                                err => {
-                                    console.error('[DatabaseService] Manual trigger error:', err);
-                                    throw err;
-                                }
-                            );
-                            console.log('[DatabaseService] Manual trigger promise created:', manualTrigger);
-                        } else {
-                            console.error('[DatabaseService] singleBuilder is NOT a promise!');
-                            console.error('[DatabaseService] This means the query builder chain is broken');
-                            throw new Error('Query builder did not return a promise');
-                        }
-                        
-                        const queryStartTime = Date.now();
-                        console.log(`[DatabaseService] About to await query at ${queryStartTime}ms`);
-                        console.log('[DatabaseService] Network tab should show requests to:', this.client.supabaseUrl);
-                        console.log('[DatabaseService] Expected URL pattern: /rest/v1/settings?id=eq.1&select=*');
-                        
-                        // Add a progress check every second
-                        const progressInterval = setInterval(() => {
-                            const elapsed = Date.now() - queryStartTime;
-                            console.log(`[DatabaseService] Query still waiting... (${elapsed}ms elapsed)`);
-                            if (elapsed === 1000) {
-                                console.warn('[DatabaseService] After 1 second - check Network tab for requests to supabase.co');
-                            }
-                            if (elapsed === 3000) {
-                                console.error('[DatabaseService] After 3 seconds - if no requests in Network tab, query is not executing');
-                            }
-                        }, 1000);
-                        
-                        let result;
-                        try {
-                            console.log('[DatabaseService] Awaiting promise - this should trigger HTTP request...');
-                            result = await singleBuilder;
-                            clearInterval(progressInterval);
-                            const queryElapsed = Date.now() - queryStartTime;
-                            
-                            console.log(`[DatabaseService] Query completed in ${queryElapsed}ms, result:`, result);
-                            console.log('[DatabaseService] Result type:', typeof result);
-                            console.log('[DatabaseService] Result has data:', 'data' in result);
-                            console.log('[DatabaseService] Result has error:', 'error' in result);
-                            
-                            if (result) {
-                                console.log('[DatabaseService] Result.data:', result.data);
-                                console.log('[DatabaseService] Result.error:', result.error);
-                            }
-                        } catch (awaitError) {
-                            clearInterval(progressInterval);
-                            const queryElapsed = Date.now() - queryStartTime;
-                            console.error(`[DatabaseService] Await threw error after ${queryElapsed}ms:`, awaitError);
-                            throw awaitError;
-                        }
-                        
-                        clearTimeout(timeoutId);
-                        console.log('[DatabaseService] Timeout cleared, resolving with result');
-                        resolve(result);
-                    } catch (queryError) {
-                        const elapsed = Date.now() - startTime;
-                        clearTimeout(timeoutId);
-                        console.error(`[DatabaseService] Query threw error after ${elapsed}ms:`, queryError);
-                        console.error('[DatabaseService] Error type:', typeof queryError);
-                        console.error('[DatabaseService] Error constructor:', queryError?.constructor?.name);
-                        console.error('[DatabaseService] Error message:', queryError?.message);
-                        console.error('[DatabaseService] Error stack:', queryError?.stack);
-                        resolve({ data: null, error: queryError });
-                    }
-                });
-            };
+            // Use direct fetch instead of Supabase JS client (which is hanging)
+            console.log('[DatabaseService] Using direct fetch for settings query...');
+            const queryResult = await Promise.race([
+                this.directFetch('settings', {
+                    select: '*',
+                    filter: { id: 1 },
+                    limit: 1
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 5000))
+            ]).catch(err => {
+                console.error('[DatabaseService] Direct fetch for settings failed:', err);
+                return { data: null, error: err };
+            });
             
-            console.log('[DatabaseService] Calling queryWithTimeout...');
-            const queryResult = await queryWithTimeout();
             const totalElapsed = Date.now() - startTime;
-            console.log(`[DatabaseService] queryWithTimeout completed in ${totalElapsed}ms`);
-            console.log('[DatabaseService] Query result:', queryResult);
+            console.log(`[DatabaseService] Settings fetch completed in ${totalElapsed}ms`);
             
-            const { data, error } = queryResult;
+            // Convert direct fetch result to Supabase-like format
+            let queryResultFormatted;
+            if (queryResult.error) {
+                queryResultFormatted = { data: null, error: queryResult.error };
+            } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
+                // Return single item (like .single() would)
+                queryResultFormatted = { data: queryResult.data[0], error: null };
+            } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length === 0) {
+                // No data found
+                queryResultFormatted = { data: null, error: { code: 'PGRST116', message: 'No rows found' } };
+            } else {
+                queryResultFormatted = { data: queryResult.data, error: null };
+            }
+            
+            const { data, error } = queryResultFormatted;
             
             if (error) {
                 if (error.code === 'TIMEOUT') {
@@ -1101,26 +1167,30 @@ const DatabaseService = {
             const settingsRecord = this.transformSettingsToDatabase(settings);
             console.log('[DatabaseService] Transformed settings record:', settingsRecord);
             
-            console.log('[DatabaseService] Upserting to settings table...');
-            const { data, error } = await this.client
-                .from('settings')
-                .upsert({ id: 1, ...settingsRecord }, { onConflict: 'id' })
-                .select();
+            console.log('[DatabaseService] Upserting to settings table using direct fetch...');
             
-            if (error) {
-                console.error('[DatabaseService] Error saving settings:', error);
+            // Use POST with Prefer header for upsert
+            const upsertResult = await this.directFetch('settings', {
+                method: 'POST',
+                body: { id: 1, ...settingsRecord },
+                onConflict: 'id'
+            });
+            
+            if (upsertResult.error) {
+                console.error('[DatabaseService] Error saving settings:', upsertResult.error);
                 console.error('[DatabaseService] Error details:', {
-                    message: error.message,
-                    code: error.code,
-                    details: error.details,
-                    hint: error.hint
+                    message: upsertResult.error.message,
+                    code: upsertResult.error.code,
+                    details: upsertResult.error.details,
+                    hint: upsertResult.error.hint,
+                    status: upsertResult.error.status
                 });
-                throw error;
+                throw upsertResult.error;
             }
             
             console.log('[DatabaseService] Successfully saved settings');
-            if (data && data.length > 0) {
-                console.log('[DatabaseService] Upsert returned data:', data[0]);
+            if (upsertResult.data) {
+                console.log('[DatabaseService] Upsert returned data:', upsertResult.data);
             }
             
             return true;
@@ -1352,59 +1422,63 @@ const DatabaseService = {
                 errors: []
             };
             
-            // Delete all user months
-            console.log('[DatabaseService] Deleting all user_months...');
+            // Delete all user months using direct fetch
+            console.log('[DatabaseService] Deleting all user_months using direct fetch...');
             try {
-                // First, get count of rows to delete
-                const { count: monthsCount } = await this.client
-                    .from('user_months')
-                    .select('*', { count: 'exact', head: true });
+                // Delete all rows by using a filter that matches all (id >= 1)
+                const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
+                deleteUrl.searchParams.append('id', 'gte.1');
+                deleteUrl.searchParams.append('select', '*');
                 
-                console.log(`[DatabaseService] Found ${monthsCount || 0} user months to delete`);
+                const deleteResponse = await fetch(deleteUrl.toString(), {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    }
+                });
                 
-                // Delete all rows (using gte on id to match all rows since id is always >= 1)
-                const { data: deletedMonths, error: monthsError } = await this.client
-                    .from('user_months')
-                    .delete()
-                    .gte('id', 1) // Match all rows (id is always >= 1)
-                    .select();
-                
-                if (monthsError) {
-                    console.error('[DatabaseService] Error deleting user_months:', monthsError);
-                    result.errors.push(`user_months: ${monthsError.message}`);
-                } else {
-                    result.userMonthsDeleted = deletedMonths ? deletedMonths.length : 0;
-                    console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months`);
+                if (!deleteResponse.ok) {
+                    const errorText = await deleteResponse.text();
+                    throw new Error(`HTTP ${deleteResponse.status}: ${errorText}`);
                 }
+                
+                const deletedMonths = await deleteResponse.json();
+                result.userMonthsDeleted = deletedMonths ? (Array.isArray(deletedMonths) ? deletedMonths.length : 1) : 0;
+                console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months`);
             } catch (monthsError) {
                 console.error('[DatabaseService] Exception deleting user_months:', monthsError);
                 result.errors.push(`user_months: ${monthsError.message}`);
             }
             
-            // Delete all pots
-            console.log('[DatabaseService] Deleting all pots...');
+            // Delete all pots using direct fetch
+            console.log('[DatabaseService] Deleting all pots using direct fetch...');
             try {
-                // First, get count of rows to delete
-                const { count: potsCount } = await this.client
-                    .from('pots')
-                    .select('*', { count: 'exact', head: true });
+                // Delete all rows by using a filter that matches all (id >= 1)
+                const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/pots`);
+                deleteUrl.searchParams.append('id', 'gte.1');
+                deleteUrl.searchParams.append('select', '*');
                 
-                console.log(`[DatabaseService] Found ${potsCount || 0} pots to delete`);
+                const deleteResponse = await fetch(deleteUrl.toString(), {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    }
+                });
                 
-                // Delete all rows
-                const { data: deletedPots, error: potsError } = await this.client
-                    .from('pots')
-                    .delete()
-                    .gte('id', 1) // Match all rows (id is always >= 1)
-                    .select();
-                
-                if (potsError) {
-                    console.error('[DatabaseService] Error deleting pots:', potsError);
-                    result.errors.push(`pots: ${potsError.message}`);
-                } else {
-                    result.potsDeleted = deletedPots ? deletedPots.length : 0;
-                    console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots`);
+                if (!deleteResponse.ok) {
+                    const errorText = await deleteResponse.text();
+                    throw new Error(`HTTP ${deleteResponse.status}: ${errorText}`);
                 }
+                
+                const deletedPots = await deleteResponse.json();
+                result.potsDeleted = deletedPots ? (Array.isArray(deletedPots) ? deletedPots.length : 1) : 0;
+                console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots`);
             } catch (potsError) {
                 console.error('[DatabaseService] Exception deleting pots:', potsError);
                 result.errors.push(`pots: ${potsError.message}`);
