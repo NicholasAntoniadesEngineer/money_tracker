@@ -2,6 +2,12 @@
  * Database Service
  * Main service layer for all database operations using Supabase
  * Replaces localStorage and FileService
+ * 
+ * ARCHITECTURE:
+ * - All database operations go through a centralized query interface
+ * - Currently uses direct fetch (native fetch API) due to Supabase JS client hanging
+ * - To switch implementations, only modify the query methods below
+ * - This ensures reliable, always-fresh data from Supabase
  */
 
 const DatabaseService = {
@@ -12,6 +18,223 @@ const DatabaseService = {
     CACHE_STORAGE_KEY: 'money_tracker_months_cache',
     CACHE_TIMESTAMP_KEY: 'money_tracker_cache_timestamp',
     EXAMPLE_YEAR: 2045, // Example data year - protected from deletion
+    
+    /**
+     * ============================================================================
+     * CENTRALIZED DATABASE QUERY INTERFACE
+     * ============================================================================
+     * All database operations go through these methods.
+     * To change how we interact with Supabase, modify ONLY these methods.
+     * ============================================================================
+     */
+    
+    /**
+     * Execute a SELECT query
+     * @param {string} table - Table name
+     * @param {Object} options - Query options
+     * @returns {Promise<{data: Array|null, error: Object|null}>}
+     */
+    async querySelect(table, options = {}) {
+        const url = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+        
+        // Add query parameters
+        if (options.select) {
+            url.searchParams.append('select', options.select);
+        }
+        if (options.filter) {
+            Object.entries(options.filter).forEach(([key, value]) => {
+                url.searchParams.append(key, `eq.${value}`);
+            });
+        }
+        if (options.order) {
+            options.order.forEach(({ column, ascending }) => {
+                url.searchParams.append('order', `${column}.${ascending ? 'asc' : 'desc'}`);
+            });
+        }
+        if (options.limit) {
+            url.searchParams.append('limit', options.limit);
+        }
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'apikey': this.client.supabaseKey,
+                'Authorization': `Bearer ${this.client.supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            }
+        });
+        
+        return await this._handleResponse(response);
+    },
+    
+    /**
+     * Execute an INSERT/UPSERT operation
+     * @param {string} table - Table name
+     * @param {Object|Array} data - Data to insert/upsert
+     * @param {Object} options - Upsert options (onConflict, etc.)
+     * @returns {Promise<{data: Array|null, error: Object|null}>}
+     */
+    async queryUpsert(table, data, options = {}) {
+        // Try PATCH first (update if exists), then POST (insert if not)
+        const { year, month } = options.filter || {};
+        const identifier = options.identifier || 'id';
+        const identifierValue = options.identifierValue;
+        
+        if (year !== undefined && month !== undefined) {
+            // For months table - use year/month as identifier
+            const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+            patchUrl.searchParams.append('year', `eq.${year}`);
+            patchUrl.searchParams.append('month', `eq.${month}`);
+            patchUrl.searchParams.append('select', '*');
+            
+            let response = await fetch(patchUrl.toString(), {
+                method: 'PATCH',
+                headers: {
+                    'apikey': this.client.supabaseKey,
+                    'Authorization': `Bearer ${this.client.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok || response.status === 404) {
+                // Try POST for insert
+                const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+                response = await fetch(postUrl.toString(), {
+                    method: 'POST',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(data)
+                });
+            }
+            
+            return await this._handleResponse(response);
+        } else if (identifierValue !== undefined) {
+            // For settings table - use id as identifier
+            const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+            patchUrl.searchParams.append(identifier, `eq.${identifierValue}`);
+            patchUrl.searchParams.append('select', '*');
+            
+            let response = await fetch(patchUrl.toString(), {
+                method: 'PATCH',
+                headers: {
+                    'apikey': this.client.supabaseKey,
+                    'Authorization': `Bearer ${this.client.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok || response.status === 404) {
+                // Try POST for insert
+                const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+                response = await fetch(postUrl.toString(), {
+                    method: 'POST',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({ [identifier]: identifierValue, ...data })
+                });
+            }
+            
+            return await this._handleResponse(response);
+        } else {
+            // Simple POST for new records
+            const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+            const response = await fetch(postUrl.toString(), {
+                method: 'POST',
+                headers: {
+                    'apikey': this.client.supabaseKey,
+                    'Authorization': `Bearer ${this.client.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            return await this._handleResponse(response);
+        }
+    },
+    
+    /**
+     * Execute a DELETE operation
+     * @param {string} table - Table name
+     * @param {Object} filter - Filter conditions
+     * @returns {Promise<{data: Array|null, error: Object|null}>}
+     */
+    async queryDelete(table, filter = {}) {
+        const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+        deleteUrl.searchParams.append('select', '*');
+        
+        // Add filter conditions
+        Object.entries(filter).forEach(([key, value]) => {
+            deleteUrl.searchParams.append(key, `eq.${value}`);
+        });
+        
+        const response = await fetch(deleteUrl.toString(), {
+            method: 'DELETE',
+            headers: {
+                'apikey': this.client.supabaseKey,
+                'Authorization': `Bearer ${this.client.supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            }
+        });
+        
+        return await this._handleResponse(response);
+    },
+    
+    /**
+     * Handle HTTP response and convert to standard format
+     * @private
+     */
+    async _handleResponse(response) {
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorObj;
+            try {
+                errorObj = JSON.parse(errorText);
+            } catch {
+                errorObj = { message: errorText };
+            }
+            return {
+                data: null,
+                error: {
+                    message: errorObj.message || errorText,
+                    code: errorObj.code,
+                    details: errorObj.details,
+                    hint: errorObj.hint,
+                    status: response.status
+                }
+            };
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const text = await response.text();
+            if (!text || text.trim() === '') {
+                return { data: null, error: null };
+            }
+            try {
+                const data = JSON.parse(text);
+                return { data, error: null };
+            } catch (e) {
+                return { data: null, error: { message: 'Invalid JSON response', status: response.status } };
+            }
+        }
+        
+        return { data: null, error: null };
+    },
     
     /**
      * Check if a month key is example data (protected)
@@ -29,9 +252,9 @@ const DatabaseService = {
             }
             
             const { year, month } = this.parseMonthKey(monthKey);
-            console.log(`[DatabaseService] Checking example_months for year=${year}, month=${month} using direct fetch...`);
+            console.log(`[DatabaseService] Checking example_months for year=${year}, month=${month}...`);
             
-            const { data, error } = await this.directFetch('example_months', {
+            const { data, error } = await this.querySelect('example_months', {
                 select: 'id',
                 filter: { year: year, month: month },
                 limit: 1
@@ -371,8 +594,25 @@ const DatabaseService = {
      * @returns {Promise<Object>} Object with all months keyed by monthKey
      */
     /**
-     * Direct fetch helper - bypasses Supabase JS client when it hangs
-     * Always fetches fresh data from database - no caching
+     * Low-level direct fetch helper - bypasses Supabase JS client when it hangs
+     * 
+     * NOTE: This is a low-level helper method. All database operations should use
+     * the centralized query interface methods (querySelect, queryUpsert, queryDelete)
+     * instead of calling this directly. This method is kept for:
+     * - Testing/debugging purposes
+     * - Initialization connectivity tests
+     * - Future migration if needed
+     * 
+     * We're using direct fetch instead of the Supabase JS client because:
+     * - The Supabase JS client queries were hanging indefinitely (promises never resolving)
+     * - Direct fetch works reliably and returns data immediately
+     * - This ensures we always get fresh, accurate data from the database
+     * 
+     * The centralized query interface (querySelect, queryUpsert, queryDelete) uses
+     * this method internally, so if we need to switch implementations in the future,
+     * we only need to modify those three methods.
+     * 
+     * @private (kept public for testing/debugging, but prefer using querySelect/queryUpsert/queryDelete)
      */
     async directFetch(table, queryParams = {}) {
         const url = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
@@ -468,23 +708,15 @@ const DatabaseService = {
             // Always fetch fresh from database - no caching
             console.log('[DatabaseService] Fetching months from database...');
             
-            // Fetch user months using direct fetch (Supabase JS client is hanging)
-            console.log('[DatabaseService] Querying user_months table using direct fetch...');
-            const userMonthsResult = await Promise.race([
-                this.directFetch('user_months', {
-                    select: '*',
-                    order: [
-                        { column: 'year', ascending: false },
-                        { column: 'month', ascending: false }
-                    ]
-                }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('User months fetch timeout')), 10000))
-            ]).catch(err => {
-                console.error('[DatabaseService] Direct fetch for user_months failed:', err);
-                return { data: null, error: err };
+            // Fetch user months using centralized query interface
+            console.log('[DatabaseService] Querying user_months table...');
+            const { data: userMonthsData, error: userMonthsError } = await this.querySelect('user_months', {
+                select: '*',
+                order: [
+                    { column: 'year', ascending: false },
+                    { column: 'month', ascending: false }
+                ]
             });
-            
-            const { data: userMonthsData, error: userMonthsError } = userMonthsResult;
             
             if (userMonthsError) {
                 console.error('[DatabaseService] Error fetching user_months:', userMonthsError);
@@ -492,28 +724,20 @@ const DatabaseService = {
             }
             
             console.log(`[DatabaseService] user_months query result: ${userMonthsData ? userMonthsData.length : 0} months found`);
-            if (userMonthsData && userMonthsData.length > 0) {
+            if (userMonthsData && Array.isArray(userMonthsData) && userMonthsData.length > 0) {
                 console.log('[DatabaseService] user_months data:', userMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             }
             
-            // Fetch example months using direct fetch
-            console.log('[DatabaseService] Querying example_months table using direct fetch...');
+            // Fetch example months using centralized query interface
+            console.log('[DatabaseService] Querying example_months table...');
             let exampleMonthsData = [];
-            const exampleMonthsResult = await Promise.race([
-                this.directFetch('example_months', {
-                    select: '*',
-                    order: [
-                        { column: 'year', ascending: false },
-                        { column: 'month', ascending: false }
-                    ]
-                }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Example months fetch timeout')), 10000))
-            ]).catch(err => {
-                console.error('[DatabaseService] Direct fetch for example_months failed:', err);
-                return { data: null, error: err };
+            const { data: exampleData, error: exampleMonthsError } = await this.querySelect('example_months', {
+                select: '*',
+                order: [
+                    { column: 'year', ascending: false },
+                    { column: 'month', ascending: false }
+                ]
             });
-            
-            const { data: exampleData, error: exampleMonthsError } = exampleMonthsResult;
             
             if (exampleMonthsError) {
                 // If table doesn't exist yet, log warning but don't fail
@@ -607,9 +831,9 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            // First check example_months using direct fetch
-            console.log(`[DatabaseService] Checking example_months for ${year}-${month} using direct fetch...`);
-            let fetchResult = await this.directFetch('example_months', {
+            // First check example_months using centralized query interface
+            console.log(`[DatabaseService] Checking example_months for ${year}-${month}...`);
+            let fetchResult = await this.querySelect('example_months', {
                 select: '*',
                 filter: { year: year, month: month },
                 limit: 1
@@ -624,8 +848,8 @@ const DatabaseService = {
                 console.log(`[DatabaseService] Found month ${monthKey} in example_months table`);
             } else if (fetchResult.error && (fetchResult.error.code === 'PGRST116' || fetchResult.error.status === 404)) {
                 // Not found in example_months, check user_months
-                console.log(`[DatabaseService] Not found in example_months, checking user_months using direct fetch...`);
-                const userFetchResult = await this.directFetch('user_months', {
+                console.log(`[DatabaseService] Not found in example_months, checking user_months...`);
+                const userFetchResult = await this.querySelect('user_months', {
                     select: '*',
                     filter: { year: year, month: month },
                     limit: 1
@@ -712,69 +936,25 @@ const DatabaseService = {
                 console.log(`[DatabaseService] Using ${tableName} table (determined from monthKey)`);
             }
             
-            console.log(`[DatabaseService] Upserting to ${tableName} table using direct fetch...`);
+            console.log(`[DatabaseService] Upserting to ${tableName} table...`);
             
-            // Use PATCH method with Prefer header for upsert (Supabase REST API)
-            // Upsert = update if exists, insert if not
-            const upsertUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${tableName}`);
-            upsertUrl.searchParams.append('year', `eq.${year}`);
-            upsertUrl.searchParams.append('month', `eq.${month}`);
-            upsertUrl.searchParams.append('select', '*');
-            
-            // Try PATCH first (update if exists)
-            let upsertResponse = await fetch(upsertUrl.toString(), {
-                method: 'PATCH',
-                headers: {
-                    'apikey': this.client.supabaseKey,
-                    'Authorization': `Bearer ${this.client.supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                },
-                body: JSON.stringify(monthRecord)
+            // Use centralized upsert method
+            const upsertResult = await this.queryUpsert(tableName, monthRecord, {
+                filter: { year, month }
             });
             
-            // If PATCH returns 404 or no rows updated, use POST (insert)
-            if (!upsertResponse.ok || upsertResponse.status === 404) {
-                console.log(`[DatabaseService] PATCH returned ${upsertResponse.status}, trying POST for insert...`);
-                const insertUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${tableName}`);
-                upsertResponse = await fetch(insertUrl.toString(), {
-                    method: 'POST',
-                    headers: {
-                        'apikey': this.client.supabaseKey,
-                        'Authorization': `Bearer ${this.client.supabaseKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify(monthRecord)
-                });
+            if (upsertResult.error) {
+                console.error(`[DatabaseService] Error upserting to ${tableName}:`, upsertResult.error);
+                console.error('[DatabaseService] Error details:', upsertResult.error);
+                throw upsertResult.error;
             }
             
-            if (!upsertResponse.ok) {
-                const errorText = await upsertResponse.text();
-                let errorObj;
-                try {
-                    errorObj = JSON.parse(errorText);
-                } catch {
-                    errorObj = { message: errorText };
-                }
-                const error = {
-                    message: errorObj.message || errorText,
-                    code: errorObj.code,
-                    details: errorObj.details,
-                    hint: errorObj.hint,
-                    status: upsertResponse.status
-                };
-                console.error(`[DatabaseService] Error upserting to ${tableName}:`, error);
-                console.error('[DatabaseService] Error details:', error);
-                throw error;
-            }
-            
-            const upsertData = await upsertResponse.json();
             console.log(`[DatabaseService] Successfully saved month ${monthKey} to ${tableName} table`);
-            if (upsertData && Array.isArray(upsertData) && upsertData.length > 0) {
-                console.log(`[DatabaseService] Upsert returned data:`, upsertData[0]);
-            } else if (upsertData) {
-                console.log(`[DatabaseService] Upsert returned data:`, upsertData);
+            if (upsertResult.data) {
+                const upsertData = Array.isArray(upsertResult.data) ? upsertResult.data : [upsertResult.data];
+                if (upsertData.length > 0) {
+                    console.log(`[DatabaseService] Upsert returned data:`, upsertData[0]);
+                }
             }
             
             // Clear cache to ensure next fetch gets fresh data
@@ -828,49 +1008,23 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            // Only delete from user_months (never from example_months) using direct fetch
-            console.log(`[DatabaseService] Deleting from user_months table using direct fetch...`);
+            // Only delete from user_months (never from example_months) using centralized query interface
+            console.log(`[DatabaseService] Deleting from user_months table...`);
             
-            // Build delete URL with filters
-            const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
-            deleteUrl.searchParams.append('year', `eq.${year}`);
-            deleteUrl.searchParams.append('month', `eq.${month}`);
-            deleteUrl.searchParams.append('select', '*');
+            const deleteResult = await this.queryDelete('user_months', { year, month });
             
-            const deleteResponse = await fetch(deleteUrl.toString(), {
-                method: 'DELETE',
-                headers: {
-                    'apikey': this.client.supabaseKey,
-                    'Authorization': `Bearer ${this.client.supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                }
-            });
-            
-            if (!deleteResponse.ok) {
-                const errorText = await deleteResponse.text();
-                let errorObj;
-                try {
-                    errorObj = JSON.parse(errorText);
-                } catch {
-                    errorObj = { message: errorText };
-                }
-                const error = {
-                    message: errorObj.message || errorText,
-                    code: errorObj.code,
-                    details: errorObj.details,
-                    hint: errorObj.hint,
-                    status: deleteResponse.status
-                };
-                console.error(`[DatabaseService] Error deleting from user_months:`, error);
-                console.error('[DatabaseService] Error details:', error);
-                throw error;
+            if (deleteResult.error) {
+                console.error(`[DatabaseService] Error deleting from user_months:`, deleteResult.error);
+                console.error('[DatabaseService] Error details:', deleteResult.error);
+                throw deleteResult.error;
             }
             
-            const deletedData = await deleteResponse.json();
             console.log(`[DatabaseService] Successfully deleted month ${monthKey} from user_months`);
-            if (deletedData && deletedData.length > 0) {
-                console.log(`[DatabaseService] Delete returned data:`, deletedData);
+            if (deleteResult.data) {
+                const deletedData = Array.isArray(deleteResult.data) ? deleteResult.data : [deleteResult.data];
+                if (deletedData.length > 0) {
+                    console.log(`[DatabaseService] Delete returned data:`, deletedData);
+                }
             }
             
             // Clear cache to ensure next fetch gets fresh data
@@ -950,11 +1104,9 @@ const DatabaseService = {
             
             const potsRecords = potsArray.map(pot => this.transformPotToDatabase(pot));
             
-            console.log('[DatabaseService] Upserting pots using direct fetch...');
-            const upsertResult = await this.directFetch('pots', {
-                method: 'POST',
-                body: potsRecords
-            });
+            console.log('[DatabaseService] Upserting pots...');
+            // For pots, we'll do a simple POST (no conflict resolution needed for now)
+            const upsertResult = await this.queryUpsert('pots', potsRecords);
             
             if (upsertResult.error) {
                 console.error('[DatabaseService] Error saving pots:', upsertResult.error);
@@ -993,10 +1145,10 @@ const DatabaseService = {
             try {
                 const tableCheckStart = Date.now();
                 
-                // Use direct fetch to check table existence and row count
-                console.log('[DatabaseService] Executing table existence and row count check using direct fetch...');
+                // Use centralized query interface to check table existence and row count
+                console.log('[DatabaseService] Executing table existence and row count check...');
                 const tableCheckResult = await Promise.race([
-                    this.directFetch('settings', {
+                    this.querySelect('settings', {
                         select: '*',
                         limit: 1
                     }),
@@ -1061,17 +1213,17 @@ const DatabaseService = {
                 }
             }
             
-            // Use direct fetch instead of Supabase JS client (which is hanging)
-            console.log('[DatabaseService] Using direct fetch for settings query...');
+            // Use centralized query interface for settings
+            console.log('[DatabaseService] Querying settings...');
             const queryResult = await Promise.race([
-                this.directFetch('settings', {
+                this.querySelect('settings', {
                     select: '*',
                     filter: { id: 1 },
                     limit: 1
                 }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 5000))
             ]).catch(err => {
-                console.error('[DatabaseService] Direct fetch for settings failed:', err);
+                console.error('[DatabaseService] Settings query failed:', err);
                 return { data: null, error: err };
             });
             
@@ -1167,13 +1319,12 @@ const DatabaseService = {
             const settingsRecord = this.transformSettingsToDatabase(settings);
             console.log('[DatabaseService] Transformed settings record:', settingsRecord);
             
-            console.log('[DatabaseService] Upserting to settings table using direct fetch...');
+            console.log('[DatabaseService] Upserting to settings table...');
             
-            // Use POST with Prefer header for upsert
-            const upsertResult = await this.directFetch('settings', {
-                method: 'POST',
-                body: { id: 1, ...settingsRecord },
-                onConflict: 'id'
+            // Use centralized upsert method
+            const upsertResult = await this.queryUpsert('settings', settingsRecord, {
+                identifier: 'id',
+                identifierValue: 1
             });
             
             if (upsertResult.error) {
@@ -1422,10 +1573,11 @@ const DatabaseService = {
                 errors: []
             };
             
-            // Delete all user months using direct fetch
-            console.log('[DatabaseService] Deleting all user_months using direct fetch...');
+            // Delete all user months using centralized query interface
+            console.log('[DatabaseService] Deleting all user_months...');
             try {
-                // Delete all rows by using a filter that matches all (id >= 1)
+                // Delete all rows - use a filter that matches all (id >= 1)
+                // Note: queryDelete uses eq filters, so we need to use direct fetch for gte
                 const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
                 deleteUrl.searchParams.append('id', 'gte.1');
                 deleteUrl.searchParams.append('select', '*');
@@ -1440,12 +1592,13 @@ const DatabaseService = {
                     }
                 });
                 
-                if (!deleteResponse.ok) {
-                    const errorText = await deleteResponse.text();
-                    throw new Error(`HTTP ${deleteResponse.status}: ${errorText}`);
+                const deleteResult = await this._handleResponse(deleteResponse);
+                
+                if (deleteResult.error) {
+                    throw deleteResult.error;
                 }
                 
-                const deletedMonths = await deleteResponse.json();
+                const deletedMonths = deleteResult.data;
                 result.userMonthsDeleted = deletedMonths ? (Array.isArray(deletedMonths) ? deletedMonths.length : 1) : 0;
                 console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months`);
             } catch (monthsError) {
@@ -1453,10 +1606,10 @@ const DatabaseService = {
                 result.errors.push(`user_months: ${monthsError.message}`);
             }
             
-            // Delete all pots using direct fetch
-            console.log('[DatabaseService] Deleting all pots using direct fetch...');
+            // Delete all pots using centralized query interface
+            console.log('[DatabaseService] Deleting all pots...');
             try {
-                // Delete all rows by using a filter that matches all (id >= 1)
+                // Delete all rows - use a filter that matches all (id >= 1)
                 const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/pots`);
                 deleteUrl.searchParams.append('id', 'gte.1');
                 deleteUrl.searchParams.append('select', '*');
@@ -1471,12 +1624,13 @@ const DatabaseService = {
                     }
                 });
                 
-                if (!deleteResponse.ok) {
-                    const errorText = await deleteResponse.text();
-                    throw new Error(`HTTP ${deleteResponse.status}: ${errorText}`);
+                const deleteResult = await this._handleResponse(deleteResponse);
+                
+                if (deleteResult.error) {
+                    throw deleteResult.error;
                 }
                 
-                const deletedPots = await deleteResponse.json();
+                const deletedPots = deleteResult.data;
                 result.potsDeleted = deletedPots ? (Array.isArray(deletedPots) ? deletedPots.length : 1) : 0;
                 console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots`);
             } catch (potsError) {
