@@ -682,6 +682,7 @@ const DatabaseService = {
     async getSettings() {
         try {
             console.log('[DatabaseService] getSettings() called');
+            const startTime = Date.now();
             
             if (!this.client) {
                 console.log('[DatabaseService] Client not initialized, initializing...');
@@ -690,36 +691,73 @@ const DatabaseService = {
             
             console.log('[DatabaseService] Querying settings table...');
             console.log('[DatabaseService] Client status:', this.client ? 'Available' : 'Not available');
+            console.log('[DatabaseService] Client type:', typeof this.client);
+            console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
             
             // Wrap the entire query in a timeout to prevent indefinite hanging
             const queryWithTimeout = async () => {
                 return new Promise(async (resolve, reject) => {
+                    console.log('[DatabaseService] Setting up timeout wrapper...');
+                    
                     // Set up timeout
                     const timeoutId = setTimeout(() => {
-                        console.error('[DatabaseService] Settings query timeout after 5 seconds - returning null');
+                        const elapsed = Date.now() - startTime;
+                        console.error(`[DatabaseService] Settings query timeout after 5 seconds (elapsed: ${elapsed}ms) - returning null`);
                         resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
                     }, 5000);
                     
+                    console.log('[DatabaseService] Timeout set for 5 seconds');
+                    
                     try {
-                        console.log('[DatabaseService] Executing Supabase query...');
-                        const result = await this.client
-                            .from('settings')
-                            .select('*')
-                            .eq('id', 1)
-                            .single();
+                        console.log('[DatabaseService] Creating query builder...');
+                        const queryBuilder = this.client.from('settings');
+                        console.log('[DatabaseService] Query builder created:', typeof queryBuilder);
+                        
+                        console.log('[DatabaseService] Adding select...');
+                        const selectBuilder = queryBuilder.select('*');
+                        console.log('[DatabaseService] Select added:', typeof selectBuilder);
+                        
+                        console.log('[DatabaseService] Adding eq filter...');
+                        const eqBuilder = selectBuilder.eq('id', 1);
+                        console.log('[DatabaseService] Eq filter added:', typeof eqBuilder);
+                        
+                        console.log('[DatabaseService] Adding single()...');
+                        const singleBuilder = eqBuilder.single();
+                        console.log('[DatabaseService] Single() added, executing query...');
+                        console.log('[DatabaseService] Query builder chain complete, awaiting result...');
+                        
+                        const queryStartTime = Date.now();
+                        const result = await singleBuilder;
+                        const queryElapsed = Date.now() - queryStartTime;
+                        
+                        console.log(`[DatabaseService] Query completed in ${queryElapsed}ms, result:`, result);
+                        console.log('[DatabaseService] Result type:', typeof result);
+                        console.log('[DatabaseService] Result has data:', 'data' in result);
+                        console.log('[DatabaseService] Result has error:', 'error' in result);
                         
                         clearTimeout(timeoutId);
-                        console.log('[DatabaseService] Query completed, result:', result);
+                        console.log('[DatabaseService] Timeout cleared, resolving with result');
                         resolve(result);
                     } catch (queryError) {
+                        const elapsed = Date.now() - startTime;
                         clearTimeout(timeoutId);
-                        console.error('[DatabaseService] Query threw error:', queryError);
+                        console.error(`[DatabaseService] Query threw error after ${elapsed}ms:`, queryError);
+                        console.error('[DatabaseService] Error type:', typeof queryError);
+                        console.error('[DatabaseService] Error constructor:', queryError?.constructor?.name);
+                        console.error('[DatabaseService] Error message:', queryError?.message);
+                        console.error('[DatabaseService] Error stack:', queryError?.stack);
                         resolve({ data: null, error: queryError });
                     }
                 });
             };
             
-            const { data, error } = await queryWithTimeout();
+            console.log('[DatabaseService] Calling queryWithTimeout...');
+            const queryResult = await queryWithTimeout();
+            const totalElapsed = Date.now() - startTime;
+            console.log(`[DatabaseService] queryWithTimeout completed in ${totalElapsed}ms`);
+            console.log('[DatabaseService] Query result:', queryResult);
+            
+            const { data, error } = queryResult;
             
             if (error) {
                 if (error.code === 'TIMEOUT') {
