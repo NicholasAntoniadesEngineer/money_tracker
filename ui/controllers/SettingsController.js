@@ -134,9 +134,9 @@ const SettingsController = {
         }
 
         // Clear all cached data button
-                if (clearAllDataBtn) {
-                    clearAllDataBtn.addEventListener('click', async () => {
-                const confirmMessage = 'Are you sure you want to clear all cached data? This will remove all months, pots, and settings data stored in your browser. The original data files will not be affected, but you\'ll need to re-import them to view the data again.\n\nThis action cannot be undone.';
+        if (clearAllDataBtn) {
+            clearAllDataBtn.addEventListener('click', async () => {
+                const confirmMessage = 'Are you sure you want to clear all cached data? This will clear the local browser cache only. Data in Supabase will remain intact and will be reloaded when you refresh the page.\n\nThis action cannot be undone.';
                 if (!confirm(confirmMessage)) {
                     return;
                 }
@@ -147,77 +147,33 @@ const SettingsController = {
                 }
 
                 try {
-                    // Set flag to prevent auto-reload from files after page reload (set first)
-                    sessionStorage.setItem('skipFileLoadAfterClear', 'true');
+                    // Clear DatabaseService cache (local cache only, not database)
+                    if (window.DatabaseService) {
+                        window.DatabaseService.clearCache();
+                    }
 
-                    // Get all months and delete them individually to ensure proper cleanup
-                    const allMonths = await DataManager.getAllMonths();
-                    const monthKeys = Object.keys(allMonths);
-                    let deletedCount = 0;
-
-                    for (const monthKey of monthKeys) {
-                        // Skip example data - it's protected
-                        if (window.DatabaseService) {
-                            const isExample = await window.DatabaseService.isExampleData(monthKey);
-                            if (isExample) {
-                                continue;
-                            }
-                        }
-                        try {
-                            const deleted = await DataManager.deleteMonth(monthKey);
-                            if (deleted) {
-                                deletedCount++;
-                            }
-                        } catch (error) {
-                            // Skip protected example data
-                            console.warn(`Skipped protected month: ${monthKey}`);
+                    // Clear all localStorage cache data
+                    localStorage.removeItem('money_tracker_months_cache');
+                    localStorage.removeItem('money_tracker_cache_timestamp');
+                    
+                    // Clear any other localStorage items related to caching
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('money_tracker_')) {
+                            keysToRemove.push(key);
                         }
                     }
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
 
-                    // Clear all localStorage data to ensure everything is removed
-                    localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
-                    localStorage.removeItem(DataManager.STORAGE_KEY_POTS);
-                    localStorage.removeItem(DataManager.STORAGE_KEY_SETTINGS);
-
-                    // Clear all remaining localStorage to ensure no cached data remains
-                    localStorage.clear();
-
-                    // Reset to default settings (after clearing, so it creates fresh defaults)
-                    await DataManager.initializeSettings();
-
-                    // Clear any cached data
-                    if (DataManager._monthsCache !== undefined) {
-                        DataManager._monthsCache = null;
-                    }
-
-                    // Verify deletion by checking localStorage directly
-                    const remainingMonths = localStorage.getItem(DataManager.STORAGE_KEY_MONTHS);
-                    if (remainingMonths) {
-                        console.warn('Months still exist in localStorage after clear, forcing removal');
-                        localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
-                    }
-
-                    // Double-check: verify all months are actually gone
-                    const finalCheck = await DataManager.getAllMonths();
-                    const remainingCount = Object.keys(finalCheck).length;
-                    if (remainingCount > 0) {
-                        console.warn(`Warning: ${remainingCount} months still exist after clear operation`);
-                        localStorage.removeItem(DataManager.STORAGE_KEY_MONTHS);
-                    }
-
-                    // Reload month selector to show empty state
+                    // Reload month selector to refresh from database
                     await this.loadMonthSelector();
 
                     if (fileOperationsStatus) {
-                        fileOperationsStatus.innerHTML = `<p style="color: var(--success-color);">✓ All cached data has been cleared. ${deletedCount} month(s) deleted. Settings have been reset to defaults.</p>`;
+                        fileOperationsStatus.innerHTML = '<p style="color: var(--success-color);">✓ All cached data has been cleared. Data in Supabase remains intact. Refresh the page to reload data from database.</p>';
                     }
 
-                    // Clear the skip flag after page reloads and initializes (give it time for all controllers to check)
-                    setTimeout(() => {
-                        sessionStorage.removeItem('skipFileLoadAfterClear');
-                    }, 5000);
-
-                    // Reload the page to ensure clean state
+                    // Reload the page to refresh data from database
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -784,23 +740,44 @@ const SettingsController = {
     },
 
     /**
-     * Remove all example data from Supabase
-     * Example data uses year 2045
+     * Remove example data from local cache only (not from Supabase)
+     * This clears the cached example data from the browser, but data remains in Supabase
      */
     async removeExampleData() {
         const importStatus = document.getElementById('import-status');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
-        // Example data is protected and cannot be deleted
-        if (importStatus) {
-            importStatus.innerHTML = '<p style="color: var(--warning-color);">Example data (year 2045) is protected and cannot be deleted. This data is locked to preserve the example functionality.</p>';
+        const confirmMessage = 'This will clear example data from your local browser cache only. The data in Supabase will remain intact and will be reloaded when you refresh the page.\n\nContinue?';
+        if (!confirm(confirmMessage)) {
+            return;
         }
-        
-        // Disable the button to make it clear it's not available
-        if (removeExampleDataBtn) {
-            removeExampleDataBtn.disabled = true;
-            removeExampleDataBtn.textContent = 'Example Data Protected';
-            removeExampleDataBtn.title = 'Example data cannot be deleted - it is protected';
+
+        if (importStatus) {
+            importStatus.innerHTML = '<p style="color: var(--text-secondary);">Clearing example data from local cache...</p>';
+        }
+
+        try {
+            if (!window.DatabaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            // Clear example data from cache only (not from database)
+            await window.DatabaseService.clearExampleDataFromCache();
+
+            if (importStatus) {
+                importStatus.innerHTML = '<p style="color: var(--success-color);">✓ Example data cleared from local cache. Data in Supabase remains intact. Refresh the page to reload data from database.</p>';
+            }
+
+            // Reload the page to refresh data from database
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error removing example data from cache:', error);
+            if (importStatus) {
+                importStatus.innerHTML = `<p style="color: var(--danger-color);">Error clearing example data: ${error.message}. Please try again.</p>`;
+            }
         }
     }
 };

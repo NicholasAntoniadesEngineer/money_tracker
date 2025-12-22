@@ -125,6 +125,56 @@ const DatabaseService = {
     },
     
     /**
+     * Clear example months from cache only (not from database)
+     * @returns {Promise<void>}
+     */
+    async clearExampleDataFromCache() {
+        try {
+            // Clear from memory cache
+            if (this.monthsCache) {
+                const exampleMonthKeys = [];
+                for (const monthKey of Object.keys(this.monthsCache)) {
+                    const isExample = await this.isExampleData(monthKey);
+                    if (isExample) {
+                        exampleMonthKeys.push(monthKey);
+                    }
+                }
+                exampleMonthKeys.forEach(monthKey => {
+                    delete this.monthsCache[monthKey];
+                });
+            }
+            
+            // Clear from localStorage cache
+            const cachedData = localStorage.getItem(this.CACHE_STORAGE_KEY);
+            if (cachedData) {
+                try {
+                    const monthsCache = JSON.parse(cachedData);
+                    const exampleMonthKeys = [];
+                    
+                    for (const monthKey of Object.keys(monthsCache)) {
+                        const isExample = await this.isExampleData(monthKey);
+                        if (isExample) {
+                            exampleMonthKeys.push(monthKey);
+                        }
+                    }
+                    
+                    exampleMonthKeys.forEach(monthKey => {
+                        delete monthsCache[monthKey];
+                    });
+                    
+                    localStorage.setItem(this.CACHE_STORAGE_KEY, JSON.stringify(monthsCache));
+                    localStorage.setItem(this.CACHE_TIMESTAMP_KEY, Date.now().toString());
+                } catch (error) {
+                    console.warn('Error processing cache:', error);
+                }
+            }
+        } catch (error) {
+            console.error('Error clearing example data from cache:', error);
+            throw error;
+        }
+    },
+    
+    /**
      * Initialize database service with Supabase client
      * @returns {Promise<boolean>} Success status
      */
