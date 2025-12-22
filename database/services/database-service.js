@@ -190,15 +190,11 @@ const DatabaseService = {
                 throw new Error('Failed to initialize Supabase client');
             }
             
-            // Load cache from localStorage on initialization
-            const cachedData = this.loadCacheFromStorage();
-            if (cachedData) {
-                this.monthsCache = cachedData;
-                this.cacheTimestamp = Date.now();
-                console.log('Database service initialized with cached data');
-            } else {
-                console.log('Database service initialized');
-            }
+            // Always initialize fresh - never load cache from localStorage
+            // User data is always loaded from user_months table on every page load
+            // Example data is loaded from example_months table
+            // Cache is only used for example data clearing functionality (local only)
+            console.log('Database service initialized - will fetch fresh data from database');
             
             return true;
         } catch (error) {
@@ -208,8 +204,8 @@ const DatabaseService = {
     },
     
     /**
-     * Get all months from database (with caching)
-     * @param {boolean} forceRefresh - Force refresh from database, bypass cache
+     * Get all months from database (always fetches fresh from database)
+     * @param {boolean} forceRefresh - Deprecated, always fetches fresh
      * @returns {Promise<Object>} Object with all months keyed by monthKey
      */
     async getAllMonths(forceRefresh = false) {
@@ -218,17 +214,7 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Check cache first (unless force refresh)
-            if (!forceRefresh && this.monthsCache && this.cacheTimestamp) {
-                const now = Date.now();
-                // Use cache if it's less than 24 hours old
-                if (now - this.cacheTimestamp < this.CACHE_DURATION) {
-                    console.log('Using cached months data');
-                    return { ...this.monthsCache }; // Return copy to prevent mutation
-                }
-            }
-            
-            // Fetch from both tables
+            // Always fetch fresh from database - no caching
             console.log('Fetching months from database...');
             
             // Fetch user months
@@ -280,10 +266,13 @@ const DatabaseService = {
                 });
             }
             
-            // Update cache
+            // Update in-memory cache for current session only (not persisted)
             this.monthsCache = monthsObject;
             this.cacheTimestamp = Date.now();
-            this.saveCacheToStorage(monthsObject);
+            
+            // Don't save to localStorage - always fetch fresh from database
+            // Only save cache to storage for example data clearing functionality
+            // User data is always loaded fresh from user_months table
             
             return monthsObject;
         } catch (error) {
@@ -300,9 +289,9 @@ const DatabaseService = {
     },
     
     /**
-     * Get a specific month by monthKey (with caching)
+     * Get a specific month by monthKey (always fetches fresh from database)
      * @param {string} monthKey - Month key (e.g., "2025-11")
-     * @param {boolean} forceRefresh - Force refresh from database, bypass cache
+     * @param {boolean} forceRefresh - Deprecated, always fetches fresh
      * @returns {Promise<Object|null>} Month data or null
      */
     async getMonth(monthKey, forceRefresh = false) {
@@ -315,20 +304,7 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Check cache first (unless force refresh)
-            if (!forceRefresh && this.monthsCache && this.cacheTimestamp) {
-                const now = Date.now();
-                // Use cache if it's less than 24 hours old
-                if (now - this.cacheTimestamp < this.CACHE_DURATION) {
-                    if (this.monthsCache[monthKey]) {
-                        console.log(`Using cached data for month ${monthKey}`);
-                        return { ...this.monthsCache[monthKey] }; // Return copy to prevent mutation
-                    }
-                }
-            }
-            
-            // If not in cache or cache expired, fetch from database
-            // Check both tables: example_months first, then user_months
+            // Always fetch fresh from database - check both tables
             const { year, month } = this.parseMonthKey(monthKey);
             
             // First check example_months
@@ -363,19 +339,21 @@ const DatabaseService = {
             
             const monthData = data ? this.transformMonthFromDatabase(data) : null;
             
-            // Update cache if we got data
-            if (monthData && this.monthsCache) {
+            // Update in-memory cache for current session only
+            if (monthData) {
+                if (!this.monthsCache) {
+                    this.monthsCache = {};
+                }
                 this.monthsCache[monthKey] = monthData;
-                this.saveCacheToStorage(this.monthsCache);
             }
             
             return monthData;
         } catch (error) {
             console.error(`Error getting month ${monthKey}:`, error);
             
-            // If database fetch fails, try to use cache as fallback
+            // If database fetch fails, try to use in-memory cache as fallback
             if (this.monthsCache && this.monthsCache[monthKey]) {
-                console.warn(`Database fetch failed for ${monthKey}, using cached data as fallback`);
+                console.warn(`Database fetch failed for ${monthKey}, using in-memory cache as fallback`);
                 return { ...this.monthsCache[monthKey] };
             }
             
@@ -414,13 +392,15 @@ const DatabaseService = {
                 throw error;
             }
             
-            // Update cache after save
+            // Update in-memory cache for current session only
             if (!this.monthsCache) {
                 this.monthsCache = {};
             }
             this.monthsCache[monthKey] = monthData;
             this.cacheTimestamp = Date.now();
-            this.saveCacheToStorage(this.monthsCache);
+            
+            // Don't save to localStorage - data is in database, will be loaded fresh on next page load
+            // User data is always saved to user_months table and loaded fresh
             
             return true;
         } catch (error) {
@@ -464,12 +444,13 @@ const DatabaseService = {
                 throw error;
             }
             
-            // Update cache after deletion
+            // Update in-memory cache after deletion
             if (this.monthsCache && this.monthsCache[monthKey]) {
                 delete this.monthsCache[monthKey];
                 this.cacheTimestamp = Date.now();
-                this.saveCacheToStorage(this.monthsCache);
             }
+            
+            // Don't save to localStorage - data is deleted from database, will be reflected on next page load
             
             return true;
         } catch (error) {

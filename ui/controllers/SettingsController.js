@@ -147,12 +147,15 @@ const SettingsController = {
                 }
 
                 try {
-                    // Clear DatabaseService cache (local cache only, not database)
+                    // Clear DatabaseService in-memory cache (local cache only, not database)
                     if (window.DatabaseService) {
                         window.DatabaseService.clearCache();
+                        // Also clear the in-memory cache explicitly
+                        window.DatabaseService.monthsCache = null;
+                        window.DatabaseService.cacheTimestamp = null;
                     }
 
-                    // Clear all localStorage cache data
+                    // Clear all localStorage cache data (for example data clearing functionality)
                     localStorage.removeItem('money_tracker_months_cache');
                     localStorage.removeItem('money_tracker_cache_timestamp');
                     
@@ -166,7 +169,7 @@ const SettingsController = {
                     }
                     keysToRemove.forEach(key => localStorage.removeItem(key));
 
-                    // Reload month selector to refresh from database
+                    // Reload month selector to refresh from database (always fetches fresh)
                     await this.loadMonthSelector();
 
                     if (fileOperationsStatus) {
@@ -174,9 +177,10 @@ const SettingsController = {
                     }
 
                     // Reload the page to refresh data from database
+                    // Use a longer delay to ensure cache is fully cleared
                     setTimeout(() => {
                         window.location.reload();
-                    }, 2000);
+                    }, 1000);
 
                 } catch (error) {
                     console.error('Error clearing cached data:', error);
