@@ -560,13 +560,23 @@ const DatabaseService = {
                 if (error.code === 'PGRST116') {
                     return null;
                 }
+                // Handle network/connection errors gracefully
+                if (error.message && error.message.includes('Load failed')) {
+                    console.warn('Settings table may not exist or connection failed. Returning null.');
+                    return null;
+                }
                 throw error;
             }
             
             return data ? this.transformSettingsFromDatabase(data) : null;
         } catch (error) {
-            console.error('Error getting settings:', error);
-            throw error;
+            // Only log error once, don't spam console
+            if (!this._settingsErrorLogged) {
+                console.error('Error getting settings:', error);
+                this._settingsErrorLogged = true;
+            }
+            // Return null instead of throwing to prevent cascading errors
+            return null;
         }
     },
     

@@ -9,8 +9,8 @@ const PotsController = {
     /**
      * Initialize the pots page
      */
-    init() {
-        this.loadPotsData();
+    async init() {
+        await this.loadPotsData();
         this.setupEventListeners();
     },
 
@@ -25,8 +25,8 @@ const PotsController = {
 
         const monthSelector = document.getElementById('month-selector-pots');
         if (monthSelector) {
-            monthSelector.addEventListener('change', (e) => {
-                this.renderSelectedMonthPots(e.target.value);
+            monthSelector.addEventListener('change', async (e) => {
+                await this.renderSelectedMonthPots(e.target.value);
             });
         }
     },
@@ -34,8 +34,8 @@ const PotsController = {
     /**
      * Load pots data from all months
      */
-    loadPotsData() {
-        const allMonths = DataManager.getAllMonths();
+    async loadPotsData() {
+        const allMonths = await DataManager.getAllMonths();
         const potsMap = {};
 
         Object.keys(allMonths).forEach(monthKey => {
@@ -66,7 +66,7 @@ const PotsController = {
 
         this.potsData = potsMap;
         this.renderPotsTable();
-        this.renderPotsByMonth();
+        await this.renderPotsByMonth();
         this.updateTotals();
     },
 
@@ -118,13 +118,13 @@ const PotsController = {
     /**
      * Render pots by month - populates dropdown and shows selected month
      */
-    renderPotsByMonth() {
+    async renderPotsByMonth() {
         const monthSelector = document.getElementById('month-selector-pots');
         const container = document.getElementById('pots-by-month-container');
         
         if (!monthSelector || !container) return;
 
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         if (monthKeys.length === 0) {
@@ -148,7 +148,7 @@ const PotsController = {
     /**
      * Render pots for selected month
      */
-    renderSelectedMonthPots(monthKey) {
+    async renderSelectedMonthPots(monthKey) {
         const container = document.getElementById('pots-by-month-container');
         if (!container) return;
 
@@ -157,7 +157,7 @@ const PotsController = {
             return;
         }
 
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         const monthData = allMonths[monthKey];
 
         if (!monthData) {
@@ -246,8 +246,8 @@ const PotsController = {
     /**
      * Remove pot from all months
      */
-    removePotFromAllMonths(category) {
-        const allMonths = DataManager.getAllMonths();
+    async removePotFromAllMonths(category) {
+        const allMonths = await DataManager.getAllMonths();
         let modified = false;
 
         Object.keys(allMonths).forEach(monthKey => {
@@ -257,14 +257,14 @@ const PotsController = {
                 monthData.pots = monthData.pots.filter(pot => (pot.category || '') !== category);
                 if (monthData.pots.length !== originalLength) {
                     monthData.updatedAt = new Date().toISOString();
-                    DataManager.saveMonth(monthKey, monthData);
+                    await DataManager.saveMonth(monthKey, monthData);
                     modified = true;
                 }
             }
         });
 
         if (modified) {
-            this.loadPotsData();
+            await this.loadPotsData();
             alert('Pot removed from all months.');
         }
     },

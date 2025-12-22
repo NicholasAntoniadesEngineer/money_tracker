@@ -189,8 +189,13 @@ const DataManager = {
             }
             return await window.DatabaseService.getSettings();
         } catch (error) {
-            console.error('Error getting settings:', error);
-            throw error;
+            // Only log error once to prevent spam
+            if (!this._settingsErrorLogged) {
+                console.error('Error getting settings:', error);
+                this._settingsErrorLogged = true;
+            }
+            // Return null instead of throwing to prevent cascading errors
+            return null;
         }
     },
     
