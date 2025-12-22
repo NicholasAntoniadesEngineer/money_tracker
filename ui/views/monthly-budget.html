@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Budget - Money Tracker</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="budget-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Monthly Budget</h2>
+        </section>
+
+        <section class="month-selector-section form-section">
+            <div class="month-header-container">
+                <div class="month-title-wrapper" id="month-title-wrapper" style="display: none;">
+                    <h2 id="month-title" class="month-title"></h2>
+                    <select id="month-selector" class="month-selector-compact">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="month-selector-wrapper" id="month-selector-wrapper">
+                    <label for="month-selector-initial" class="form-label">Select Month:</label>
+                    <select id="month-selector-initial" class="form-select">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="month-buttons-container">
+                    <button id="create-month-button" class="btn btn-primary create-month-btn">Create New Month</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="month-content" style="display: none;">
+
+            <section class="working-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">The Working Section</h2>
+                    <button class="help-button" data-help-id="working-section-help" aria-label="Help for The Working Section">?</button>
+                </div>
+                <table class="data-table" id="weekly-breakdown-table">
+                    <thead id="weekly-breakdown-thead">
+                        <tr>
+                            <th>Date</th>
+                            <th>Payments Due </th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="weekly-breakdown-tbody">
+                        <tr class="total-row">
+                            <td><strong>TOTALS</strong></td>
+                            <td id="weekly-breakdown-total-payments"></td>
+                            <td id="weekly-breakdown-total-estimate"><strong><em>0.00</em></strong></td>
+                            <td id="weekly-breakdown-total-actual"><strong><em>0.00</em></strong></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button id="add-weekly-breakdown-button" class="btn btn-action" style="display: none;">Add Week</button>
+                </div>
+            </section>
+
+            <section class="income-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">1. Income</h2>
+                    <button class="help-button" data-help-id="income-section-help" aria-label="Help for Income section">?</button>
+                </div>
+                <table class="data-table" id="income-table">
+                    <thead>
+                        <tr>
+                            <th>Revenue Source</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Comments</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="income-tbody">
+                    </tbody>
+                </table>
+                <div class="section-actions-container" style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-income-from-month" class="form-select copy-month-select">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-income-button" class="btn btn-action">Copy</button>
+                    <button id="add-income-button" class="btn btn-action">Add Income Source</button>
+                </div>
+            </section>
+
+            <section class="fixed-costs-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">2. Fixed Costs </h2>
+                    <button class="help-button" data-help-id="fixed-costs-section-help" aria-label="Help for Fixed Costs section">?</button>
+                </div>
+                <table class="data-table" id="fixed-costs-table">
+                    <thead>
+                        <tr>
+                            <th>Expense Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                            <th>Date</th>
+                            <th>Card</th>
+                            <th>Paid</th>
+                            <th>Comments</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="fixed-costs-tbody">
+                    </tbody>
+                </table>
+                <div class="section-actions-container" style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-fixed-costs-from-month" class="form-select copy-month-select">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-fixed-costs-button" class="btn btn-action">Copy</button>
+                    <button id="add-fixed-cost-button" class="btn btn-action">Add Fixed Cost</button>
+                </div>
+            </section>
+
+            <section class="variable-costs-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">3. Variable Costs </h2>
+                    <button class="help-button" data-help-id="variable-costs-section-help" aria-label="Help for Variable Costs section">?</button>
+                </div>
+                <table class="data-table" id="variable-costs-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Monthly Budget</th>
+                            <th>Actual Spent</th>
+                            <th>Remaining</th>
+                            <th>Comments</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="variable-costs-tbody">
+                    </tbody>
+                </table>
+                <div class="section-actions-container" style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-variable-costs-from-month" class="form-select copy-month-select">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-variable-costs-button" class="btn btn-action">Copy</button>
+                    <button id="add-variable-cost-button" class="btn btn-action">Add Variable Cost</button>
+                </div>
+            </section>
+
+            <section class="unplanned-expenses-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">4. Unplanned Buying</h2>
+                    <button class="help-button" data-help-id="unplanned-expenses-section-help" aria-label="Help for Unplanned Buying section">?</button>
+                </div>
+                <table class="data-table" id="unplanned-expenses-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Card</th>
+                            <th>Paid</th>
+                            <th>Comments</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="unplanned-expenses-tbody">
+                    </tbody>
+                </table>
+                <div class="section-actions-container" style="text-align: right; margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                    <select id="copy-unplanned-from-month" class="form-select copy-month-select">
+                        <option value="">Select month to copy...</option>
+                    </select>
+                    <button id="copy-unplanned-button" class="btn btn-action">Copy</button>
+                    <button id="add-unplanned-expense-button" class="btn btn-action">Add Unplanned Expense</button>
+                </div>
+            </section>
+
+            <section class="summary-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;">5. End-of-Month Summary</h2>
+                    <button class="help-button" data-help-id="summary-section-help" aria-label="Help for End-of-Month Summary section">?</button>
+                </div>
+                <table class="data-table" id="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Estimated Amount</th>
+                            <th>Actual Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Total Income</strong></td>
+                            <td id="summary-income-estimated"><strong><em>0.00</em></strong></td>
+                            <td id="summary-income-actual"><strong><em>0.00</em></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Fixed Costs</td>
+                            <td id="summary-fixed-costs-estimated"><em>0.00</em></td>
+                            <td id="summary-fixed-costs-actual"><em>0.00</em></td>
+                        </tr>
+                        <tr>
+                            <td>Total Variable Costs</td>
+                            <td id="summary-variable-costs-estimated"><em>0.00</em></td>
+                            <td id="summary-variable-costs-actual"><em>0.00</em></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Expenses</strong></td>
+                            <td id="summary-expenses-estimated"><strong><em>0.00</em></strong></td>
+                            <td id="summary-expenses-actual"><strong><em>0.00</em></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Unplanned Expenses</td>
+                            <td>—</td>
+                            <td id="summary-unplanned-actual"><em>0.00</em></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td><strong><em>Grand Savings Total</em></strong></td>
+                            <td id="summary-savings-estimated"><strong><em>0.00</em></strong></td>
+                            <td id="summary-savings-actual"><strong><em>0.00</em></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="save-section form-section">
+                <button id="save-month-button" class="btn btn-primary btn-success">Save Month Data</button>
+            </section>
+        </div>
+
+        <div id="no-month-message" style="text-align: center; padding: 3rem;">
+            <p class="empty-message">No month selected. Please select a month from the dropdown or create a new one.</p>
+        </div>
+    </main>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="help-modal" style="display: none;" role="dialog" aria-labelledby="help-modal-title" aria-hidden="true">
+        <div class="help-modal-overlay"></div>
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <h3 id="help-modal-title" class="help-modal-title"></h3>
+                <button class="help-modal-close" aria-label="Close help dialog">&times;</button>
+            </div>
+            <div class="help-modal-body" id="help-modal-body"></div>
+        </div>
+    </div>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
+
+    <!-- Database Layer -->
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../../database/models/data-manager.js"></script>
+    <script src="../../database/models/month-factory.js"></script>
+    
+    <!-- UI Layer -->
+    <script src="../services/CalculationService.js"></script>
+    <script src="../services/FormHandler.js"></script>
+    <script src="../services/TableRenderer.js"></script>
+    <script src="../utils/formatters.js"></script>
+    <script src="../utils/CSVHandler.js"></script>
+    <script src="../utils/ReferenceImporter.js"></script>
+    <script src="../services/ExportService.js"></script>
+    <script src="../components/Header.js"></script>
+    <script src="../controllers/MonthlyBudgetController.js"></script>
+    <script>
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Initialize database service
+                await window.DatabaseService.initialize();
+                
+                // Initialize settings
+                await window.DataManager.initializeSettings();
+                await window.DataManager.applyFontSize();
+        
+        // Verify ReferenceImporter is loaded
+        if (!window.ReferenceImporter) {
+            console.error('ReferenceImporter not loaded! HTML file imports will not work.');
+        } else {
+            console.log('ReferenceImporter loaded successfully');
+        }
+        
+        // Verify CSVHandler is loaded
+        if (!window.CSVHandler) {
+            console.error('CSVHandler not loaded! CSV export/import will not work.');
+        } else {
+            console.log('CSVHandler loaded successfully');
+        }
+        
+        // Help content for each section
+        const helpContent = {
+            'working-section-help': {
+                title: 'The Working Section',
+                content: '<div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;">Weeks are automatically generated based on the calendar month.</p></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Using the "=" Line for Actual Spending:</strong></p><p style="margin-bottom: 0.75rem;">Each variable cost column has an "=" line at the bottom. Enter your actual weekly spending after the "=" sign. What is entered after the "=" is summed up as actual spending.</p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Format</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Example</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Result</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Simple number</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>= 50</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">50</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Math expression</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>= 20 + 15 + 10</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">45</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Empty (no spend)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>=</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">0</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 8%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 30%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 62%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Payments Due</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Sum of values in Payments Due column</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Variable Cost Estimates</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">First number in each category column (weekly budget)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">3</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Week Estimate</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Payments Due + Variable Cost Estimates</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">4</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Variable Cost Actuals</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Value entered after "=" in each category column</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">5</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Paid Fixed Costs</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Sum of Fixed Costs marked "Paid" within week date range</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">6</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Paid Unplanned</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Sum of Unplanned marked "Paid" within week date range</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">7</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Week Actual</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Paid Fixed Costs + Paid Unplanned + Variable Cost Actuals</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">8</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Totals Row</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Sum of each column across all weeks</td></tr></tbody></table></div>'
+            },
+            'income-section-help': {
+                title: '1. Income',
+                content: '<p>At the start of each month, write down how much you expect to earn, how much I expect to earn, and any other income.</p><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 40%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 50%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Income (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Income (Estimated) = Σ(Estimated Amount for all income sources)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Income (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Income (Actual) = Σ(Actual Amount for all income sources)</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Note:</strong> Each income source is tracked separately with its own estimated amount, actual amount, date, description, and comments.</p></div>'
+            },
+            'fixed-costs-section-help': {
+                title: '2. Fixed Costs ',
+                content: '<p>All predictable expenses that come out every month — rent, subscriptions, gym, storage, transport, etc. Track estimated, actual, date, and which card.</p><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 40%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 50%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Fixed Costs (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Fixed Costs (Estimated) = Σ(Estimated Amount for all fixed cost entries)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Fixed Costs (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Fixed Costs (Actual) = Σ(Actual Amount for all fixed cost entries)</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Note:</strong> Only fixed costs marked as "Paid" are included in the Working Section actual calculations for the week in which the payment date falls.</p></div>'
+            },
+            'variable-costs-section-help': {
+                title: '3. Variable Costs ',
+                content: '<p>The two categories we can control. Assign a monthly budget for each.</p><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Using the "=" Line for Actual Spending:</strong></p><p style="margin-bottom: 0.75rem;">Each variable cost column has an "=" line at the bottom. Enter your actual weekly spending after the "=" sign. What is entered after the "=" is summed up as actual spending.</p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Format</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Example</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left;">Result</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Simple number</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>= 50</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">50</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Math expression</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>= 20 + 15 + 10</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">45</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Empty (no spend)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);"><code>=</code></td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">0</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 40%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 50%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Remaining (for each category)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Remaining = Monthly Budget - Actual Spent</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Variable Costs (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Variable Costs (Estimated) = Σ(Monthly Budget for all categories)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">3</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Variable Costs (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Variable Costs (Actual) = Σ(Actual Spent for all categories)</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Note:</strong> Variable costs are broken down by week in the Working Section, where you can track weekly spending and adjustments.</p></div>'
+            },
+            'unplanned-expenses-section-help': {
+                title: '4. Unplanned Buying',
+                content: '<p>Catch-all section for things we didn\'t budget for but end up buying anyway (new jeans, spontaneous book, one-off fee, anything unexpected).</p><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 40%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 50%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Unplanned Expenses (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Unplanned Expenses (Actual) = Σ(Amount for all unplanned expense entries)</td></tr></tbody></table></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Note:</strong> Unplanned expenses only have actual amounts (no estimates). Only expenses marked as "Paid" are included in the Working Section actual calculations for the week in which the payment date falls.</p></div>'
+            },
+            'summary-section-help': {
+                title: '5. End-of-Month Summary',
+                content: '<div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 35%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 55%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Income</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Income (Estimated) = from Income section<br/>Total Income (Actual) = from Income section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Fixed Costs</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Fixed Costs (Estimated) = from Fixed Costs section<br/>Total Fixed Costs (Actual) = from Fixed Costs section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">3</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Variable Costs</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Variable Costs (Estimated) = from Variable Costs section<br/>Total Variable Costs (Actual) = from Variable Costs section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">4</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Expenses (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Expenses (Estimated) = Total Fixed Costs (Estimated) + Total Variable Costs (Estimated)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">5</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Expenses (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Expenses (Actual) = Total Fixed Costs (Actual) + Total Variable Costs (Actual)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">6</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Unplanned Expenses</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Unplanned Expenses (Actual) = from Unplanned Buying section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">7</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Grand Savings Total (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Grand Savings Total (Estimated) = Total Income (Estimated) - Total Expenses (Estimated)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">8</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Grand Savings Total (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Grand Savings Total (Actual) = Total Income (Actual) - Total Expenses (Actual) - Total Unplanned Expenses (Actual)</td></tr></tbody></table></div>'
+            },
+            'save-section-help': {
+                title: 'Save Data',
+                content: '<div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Data Storage:</strong> All data is stored as individual JSON files in <code>data/months/</code> folder.</p></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;">When you save, the file will be saved directly (modern browsers) or downloaded (older browsers).</p></div>'
+            }
+        };
+
+        // Help modal functionality
+        function initHelpButtons() {
+            const helpButtons = document.querySelectorAll('.help-button');
+            const helpModal = document.getElementById('help-modal');
+            const helpModalTitle = document.getElementById('help-modal-title');
+            const helpModalBody = document.getElementById('help-modal-body');
+            const helpModalClose = document.querySelector('.help-modal-close');
+            const helpModalOverlay = document.querySelector('.help-modal-overlay');
+
+            function openHelpModal(helpId) {
+                const content = helpContent[helpId];
+                if (content) {
+                    helpModalTitle.textContent = content.title;
+                    helpModalBody.innerHTML = content.content;
+                    helpModal.style.display = 'flex';
+                    helpModal.setAttribute('aria-hidden', 'false');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            function closeHelpModal() {
+                helpModal.style.display = 'none';
+                helpModal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+            }
+
+            helpButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const helpId = this.getAttribute('data-help-id');
+                    openHelpModal(helpId);
+                });
+            });
+
+            if (helpModalClose) {
+                helpModalClose.addEventListener('click', closeHelpModal);
+            }
+
+            if (helpModalOverlay) {
+                helpModalOverlay.addEventListener('click', closeHelpModal);
+            }
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && helpModal.style.display === 'flex') {
+                    closeHelpModal();
+                }
+            });
+        }
+
+                // Verify ReferenceImporter is loaded
+                if (!window.ReferenceImporter) {
+                    console.error('ReferenceImporter not loaded! HTML file imports will not work.');
+                } else {
+                    console.log('ReferenceImporter loaded successfully');
+                }
+                
+                // Verify CSVHandler is loaded
+                if (!window.CSVHandler) {
+                    console.error('CSVHandler not loaded! CSV export/import will not work.');
+                } else {
+                    console.log('CSVHandler loaded successfully');
+                }
+                
+                // Initialize help buttons
+                initHelpButtons();
+                
+                // Now initialize the controller (it will handle loading months)
+                if (window.MonthlyBudgetController) {
+                    await window.MonthlyBudgetController.init();
+                }
+            } catch (error) {
+                console.error('Error initializing application:', error);
+                alert('Error initializing application. Please check console for details.');
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - Home</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body class="landing-page">
+    <!-- Header will be injected by Header.js -->
+
+    <main class="landing-main overview-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Financial Overview</h2>
+        </section>
+
+        <section class="summary-section" aria-labelledby="summary-heading">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Income:</div>
+                    <div id="overall-income" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Expenses:</div>
+                    <div id="overall-expenses" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Savings:</div>
+                    <div id="overall-savings" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots/Investments:</div>
+                    <div id="overall-pots" class="summary-card-value">0.00</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="months-comparison-section form-section" aria-labelledby="months-comparison-heading">
+            <h2 id="months-comparison-heading" class="section-title">Monthly Comparison</h2>
+            <table class="data-table" id="months-comparison-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Income</th>
+                        <th>Fixed Costs</th>
+                        <th>Variable Costs</th>
+                        <th>Unplanned</th>
+                        <th>Total Expenses</th>
+                        <th>Pots</th>
+                        <th>Savings</th>
+                        <th class="delete-column-header"></th>
+                    </tr>
+                </thead>
+                <tbody id="months-comparison-tbody">
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
+
+    <!-- Database Layer -->
+    <script src="../database/config/supabase-config.js"></script>
+    <script src="../database/services/database-service.js"></script>
+    <script src="../database/models/data-manager.js"></script>
+    
+    <!-- UI Layer -->
+    <script src="../database/models/month-factory.js"></script>
+    <script src="services/CalculationService.js"></script>
+    <script src="services/FormHandler.js"></script>
+    <script src="services/TableRenderer.js"></script>
+    <script src="utils/formatters.js"></script>
+    <script src="services/ExportService.js"></script>
+    <script src="components/Header.js"></script>
+    <script src="controllers/LandingController.js"></script>
+    <script>
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Initialize database service
+                await window.DatabaseService.initialize();
+                
+                // Initialize settings
+                await window.DataManager.initializeSettings();
+                await window.DataManager.applyFontSize();
+                
+                // Mark as initialized to prevent double initialization
+                window.landingControllerInitialized = true;
+                
+                // Now initialize the LandingController
+                if (window.LandingController) {
+                    await window.LandingController.init();
+                }
+            } catch (error) {
+                console.error('Error initializing application:', error);
+                alert('Error initializing application. Please check console for details.');
+            }
+        });
+    </script>
+</body>
+</html>
+

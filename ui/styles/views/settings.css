@@ -1,0 +1,128 @@
+/* ============================================================================
+   SETTINGS PAGE STYLES
+   ============================================================================ */
+
+.settings-main {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.settings-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: nowrap;
+    margin-bottom: var(--spacing-sm);
+}
+
+.settings-row .form-label {
+    margin-bottom: 0;
+    min-width: 60px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.settings-row .form-select,
+.settings-row .form-input {
+    flex: 1;
+    min-width: 80px;
+    max-width: 300px;
+}
+
+.settings-row .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.settings-row-full {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: nowrap;
+    margin-bottom: var(--spacing-sm);
+}
+
+.settings-inline-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: nowrap;
+}
+
+.settings-inline-group .form-label {
+    margin-bottom: 0;
+}
+
+.settings-inline-group .form-input,
+.settings-inline-group .form-select {
+    width: auto;
+    min-width: 100px;
+}
+
+.settings-divider {
+    border-top: 1px solid var(--border-color);
+    margin: var(--spacing-sm) 0;
+    padding-top: var(--spacing-sm);
+}
+
+.settings-status {
+    margin-top: var(--spacing-xs);
+    font-size: 0.875rem;
+}
+
+/* Export row layout */
+.settings-export-row {
+    justify-content: flex-start;
+}
+
+@media (max-width: 480px) {
+    /* Currency row - keep label and dropdown on same line */
+    .settings-row {
+        flex-wrap: nowrap !important;
+        gap: var(--spacing-sm);
+    }
+    
+    .settings-row .form-label {
+        min-width: auto;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+    }
+    
+    .settings-row .form-select,
+    .settings-row .form-input {
+        flex: 1;
+        min-width: 0;
+        max-width: none;
+    }
+    
+    .settings-inline-group {
+        flex-wrap: nowrap;
+    }
+    
+    .settings-inline-group .form-input,
+    .settings-inline-group .form-select {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Keep export row elements on same line */
+    .settings-export-row {
+        flex-wrap: nowrap !important;
+    }
+
+    .settings-export-row #export-format-select {
+        flex: 1;
+        max-width: none;
+    }
+    
+    .settings-export-row .btn {
+        flex-shrink: 0;
+    }
+}

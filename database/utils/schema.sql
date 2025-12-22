@@ -1,0 +1,89 @@
+-- Money Tracker Database Schema
+-- Supabase PostgreSQL Schema
+
+-- Months table
+CREATE TABLE IF NOT EXISTS months (
+    id BIGSERIAL PRIMARY KEY,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+    month_name TEXT NOT NULL,
+    date_range JSONB DEFAULT '{}',
+    weekly_breakdown JSONB DEFAULT '[]',
+    fixed_costs JSONB DEFAULT '[]',
+    variable_costs JSONB DEFAULT '[]',
+    unplanned_expenses JSONB DEFAULT '[]',
+    income_sources JSONB DEFAULT '[]',
+    pots JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(year, month)
+);
+
+-- Pots table
+CREATE TABLE IF NOT EXISTS pots (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    estimated_amount NUMERIC(12, 2) DEFAULT 0,
+    actual_amount NUMERIC(12, 2) DEFAULT 0,
+    comments TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Settings table
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    currency TEXT DEFAULT '£',
+    font_size TEXT DEFAULT '16',
+    default_fixed_costs JSONB DEFAULT '[]',
+    default_variable_categories JSONB DEFAULT '["Food", "Travel/Transport", "Activities"]',
+    default_pots JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_months_year_month ON months(year, month);
+CREATE INDEX IF NOT EXISTS idx_months_created_at ON months(created_at);
+CREATE INDEX IF NOT EXISTS idx_pots_created_at ON pots(created_at);
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers to auto-update updated_at
+CREATE TRIGGER update_months_updated_at BEFORE UPDATE ON months
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_pots_updated_at BEFORE UPDATE ON pots
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Row Level Security (RLS) policies
+ALTER TABLE months ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Allow all operations for authenticated users
+-- Note: Adjust these policies based on your authentication requirements
+CREATE POLICY "Allow all operations for authenticated users" ON months
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations for authenticated users" ON pots
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations for authenticated users" ON settings
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- For public access (if needed), use:
+-- CREATE POLICY "Allow public access" ON months FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow public access" ON pots FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow public access" ON settings FOR ALL USING (true) WITH CHECK (true);
+

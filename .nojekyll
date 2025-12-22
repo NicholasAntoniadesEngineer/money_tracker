@@ -1,0 +1,3 @@
+# Prevent Jekyll processing on GitHub Pages
+# This ensures all files are served as-is without Jekyll processing
+
