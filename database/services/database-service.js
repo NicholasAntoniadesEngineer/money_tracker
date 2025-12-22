@@ -1255,6 +1255,100 @@ const DatabaseService = {
             throw new Error('Invalid month number');
         }
         return monthNames[monthNumber - 1] || '';
+    },
+    
+    /**
+     * Clear all user data from database tables
+     * Deletes all data from user_months and pots tables
+     * Does NOT delete example_months or settings
+     * @returns {Promise<Object>} Result object with success status and counts
+     */
+    async clearAllUserTables() {
+        try {
+            console.log('[DatabaseService] clearAllUserTables() called');
+            
+            if (!this.client) {
+                console.log('[DatabaseService] Client not initialized, initializing...');
+                await this.initialize();
+            }
+            
+            const result = {
+                userMonthsDeleted: 0,
+                potsDeleted: 0,
+                success: false,
+                errors: []
+            };
+            
+            // Delete all user months
+            console.log('[DatabaseService] Deleting all user_months...');
+            try {
+                // First, get count of rows to delete
+                const { count: monthsCount } = await this.client
+                    .from('user_months')
+                    .select('*', { count: 'exact', head: true });
+                
+                console.log(`[DatabaseService] Found ${monthsCount || 0} user months to delete`);
+                
+                // Delete all rows (using gte on id to match all rows since id is always >= 1)
+                const { data: deletedMonths, error: monthsError } = await this.client
+                    .from('user_months')
+                    .delete()
+                    .gte('id', 1) // Match all rows (id is always >= 1)
+                    .select();
+                
+                if (monthsError) {
+                    console.error('[DatabaseService] Error deleting user_months:', monthsError);
+                    result.errors.push(`user_months: ${monthsError.message}`);
+                } else {
+                    result.userMonthsDeleted = deletedMonths ? deletedMonths.length : 0;
+                    console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months`);
+                }
+            } catch (monthsError) {
+                console.error('[DatabaseService] Exception deleting user_months:', monthsError);
+                result.errors.push(`user_months: ${monthsError.message}`);
+            }
+            
+            // Delete all pots
+            console.log('[DatabaseService] Deleting all pots...');
+            try {
+                // First, get count of rows to delete
+                const { count: potsCount } = await this.client
+                    .from('pots')
+                    .select('*', { count: 'exact', head: true });
+                
+                console.log(`[DatabaseService] Found ${potsCount || 0} pots to delete`);
+                
+                // Delete all rows
+                const { data: deletedPots, error: potsError } = await this.client
+                    .from('pots')
+                    .delete()
+                    .gte('id', 1) // Match all rows (id is always >= 1)
+                    .select();
+                
+                if (potsError) {
+                    console.error('[DatabaseService] Error deleting pots:', potsError);
+                    result.errors.push(`pots: ${potsError.message}`);
+                } else {
+                    result.potsDeleted = deletedPots ? deletedPots.length : 0;
+                    console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots`);
+                }
+            } catch (potsError) {
+                console.error('[DatabaseService] Exception deleting pots:', potsError);
+                result.errors.push(`pots: ${potsError.message}`);
+            }
+            
+            // Clear in-memory cache
+            this.clearCache();
+            console.log('[DatabaseService] Cleared in-memory cache');
+            
+            result.success = result.errors.length === 0;
+            console.log('[DatabaseService] clearAllUserTables() completed:', result);
+            
+            return result;
+        } catch (error) {
+            console.error('[DatabaseService] Error clearing user tables:', error);
+            throw error;
+        }
     }
 };
 

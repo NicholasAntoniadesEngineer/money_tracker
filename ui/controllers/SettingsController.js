@@ -141,6 +141,7 @@ const SettingsController = {
         const yearInputGroup = document.getElementById('year-input-group');
         const importYear = document.getElementById('import-year');
         const clearAllDataBtn = document.getElementById('clear-all-data-button');
+        const deleteAllUserDataBtn = document.getElementById('delete-all-user-data-button');
         const loadExampleDataBtn = document.getElementById('load-example-data-button');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
@@ -211,6 +212,75 @@ const SettingsController = {
                     console.error('Error clearing cached data:', error);
                     if (fileOperationsStatus) {
                         fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">Error clearing cached data: ${error.message}. Please try again.</p>`;
+                    }
+                }
+            });
+        }
+
+        // Delete all user data from Supabase button
+        if (deleteAllUserDataBtn) {
+            deleteAllUserDataBtn.addEventListener('click', async () => {
+                const confirmMessage = 'WARNING: This will PERMANENTLY DELETE all user data from Supabase!\n\n' +
+                    'This includes:\n' +
+                    '- All user months (user_months table)\n' +
+                    '- All pots (pots table)\n\n' +
+                    'This will NOT delete:\n' +
+                    '- Example months (example_months table)\n' +
+                    '- Settings (settings table)\n\n' +
+                    'This action CANNOT be undone. Are you absolutely sure?';
+                
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                // Double confirmation
+                const doubleConfirm = confirm('FINAL WARNING: This will permanently delete ALL your user data from Supabase. This cannot be undone. Click OK to proceed or Cancel to abort.');
+                if (!doubleConfirm) {
+                    return;
+                }
+
+                const fileOperationsStatus = document.getElementById('file-operations-status');
+                if (fileOperationsStatus) {
+                    fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Deleting all user data from Supabase...</p>';
+                }
+
+                try {
+                    if (!window.DatabaseService) {
+                        throw new Error('DatabaseService not available');
+                    }
+
+                    const result = await window.DatabaseService.clearAllUserTables();
+
+                    if (result.success) {
+                        if (fileOperationsStatus) {
+                            let message = '<p style="color: var(--success-color);">✓ Successfully deleted all user data from Supabase:</p>';
+                            message += `<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">`;
+                            message += `<li>Deleted ${result.userMonthsDeleted} user month(s)</li>`;
+                            message += `<li>Deleted ${result.potsDeleted} pot(s)</li>`;
+                            message += `</ul>`;
+                            message += '<p style="margin-top: 0.5rem;">The page will reload to refresh the data.</p>';
+                            fileOperationsStatus.innerHTML = message;
+                        }
+
+                        // Reload the page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        let errorMessage = '<p style="color: var(--danger-color);">Error deleting user data:</p>';
+                        errorMessage += '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                        result.errors.forEach(error => {
+                            errorMessage += `<li>${error}</li>`;
+                        });
+                        errorMessage += '</ul>';
+                        if (fileOperationsStatus) {
+                            fileOperationsStatus.innerHTML = errorMessage;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error deleting user data:', error);
+                    if (fileOperationsStatus) {
+                        fileOperationsStatus.innerHTML = `<p style="color: var(--danger-color);">Error deleting user data: ${error.message}. Please try again.</p>`;
                     }
                 }
             });
