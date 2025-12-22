@@ -689,15 +689,37 @@ const DatabaseService = {
             }
             
             console.log('[DatabaseService] Querying settings table...');
-            const { data, error } = await this.client
+            
+            // Add timeout to prevent hanging
+            const queryPromise = this.client
                 .from('settings')
                 .select('*')
                 .eq('id', 1)
                 .single();
             
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Settings query timeout after 10 seconds'));
+                }, 10000);
+            });
+            
+            let queryResult;
+            try {
+                queryResult = await Promise.race([queryPromise, timeoutPromise]);
+                console.log('[DatabaseService] Settings query completed');
+            } catch (timeoutError) {
+                if (timeoutError.message && timeoutError.message.includes('timeout')) {
+                    console.error('[DatabaseService] Settings query timed out after 10 seconds');
+                    return null;
+                }
+                throw timeoutError;
+            }
+            
+            const { data, error } = queryResult;
+            
             if (error) {
                 if (error.code === 'PGRST116') {
-                    console.log('[DatabaseService] Settings not found (PGRST116)');
+                    console.log('[DatabaseService] Settings not found (PGRST116) - returning null');
                     return null;
                 }
                 // Handle network/connection errors gracefully
@@ -712,13 +734,16 @@ const DatabaseService = {
                     details: error.details,
                     hint: error.hint
                 });
-                throw error;
+                // Return null instead of throwing to prevent blocking initialization
+                return null;
             }
             
             console.log('[DatabaseService] Settings fetched successfully:', data ? 'Found' : 'Not found');
             const settings = data ? this.transformSettingsFromDatabase(data) : null;
             if (settings) {
                 console.log('[DatabaseService] Settings data:', settings);
+            } else {
+                console.log('[DatabaseService] No settings data returned');
             }
             
             return settings;
@@ -735,6 +760,7 @@ const DatabaseService = {
                 this._settingsErrorLogged = true;
             }
             // Return null instead of throwing to prevent cascading errors
+            console.log('[DatabaseService] getSettings() returning null due to error');
             return null;
         }
     },

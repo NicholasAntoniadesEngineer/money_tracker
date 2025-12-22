@@ -9,10 +9,35 @@ const SettingsController = {
      * Initialize the settings page
      */
     async init() {
-        await this.loadCurrencySetting();
-        await this.loadFontSizeSetting();
-        await this.loadMonthSelector();
+        console.log('[SettingsController] init() called');
+        
+        // Set up event listeners first so buttons are functional even if settings loading fails
         this.setupEventListeners();
+        console.log('[SettingsController] Event listeners set up');
+        
+        // Load settings (with error handling to prevent blocking)
+        try {
+            await this.loadCurrencySetting();
+            console.log('[SettingsController] Currency setting loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading currency setting:', error);
+        }
+        
+        try {
+            await this.loadFontSizeSetting();
+            console.log('[SettingsController] Font size setting loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading font size setting:', error);
+        }
+        
+        try {
+            await this.loadMonthSelector();
+            console.log('[SettingsController] Month selector loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading month selector:', error);
+        }
+        
+        console.log('[SettingsController] init() completed');
     },
 
     /**
