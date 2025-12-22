@@ -97,9 +97,10 @@ const DataManager = {
      * Save a specific month's data to database
      * @param {string} monthKey - Month key
      * @param {Object} monthData - Month data object
+     * @param {boolean} forceUserTable - Force save to user_months table (for imports)
      * @returns {Promise<boolean>} Success status
      */
-    async saveMonth(monthKey, monthData) {
+    async saveMonth(monthKey, monthData, forceUserTable = false) {
         try {
             if (!monthKey || !monthData) {
                 throw new Error('Month key and data are required');
@@ -114,7 +115,7 @@ const DataManager = {
                 monthData.createdAt = new Date().toISOString();
             }
             
-            return await window.DatabaseService.saveMonth(monthKey, monthData);
+            return await window.DatabaseService.saveMonth(monthKey, monthData, forceUserTable);
         } catch (error) {
             console.error(`Error saving month ${monthKey}:`, error);
             throw error;

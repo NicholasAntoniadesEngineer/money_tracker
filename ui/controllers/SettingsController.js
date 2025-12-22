@@ -121,8 +121,8 @@ const SettingsController = {
 
         // Load example data button
         if (loadExampleDataBtn) {
-            loadExampleDataBtn.addEventListener('click', () => {
-                this.loadExampleData();
+            loadExampleDataBtn.addEventListener('click', async () => {
+                await this.loadExampleData();
             });
         }
 
@@ -545,9 +545,9 @@ const SettingsController = {
                     throw new Error('Could not parse month data');
                 }
 
-                // Save to DataManager
-                DataManager.saveMonth(monthData.key, monthData);
-                results.push(`<p style="color: var(--success-color);">✓ Imported ${monthName} ${fileYear}</p>`);
+                // Save to DataManager - force save to user_months table for imported data
+                await DataManager.saveMonth(monthData.key, monthData, true);
+                results.push(`<p style="color: var(--success-color);">✓ Imported ${monthName} ${fileYear} to user_months table</p>`);
                 successCount++;
 
             } catch (error) {
@@ -757,6 +757,11 @@ const SettingsController = {
             return;
         }
 
+        if (removeExampleDataBtn) {
+            removeExampleDataBtn.disabled = true;
+            removeExampleDataBtn.textContent = 'Clearing...';
+        }
+
         if (importStatus) {
             importStatus.innerHTML = '<p style="color: var(--text-secondary);">Clearing example data from local cache...</p>';
         }
@@ -782,6 +787,11 @@ const SettingsController = {
             console.error('Error removing example data from cache:', error);
             if (importStatus) {
                 importStatus.innerHTML = `<p style="color: var(--danger-color);">Error clearing example data: ${error.message}. Please try again.</p>`;
+            }
+            // Re-enable button on error
+            if (removeExampleDataBtn) {
+                removeExampleDataBtn.disabled = false;
+                removeExampleDataBtn.textContent = 'Remove Example Data';
             }
         }
     }

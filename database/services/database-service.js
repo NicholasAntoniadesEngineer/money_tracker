@@ -126,16 +126,18 @@ const DatabaseService = {
     
     /**
      * Clear example months from cache only (not from database)
+     * Uses year-based check for faster performance
      * @returns {Promise<void>}
      */
     async clearExampleDataFromCache() {
         try {
-            // Clear from memory cache
+            // Clear from memory cache using year-based check (faster than database queries)
             if (this.monthsCache) {
                 const exampleMonthKeys = [];
                 for (const monthKey of Object.keys(this.monthsCache)) {
-                    const isExample = await this.isExampleData(monthKey);
-                    if (isExample) {
+                    // Use year-based check for performance (example data is year 2045)
+                    const { year } = this.parseMonthKey(monthKey);
+                    if (year === this.EXAMPLE_YEAR) {
                         exampleMonthKeys.push(monthKey);
                     }
                 }
@@ -144,17 +146,23 @@ const DatabaseService = {
                 });
             }
             
-            // Clear from localStorage cache
+            // Clear from localStorage cache (if it exists)
             const cachedData = localStorage.getItem(this.CACHE_STORAGE_KEY);
             if (cachedData) {
                 try {
                     const monthsCache = JSON.parse(cachedData);
                     const exampleMonthKeys = [];
                     
+                    // Use year-based check for performance
                     for (const monthKey of Object.keys(monthsCache)) {
-                        const isExample = await this.isExampleData(monthKey);
-                        if (isExample) {
-                            exampleMonthKeys.push(monthKey);
+                        try {
+                            const { year } = this.parseMonthKey(monthKey);
+                            if (year === this.EXAMPLE_YEAR) {
+                                exampleMonthKeys.push(monthKey);
+                            }
+                        } catch (error) {
+                            // Skip invalid month keys
+                            continue;
                         }
                     }
                     
@@ -166,6 +174,9 @@ const DatabaseService = {
                     localStorage.setItem(this.CACHE_TIMESTAMP_KEY, Date.now().toString());
                 } catch (error) {
                     console.warn('Error processing cache:', error);
+                    // If cache is corrupted, just remove it
+                    localStorage.removeItem(this.CACHE_STORAGE_KEY);
+                    localStorage.removeItem(this.CACHE_TIMESTAMP_KEY);
                 }
             }
         } catch (error) {
@@ -365,9 +376,10 @@ const DatabaseService = {
      * Save a month to database
      * @param {string} monthKey - Month key
      * @param {Object} monthData - Month data object
+     * @param {boolean} forceUserTable - Force save to user_months table (for imports)
      * @returns {Promise<boolean>} Success status
      */
-    async saveMonth(monthKey, monthData) {
+    async saveMonth(monthKey, monthData, forceUserTable = false) {
         try {
             if (!monthKey || !monthData) {
                 throw new Error('Month key and data are required');
@@ -382,7 +394,14 @@ const DatabaseService = {
             const monthRecord = this.transformMonthToDatabase(monthData, year, month);
             
             // Determine which table to use
-            const tableName = await this.getTableName(monthKey);
+            // If forceUserTable is true (for imports), always use user_months
+            // Otherwise, check if it's example data
+            let tableName;
+            if (forceUserTable) {
+                tableName = 'user_months';
+            } else {
+                tableName = await this.getTableName(monthKey);
+            }
             
             const { error } = await this.client
                 .from(tableName)
