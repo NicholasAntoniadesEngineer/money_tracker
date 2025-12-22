@@ -243,14 +243,23 @@ const DatabaseService = {
             }
             
             // Fetch example months
-            const { data: exampleMonthsData, error: exampleMonthsError } = await this.client
+            let exampleMonthsData = [];
+            const { data: exampleData, error: exampleMonthsError } = await this.client
                 .from('example_months')
                 .select('*')
                 .order('year', { ascending: false })
                 .order('month', { ascending: false });
             
             if (exampleMonthsError) {
-                throw exampleMonthsError;
+                // If table doesn't exist yet, log warning but don't fail
+                if (exampleMonthsError.message && exampleMonthsError.message.includes('relation') && exampleMonthsError.message.includes('does not exist')) {
+                    console.warn('example_months table does not exist yet. Run schema-fresh-install.sql to create it.');
+                    exampleMonthsData = [];
+                } else {
+                    throw exampleMonthsError;
+                }
+            } else {
+                exampleMonthsData = exampleData || [];
             }
             
             const monthsObject = {};
@@ -264,7 +273,7 @@ const DatabaseService = {
             }
             
             // Add example months (they will override user months if same key exists, which shouldn't happen)
-            if (exampleMonthsData && Array.isArray(exampleMonthsData)) {
+            if (Array.isArray(exampleMonthsData) && exampleMonthsData.length > 0) {
                 exampleMonthsData.forEach(monthRecord => {
                     const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
                     monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);

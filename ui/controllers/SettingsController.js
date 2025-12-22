@@ -670,7 +670,8 @@ const SettingsController = {
         }
 
         try {
-            const allMonths = await DataManager.getAllMonths();
+            // Force refresh to ensure we're checking the actual database, not cache
+            const allMonths = await DataManager.getAllMonths(true);
             
             // Check which example months exist in Supabase
             const existingExampleMonths = [];
