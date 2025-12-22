@@ -223,8 +223,55 @@ const DatabaseService = {
                 throw new Error('Failed to initialize Supabase client');
             }
             
-            // Test the client connection by trying a simple query
-            console.log('[DatabaseService] Testing client connection...');
+            // Test the client connection - check if we can reach Supabase at all
+            console.log('[DatabaseService] Testing Supabase connection...');
+            console.log('[DatabaseService] Supabase URL:', window.SupabaseConfig?.PROJECT_URL);
+            console.log('[DatabaseService] API Key present:', !!window.SupabaseConfig?.PUBLISHABLE_API_KEY);
+            console.log('[DatabaseService] API Key length:', window.SupabaseConfig?.PUBLISHABLE_API_KEY?.length);
+            
+            // Check if we can make a simple HTTP request to Supabase
+            try {
+                const supabaseUrl = window.SupabaseConfig?.PROJECT_URL;
+                if (supabaseUrl) {
+                    console.log('[DatabaseService] Testing HTTP connectivity to Supabase...');
+                    const healthCheckUrl = `${supabaseUrl}/rest/v1/`;
+                    
+                    // Try a simple fetch to see if we can reach the server
+                    const fetchStart = Date.now();
+                    const fetchResult = await Promise.race([
+                        fetch(healthCheckUrl, {
+                            method: 'HEAD',
+                            headers: {
+                                'apikey': window.SupabaseConfig?.PUBLISHABLE_API_KEY || '',
+                                'Authorization': `Bearer ${window.SupabaseConfig?.PUBLISHABLE_API_KEY || ''}`
+                            }
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('HTTP test timeout')), 5000))
+                    ]).catch(err => {
+                        const fetchElapsed = Date.now() - fetchStart;
+                        console.error(`[DatabaseService] HTTP test failed after ${fetchElapsed}ms:`, err);
+                        return null;
+                    });
+                    
+                    if (fetchResult) {
+                        const fetchElapsed = Date.now() - fetchStart;
+                        console.log(`[DatabaseService] HTTP connectivity test successful (${fetchElapsed}ms) - Status: ${fetchResult.status}`);
+                    } else {
+                        console.error('[DatabaseService] HTTP connectivity test failed - cannot reach Supabase server');
+                        console.error('[DatabaseService] Possible issues:');
+                        console.error('[DatabaseService] 1. Network connectivity problem');
+                        console.error('[DatabaseService] 2. CORS policy blocking requests');
+                        console.error('[DatabaseService] 3. Supabase project URL is incorrect');
+                        console.error('[DatabaseService] 4. Supabase project is paused or deleted');
+                        console.error('[DatabaseService] 5. Firewall/proxy blocking requests');
+                    }
+                }
+            } catch (httpTestError) {
+                console.warn('[DatabaseService] HTTP connectivity test error:', httpTestError);
+            }
+            
+            // Test the client with a simple query (with timeout)
+            console.log('[DatabaseService] Testing Supabase client with query...');
             try {
                 // Try to query a table that should exist (user_months or example_months)
                 // This will help us determine if it's a connection issue or table-specific
@@ -233,7 +280,7 @@ const DatabaseService = {
                 
                 // Set a short timeout for the test
                 const testTimeout = setTimeout(() => {
-                    console.warn('[DatabaseService] Connection test timed out - there may be a network or configuration issue');
+                    console.warn('[DatabaseService] Query test timed out - queries are not completing');
                 }, 3000);
                 
                 const testResult = await Promise.race([
@@ -242,20 +289,26 @@ const DatabaseService = {
                 ]).catch(err => {
                     clearTimeout(testTimeout);
                     if (err.message === 'Test timeout') {
-                        console.error('[DatabaseService] Connection test failed - queries are timing out');
-                        console.error('[DatabaseService] This suggests a network issue, RLS policy blocking, or table doesn\'t exist');
+                        console.error('[DatabaseService] Query test failed - queries are timing out');
+                        console.error('[DatabaseService] This suggests:');
+                        console.error('[DatabaseService] 1. Network/connectivity issue');
+                        console.error('[DatabaseService] 2. RLS (Row Level Security) policies blocking all queries');
+                        console.error('[DatabaseService] 3. API key is invalid or expired');
+                        console.error('[DatabaseService] 4. Supabase project configuration issue');
                     }
                     return { data: null, error: err };
                 });
                 
                 clearTimeout(testTimeout);
                 if (testResult && testResult.error) {
-                    console.warn('[DatabaseService] Connection test returned error (this may be expected if tables are empty):', testResult.error);
+                    console.warn('[DatabaseService] Query test returned error:', testResult.error);
+                    console.warn('[DatabaseService] Error code:', testResult.error.code);
+                    console.warn('[DatabaseService] Error message:', testResult.error.message);
                 } else {
-                    console.log('[DatabaseService] Connection test successful - client is working');
+                    console.log('[DatabaseService] Query test successful - client is working');
                 }
             } catch (testError) {
-                console.warn('[DatabaseService] Connection test error (non-fatal):', testError);
+                console.warn('[DatabaseService] Query test error:', testError);
             }
             
             // Always initialize fresh - never load cache from localStorage
