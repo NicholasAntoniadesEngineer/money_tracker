@@ -662,17 +662,26 @@ const SettingsController = {
     /**
      * Load all example data from Supabase
      * Checks if example data exists in Supabase and displays it
+     * Example data uses year 2045 to avoid conflicts with real data
      */
     async loadExampleData() {
         const importStatus = document.getElementById('import-status');
         const loadExampleDataBtn = document.getElementById('load-example-data-button');
 
-        if (!window.ExampleData) {
-            if (importStatus) {
-                importStatus.innerHTML = '<p style="color: var(--danger-color);">ExampleData library not loaded.</p>';
-            }
-            return;
-        }
+        // Example data configuration (year 2045)
+        const EXAMPLE_YEAR = 2045;
+        const exampleMonthKeys = [
+            `${EXAMPLE_YEAR}-01`,
+            `${EXAMPLE_YEAR}-09`,
+            `${EXAMPLE_YEAR}-10`,
+            `${EXAMPLE_YEAR}-11`
+        ];
+        const exampleMonthNames = {
+            '01': 'January',
+            '09': 'September',
+            '10': 'October',
+            '11': 'November'
+        };
 
         if (loadExampleDataBtn) {
             loadExampleDataBtn.disabled = true;
@@ -680,7 +689,6 @@ const SettingsController = {
         }
 
         try {
-            const exampleMonthKeys = window.ExampleData.getExampleMonthKeys();
             const allMonths = await DataManager.getAllMonths();
             
             // Check which example months exist in Supabase
@@ -691,11 +699,13 @@ const SettingsController = {
                 if (allMonths[monthKey]) {
                     existingExampleMonths.push(allMonths[monthKey]);
                 } else {
-                    const exampleMonths = window.ExampleData.getAllExampleMonths();
-                    const missingMonth = exampleMonths.find(m => m.key === monthKey);
-                    if (missingMonth) {
-                        missingExampleMonths.push(missingMonth);
-                    }
+                    const monthNum = monthKey.split('-')[1];
+                    const monthName = exampleMonthNames[monthNum];
+                    missingExampleMonths.push({
+                        key: monthKey,
+                        monthName: monthName,
+                        year: EXAMPLE_YEAR
+                    });
                 }
             }
 
@@ -705,7 +715,7 @@ const SettingsController = {
                 let message = '';
                 
                 if (existingExampleMonths.length > 0) {
-                    message = `<p style="color: var(--success-color);">Found ${existingExampleMonths.length} example month(s) in Supabase database (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
+                    message = `<p style="color: var(--success-color);">Found ${existingExampleMonths.length} example month(s) in Supabase database (Year ${EXAMPLE_YEAR}).</p>`;
                     message += '<p style="margin-top: 0.5rem;">View months:</p><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
                     for (const monthData of existingExampleMonths) {
                         if (monthData && monthData.key) {
@@ -724,8 +734,7 @@ const SettingsController = {
                     }
                     message += '</ul>';
                     message += '<p style="margin-top: 0.5rem; color: var(--text-secondary);">';
-                    message += 'To add example data to Supabase, run the SQL script from <code>database/utils/populate-example-data.sql</code> ';
-                    message += 'or use the browser console helper: <code>await populateExampleData()</code>';
+                    message += 'To add example data to Supabase, run the SQL script from <code>database/utils/populate-example-data.sql</code> in Supabase SQL Editor.';
                     message += '</p>';
                 }
                 
@@ -750,20 +759,22 @@ const SettingsController = {
     },
 
     /**
-     * Remove all example data
+     * Remove all example data from Supabase
+     * Example data uses year 2045
      */
     async removeExampleData() {
         const importStatus = document.getElementById('import-status');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
-        if (!window.ExampleData) {
-            if (importStatus) {
-                importStatus.innerHTML = '<p style="color: var(--danger-color);">ExampleData library not loaded.</p>';
-            }
-            return;
-        }
+        // Example data configuration (year 2045)
+        const EXAMPLE_YEAR = 2045;
+        const exampleMonthKeys = [
+            `${EXAMPLE_YEAR}-01`,
+            `${EXAMPLE_YEAR}-09`,
+            `${EXAMPLE_YEAR}-10`,
+            `${EXAMPLE_YEAR}-11`
+        ];
 
-        const exampleMonthKeys = window.ExampleData.getExampleMonthKeys();
         const allMonths = await DataManager.getAllMonths();
         
         // Check if any example months exist
@@ -773,6 +784,11 @@ const SettingsController = {
             if (importStatus) {
                 importStatus.innerHTML = '<p style="color: var(--warning-color);">No example data found to remove.</p>';
             }
+            return;
+        }
+
+        const confirmMessage = `Are you sure you want to remove ${existingExampleMonths.length} example month(s) from Supabase? This action cannot be undone.`;
+        if (!confirm(confirmMessage)) {
             return;
         }
 
@@ -794,7 +810,7 @@ const SettingsController = {
             await this.loadMonthSelector();
 
             if (importStatus) {
-                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully removed ${removedCount} example months.</p>`;
+                importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully removed ${removedCount} example month(s) from Supabase.</p>`;
             }
 
         } catch (error) {
