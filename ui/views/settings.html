@@ -116,20 +116,37 @@
     <script>
         // Initialize application
         document.addEventListener('DOMContentLoaded', async function() {
+            console.log('[SettingsPage] DOMContentLoaded - starting initialization');
             try {
                 // Initialize database service
+                console.log('[SettingsPage] Initializing database service...');
                 await window.DatabaseService.initialize();
+                console.log('[SettingsPage] Database service initialized');
                 
-                // Initialize settings
-                await window.DataManager.initializeSettings();
-                await window.DataManager.applyFontSize();
-                
-                // Initialize SettingsController
+                // Initialize SettingsController FIRST so buttons work immediately
                 if (window.SettingsController) {
+                    console.log('[SettingsPage] Initializing SettingsController...');
                     await window.SettingsController.init();
+                    console.log('[SettingsPage] SettingsController initialized');
                 }
+                
+                // Initialize settings (non-blocking - don't wait if it hangs)
+                console.log('[SettingsPage] Loading settings (non-blocking)...');
+                Promise.all([
+                    window.DataManager.initializeSettings().catch(err => {
+                        console.warn('[SettingsPage] Settings initialization failed:', err);
+                    }),
+                    window.DataManager.applyFontSize().catch(err => {
+                        console.warn('[SettingsPage] Font size application failed:', err);
+                    })
+                ]).then(() => {
+                    console.log('[SettingsPage] Settings loaded');
+                }).catch(err => {
+                    console.warn('[SettingsPage] Settings loading error:', err);
+                });
+                
             } catch (error) {
-                console.error('Error initializing application:', error);
+                console.error('[SettingsPage] Error initializing application:', error);
                 alert('Error initializing application. Please check console for details.');
             }
         });

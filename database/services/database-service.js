@@ -689,35 +689,43 @@ const DatabaseService = {
             }
             
             console.log('[DatabaseService] Querying settings table...');
+            console.log('[DatabaseService] Client status:', this.client ? 'Available' : 'Not available');
             
-            // Add timeout to prevent hanging
-            const queryPromise = this.client
-                .from('settings')
-                .select('*')
-                .eq('id', 1)
-                .single();
+            // Wrap the entire query in a timeout to prevent indefinite hanging
+            const queryWithTimeout = async () => {
+                return new Promise(async (resolve, reject) => {
+                    // Set up timeout
+                    const timeoutId = setTimeout(() => {
+                        console.error('[DatabaseService] Settings query timeout after 5 seconds - returning null');
+                        resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+                    }, 5000);
+                    
+                    try {
+                        console.log('[DatabaseService] Executing Supabase query...');
+                        const result = await this.client
+                            .from('settings')
+                            .select('*')
+                            .eq('id', 1)
+                            .single();
+                        
+                        clearTimeout(timeoutId);
+                        console.log('[DatabaseService] Query completed, result:', result);
+                        resolve(result);
+                    } catch (queryError) {
+                        clearTimeout(timeoutId);
+                        console.error('[DatabaseService] Query threw error:', queryError);
+                        resolve({ data: null, error: queryError });
+                    }
+                });
+            };
             
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject(new Error('Settings query timeout after 10 seconds'));
-                }, 10000);
-            });
-            
-            let queryResult;
-            try {
-                queryResult = await Promise.race([queryPromise, timeoutPromise]);
-                console.log('[DatabaseService] Settings query completed');
-            } catch (timeoutError) {
-                if (timeoutError.message && timeoutError.message.includes('timeout')) {
-                    console.error('[DatabaseService] Settings query timed out after 10 seconds');
-                    return null;
-                }
-                throw timeoutError;
-            }
-            
-            const { data, error } = queryResult;
+            const { data, error } = await queryWithTimeout();
             
             if (error) {
+                if (error.code === 'TIMEOUT') {
+                    console.warn('[DatabaseService] Settings query timed out - returning null');
+                    return null;
+                }
                 if (error.code === 'PGRST116') {
                     console.log('[DatabaseService] Settings not found (PGRST116) - returning null');
                     return null;
