@@ -9,21 +9,20 @@ const SettingsController = {
      * Initialize the settings page
      */
     async init() {
-        await DataManager.loadMonthsFromFiles();
-        this.loadCurrencySetting();
-        this.loadFontSizeSetting();
-        this.loadMonthSelector();
+        await this.loadCurrencySetting();
+        await this.loadFontSizeSetting();
+        await this.loadMonthSelector();
         this.setupEventListeners();
     },
 
     /**
      * Load and display current currency setting
      */
-    loadCurrencySetting() {
+    async loadCurrencySetting() {
         const currencySelect = document.getElementById('currency-select');
         if (!currencySelect) return;
 
-        const settings = DataManager.getSettings();
+        const settings = await DataManager.getSettings();
         const currentCurrency = settings && settings.currency ? settings.currency : '£';
         
         currencySelect.value = currentCurrency;
@@ -32,10 +31,10 @@ const SettingsController = {
     /**
      * Save currency setting
      */
-    saveCurrencySetting(currency) {
-        const settings = DataManager.getSettings() || DataManager.initializeSettings();
+    async saveCurrencySetting(currency) {
+        const settings = await DataManager.getSettings() || await DataManager.initializeSettings();
         settings.currency = currency;
-        const success = DataManager.saveSettings(settings);
+        const success = await DataManager.saveSettings(settings);
         
         if (success) {
             // Reload page to update all currency displays
@@ -48,11 +47,11 @@ const SettingsController = {
     /**
      * Load and display current font size setting
      */
-    loadFontSizeSetting() {
+    async loadFontSizeSetting() {
         const fontSizeSelect = document.getElementById('font-size-select');
         if (!fontSizeSelect) return;
 
-        const settings = DataManager.getSettings();
+        const settings = await DataManager.getSettings();
         const currentFontSize = settings && settings.fontSize ? settings.fontSize : '16';
         
         fontSizeSelect.value = currentFontSize;
@@ -61,10 +60,10 @@ const SettingsController = {
     /**
      * Save font size setting and apply to page
      */
-    saveFontSizeSetting(fontSize) {
-        const settings = DataManager.getSettings() || DataManager.initializeSettings();
+    async saveFontSizeSetting(fontSize) {
+        const settings = await DataManager.getSettings() || await DataManager.initializeSettings();
         settings.fontSize = fontSize;
-        const success = DataManager.saveSettings(settings);
+        const success = await DataManager.saveSettings(settings);
         
         if (success) {
             // Apply font size immediately
@@ -129,14 +128,14 @@ const SettingsController = {
 
         // Remove example data button
         if (removeExampleDataBtn) {
-            removeExampleDataBtn.addEventListener('click', () => {
-                this.removeExampleData();
+            removeExampleDataBtn.addEventListener('click', async () => {
+                await this.removeExampleData();
             });
         }
 
         // Clear all cached data button
-        if (clearAllDataBtn) {
-            clearAllDataBtn.addEventListener('click', () => {
+                if (clearAllDataBtn) {
+                    clearAllDataBtn.addEventListener('click', async () => {
                 const confirmMessage = 'Are you sure you want to clear all cached data? This will remove all months, pots, and settings data stored in your browser. The original data files will not be affected, but you\'ll need to re-import them to view the data again.\n\nThis action cannot be undone.';
                 if (!confirm(confirmMessage)) {
                     return;
@@ -152,12 +151,12 @@ const SettingsController = {
                     sessionStorage.setItem('skipFileLoadAfterClear', 'true');
 
                     // Get all months and delete them individually to ensure proper cleanup
-                    const allMonths = DataManager.getAllMonths();
+                    const allMonths = await DataManager.getAllMonths();
                     const monthKeys = Object.keys(allMonths);
                     let deletedCount = 0;
 
                     for (const monthKey of monthKeys) {
-                        const deleted = DataManager.deleteMonth(monthKey);
+                        const deleted = await DataManager.deleteMonth(monthKey);
                         if (deleted) {
                             deletedCount++;
                         }
@@ -172,7 +171,7 @@ const SettingsController = {
                     localStorage.clear();
 
                     // Reset to default settings (after clearing, so it creates fresh defaults)
-                    DataManager.initializeSettings();
+                    await DataManager.initializeSettings();
 
                     // Clear any cached data
                     if (DataManager._monthsCache !== undefined) {
@@ -187,7 +186,7 @@ const SettingsController = {
                     }
 
                     // Double-check: verify all months are actually gone
-                    const finalCheck = DataManager.getAllMonths();
+                    const finalCheck = await DataManager.getAllMonths();
                     const remainingCount = Object.keys(finalCheck).length;
                     if (remainingCount > 0) {
                         console.warn(`Warning: ${remainingCount} months still exist after clear operation`);
@@ -195,7 +194,7 @@ const SettingsController = {
                     }
 
                     // Reload month selector to show empty state
-                    this.loadMonthSelector();
+                    await this.loadMonthSelector();
 
                     if (fileOperationsStatus) {
                         fileOperationsStatus.innerHTML = `<p style="color: var(--success-color);">✓ All cached data has been cleared. ${deletedCount} month(s) deleted. Settings have been reset to defaults.</p>`;
@@ -270,7 +269,7 @@ const SettingsController = {
                 try {
                     if (selectedValue === 'all') {
                         // Export all months
-                        const allMonths = DataManager.getAllMonths();
+                        const allMonths = await DataManager.getAllMonths();
                         const monthKeys = Object.keys(allMonths);
                         
                         if (monthKeys.length === 0) {
@@ -301,7 +300,7 @@ const SettingsController = {
                             statusElement.innerHTML = '<p style="color: var(--text-secondary);">Exporting as ' + formatUpper + '...</p>';
                         }
                         
-                        const monthData = DataManager.getMonth(selectedValue);
+                        const monthData = await DataManager.getMonth(selectedValue);
                         if (!monthData) {
                             throw new Error('Month data not found');
                         }
@@ -332,7 +331,7 @@ const SettingsController = {
 
         // Delete month button
         if (deleteMonthBtn && monthSelector) {
-            deleteMonthBtn.addEventListener('click', () => {
+            deleteMonthBtn.addEventListener('click', async () => {
                 const selectedMonthKey = monthSelector.value;
                 
                 if (!selectedMonthKey) {
@@ -340,7 +339,7 @@ const SettingsController = {
                     return;
                 }
                 
-                const monthData = DataManager.getMonth(selectedMonthKey);
+                const monthData = await DataManager.getMonth(selectedMonthKey);
                 if (!monthData) {
                     alert('Month not found');
                     return;
@@ -354,11 +353,11 @@ const SettingsController = {
                     return;
                 }
 
-                const success = DataManager.deleteMonth(selectedMonthKey);
+                const success = await DataManager.deleteMonth(selectedMonthKey);
 
                 if (success) {
                     alert(`${monthName} ${year} has been deleted.`);
-                    this.loadMonthSelector();
+                    await this.loadMonthSelector();
                     if (deleteMonthBtn) deleteMonthBtn.style.display = 'none';
                 } else {
                     alert('Error deleting month. Please try again.');
@@ -634,17 +633,17 @@ const SettingsController = {
         if (importButton) {
             importButton.disabled = false;
         }
-        this.loadMonthSelector();
+            await this.loadMonthSelector();
     },
 
     /**
      * Load month selector dropdown
      */
-    loadMonthSelector() {
+    async loadMonthSelector() {
         const selector = document.getElementById('month-selector');
         if (!selector) return;
 
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         if (monthKeys.length > 0) {
@@ -661,9 +660,10 @@ const SettingsController = {
     },
 
     /**
-     * Load all example data
+     * Load all example data from Supabase
+     * Checks if example data exists in Supabase and displays it
      */
-    loadExampleData() {
+    async loadExampleData() {
         const importStatus = document.getElementById('import-status');
         const loadExampleDataBtn = document.getElementById('load-example-data-button');
 
@@ -676,43 +676,70 @@ const SettingsController = {
 
         if (loadExampleDataBtn) {
             loadExampleDataBtn.disabled = true;
-            loadExampleDataBtn.textContent = 'Loading...';
+            loadExampleDataBtn.textContent = 'Checking...';
         }
 
         try {
-            const exampleMonths = window.ExampleData.getAllExampleMonths();
-            let loadedCount = 0;
-
-            for (const monthData of exampleMonths) {
-                if (monthData && monthData.key) {
-                    // Process example data through JSON parse/stringify to ensure
-                    // it's identical to imported JSON data
-                    const processedMonthData = JSON.parse(JSON.stringify(monthData));
-                    DataManager.saveMonth(processedMonthData.key, processedMonthData);
-                    loadedCount++;
+            const exampleMonthKeys = window.ExampleData.getExampleMonthKeys();
+            const allMonths = await DataManager.getAllMonths();
+            
+            // Check which example months exist in Supabase
+            const existingExampleMonths = [];
+            const missingExampleMonths = [];
+            
+            for (const monthKey of exampleMonthKeys) {
+                if (allMonths[monthKey]) {
+                    existingExampleMonths.push(allMonths[monthKey]);
+                } else {
+                    const exampleMonths = window.ExampleData.getAllExampleMonths();
+                    const missingMonth = exampleMonths.find(m => m.key === monthKey);
+                    if (missingMonth) {
+                        missingExampleMonths.push(missingMonth);
+                    }
                 }
             }
 
-            this.loadMonthSelector();
+            await this.loadMonthSelector();
 
             if (importStatus) {
-                let message = `<p style="color: var(--success-color);">Successfully loaded ${loadedCount} example months (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
-                if (loadedCount > 0) {
+                let message = '';
+                
+                if (existingExampleMonths.length > 0) {
+                    message = `<p style="color: var(--success-color);">Found ${existingExampleMonths.length} example month(s) in Supabase database (Year ${window.ExampleData.EXAMPLE_YEAR}).</p>`;
                     message += '<p style="margin-top: 0.5rem;">View months:</p><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
-                    for (const monthData of exampleMonths) {
+                    for (const monthData of existingExampleMonths) {
                         if (monthData && monthData.key) {
                             message += `<li><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">${monthData.monthName} ${monthData.year}</a></li>`;
                         }
                     }
                     message += '</ul>';
                 }
+                
+                if (missingExampleMonths.length > 0) {
+                    if (message) message += '<hr style="margin: 1rem 0;">';
+                    message += `<p style="color: var(--warning-color);">${missingExampleMonths.length} example month(s) not found in Supabase:</p>`;
+                    message += '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                    for (const monthData of missingExampleMonths) {
+                        message += `<li>${monthData.monthName} ${monthData.year} (${monthData.key})</li>`;
+                    }
+                    message += '</ul>';
+                    message += '<p style="margin-top: 0.5rem; color: var(--text-secondary);">';
+                    message += 'To add example data to Supabase, run the SQL script from <code>database/utils/populate-example-data.sql</code> ';
+                    message += 'or use the browser console helper: <code>await populateExampleData()</code>';
+                    message += '</p>';
+                }
+                
+                if (existingExampleMonths.length === 0 && missingExampleMonths.length === 0) {
+                    message = '<p style="color: var(--warning-color);">No example data found.</p>';
+                }
+                
                 importStatus.innerHTML = message;
             }
 
         } catch (error) {
             console.error('Error loading example data:', error);
             if (importStatus) {
-                importStatus.innerHTML = `<p style="color: var(--danger-color);">Failed to load example data: ${error.message}</p>`;
+                importStatus.innerHTML = `<p style="color: var(--danger-color);">Error checking example data: ${error.message}</p>`;
             }
         } finally {
             if (loadExampleDataBtn) {
@@ -725,7 +752,7 @@ const SettingsController = {
     /**
      * Remove all example data
      */
-    removeExampleData() {
+    async removeExampleData() {
         const importStatus = document.getElementById('import-status');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
@@ -737,7 +764,7 @@ const SettingsController = {
         }
 
         const exampleMonthKeys = window.ExampleData.getExampleMonthKeys();
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         
         // Check if any example months exist
         const existingExampleMonths = exampleMonthKeys.filter(key => allMonths[key]);
@@ -759,12 +786,12 @@ const SettingsController = {
 
             for (const monthKey of exampleMonthKeys) {
                 if (allMonths[monthKey]) {
-                    DataManager.deleteMonth(monthKey);
+                    await DataManager.deleteMonth(monthKey);
                     removedCount++;
                 }
             }
 
-            this.loadMonthSelector();
+            await this.loadMonthSelector();
 
             if (importStatus) {
                 importStatus.innerHTML = `<p style="color: var(--success-color);">Successfully removed ${removedCount} example months.</p>`;

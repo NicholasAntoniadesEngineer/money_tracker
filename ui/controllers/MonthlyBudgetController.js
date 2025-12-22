@@ -80,23 +80,17 @@ const MonthlyBudgetController = {
         const urlParams = new URLSearchParams(window.location.search);
         const monthParam = urlParams.get('month');
 
-        // Ensure months are loaded before proceeding
-        await DataManager.loadMonthsFromFiles();
-        
-        // Try to initialize with initial data if localStorage is empty
-        if (window.InitialData) {
-            await InitialData.initializeIfEmpty();
-        }
+        // Load months from database
+        const allMonths = await DataManager.getAllMonths();
 
         this.loadMonthSelector();
 
         if (monthParam) {
-            this.loadMonth(monthParam);
+            await this.loadMonth(monthParam);
         } else {
-            const allMonths = DataManager.getAllMonths();
             const monthKeys = Object.keys(allMonths).sort().reverse();
             if (monthKeys.length > 0) {
-                this.loadMonth(monthKeys[0]);
+                await this.loadMonth(monthKeys[0]);
             }
         }
 
@@ -106,11 +100,11 @@ const MonthlyBudgetController = {
     /**
      * Load month selector dropdown
      */
-    loadMonthSelector() {
+    async loadMonthSelector() {
         const selector = document.getElementById('month-selector');
         const selectorInitial = document.getElementById('month-selector-initial');
 
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         const optionsHtml = monthKeys.length > 0 
@@ -162,9 +156,9 @@ const MonthlyBudgetController = {
         const selector = document.getElementById('month-selector');
         const selectorInitial = document.getElementById('month-selector-initial');
         
-        const handleMonthChange = (value) => {
+        const handleMonthChange = async (value) => {
             if (value) {
-                this.loadMonth(value);
+                await this.loadMonth(value);
             }
         };
         
@@ -187,7 +181,7 @@ const MonthlyBudgetController = {
     /**
      * Create a new month
      */
-    createNewMonth() {
+    async createNewMonth() {
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth() + 1;
@@ -211,15 +205,15 @@ const MonthlyBudgetController = {
 
         const month = parseInt(monthInput, 10);
         const monthKey = DataManager.generateMonthKey(year, month);
-        DataManager.createNewMonth(year, month);
+        await DataManager.createNewMonth(year, month);
         window.location.href = `monthly-budget.html?month=${monthKey}`;
     },
 
     /**
      * Load a specific month
      */
-    loadMonth(monthKey) {
-        const monthData = DataManager.getMonth(monthKey);
+    async loadMonth(monthKey) {
+        const monthData = await DataManager.getMonth(monthKey);
         
         if (!monthData) {
             alert('Month not found');
@@ -2110,7 +2104,7 @@ const MonthlyBudgetController = {
     /**
      * Save month data
      */
-    saveMonthData() {
+    async saveMonthData() {
         if (!this.currentMonthKey) {
             alert('No month selected');
             return;
@@ -2119,19 +2113,11 @@ const MonthlyBudgetController = {
         const monthData = this.getCurrentMonthDataFromForm();
         const isNewMonth = !this.currentMonthData || !this.currentMonthData.createdAt;
         
-        // Always export to file - files are the source of truth
-        const success = DataManager.saveMonth(this.currentMonthKey, monthData, true);
+        // Save to database
+        const success = await DataManager.saveMonth(this.currentMonthKey, monthData);
 
         if (success) {
-            let message = 'Month data saved successfully!\n\n';
-            
-            // Check if File System Access API is available
-            if ('showSaveFilePicker' in window) {
-                message += 'File saved directly to your selected location.';
-            } else {
-                message += 'A JSON file has been downloaded. ';
-                message += 'Please save it to the data/months/ folder.';
-            }
+            let message = 'Month data saved successfully to database!';
             
             if (isNewMonth) {
                 message = 'New month created and saved!\n\n' + message;
@@ -2139,7 +2125,7 @@ const MonthlyBudgetController = {
             
             alert(message);
             this.currentMonthData = monthData;
-            this.loadMonthSelector();
+            await this.loadMonthSelector();
         } else {
             alert('Error saving month data. Please try again.');
         }
@@ -2148,7 +2134,7 @@ const MonthlyBudgetController = {
     /**
      * Delete current month
      */
-    deleteCurrentMonth() {
+    async deleteCurrentMonth() {
         if (!this.currentMonthKey) {
             alert('No month selected');
             return;
@@ -2163,7 +2149,7 @@ const MonthlyBudgetController = {
             return;
         }
 
-        const success = DataManager.deleteMonth(this.currentMonthKey);
+        const success = await DataManager.deleteMonth(this.currentMonthKey);
 
         if (success) {
             alert(`${monthName} ${year} has been deleted.`);
@@ -2179,12 +2165,12 @@ const MonthlyBudgetController = {
             if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
             if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
 
-            this.loadMonthSelector();
+            await this.loadMonthSelector();
 
-            const allMonths = DataManager.getAllMonths();
+            const allMonths = await DataManager.getAllMonths();
             const monthKeys = Object.keys(allMonths).sort().reverse();
             if (monthKeys.length > 0) {
-                this.loadMonth(monthKeys[0]);
+                await this.loadMonth(monthKeys[0]);
             }
         } else {
             alert('Error deleting month. Please try again.');
@@ -2202,10 +2188,10 @@ const MonthlyBudgetController = {
     /**
      * Populate copy month selectors with all available months (excluding current)
      */
-    populateCopyMonthSelectors() {
+    async populateCopyMonthSelectors() {
         if (!this.currentMonthKey) return;
 
-        const allMonths = DataManager.getAllMonths();
+        const allMonths = await DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths)
             .filter(key => key !== this.currentMonthKey)
             .sort()
@@ -2238,7 +2224,7 @@ const MonthlyBudgetController = {
     /**
      * Copy income data from selected month
      */
-    copyIncomeFromMonth() {
+    async copyIncomeFromMonth() {
         const selector = document.getElementById('copy-income-from-month');
         if (!selector || !selector.value) {
             alert('Please select a month to copy from');
@@ -2246,7 +2232,7 @@ const MonthlyBudgetController = {
         }
 
         const sourceMonthKey = selector.value;
-        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        const sourceMonthData = await DataManager.getMonth(sourceMonthKey);
         
         if (!sourceMonthData) {
             alert('Source month not found');
@@ -2280,7 +2266,7 @@ const MonthlyBudgetController = {
     /**
      * Copy fixed costs from selected month
      */
-    copyFixedCostsFromMonth() {
+    async copyFixedCostsFromMonth() {
         const selector = document.getElementById('copy-fixed-costs-from-month');
         if (!selector || !selector.value) {
             alert('Please select a month to copy from');
@@ -2288,7 +2274,7 @@ const MonthlyBudgetController = {
         }
 
         const sourceMonthKey = selector.value;
-        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        const sourceMonthData = await DataManager.getMonth(sourceMonthKey);
         
         if (!sourceMonthData) {
             alert('Source month not found');
@@ -2323,12 +2309,12 @@ const MonthlyBudgetController = {
      * Internal function to copy variable costs from a specific month
      * Used automatically when month selector changes
      */
-    copyVariableCostsFromMonthInternal(sourceMonthKey) {
+    async copyVariableCostsFromMonthInternal(sourceMonthKey) {
         if (!sourceMonthKey) {
             return;
         }
 
-        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        const sourceMonthData = await DataManager.getMonth(sourceMonthKey);
         
         if (!sourceMonthData) {
             return;
@@ -2363,7 +2349,7 @@ const MonthlyBudgetController = {
     /**
      * Copy variable costs from selected month
      */
-    copyVariableCostsFromMonth() {
+    async copyVariableCostsFromMonth() {
         const selector = document.getElementById('copy-variable-costs-from-month');
         if (!selector || !selector.value) {
             alert('Please select a month to copy from');
@@ -2371,9 +2357,9 @@ const MonthlyBudgetController = {
         }
 
         const sourceMonthKey = selector.value;
-        this.copyVariableCostsFromMonthInternal(sourceMonthKey);
+        await this.copyVariableCostsFromMonthInternal(sourceMonthKey);
         
-        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        const sourceMonthData = await DataManager.getMonth(sourceMonthKey);
         if (sourceMonthData) {
             alert(`Copied ${(sourceMonthData.variableCosts || []).length} variable cost(s) from ${sourceMonthData.monthName} ${sourceMonthData.year}`);
         }
@@ -2384,7 +2370,7 @@ const MonthlyBudgetController = {
     /**
      * Copy unplanned expenses from selected month
      */
-    copyUnplannedExpensesFromMonth() {
+    async copyUnplannedExpensesFromMonth() {
         const selector = document.getElementById('copy-unplanned-from-month');
         if (!selector || !selector.value) {
             alert('Please select a month to copy from');
@@ -2392,7 +2378,7 @@ const MonthlyBudgetController = {
         }
 
         const sourceMonthKey = selector.value;
-        const sourceMonthData = DataManager.getMonth(sourceMonthKey);
+        const sourceMonthData = await DataManager.getMonth(sourceMonthKey);
         
         if (!sourceMonthData) {
             alert('Source month not found');

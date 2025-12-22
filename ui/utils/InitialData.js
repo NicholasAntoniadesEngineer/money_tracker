@@ -1,33 +1,16 @@
 /**
  * Initial Data Loader
- * Loads initial months data from individual JSON files in data/months/
+ * No longer needed - data is loaded from Supabase database
+ * This file is kept for backwards compatibility but does nothing
  */
 
 const InitialData = {
     /**
-     * Initialize with months from individual JSON files if localStorage is empty
+     * Initialize - no longer needed with Supabase
      */
     async initializeIfEmpty() {
-        const skipFileLoad = sessionStorage.getItem('skipFileLoadAfterClear');
-        if (skipFileLoad) {
-            return false;
-        }
-
-        const allMonths = DataManager.getAllMonths();
-        
-        if (Object.keys(allMonths).length === 0) {
-            // Try to load from files (will fail gracefully with file:// protocol)
-            const loadedMonths = await DataManager.loadMonthsFromFiles();
-            if (Object.keys(loadedMonths).length > 0) {
-                console.log(`Initialized with ${Object.keys(loadedMonths).length} months from individual JSON files`);
-                return true;
-            } else {
-                console.log('No months found. Use the Import page to load data from JSON files, or create a new month.');
-            }
-        } else {
-            // Months exist in localStorage, try to sync with files if possible
-            await DataManager.loadMonthsFromFiles();
-        }
+        // Data is now loaded from Supabase database
+        // This method is kept for backwards compatibility
         return false;
     }
 };
