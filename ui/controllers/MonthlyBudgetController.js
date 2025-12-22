@@ -2145,9 +2145,12 @@ const MonthlyBudgetController = {
         const year = monthData.year;
 
         // Check if this is example data before attempting deletion
-        if (window.DatabaseService && window.DatabaseService.isExampleData(this.currentMonthKey)) {
-            alert('Example data (year 2045) cannot be deleted. This data is protected and locked.');
-            return;
+        if (window.DatabaseService) {
+            const isExample = await window.DatabaseService.isExampleData(this.currentMonthKey);
+            if (isExample) {
+                alert('Example data cannot be deleted. This data is protected and locked.');
+                return;
+            }
         }
 
         const confirmMessage = `Are you sure you want to delete ${monthName} ${year}? This action cannot be undone.`;

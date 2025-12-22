@@ -2,9 +2,10 @@
 -- Run this ONCE in Supabase SQL Editor to add example months
 -- Example data uses year 2045 to avoid conflicts with real data
 -- This includes ALL complete example data (weekly breakdown, income, fixed costs, variable costs, unplanned expenses, pots)
+-- NOTE: This script now inserts into the example_months table (separate from user_months)
 
 -- Insert example months (January, September, October, November 2045)
-INSERT INTO months (year, month, month_name, date_range, weekly_breakdown, fixed_costs, variable_costs, unplanned_expenses, income_sources, pots, created_at, updated_at)
+INSERT INTO example_months (year, month, month_name, date_range, weekly_breakdown, fixed_costs, variable_costs, unplanned_expenses, income_sources, pots, created_at, updated_at)
 VALUES 
 -- January 2045
 (2045, 1, 'January', 
@@ -170,6 +171,6 @@ SELECT year, month, month_name,
        jsonb_array_length(income_sources) as income_sources_count,
        jsonb_array_length(pots) as pots_count,
        created_at 
-FROM months 
+FROM example_months 
 WHERE year = 2045 
 ORDER BY month;

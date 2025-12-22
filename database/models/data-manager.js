@@ -133,8 +133,9 @@ const DataManager = {
             }
             
             // Check if this is example data before attempting deletion
-            if (window.DatabaseService.isExampleData(monthKey)) {
-                throw new Error('Example data (year 2045) cannot be deleted. This data is protected and locked.');
+            const isExample = await window.DatabaseService.isExampleData(monthKey);
+            if (isExample) {
+                throw new Error('Example data cannot be deleted. This data is protected and locked.');
             }
             
             return await window.DatabaseService.deleteMonth(monthKey);

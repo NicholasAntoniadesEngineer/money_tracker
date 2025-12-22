@@ -15,16 +15,62 @@ const DatabaseService = {
     
     /**
      * Check if a month key is example data (protected)
+     * Checks if the month exists in the example_months table
      * @param {string} monthKey - Month key
-     * @returns {boolean} True if example data
+     * @returns {Promise<boolean>} True if example data
      */
-    isExampleData(monthKey) {
+    async isExampleData(monthKey) {
+        try {
+            if (!this.client) {
+                await this.initialize();
+            }
+            
+            const { year, month } = this.parseMonthKey(monthKey);
+            
+            const { data, error } = await this.client
+                .from('example_months')
+                .select('id')
+                .eq('year', year)
+                .eq('month', month)
+                .single();
+            
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    return false; // Not found in example_months
+                }
+                throw error;
+            }
+            
+            return data !== null;
+        } catch (error) {
+            console.warn(`Error checking if ${monthKey} is example data:`, error);
+            return false;
+        }
+    },
+    
+    /**
+     * Synchronous version of isExampleData for backward compatibility
+     * Uses year check as fallback if database check fails
+     * @param {string} monthKey - Month key
+     * @returns {boolean} True if example data (based on year)
+     */
+    isExampleDataSync(monthKey) {
         try {
             const { year } = this.parseMonthKey(monthKey);
             return year === this.EXAMPLE_YEAR;
         } catch (error) {
             return false;
         }
+    },
+    
+    /**
+     * Get the table name for a month based on whether it's example data
+     * @param {string} monthKey - Month key
+     * @returns {Promise<string>} Table name ('example_months' or 'user_months')
+     */
+    async getTableName(monthKey) {
+        const isExample = await this.isExampleData(monthKey);
+        return isExample ? 'example_months' : 'user_months';
     },
     
     /**
@@ -132,21 +178,44 @@ const DatabaseService = {
                 }
             }
             
-            // Fetch from database
+            // Fetch from both tables
             console.log('Fetching months from database...');
-            const { data, error } = await this.client
-                .from('months')
+            
+            // Fetch user months
+            const { data: userMonthsData, error: userMonthsError } = await this.client
+                .from('user_months')
                 .select('*')
                 .order('year', { ascending: false })
                 .order('month', { ascending: false });
             
-            if (error) {
-                throw error;
+            if (userMonthsError) {
+                throw userMonthsError;
+            }
+            
+            // Fetch example months
+            const { data: exampleMonthsData, error: exampleMonthsError } = await this.client
+                .from('example_months')
+                .select('*')
+                .order('year', { ascending: false })
+                .order('month', { ascending: false });
+            
+            if (exampleMonthsError) {
+                throw exampleMonthsError;
             }
             
             const monthsObject = {};
-            if (data && Array.isArray(data)) {
-                data.forEach(monthRecord => {
+            
+            // Add user months
+            if (userMonthsData && Array.isArray(userMonthsData)) {
+                userMonthsData.forEach(monthRecord => {
+                    const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                    monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);
+                });
+            }
+            
+            // Add example months (they will override user months if same key exists, which shouldn't happen)
+            if (exampleMonthsData && Array.isArray(exampleMonthsData)) {
+                exampleMonthsData.forEach(monthRecord => {
                     const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
                     monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);
                 });
@@ -200,19 +269,36 @@ const DatabaseService = {
             }
             
             // If not in cache or cache expired, fetch from database
+            // Check both tables: example_months first, then user_months
             const { year, month } = this.parseMonthKey(monthKey);
             
-            const { data, error } = await this.client
-                .from('months')
+            // First check example_months
+            let { data, error } = await this.client
+                .from('example_months')
                 .select('*')
                 .eq('year', year)
                 .eq('month', month)
                 .single();
             
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    return null;
+            // If not found in example_months, check user_months
+            if (error && error.code === 'PGRST116') {
+                const { data: userData, error: userError } = await this.client
+                    .from('user_months')
+                    .select('*')
+                    .eq('year', year)
+                    .eq('month', month)
+                    .single();
+                
+                if (userError) {
+                    if (userError.code === 'PGRST116') {
+                        return null; // Not found in either table
+                    }
+                    throw userError;
                 }
+                
+                data = userData;
+                error = null;
+            } else if (error) {
                 throw error;
             }
             
@@ -258,8 +344,11 @@ const DatabaseService = {
             
             const monthRecord = this.transformMonthToDatabase(monthData, year, month);
             
+            // Determine which table to use
+            const tableName = await this.getTableName(monthKey);
+            
             const { error } = await this.client
-                .from('months')
+                .from(tableName)
                 .upsert(monthRecord, { onConflict: 'year,month' });
             
             if (error) {
@@ -293,19 +382,21 @@ const DatabaseService = {
                 throw new Error('Month key is required');
             }
             
-            // Protect example data from deletion
-            if (this.isExampleData(monthKey)) {
-                throw new Error('Example data (year 2045) cannot be deleted. This data is protected.');
-            }
-            
             if (!this.client) {
                 await this.initialize();
             }
             
+            // Protect example data from deletion
+            const isExample = await this.isExampleData(monthKey);
+            if (isExample) {
+                throw new Error('Example data cannot be deleted. This data is protected.');
+            }
+            
             const { year, month } = this.parseMonthKey(monthKey);
             
+            // Only delete from user_months (never from example_months)
             const { error } = await this.client
-                .from('months')
+                .from('user_months')
                 .delete()
                 .eq('year', year)
                 .eq('month', month);

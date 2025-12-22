@@ -217,9 +217,12 @@ const LandingController = {
      */
     async deleteMonth(monthKey, monthDisplayName) {
         // Check if this is example data before attempting deletion
-        if (window.DatabaseService && window.DatabaseService.isExampleData(monthKey)) {
-            alert('Example data (year 2045) cannot be deleted. This data is protected and locked.');
-            return;
+        if (window.DatabaseService) {
+            const isExample = await window.DatabaseService.isExampleData(monthKey);
+            if (isExample) {
+                alert('Example data cannot be deleted. This data is protected and locked.');
+                return;
+            }
         }
 
         const confirmMessage = `Are you sure you want to delete ${monthDisplayName}? This action cannot be undone.`;
