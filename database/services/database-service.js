@@ -695,6 +695,62 @@ const DatabaseService = {
         // Non-JSON response or empty
         return { data: null, error: null };
     },
+    
+    /**
+     * Get the list of enabled example month keys from localStorage
+     * @returns {Array<string>} Array of month keys that user has enabled
+     */
+    getEnabledExampleMonths() {
+        try {
+            const stored = localStorage.getItem('money_tracker_enabled_example_months');
+            if (stored) {
+                const enabled = JSON.parse(stored);
+                return Array.isArray(enabled) ? enabled : [];
+            }
+            return [];
+        } catch (error) {
+            console.warn('[DatabaseService] Error reading enabled example months:', error);
+            return [];
+        }
+    },
+    
+    /**
+     * Set the list of enabled example month keys in localStorage
+     * @param {Array<string>} monthKeys - Array of month keys to enable
+     */
+    setEnabledExampleMonths(monthKeys) {
+        try {
+            localStorage.setItem('money_tracker_enabled_example_months', JSON.stringify(monthKeys));
+            console.log('[DatabaseService] Enabled example months updated:', monthKeys);
+        } catch (error) {
+            console.error('[DatabaseService] Error saving enabled example months:', error);
+        }
+    },
+    
+    /**
+     * Add example month keys to the enabled list
+     * @param {Array<string>} monthKeys - Month keys to add
+     */
+    addEnabledExampleMonths(monthKeys) {
+        const current = this.getEnabledExampleMonths();
+        const updated = [...new Set([...current, ...monthKeys])]; // Remove duplicates
+        this.setEnabledExampleMonths(updated);
+    },
+    
+    /**
+     * Remove example month keys from the enabled list
+     * @param {Array<string>} monthKeys - Month keys to remove (optional, if not provided removes all)
+     */
+    removeEnabledExampleMonths(monthKeys = null) {
+        if (monthKeys === null) {
+            // Remove all
+            this.setEnabledExampleMonths([]);
+        } else {
+            const current = this.getEnabledExampleMonths();
+            const updated = current.filter(key => !monthKeys.includes(key));
+            this.setEnabledExampleMonths(updated);
+        }
+    },
 
     async getAllMonths(forceRefresh = false, includeExampleData = true) {
         try {
@@ -723,15 +779,22 @@ const DatabaseService = {
                 throw userMonthsError;
             }
             
-            console.log(`[DatabaseService] user_months query result: ${userMonthsData ? userMonthsData.length : 0} months found`);
-            if (userMonthsData && Array.isArray(userMonthsData) && userMonthsData.length > 0) {
-                console.log('[DatabaseService] user_months data:', userMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
+            // Ensure userMonthsData is an array
+            const safeUserMonthsData = Array.isArray(userMonthsData) ? userMonthsData : (userMonthsData ? [userMonthsData] : []);
+            console.log(`[DatabaseService] user_months query result: ${safeUserMonthsData.length} months found`);
+            if (safeUserMonthsData.length > 0) {
+                console.log('[DatabaseService] user_months data:', safeUserMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
+            } else {
+                console.warn('[DatabaseService] No user months found in database. If you just imported data, try refreshing the page.');
             }
             
-            // Fetch example months only if requested
+            // Fetch example months only if requested AND user has enabled them
             let exampleMonthsData = [];
-            if (includeExampleData) {
-                console.log('[DatabaseService] Querying example_months table...');
+            const enabledExampleMonths = this.getEnabledExampleMonths();
+            console.log('[DatabaseService] Enabled example months from localStorage:', enabledExampleMonths);
+            
+            if (includeExampleData && enabledExampleMonths.length > 0) {
+                console.log('[DatabaseService] Querying example_months table for enabled months...');
                 const { data: exampleData, error: exampleMonthsError } = await this.querySelect('example_months', {
                     select: '*',
                     order: [
@@ -751,30 +814,46 @@ const DatabaseService = {
                         exampleMonthsData = [];
                     }
                 } else {
-                    exampleMonthsData = exampleData || [];
-                    console.log(`[DatabaseService] example_months query result: ${exampleMonthsData.length} months found`);
+                    // Filter to only include enabled example months
+                    const allExampleData = exampleData || [];
+                    exampleMonthsData = allExampleData.filter(monthRecord => {
+                        const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                        return enabledExampleMonths.includes(monthKey);
+                    });
+                    console.log(`[DatabaseService] example_months query result: ${allExampleData.length} total, ${exampleMonthsData.length} enabled`);
                     if (exampleMonthsData.length > 0) {
-                        console.log('[DatabaseService] example_months data:', exampleMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
+                        console.log('[DatabaseService] Enabled example_months data:', exampleMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
                     }
                 }
             } else {
-                console.log('[DatabaseService] Skipping example_months query (includeExampleData=false)');
+                if (!includeExampleData) {
+                    console.log('[DatabaseService] Skipping example_months query (includeExampleData=false)');
+                } else {
+                    console.log('[DatabaseService] Skipping example_months query (no enabled example months)');
+                }
             }
             
             const monthsObject = {};
             
-            // Add user months
-            if (userMonthsData && Array.isArray(userMonthsData)) {
-                console.log(`[DatabaseService] Processing ${userMonthsData.length} user months...`);
-                userMonthsData.forEach(monthRecord => {
-                    const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
-                    monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);
+            // Add user months (always include user months, regardless of example data settings)
+            if (safeUserMonthsData.length > 0) {
+                console.log(`[DatabaseService] Processing ${safeUserMonthsData.length} user months...`);
+                safeUserMonthsData.forEach(monthRecord => {
+                    try {
+                        const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                        monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);
+                        console.log(`[DatabaseService] Added user month: ${monthKey}`);
+                    } catch (error) {
+                        console.error(`[DatabaseService] Error processing user month ${monthRecord.year}-${monthRecord.month}:`, error);
+                    }
                 });
+            } else {
+                console.warn('[DatabaseService] No user months to process');
             }
             
-            // Add example months only if requested (they will override user months if same key exists, which shouldn't happen)
+            // Add enabled example months only (they will override user months if same key exists, which shouldn't happen)
             if (includeExampleData && Array.isArray(exampleMonthsData) && exampleMonthsData.length > 0) {
-                console.log(`[DatabaseService] Processing ${exampleMonthsData.length} example months...`);
+                console.log(`[DatabaseService] Processing ${exampleMonthsData.length} enabled example months...`);
                 exampleMonthsData.forEach(monthRecord => {
                     const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
                     monthsObject[monthKey] = this.transformMonthFromDatabase(monthRecord);
