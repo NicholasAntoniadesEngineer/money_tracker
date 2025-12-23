@@ -317,7 +317,10 @@ const AuthService = {
             
             // Try to intercept network requests using fetch if possible
             const originalFetch = window.fetch;
-            let networkRequestDetails = null;
+            let fetchIntercepted = false;
+            
+            console.log('[AuthService] Setting up fetch interception...');
+            console.log('[AuthService] Original fetch available:', typeof originalFetch === 'function');
             
             // Temporarily override fetch to capture request details
             window.fetch = function(...args) {
@@ -325,13 +328,30 @@ const AuthService = {
                 const options = args[1] || {};
                 
                 // Check if this is a signup request
-                if (typeof url === 'string' && url.includes('/auth/v1/signup')) {
+                const urlString = typeof url === 'string' ? url : (url instanceof Request ? url.url : String(url));
+                if (urlString.includes('/auth/v1/signup') || urlString.includes('signup')) {
+                    fetchIntercepted = true;
+                    console.log('[AuthService] ========== INTERCEPTED SIGNUP NETWORK REQUEST ==========');
                     console.log('[AuthService] Intercepted signup network request:', {
-                        url: url,
+                        url: urlString,
                         method: options.method || 'POST',
                         headers: options.headers ? Object.keys(options.headers) : 'N/A',
-                        hasBody: !!options.body
+                        hasBody: !!options.body,
+                        bodyType: typeof options.body
                     });
+                    
+                    // Log request headers
+                    if (options.headers) {
+                        const headerObj = {};
+                        if (options.headers instanceof Headers) {
+                            options.headers.forEach((value, key) => {
+                                headerObj[key] = value;
+                            });
+                        } else if (typeof options.headers === 'object') {
+                            Object.assign(headerObj, options.headers);
+                        }
+                        console.log('[AuthService] Request headers:', headerObj);
+                    }
                     
                     // Log request body (password will be in it, but we need to see the structure)
                     if (options.body) {
@@ -346,12 +366,14 @@ const AuthService = {
                                 keys: Object.keys(bodyObj)
                             });
                         } catch (parseError) {
-                            console.log('[AuthService] Request body (raw):', options.body.toString().substring(0, 200));
+                            console.log('[AuthService] Request body (raw, first 200 chars):', 
+                                (typeof options.body === 'string' ? options.body : options.body.toString()).substring(0, 200));
                         }
                     }
                     
                     // Call original fetch and capture response
                     return originalFetch.apply(this, args).then(response => {
+                        console.log('[AuthService] ========== SIGNUP NETWORK RESPONSE ==========');
                         console.log('[AuthService] Signup network response:', {
                             status: response.status,
                             statusText: response.statusText,
@@ -361,26 +383,53 @@ const AuthService = {
                             redirected: response.redirected
                         });
                         
+                        // Log response headers
+                        const responseHeaders = {};
+                        response.headers.forEach((value, key) => {
+                            responseHeaders[key] = value;
+                        });
+                        console.log('[AuthService] Response headers:', responseHeaders);
+                        
                         // Try to read response body
                         const responseClone = response.clone();
                         responseClone.text().then(text => {
-                            console.log('[AuthService] Signup response body:', text);
+                            console.log('[AuthService] Signup response body (raw):', text);
+                            console.log('[AuthService] Response body length:', text.length);
                             try {
                                 const responseJson = JSON.parse(text);
                                 console.log('[AuthService] Signup response JSON:', JSON.stringify(responseJson, null, 2));
+                                
+                                // Check for error details in response
+                                if (responseJson.error) {
+                                    console.error('[AuthService] Error in response JSON:', responseJson.error);
+                                }
+                                if (responseJson.message) {
+                                    console.error('[AuthService] Message in response JSON:', responseJson.message);
+                                }
                             } catch (parseError) {
-                                console.log('[AuthService] Response is not JSON');
+                                console.log('[AuthService] Response is not JSON, raw text:', text.substring(0, 500));
                             }
                         }).catch(readError => {
-                            console.error('[AuthService] Could not read response body:', readError);
+                            console.error('[AuthService] Could not read response body:', {
+                                message: readError.message,
+                                name: readError.name
+                            });
                         });
                         
                         return response;
+                    }).catch(fetchError => {
+                        console.error('[AuthService] Fetch error:', {
+                            message: fetchError.message,
+                            name: fetchError.name
+                        });
+                        throw fetchError;
                     });
                 }
                 
                 return originalFetch.apply(this, args);
             };
+            
+            console.log('[AuthService] Fetch interception set up, waiting for network call...');
             
             const signUpStartTime = Date.now();
             
@@ -423,9 +472,13 @@ const AuthService = {
             
             const signUpDuration = Date.now() - signUpStartTime;
             console.log('[AuthService] Supabase signUp() completed in', signUpDuration, 'ms');
+            console.log('[AuthService] Fetch interception status:', fetchIntercepted ? 'INTERCEPTED' : 'NOT INTERCEPTED (Supabase may use different method)');
             console.log('[AuthService] SignUp response type:', typeof signUpResponse);
             console.log('[AuthService] SignUp response is object:', typeof signUpResponse === 'object');
             console.log('[AuthService] SignUp response keys:', signUpResponse ? Object.keys(signUpResponse) : 'null/undefined');
+            
+            // Log full response object
+            console.log('[AuthService] Full signUpResponse object:', JSON.stringify(signUpResponse, null, 2));
             
             const { data, error } = signUpResponse;
             
@@ -473,32 +526,86 @@ const AuthService = {
                 console.log('[AuthService] Full data object structure:', {
                     hasUser: !!data.user,
                     hasSession: !!data.session,
-                    keys: Object.keys(data)
+                    keys: Object.keys(data),
+                    dataType: typeof data,
+                    isArray: Array.isArray(data),
+                    isNull: data === null,
+                    isUndefined: data === undefined
                 });
                 
                 // Log data.user if it exists (even if null/partial)
                 if (data.user !== undefined) {
+                    console.log('[AuthService] Data.user value type:', typeof data.user);
                     console.log('[AuthService] Data.user value:', data.user);
+                    console.log('[AuthService] Data.user === null:', data.user === null);
+                    console.log('[AuthService] Data.user === undefined:', data.user === undefined);
                     if (data.user) {
                         console.log('[AuthService] Data.user is truthy, logging properties:', Object.keys(data.user));
+                        console.log('[AuthService] Data.user full object:', JSON.stringify(data.user, null, 2));
                     } else {
                         console.log('[AuthService] Data.user is falsy (null/undefined/empty)');
                     }
+                } else {
+                    console.log('[AuthService] Data.user is undefined (key does not exist)');
                 }
                 
                 // Log data.session if it exists
                 if (data.session !== undefined) {
+                    console.log('[AuthService] Data.session value type:', typeof data.session);
                     console.log('[AuthService] Data.session value:', data.session);
+                    console.log('[AuthService] Data.session === null:', data.session === null);
+                    if (data.session) {
+                        console.log('[AuthService] Data.session is truthy, logging properties:', Object.keys(data.session));
+                    } else {
+                        console.log('[AuthService] Data.session is falsy (null/undefined/empty)');
+                    }
+                } else {
+                    console.log('[AuthService] Data.session is undefined (key does not exist)');
+                }
+                
+                // Log all data properties
+                console.log('[AuthService] All data properties:');
+                for (const key in data) {
+                    if (data.hasOwnProperty(key)) {
+                        console.log(`[AuthService]   data.${key}:`, {
+                            type: typeof data[key],
+                            isNull: data[key] === null,
+                            value: data[key]
+                        });
+                    }
                 }
                 
                 // Log full data object as JSON
                 try {
-                    console.log('[AuthService] Full data object JSON:', JSON.stringify(data, null, 2));
+                    const dataString = JSON.stringify(data, null, 2);
+                    console.log('[AuthService] Full data object JSON:', dataString);
+                    console.log('[AuthService] Full data object JSON length:', dataString.length);
                 } catch (jsonError) {
-                    console.error('[AuthService] Could not stringify data object:', jsonError);
+                    console.error('[AuthService] Could not stringify data object:', {
+                        message: jsonError.message,
+                        name: jsonError.name
+                    });
+                    // Try to stringify with replacer to handle circular refs
+                    try {
+                        const seen = new WeakSet();
+                        const dataString = JSON.stringify(data, (key, val) => {
+                            if (val != null && typeof val === "object") {
+                                if (seen.has(val)) {
+                                    return "[Circular]";
+                                }
+                                seen.add(val);
+                            }
+                            return val;
+                        }, 2);
+                        console.log('[AuthService] Full data object JSON (with circular handling):', dataString);
+                    } catch (circularError) {
+                        console.error('[AuthService] Could not stringify even with circular handling:', circularError);
+                    }
                 }
             } else {
                 console.warn('[AuthService] Data object is null/undefined');
+                console.warn('[AuthService] Data === null:', data === null);
+                console.warn('[AuthService] Data === undefined:', data === undefined);
             }
             
             if (error) {
