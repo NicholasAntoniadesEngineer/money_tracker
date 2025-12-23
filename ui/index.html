@@ -77,14 +77,11 @@
     <script src="components/Header.js"></script>
     <script src="utils/InitialData.js"></script>
     <script>
-        // Initialize with all months data if no months exist
+        // Protect route and initialize with all months data if no months exist
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                // Initialize authentication service first
-                await window.AuthService.initialize();
-                
-                // Check authentication before loading any data
-                const isAuthenticated = await window.AuthGuard.requireAuth();
+                // Check authentication first
+                const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
                 }

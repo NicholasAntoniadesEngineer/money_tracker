@@ -60,16 +60,17 @@ class Header {
             return `<li><a href="${item.href}" class="nav-link${activeClass}"${ariaCurrent}>${item.name}</a></li>`;
         }).join('\n                ');
 
-        const userInfo = this.getUserInfo();
-        const authPath = isInViews ? 'auth.html' : 'views/auth.html';
-        const authSection = userInfo ? `
-            <div class="header-user-section">
-                <span class="user-email">${userInfo.email}</span>
-                <button id="sign-out-button" class="btn btn-secondary" aria-label="Sign out">Sign Out</button>
-            </div>` : `
-            <div class="header-user-section">
-                <a href="${authPath}" class="btn btn-secondary">Sign In</a>
+        // Get user info if authenticated
+        let userInfoHtml = '';
+        if (window.AuthService && window.AuthService.isAuthenticated()) {
+            const user = window.AuthService.getCurrentUser();
+            const userEmail = user?.email || 'User';
+            userInfoHtml = `
+            <div class="header-user-info">
+                <span class="user-email">${userEmail}</span>
+                <button class="btn-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
             </div>`;
+        }
 
         return `
     <header class="main-header">
@@ -85,27 +86,24 @@ class Header {
             <ul class="nav-list">
                 ${navLinks}
             </ul>
-            ${authSection}
+            ${userInfoHtml}
         </nav>
     </header>`;
     }
 
     /**
-     * Get current user info if authenticated
-     * @returns {Object|null} User info or null
-     */
-    static getUserInfo() {
-        if (window.AuthService && window.AuthService.isAuthenticated()) {
-            const user = window.AuthService.getCurrentUser();
-            return user ? { email: user.email } : null;
-        }
-        return null;
-    }
-
-    /**
      * Initialize and inject header into the page
      */
-    static init() {
+    static async init() {
+        // Wait for AuthService to be available if it exists
+        if (window.AuthService && !window.AuthService.client) {
+            try {
+                await window.AuthService.initialize();
+            } catch (error) {
+                console.warn('[Header] AuthService initialization failed:', error);
+            }
+        }
+        
         // Find where to insert the header (before main or body's first child)
         const main = document.querySelector('main');
         const body = document.body;
@@ -127,68 +125,8 @@ class Header {
         // Initialize sign out button
         this.initSignOutButton();
         
-        // Listen for auth state changes and update header
+        // Listen for auth state changes to update header
         this.setupAuthStateListener();
-    }
-
-    /**
-     * Setup listener for auth state changes to update header
-     */
-    static setupAuthStateListener() {
-        if (window.AuthService) {
-            window.AuthService.onAuthStateChange(() => {
-                this.refresh();
-            });
-        }
-    }
-
-    /**
-     * Refresh the header (re-render and re-initialize)
-     */
-    static refresh() {
-        const existingHeader = document.querySelector('.main-header');
-        if (existingHeader) {
-            existingHeader.outerHTML = this.render();
-            this.initHamburgerMenu();
-            this.initSignOutButton();
-        }
-    }
-
-    /**
-     * Initialize sign out button functionality
-     */
-    static initSignOutButton() {
-        const signOutButton = document.getElementById('sign-out-button');
-        if (signOutButton) {
-            signOutButton.addEventListener('click', async () => {
-                await this.handleSignOut();
-            });
-        }
-    }
-
-    /**
-     * Handle sign out action
-     * @returns {Promise<void>}
-     */
-    static async handleSignOut() {
-        try {
-            if (!window.AuthService) {
-                console.error('[Header] AuthService not available');
-                return;
-            }
-
-            const result = await window.AuthService.signOut();
-
-            if (result.success) {
-                window.location.href = 'views/auth.html';
-            } else {
-                console.error('[Header] Sign out failed:', result.error);
-                alert('Failed to sign out. Please try again.');
-            }
-        } catch (error) {
-            console.error('[Header] Sign out error:', error);
-            alert('An error occurred while signing out. Please try again.');
-        }
     }
 
     /**
@@ -221,6 +159,71 @@ class Header {
                 navList.classList.remove('nav-open');
             }
         });
+    }
+
+    /**
+     * Initialize sign out button
+     */
+    static initSignOutButton() {
+        const signOutButton = document.getElementById('header-signout-button');
+        if (signOutButton) {
+            signOutButton.addEventListener('click', async () => {
+                if (window.AuthService) {
+                    const result = await window.AuthService.signOut();
+                    if (result.success) {
+                        // Redirect to auth page
+                        const basePath = window.location.pathname.includes('/views/') ? '' : 'views/';
+                        window.location.href = `${basePath}auth.html`;
+                    } else {
+                        console.error('[Header] Sign out failed:', result.error);
+                        alert('Sign out failed: ' + (result.error || 'Unknown error'));
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Setup auth state listener to update header when auth state changes
+     */
+    static setupAuthStateListener() {
+        // Listen for auth state changes
+        window.addEventListener('auth:signin', () => {
+            this.updateHeader();
+        });
+        
+        window.addEventListener('auth:signout', () => {
+            this.updateHeader();
+        });
+    }
+
+    /**
+     * Update header to reflect current auth state
+     */
+    static updateHeader() {
+        const header = document.querySelector('.main-header');
+        if (header) {
+            const nav = header.querySelector('.main-navigation');
+            if (nav) {
+                const oldUserInfo = nav.querySelector('.header-user-info');
+                if (oldUserInfo) {
+                    oldUserInfo.remove();
+                }
+                
+                // Add user info if authenticated
+                if (window.AuthService && window.AuthService.isAuthenticated()) {
+                    const user = window.AuthService.getCurrentUser();
+                    const userEmail = user?.email || 'User';
+                    const userInfoHtml = `
+                    <div class="header-user-info">
+                        <span class="user-email">${userEmail}</span>
+                        <button class="btn-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                    </div>`;
+                    nav.insertAdjacentHTML('beforeend', userInfoHtml);
+                    this.initSignOutButton();
+                }
+            }
+        }
     }
 }
 

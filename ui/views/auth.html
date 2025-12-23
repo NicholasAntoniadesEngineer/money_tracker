@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - Money Tracker</title>
+    <title>Money Tracker - Sign In</title>
     <link rel="stylesheet" href="../styles/main.css">
     <style>
         .auth-container {
@@ -11,309 +11,432 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 2rem;
-            background: var(--background-color, #f5f5f5);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
         }
+        
         .auth-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
             width: 100%;
             max-width: 400px;
         }
-        .auth-title {
+        
+        .auth-header {
             text-align: center;
-            margin-bottom: 2rem;
-            color: var(--text-color, #333);
+            margin-bottom: 30px;
         }
+        
+        .auth-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .auth-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 30px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .auth-tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            font-weight: 600;
+        }
+        
+        .auth-tab:hover {
+            color: #667eea;
+        }
+        
         .auth-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .form-label {
-            font-weight: 500;
-            color: var(--text-color, #333);
-        }
-        .form-input {
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary-color, #007bff);
-        }
-        .error-message {
-            color: #dc3545;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
             display: none;
         }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group input.error {
+            border-color: #e74c3c;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+        
         .error-message.show {
             display: block;
         }
+        
         .success-message {
-            color: #28a745;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
+            color: #27ae60;
+            font-size: 14px;
+            margin-top: 8px;
             display: none;
         }
+        
         .success-message.show {
             display: block;
         }
-        .auth-button {
-            padding: 0.75rem;
-            background: var(--primary-color, #007bff);
+        
+        .btn-auth {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
             color: white;
             border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-weight: 500;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.3s;
+            margin-top: 10px;
         }
-        .auth-button:hover {
-            background: var(--primary-color-dark, #0056b3);
+        
+        .btn-auth:hover {
+            background: #5568d3;
         }
-        .auth-button:disabled {
+        
+        .btn-auth:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
-        .auth-toggle {
-            text-align: center;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid #eee;
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
         }
-        .auth-toggle-link {
-            color: var(--primary-color, #007bff);
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        .auth-toggle-link:hover {
-            color: var(--primary-color-dark, #0056b3);
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <h1 class="auth-title">Money Tracker</h1>
-            <div id="sign-in-form">
-                <h2 class="auth-title" style="font-size: 1.5rem; margin-bottom: 1.5rem;">Sign In</h2>
-                <form id="sign-in-form-element" class="auth-form">
-                    <div class="form-group">
-                        <label for="sign-in-email" class="form-label">Email</label>
-                        <input type="email" id="sign-in-email" class="form-input" required autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <label for="sign-in-password" class="form-label">Password</label>
-                        <input type="password" id="sign-in-password" class="form-input" required autocomplete="current-password">
-                    </div>
-                    <div id="sign-in-error" class="error-message"></div>
-                    <div id="sign-in-success" class="success-message"></div>
-                    <button type="submit" id="sign-in-button" class="auth-button">Sign In</button>
-                </form>
-                <div class="auth-toggle">
-                    <p>Don't have an account? <span id="show-sign-up" class="auth-toggle-link">Sign Up</span></p>
-                </div>
+            <div class="auth-header">
+                <h1>Money Tracker</h1>
+                <p>Sign in to access your financial data</p>
             </div>
-
-            <div id="sign-up-form" style="display: none;">
-                <h2 class="auth-title" style="font-size: 1.5rem; margin-bottom: 1.5rem;">Sign Up</h2>
-                <form id="sign-up-form-element" class="auth-form">
-                    <div class="form-group">
-                        <label for="sign-up-email" class="form-label">Email</label>
-                        <input type="email" id="sign-up-email" class="form-input" required autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <label for="sign-up-password" class="form-label">Password</label>
-                        <input type="password" id="sign-up-password" class="form-input" required autocomplete="new-password" minlength="6">
-                        <small style="color: #666; font-size: 0.875rem;">Password must be at least 6 characters</small>
-                    </div>
-                    <div id="sign-up-error" class="error-message"></div>
-                    <div id="sign-up-success" class="success-message"></div>
-                    <button type="submit" id="sign-up-button" class="auth-button">Sign Up</button>
-                </form>
-                <div class="auth-toggle">
-                    <p>Already have an account? <span id="show-sign-in" class="auth-toggle-link">Sign In</span></p>
-                </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="signin">Sign In</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
             </div>
+            
+            <!-- Sign In Form -->
+            <form id="signin-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="signin-email">Email</label>
+                    <input type="email" id="signin-email" name="email" required autocomplete="email">
+                    <div class="error-message" id="signin-email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signin-password">Password</label>
+                    <input type="password" id="signin-password" name="password" required autocomplete="current-password">
+                    <div class="error-message" id="signin-password-error"></div>
+                </div>
+                
+                <div class="error-message" id="signin-error"></div>
+                <div class="success-message" id="signin-success"></div>
+                
+                <button type="submit" class="btn-auth" id="signin-button">
+                    Sign In
+                </button>
+            </form>
+            
+            <!-- Sign Up Form -->
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" name="email" required autocomplete="email">
+                    <div class="error-message" id="signup-email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" name="password" required autocomplete="new-password" minlength="6">
+                    <div class="error-message" id="signup-password-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password-confirm">Confirm Password</label>
+                    <input type="password" id="signup-password-confirm" name="password-confirm" required autocomplete="new-password" minlength="6">
+                    <div class="error-message" id="signup-password-confirm-error"></div>
+                </div>
+                
+                <div class="error-message" id="signup-error"></div>
+                <div class="success-message" id="signup-success"></div>
+                
+                <button type="submit" class="btn-auth" id="signup-button">
+                    Sign Up
+                </button>
+            </form>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="../../database/config/supabase-config.js"></script>
     <script src="../services/AuthService.js"></script>
+    <script src="../utils/auth-guard.js"></script>
     <script>
-        let isSignUpMode = false;
-
+        // Initialize AuthService
+        let authServiceInitialized = false;
+        
         async function initializeAuth() {
             try {
                 await window.AuthService.initialize();
+                authServiceInitialized = true;
                 
-                const isAuthenticated = window.AuthService.isAuthenticated();
-                if (isAuthenticated) {
-                    redirectToReturnUrl();
-                    return;
+                // If already authenticated, redirect
+                if (window.AuthService.isAuthenticated()) {
+                    window.AuthGuard.redirectAfterAuth();
                 }
-
-                setupEventListeners();
             } catch (error) {
                 console.error('Error initializing auth:', error);
-                showError('sign-in-error', 'Failed to initialize authentication service');
             }
         }
-
-        function setupEventListeners() {
-            const signInForm = document.getElementById('sign-in-form-element');
-            const signUpForm = document.getElementById('sign-up-form-element');
-            const showSignUp = document.getElementById('show-sign-up');
-            const showSignIn = document.getElementById('show-sign-in');
-
-            signInForm.addEventListener('submit', handleSignIn);
-            signUpForm.addEventListener('submit', handleSignUp);
-
-            showSignUp.addEventListener('click', () => toggleAuthMode(true));
-            showSignIn.addEventListener('click', () => toggleAuthMode(false));
+        
+        // Tab switching
+        const tabs = document.querySelectorAll('.auth-tab');
+        const forms = document.querySelectorAll('.auth-form');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active form
+                forms.forEach(f => f.classList.remove('active'));
+                document.getElementById(`${targetTab}-form`).classList.add('active');
+                
+                // Clear errors
+                clearErrors();
+            });
+        });
+        
+        // Clear error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('.success-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('input').forEach(el => {
+                el.classList.remove('error');
+            });
         }
-
-        function toggleAuthMode(showSignUp) {
-            isSignUpMode = showSignUp;
-            const signInForm = document.getElementById('sign-in-form');
-            const signUpForm = document.getElementById('sign-up-form');
-
-            if (showSignUp) {
-                signInForm.style.display = 'none';
-                signUpForm.style.display = 'block';
-            } else {
-                signInForm.style.display = 'block';
-                signUpForm.style.display = 'none';
+        
+        // Show error
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
             }
-
-            clearMessages();
         }
-
-        async function handleSignIn(e) {
+        
+        // Show success
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
+            }
+        }
+        
+        // Set button loading state
+        function setButtonLoading(buttonId, loading) {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.disabled = loading;
+                if (loading) {
+                    button.innerHTML = '<span class="loading"></span>Processing...';
+                } else {
+                    if (buttonId === 'signin-button') {
+                        button.textContent = 'Sign In';
+                    } else {
+                        button.textContent = 'Sign Up';
+                    }
+                }
+            }
+        }
+        
+        // Sign In Form Handler
+        document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            clearMessages();
-
-            const email = document.getElementById('sign-in-email').value;
-            const password = document.getElementById('sign-in-password').value;
-            const button = document.getElementById('sign-in-button');
-
-            button.disabled = true;
-            button.textContent = 'Signing In...';
-
+            clearErrors();
+            
+            if (!authServiceInitialized) {
+                await initializeAuth();
+            }
+            
+            const email = document.getElementById('signin-email').value.trim();
+            const password = document.getElementById('signin-password').value;
+            
+            // Validation
+            if (!email) {
+                showError('signin-email-error', 'Email is required');
+                document.getElementById('signin-email').classList.add('error');
+                return;
+            }
+            
+            if (!password) {
+                showError('signin-password-error', 'Password is required');
+                document.getElementById('signin-password').classList.add('error');
+                return;
+            }
+            
+            setButtonLoading('signin-button', true);
+            
             try {
                 const result = await window.AuthService.signIn(email, password);
-
+                
                 if (result.success) {
-                    showSuccess('sign-in-success', 'Sign in successful! Redirecting...');
+                    showSuccess('signin-success', 'Sign in successful! Redirecting...');
                     setTimeout(() => {
-                        redirectToReturnUrl();
-                    }, 500);
+                        window.AuthGuard.redirectAfterAuth();
+                    }, 1000);
                 } else {
-                    showError('sign-in-error', result.error || 'Failed to sign in');
-                    button.disabled = false;
-                    button.textContent = 'Sign In';
+                    showError('signin-error', result.error || 'Sign in failed. Please try again.');
                 }
             } catch (error) {
                 console.error('Sign in error:', error);
-                showError('sign-in-error', 'An unexpected error occurred');
-                button.disabled = false;
-                button.textContent = 'Sign In';
+                showError('signin-error', 'An unexpected error occurred. Please try again.');
+            } finally {
+                setButtonLoading('signin-button', false);
             }
-        }
-
-        async function handleSignUp(e) {
+        });
+        
+        // Sign Up Form Handler
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            clearMessages();
-
-            const email = document.getElementById('sign-up-email').value;
-            const password = document.getElementById('sign-up-password').value;
-            const button = document.getElementById('sign-up-button');
-
-            if (password.length < 6) {
-                showError('sign-up-error', 'Password must be at least 6 characters');
+            clearErrors();
+            
+            if (!authServiceInitialized) {
+                await initializeAuth();
+            }
+            
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const passwordConfirm = document.getElementById('signup-password-confirm').value;
+            
+            // Validation
+            if (!email) {
+                showError('signup-email-error', 'Email is required');
+                document.getElementById('signup-email').classList.add('error');
                 return;
             }
-
-            button.disabled = true;
-            button.textContent = 'Signing Up...';
-
+            
+            if (!password) {
+                showError('signup-password-error', 'Password is required');
+                document.getElementById('signup-password').classList.add('error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError('signup-password-error', 'Password must be at least 6 characters');
+                document.getElementById('signup-password').classList.add('error');
+                return;
+            }
+            
+            if (password !== passwordConfirm) {
+                showError('signup-password-confirm-error', 'Passwords do not match');
+                document.getElementById('signup-password-confirm').classList.add('error');
+                return;
+            }
+            
+            setButtonLoading('signup-button', true);
+            
             try {
                 const result = await window.AuthService.signUp(email, password);
-
+                
                 if (result.success) {
-                    showSuccess('sign-up-success', 'Sign up successful! Redirecting...');
+                    showSuccess('signup-success', 'Account created successfully! Signing you in...');
                     setTimeout(() => {
-                        redirectToReturnUrl();
-                    }, 500);
+                        window.AuthGuard.redirectAfterAuth();
+                    }, 1500);
                 } else {
-                    showError('sign-up-error', result.error || 'Failed to sign up');
-                    button.disabled = false;
-                    button.textContent = 'Sign Up';
+                    showError('signup-error', result.error || 'Sign up failed. Please try again.');
                 }
             } catch (error) {
                 console.error('Sign up error:', error);
-                showError('sign-up-error', 'An unexpected error occurred');
-                button.disabled = false;
-                button.textContent = 'Sign Up';
+                showError('signup-error', 'An unexpected error occurred. Please try again.');
+            } finally {
+                setButtonLoading('signup-button', false);
             }
-        }
-
-        function showError(elementId, message) {
-            const errorElement = document.getElementById(elementId);
-            if (errorElement) {
-                errorElement.textContent = message;
-                errorElement.classList.add('show');
-            }
-        }
-
-        function showSuccess(elementId, message) {
-            const successElement = document.getElementById(elementId);
-            if (successElement) {
-                successElement.textContent = message;
-                successElement.classList.add('show');
-            }
-        }
-
-        function clearMessages() {
-            const errorElements = document.querySelectorAll('.error-message');
-            const successElements = document.querySelectorAll('.success-message');
-            
-            errorElements.forEach(el => {
-                el.classList.remove('show');
-                el.textContent = '';
-            });
-            
-            successElements.forEach(el => {
-                el.classList.remove('show');
-                el.textContent = '';
-            });
-        }
-
-        function redirectToReturnUrl() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const returnUrl = urlParams.get('returnUrl');
-            
-            if (returnUrl) {
-                window.location.href = decodeURIComponent(returnUrl);
-            } else {
-                window.location.href = '../index.html';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', initializeAuth);
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeAuth();
+        });
     </script>
 </body>
 </html>
+

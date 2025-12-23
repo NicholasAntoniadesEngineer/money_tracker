@@ -86,11 +86,8 @@
         // Initialize application
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                // Initialize authentication service first
-                await window.AuthService.initialize();
-                
-                // Check authentication before loading any data
-                const isAuthenticated = await window.AuthGuard.requireAuth();
+                // Check authentication first
+                const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
                 }

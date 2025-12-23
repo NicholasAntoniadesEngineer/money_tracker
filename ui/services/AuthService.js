@@ -1,15 +1,17 @@
 /**
  * Authentication Service
- * Handles user authentication with Supabase
+ * Handles user authentication, sign up, sign in, sign out, and session management
+ * Uses Supabase for authentication
  */
 
 const AuthService = {
     client: null,
     currentUser: null,
-    authStateListeners: [],
+    session: null,
+    authStateListener: null,
 
     /**
-     * Initialize authentication service
+     * Initialize the authentication service
      * @returns {Promise<void>}
      */
     async initialize() {
@@ -17,15 +19,26 @@ const AuthService = {
             if (!window.SupabaseConfig) {
                 throw new Error('SupabaseConfig not available');
             }
-
-            this.client = window.SupabaseConfig.getClient();
             
-            if (!this.client) {
-                throw new Error('Failed to initialize Supabase client for authentication');
+            this.client = await window.SupabaseConfig.initialize();
+            
+            // Check for existing session
+            const { data: { session }, error: sessionError } = await this.client.auth.getSession();
+            if (sessionError) {
+                console.error('[AuthService] Error getting session:', sessionError);
+                throw sessionError;
             }
-
-            await this.checkSession();
+            
+            if (session) {
+                this.session = session;
+                this.currentUser = session.user;
+                console.log('[AuthService] Existing session found for user:', this.currentUser.email);
+            }
+            
+            // Set up auth state listener
             this.setupAuthStateListener();
+            
+            return { success: true };
         } catch (error) {
             console.error('[AuthService] Initialization error:', error);
             throw error;
@@ -33,95 +46,37 @@ const AuthService = {
     },
 
     /**
-     * Check for existing session
-     * @returns {Promise<boolean>} True if user is authenticated
+     * Set up authentication state listener
+     * @returns {void}
      */
-    async checkSession() {
-        try {
-            if (!this.client) {
-                return false;
-            }
-
-            const { data: { session }, error } = await this.client.auth.getSession();
-
-            if (error) {
-                console.error('[AuthService] Session check error:', error);
-                return false;
-            }
-
-            if (session && session.user) {
-                this.currentUser = session.user;
-                return true;
-            }
-
-            return false;
-        } catch (error) {
-            console.error('[AuthService] Error checking session:', error);
-            return false;
+    setupAuthStateListener() {
+        if (this.authStateListener) {
+            this.client.auth.removeAuthStateChangeListener(this.authStateListener);
         }
+        
+        this.authStateListener = this.client.auth.onAuthStateChange((event, session) => {
+            console.log('[AuthService] Auth state changed:', event);
+            
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                this.session = session;
+                this.currentUser = session?.user || null;
+                console.log('[AuthService] User signed in:', this.currentUser?.email);
+                
+                // Dispatch custom event for other parts of the app
+                window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
+            } else if (event === 'SIGNED_OUT') {
+                this.session = null;
+                this.currentUser = null;
+                console.log('[AuthService] User signed out');
+                
+                // Dispatch custom event for other parts of the app
+                window.dispatchEvent(new CustomEvent('auth:signout'));
+            }
+        });
     },
 
     /**
-     * Sign in with email and password
-     * @param {string} email - User email
-     * @param {string} password - User password
-     * @returns {Promise<{success: boolean, error: string|null, user: Object|null}>}
-     */
-    async signIn(email, password) {
-        try {
-            if (!this.client) {
-                throw new Error('AuthService not initialized');
-            }
-
-            if (!email || !password) {
-                return {
-                    success: false,
-                    error: 'Email and password are required',
-                    user: null
-                };
-            }
-
-            const { data, error } = await this.client.auth.signInWithPassword({
-                email: email.trim(),
-                password: password
-            });
-
-            if (error) {
-                console.error('[AuthService] Sign in error:', error);
-                return {
-                    success: false,
-                    error: error.message || 'Failed to sign in',
-                    user: null
-                };
-            }
-
-            if (data && data.user) {
-                this.currentUser = data.user;
-                this.notifyAuthStateListeners(true, data.user);
-                return {
-                    success: true,
-                    error: null,
-                    user: data.user
-                };
-            }
-
-            return {
-                success: false,
-                error: 'Sign in failed - no user data returned',
-                user: null
-            };
-        } catch (error) {
-            console.error('[AuthService] Sign in exception:', error);
-            return {
-                success: false,
-                error: error.message || 'An unexpected error occurred',
-                user: null
-            };
-        }
-    },
-
-    /**
-     * Sign up with email and password
+     * Sign up a new user with email and password
      * @param {string} email - User email
      * @param {string} password - User password
      * @returns {Promise<{success: boolean, error: string|null, user: Object|null}>}
@@ -129,188 +84,178 @@ const AuthService = {
     async signUp(email, password) {
         try {
             if (!this.client) {
-                throw new Error('AuthService not initialized');
+                await this.initialize();
             }
-
+            
             if (!email || !password) {
-                return {
-                    success: false,
-                    error: 'Email and password are required',
-                    user: null
-                };
+                return { success: false, error: 'Email and password are required', user: null };
             }
-
+            
             if (password.length < 6) {
-                return {
-                    success: false,
-                    error: 'Password must be at least 6 characters',
-                    user: null
-                };
+                return { success: false, error: 'Password must be at least 6 characters', user: null };
             }
-
+            
             const { data, error } = await this.client.auth.signUp({
                 email: email.trim(),
                 password: password
             });
-
+            
             if (error) {
                 console.error('[AuthService] Sign up error:', error);
-                return {
-                    success: false,
-                    error: error.message || 'Failed to sign up',
-                    user: null
-                };
+                return { success: false, error: error.message, user: null };
             }
-
-            if (data && data.user) {
+            
+            if (data.user) {
                 this.currentUser = data.user;
-                this.notifyAuthStateListeners(true, data.user);
-                return {
-                    success: true,
-                    error: null,
-                    user: data.user
-                };
+                this.session = data.session;
+                console.log('[AuthService] User signed up successfully:', data.user.email);
+                return { success: true, error: null, user: data.user };
             }
-
-            return {
-                success: false,
-                error: 'Sign up failed - no user data returned',
-                user: null
-            };
+            
+            return { success: false, error: 'Sign up failed - no user data returned', user: null };
         } catch (error) {
             console.error('[AuthService] Sign up exception:', error);
-            return {
-                success: false,
-                error: error.message || 'An unexpected error occurred',
-                user: null
-            };
+            return { success: false, error: error.message || 'An unexpected error occurred', user: null };
         }
     },
 
     /**
-     * Sign out current user
+     * Sign in an existing user with email and password
+     * @param {string} email - User email
+     * @param {string} password - User password
+     * @returns {Promise<{success: boolean, error: string|null, user: Object|null}>}
+     */
+    async signIn(email, password) {
+        try {
+            if (!this.client) {
+                await this.initialize();
+            }
+            
+            if (!email || !password) {
+                return { success: false, error: 'Email and password are required', user: null };
+            }
+            
+            const { data, error } = await this.client.auth.signInWithPassword({
+                email: email.trim(),
+                password: password
+            });
+            
+            if (error) {
+                console.error('[AuthService] Sign in error:', error);
+                return { success: false, error: error.message, user: null };
+            }
+            
+            if (data.user && data.session) {
+                this.currentUser = data.user;
+                this.session = data.session;
+                console.log('[AuthService] User signed in successfully:', data.user.email);
+                return { success: true, error: null, user: data.user };
+            }
+            
+            return { success: false, error: 'Sign in failed - no user data returned', user: null };
+        } catch (error) {
+            console.error('[AuthService] Sign in exception:', error);
+            return { success: false, error: error.message || 'An unexpected error occurred', user: null };
+        }
+    },
+
+    /**
+     * Sign out the current user
      * @returns {Promise<{success: boolean, error: string|null}>}
      */
     async signOut() {
         try {
             if (!this.client) {
-                return {
-                    success: false,
-                    error: 'AuthService not initialized'
-                };
+                return { success: false, error: 'Auth service not initialized' };
             }
-
+            
             const { error } = await this.client.auth.signOut();
-
+            
             if (error) {
                 console.error('[AuthService] Sign out error:', error);
-                return {
-                    success: false,
-                    error: error.message || 'Failed to sign out'
-                };
+                return { success: false, error: error.message };
             }
-
-            this.currentUser = null;
-            this.notifyAuthStateListeners(false, null);
             
-            return {
-                success: true,
-                error: null
-            };
+            this.currentUser = null;
+            this.session = null;
+            console.log('[AuthService] User signed out successfully');
+            return { success: true, error: null };
         } catch (error) {
             console.error('[AuthService] Sign out exception:', error);
-            return {
-                success: false,
-                error: error.message || 'An unexpected error occurred'
-            };
+            return { success: false, error: error.message || 'An unexpected error occurred' };
         }
     },
 
     /**
-     * Get current authenticated user
-     * @returns {Object|null} Current user object or null
+     * Get the current authenticated user
+     * @returns {Object|null} Current user object or null if not authenticated
      */
     getCurrentUser() {
         return this.currentUser;
     },
 
     /**
+     * Get the current session
+     * @returns {Object|null} Current session object or null if not authenticated
+     */
+    getSession() {
+        return this.session;
+    },
+
+    /**
      * Check if user is authenticated
-     * @returns {boolean} True if user is authenticated
+     * @returns {boolean} True if user is authenticated, false otherwise
      */
     isAuthenticated() {
-        return this.currentUser !== null;
+        return this.currentUser !== null && this.session !== null;
     },
 
     /**
-     * Setup listener for auth state changes
-     * @returns {void}
+     * Get the access token for authenticated requests
+     * @returns {string|null} Access token or null if not authenticated
      */
-    setupAuthStateListener() {
-        if (!this.client) {
-            return;
+    getAccessToken() {
+        return this.session?.access_token || null;
+    },
+
+    /**
+     * Refresh the current session
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async refreshSession() {
+        try {
+            if (!this.client) {
+                return { success: false, error: 'Auth service not initialized' };
+            }
+            
+            const { data, error } = await this.client.auth.refreshSession();
+            
+            if (error) {
+                console.error('[AuthService] Refresh session error:', error);
+                return { success: false, error: error.message };
+            }
+            
+            if (data.session) {
+                this.session = data.session;
+                this.currentUser = data.session.user;
+                return { success: true, error: null };
+            }
+            
+            return { success: false, error: 'No session data returned' };
+        } catch (error) {
+            console.error('[AuthService] Refresh session exception:', error);
+            return { success: false, error: error.message || 'An unexpected error occurred' };
         }
-
-        this.client.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session && session.user) {
-                this.currentUser = session.user;
-                this.notifyAuthStateListeners(true, session.user);
-            } else if (event === 'SIGNED_OUT') {
-                this.currentUser = null;
-                this.notifyAuthStateListeners(false, null);
-            }
-        });
-    },
-
-    /**
-     * Register listener for auth state changes
-     * @param {Function} callback - Callback function (isAuthenticated, user)
-     * @returns {Function} Unsubscribe function
-     */
-    onAuthStateChange(callback) {
-        if (typeof callback !== 'function') {
-            throw new Error('Callback must be a function');
-        }
-
-        this.authStateListeners.push(callback);
-
-        return () => {
-            const index = this.authStateListeners.indexOf(callback);
-            if (index > -1) {
-                this.authStateListeners.splice(index, 1);
-            }
-        };
-    },
-
-    /**
-     * Notify all auth state listeners
-     * @param {boolean} isAuthenticated - Authentication status
-     * @param {Object|null} user - User object or null
-     * @returns {void}
-     */
-    notifyAuthStateListeners(isAuthenticated, user) {
-        this.authStateListeners.forEach(callback => {
-            try {
-                callback(isAuthenticated, user);
-            } catch (error) {
-                console.error('[AuthService] Error in auth state listener:', error);
-            }
-        });
-    },
-
-    /**
-     * Get Supabase client with authenticated session
-     * @returns {Object|null} Supabase client or null
-     */
-    getClient() {
-        return this.client;
     }
 };
 
+// Make AuthService available globally
 if (typeof window !== 'undefined') {
     window.AuthService = AuthService;
 }
 
+// Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AuthService;
 }
+

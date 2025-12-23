@@ -124,11 +124,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('[SettingsPage] DOMContentLoaded - starting initialization');
             try {
-                // Initialize authentication service first
-                await window.AuthService.initialize();
-                
-                // Check authentication before loading any data
-                const isAuthenticated = await window.AuthGuard.requireAuth();
+                // Check authentication first
+                const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
                 }

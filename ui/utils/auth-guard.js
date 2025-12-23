@@ -1,6 +1,7 @@
 /**
  * Authentication Guard
- * Protects routes and ensures user is authenticated before accessing pages
+ * Protects routes and ensures only authenticated users can access pages
+ * Redirects unauthenticated users to the auth page
  */
 
 const AuthGuard = {
@@ -8,22 +9,30 @@ const AuthGuard = {
      * Check if user is authenticated and redirect if not
      * @returns {Promise<boolean>} True if authenticated, false if redirected
      */
-    async requireAuth() {
+    async checkAuth() {
         try {
+            // Initialize AuthService if not already initialized
             if (!window.AuthService) {
                 console.error('[AuthGuard] AuthService not available');
                 this.redirectToAuth();
                 return false;
             }
-
-            const isAuthenticated = await window.AuthService.checkSession();
-
+            
+            // Initialize if needed
+            if (!window.AuthService.client) {
+                await window.AuthService.initialize();
+            }
+            
+            // Check if user is authenticated
+            const isAuthenticated = window.AuthService.isAuthenticated();
+            
             if (!isAuthenticated) {
                 console.log('[AuthGuard] User not authenticated, redirecting to auth page');
                 this.redirectToAuth();
                 return false;
             }
-
+            
+            console.log('[AuthGuard] User authenticated:', window.AuthService.getCurrentUser()?.email);
             return true;
         } catch (error) {
             console.error('[AuthGuard] Error checking authentication:', error);
@@ -40,26 +49,63 @@ const AuthGuard = {
         const currentPath = window.location.pathname;
         const authPath = 'views/auth.html';
         
-        if (!currentPath.includes('auth.html')) {
-            const returnUrl = encodeURIComponent(currentPath);
-            window.location.href = `${authPath}?returnUrl=${returnUrl}`;
+        // Don't redirect if already on auth page
+        if (currentPath.includes('auth.html')) {
+            return;
+        }
+        
+        // Store the intended destination for redirect after login
+        const returnUrl = encodeURIComponent(window.location.href);
+        window.location.href = `${authPath}?return=${returnUrl}`;
+    },
+
+    /**
+     * Protect a route - call this at the start of page initialization
+     * @param {Function} onAuthenticated - Callback to execute if authenticated
+     * @returns {Promise<void>}
+     */
+    async protectRoute(onAuthenticated) {
+        const isAuthenticated = await this.checkAuth();
+        
+        if (isAuthenticated && onAuthenticated) {
+            await onAuthenticated();
         }
     },
 
     /**
-     * Initialize auth guard for a page
-     * This should be called before any data loading
-     * @returns {Promise<boolean>} True if authenticated, false if redirected
+     * Get the return URL from query parameters
+     * @returns {string|null} Return URL or null if not present
      */
-    async init() {
-        return await this.requireAuth();
+    getReturnUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('return');
+        return returnUrl ? decodeURIComponent(returnUrl) : null;
+    },
+
+    /**
+     * Redirect to the return URL or default page
+     * @returns {void}
+     */
+    redirectAfterAuth() {
+        const returnUrl = this.getReturnUrl();
+        
+        if (returnUrl) {
+            window.location.href = returnUrl;
+        } else {
+            // Default to home page
+            const basePath = window.location.pathname.includes('/views/') ? '../' : '';
+            window.location.href = `${basePath}index.html`;
+        }
     }
 };
 
+// Make AuthGuard available globally
 if (typeof window !== 'undefined') {
     window.AuthGuard = AuthGuard;
 }
 
+// Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AuthGuard;
 }
+
