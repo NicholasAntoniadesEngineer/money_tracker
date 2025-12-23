@@ -68,6 +68,8 @@
 
     <!-- Database Layer -->
     <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../utils/auth-guard.js"></script>
     <script src="../../database/services/database-service.js"></script>
     <script src="../../database/models/data-manager.js"></script>
     <script src="../../database/models/month-factory.js"></script>
@@ -84,6 +86,15 @@
         // Initialize application
         document.addEventListener('DOMContentLoaded', async function() {
             try {
+                // Initialize authentication service first
+                await window.AuthService.initialize();
+                
+                // Check authentication before loading any data
+                const isAuthenticated = await window.AuthGuard.requireAuth();
+                if (!isAuthenticated) {
+                    return;
+                }
+                
                 // Initialize database service
                 await window.DatabaseService.initialize();
                 

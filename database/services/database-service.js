@@ -20,6 +20,36 @@ const DatabaseService = {
     EXAMPLE_YEAR: 2045, // Example data year - protected from deletion
     
     /**
+     * Get authentication headers for API requests
+     * Uses authenticated session token if available, otherwise falls back to API key
+     * @returns {Promise<Object>} Headers object
+     */
+    async getAuthHeaders() {
+        const headers = {
+            'apikey': this.client.supabaseKey,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+        
+        try {
+            if (window.AuthService && window.AuthService.getClient()) {
+                const authClient = window.AuthService.getClient();
+                const { data: { session } } = await authClient.auth.getSession();
+                
+                if (session && session.access_token) {
+                    headers['Authorization'] = `Bearer ${session.access_token}`;
+                    return headers;
+                }
+            }
+        } catch (error) {
+            console.warn('[DatabaseService] Error getting session token, falling back to API key:', error);
+        }
+        
+        headers['Authorization'] = `Bearer ${this.client.supabaseKey}`;
+        return headers;
+    },
+    
+    /**
      * ============================================================================
      * CENTRALIZED DATABASE QUERY INTERFACE
      * ============================================================================
@@ -57,14 +87,10 @@ const DatabaseService = {
         
         console.log(`[DatabaseService] querySelect URL: ${url.toString()}`);
         
+        const headers = await this.getAuthHeaders();
         const response = await fetch(url.toString(), {
             method: 'GET',
-            headers: {
-                'apikey': this.client.supabaseKey,
-                'Authorization': `Bearer ${this.client.supabaseKey}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation'
-            }
+            headers: headers
         });
         
         console.log(`[DatabaseService] querySelect response status: ${response.status} ${response.statusText}`);
@@ -220,28 +246,20 @@ const DatabaseService = {
             patchUrl.searchParams.append(identifier, `eq.${identifierValue}`);
             patchUrl.searchParams.append('select', '*');
             
+            const patchHeaders = await this.getAuthHeaders();
             let response = await fetch(patchUrl.toString(), {
                 method: 'PATCH',
-                headers: {
-                    'apikey': this.client.supabaseKey,
-                    'Authorization': `Bearer ${this.client.supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                },
+                headers: patchHeaders,
                 body: JSON.stringify(data)
             });
             
             if (!response.ok || response.status === 404) {
                 // Try POST for insert
                 const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+                const postHeaders = await this.getAuthHeaders();
                 response = await fetch(postUrl.toString(), {
                     method: 'POST',
-                    headers: {
-                        'apikey': this.client.supabaseKey,
-                        'Authorization': `Bearer ${this.client.supabaseKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
+                    headers: postHeaders,
                     body: JSON.stringify({ [identifier]: identifierValue, ...data })
                 });
             }
@@ -250,14 +268,10 @@ const DatabaseService = {
         } else {
             // Simple POST for new records
             const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+            const postHeaders = await this.getAuthHeaders();
             const response = await fetch(postUrl.toString(), {
                 method: 'POST',
-                headers: {
-                    'apikey': this.client.supabaseKey,
-                    'Authorization': `Bearer ${this.client.supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                },
+                headers: postHeaders,
                 body: JSON.stringify(data)
             });
             
@@ -280,14 +294,10 @@ const DatabaseService = {
             deleteUrl.searchParams.append(key, `eq.${value}`);
         });
         
+        const headers = await this.getAuthHeaders();
         const response = await fetch(deleteUrl.toString(), {
             method: 'DELETE',
-            headers: {
-                'apikey': this.client.supabaseKey,
-                'Authorization': `Bearer ${this.client.supabaseKey}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation'
-            }
+            headers: headers
         });
         
         return await this._handleResponse(response);
@@ -600,15 +610,11 @@ const DatabaseService = {
                 console.log('[DatabaseService] Direct fetch URL:', directFetchUrl);
                 
                 try {
+                    const testHeaders = await this.getAuthHeaders();
                     const directFetchResult = await Promise.race([
                         fetch(directFetchUrl, {
                             method: 'GET',
-                            headers: {
-                                'apikey': this.client.supabaseKey,
-                                'Authorization': `Bearer ${this.client.supabaseKey}`,
-                                'Content-Type': 'application/json',
-                                'Prefer': 'return=representation'
-                            }
+                            headers: testHeaders
                         }),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Direct fetch timeout')), 5000))
                     ]);
@@ -872,13 +878,10 @@ const DatabaseService = {
                 diagnosticUrl.searchParams.append('select', 'id');
                 diagnosticUrl.searchParams.append('limit', '1');
                 
+                const diagnosticHeaders = await this.getAuthHeaders();
                 const diagnosticResponse = await fetch(diagnosticUrl.toString(), {
                     method: 'GET',
-                    headers: {
-                        'apikey': this.client.supabaseKey,
-                        'Authorization': `Bearer ${this.client.supabaseKey}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: diagnosticHeaders
                 });
                 
                 const diagnosticText = await diagnosticResponse.text();
@@ -1875,14 +1878,10 @@ const DatabaseService = {
                 deleteUrl.searchParams.append('id', 'gte.1');
                 deleteUrl.searchParams.append('select', '*');
                 
+                const deleteHeaders = await this.getAuthHeaders();
                 const deleteResponse = await fetch(deleteUrl.toString(), {
                     method: 'DELETE',
-                    headers: {
-                        'apikey': this.client.supabaseKey,
-                        'Authorization': `Bearer ${this.client.supabaseKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
+                    headers: deleteHeaders
                 });
                 
                 const deleteResult = await this._handleResponse(deleteResponse);
@@ -1907,14 +1906,10 @@ const DatabaseService = {
                 deleteUrl.searchParams.append('id', 'gte.1');
                 deleteUrl.searchParams.append('select', '*');
                 
+                const deleteHeaders = await this.getAuthHeaders();
                 const deleteResponse = await fetch(deleteUrl.toString(), {
                     method: 'DELETE',
-                    headers: {
-                        'apikey': this.client.supabaseKey,
-                        'Authorization': `Bearer ${this.client.supabaseKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
+                    headers: deleteHeaders
                 });
                 
                 const deleteResult = await this._handleResponse(deleteResponse);

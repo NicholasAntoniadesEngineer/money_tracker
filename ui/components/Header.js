@@ -60,6 +60,17 @@ class Header {
             return `<li><a href="${item.href}" class="nav-link${activeClass}"${ariaCurrent}>${item.name}</a></li>`;
         }).join('\n                ');
 
+        const userInfo = this.getUserInfo();
+        const authPath = isInViews ? 'auth.html' : 'views/auth.html';
+        const authSection = userInfo ? `
+            <div class="header-user-section">
+                <span class="user-email">${userInfo.email}</span>
+                <button id="sign-out-button" class="btn btn-secondary" aria-label="Sign out">Sign Out</button>
+            </div>` : `
+            <div class="header-user-section">
+                <a href="${authPath}" class="btn btn-secondary">Sign In</a>
+            </div>`;
+
         return `
     <header class="main-header">
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
@@ -74,8 +85,21 @@ class Header {
             <ul class="nav-list">
                 ${navLinks}
             </ul>
+            ${authSection}
         </nav>
     </header>`;
+    }
+
+    /**
+     * Get current user info if authenticated
+     * @returns {Object|null} User info or null
+     */
+    static getUserInfo() {
+        if (window.AuthService && window.AuthService.isAuthenticated()) {
+            const user = window.AuthService.getCurrentUser();
+            return user ? { email: user.email } : null;
+        }
+        return null;
     }
 
     /**
@@ -99,6 +123,72 @@ class Header {
 
         // Initialize hamburger menu functionality
         this.initHamburgerMenu();
+        
+        // Initialize sign out button
+        this.initSignOutButton();
+        
+        // Listen for auth state changes and update header
+        this.setupAuthStateListener();
+    }
+
+    /**
+     * Setup listener for auth state changes to update header
+     */
+    static setupAuthStateListener() {
+        if (window.AuthService) {
+            window.AuthService.onAuthStateChange(() => {
+                this.refresh();
+            });
+        }
+    }
+
+    /**
+     * Refresh the header (re-render and re-initialize)
+     */
+    static refresh() {
+        const existingHeader = document.querySelector('.main-header');
+        if (existingHeader) {
+            existingHeader.outerHTML = this.render();
+            this.initHamburgerMenu();
+            this.initSignOutButton();
+        }
+    }
+
+    /**
+     * Initialize sign out button functionality
+     */
+    static initSignOutButton() {
+        const signOutButton = document.getElementById('sign-out-button');
+        if (signOutButton) {
+            signOutButton.addEventListener('click', async () => {
+                await this.handleSignOut();
+            });
+        }
+    }
+
+    /**
+     * Handle sign out action
+     * @returns {Promise<void>}
+     */
+    static async handleSignOut() {
+        try {
+            if (!window.AuthService) {
+                console.error('[Header] AuthService not available');
+                return;
+            }
+
+            const result = await window.AuthService.signOut();
+
+            if (result.success) {
+                window.location.href = 'views/auth.html';
+            } else {
+                console.error('[Header] Sign out failed:', result.error);
+                alert('Failed to sign out. Please try again.');
+            }
+        } catch (error) {
+            console.error('[Header] Sign out error:', error);
+            alert('An error occurred while signing out. Please try again.');
+        }
     }
 
     /**

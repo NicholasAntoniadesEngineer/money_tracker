@@ -103,6 +103,8 @@
 
     <!-- Database Layer -->
     <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../utils/auth-guard.js"></script>
     <script src="../../database/services/database-service.js"></script>
     <script src="../../database/models/data-manager.js"></script>
     <script src="../../database/models/month-factory.js"></script>
@@ -122,6 +124,15 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('[SettingsPage] DOMContentLoaded - starting initialization');
             try {
+                // Initialize authentication service first
+                await window.AuthService.initialize();
+                
+                // Check authentication before loading any data
+                const isAuthenticated = await window.AuthGuard.requireAuth();
+                if (!isAuthenticated) {
+                    return;
+                }
+                
                 // Initialize database service
                 console.log('[SettingsPage] Initializing database service...');
                 await window.DatabaseService.initialize();
