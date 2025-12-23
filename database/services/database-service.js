@@ -865,6 +865,33 @@ const DatabaseService = {
             
             // Fetch user months using centralized query interface
             console.log('[DatabaseService] Querying user_months table...');
+            
+            // First, do a diagnostic query to check if ANY data exists (just count)
+            try {
+                const diagnosticUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
+                diagnosticUrl.searchParams.append('select', 'id');
+                diagnosticUrl.searchParams.append('limit', '1');
+                
+                const diagnosticResponse = await fetch(diagnosticUrl.toString(), {
+                    method: 'GET',
+                    headers: {
+                        'apikey': this.client.supabaseKey,
+                        'Authorization': `Bearer ${this.client.supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const diagnosticText = await diagnosticResponse.text();
+                const diagnosticData = diagnosticText ? JSON.parse(diagnosticText) : [];
+                console.log(`[DatabaseService] Diagnostic query: Status ${diagnosticResponse.status}, Found ${Array.isArray(diagnosticData) ? diagnosticData.length : 'unknown'} rows`);
+                console.log(`[DatabaseService] Diagnostic response headers:`, {
+                    'content-range': diagnosticResponse.headers.get('content-range'),
+                    'content-length': diagnosticResponse.headers.get('content-length')
+                });
+            } catch (diagError) {
+                console.warn('[DatabaseService] Diagnostic query failed:', diagError);
+            }
+            
             const { data: userMonthsData, error: userMonthsError } = await this.querySelect('user_months', {
                 select: '*',
                 order: [
