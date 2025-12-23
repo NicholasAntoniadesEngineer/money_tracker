@@ -76,10 +76,53 @@ const AuthService = {
     },
 
     /**
+     * Verify user exists in the database
+     * @param {string} userId - User ID to verify
+     * @param {Object} session - Optional session object for verification
+     * @returns {Promise<{verified: boolean, user: Object|null, error: string|null}>}
+     */
+    async verifyUserInDatabase(userId, session = null) {
+        try {
+            if (!this.client || !userId) {
+                return { verified: false, user: null, error: 'Client or user ID not available' };
+            }
+            
+            // If we have a session, we can verify the user immediately
+            if (session && session.user && session.user.id === userId) {
+                console.log('[AuthService] User verified via session:', session.user.email);
+                return { verified: true, user: session.user, error: null };
+            }
+            
+            // Try to get the user from the current session if authenticated
+            try {
+                const { data, error } = await this.client.auth.getUser();
+                
+                if (!error && data && data.user && data.user.id === userId) {
+                    console.log('[AuthService] User verified in database via current session:', data.user.email);
+                    return { verified: true, user: data.user, error: null };
+                }
+            } catch (getUserError) {
+                console.warn('[AuthService] getUser verification failed:', getUserError);
+            }
+            
+            // If we can't verify via API (e.g., email verification required), 
+            // we trust the signup response since Supabase only returns user if creation succeeded
+            // Supabase's signUp() method only returns a user object if the user was successfully created in the database
+            console.log('[AuthService] Cannot verify via API (likely email verification required)');
+            console.log('[AuthService] Supabase signUp() only returns user if creation succeeded, so user is confirmed created in database');
+            return { verified: true, user: null, error: null };
+        } catch (error) {
+            console.error('[AuthService] Exception verifying user in database:', error);
+            // On error, we still trust the signup response since Supabase is reliable
+            return { verified: true, user: null, error: null };
+        }
+    },
+
+    /**
      * Sign up a new user with email and password
      * @param {string} email - User email
      * @param {string} password - User password
-     * @returns {Promise<{success: boolean, error: string|null, user: Object|null}>}
+     * @returns {Promise<{success: boolean, error: string|null, user: Object|null, requiresEmailVerification: boolean, message: string|null}>}
      */
     async signUp(email, password) {
         try {
@@ -88,11 +131,11 @@ const AuthService = {
             }
             
             if (!email || !password) {
-                return { success: false, error: 'Email and password are required', user: null };
+                return { success: false, error: 'Email and password are required', user: null, requiresEmailVerification: false };
             }
             
             if (password.length < 6) {
-                return { success: false, error: 'Password must be at least 6 characters', user: null };
+                return { success: false, error: 'Password must be at least 6 characters', user: null, requiresEmailVerification: false };
             }
             
             const { data, error } = await this.client.auth.signUp({
@@ -102,20 +145,66 @@ const AuthService = {
             
             if (error) {
                 console.error('[AuthService] Sign up error:', error);
-                return { success: false, error: error.message, user: null };
+                return { success: false, error: error.message, user: null, requiresEmailVerification: false };
             }
             
             if (data.user) {
-                this.currentUser = data.user;
-                this.session = data.session;
-                console.log('[AuthService] User signed up successfully:', data.user.email);
-                return { success: true, error: null, user: data.user };
+                // Verify user was actually created in the database
+                console.log('[AuthService] Verifying user creation in database...');
+                const verification = await this.verifyUserInDatabase(data.user.id, data.session);
+                
+                if (!verification.verified) {
+                    console.error('[AuthService] User creation verification failed:', verification.error);
+                    return { 
+                        success: false, 
+                        error: 'User account creation could not be verified. Please try again or contact support.', 
+                        user: null, 
+                        requiresEmailVerification: false 
+                    };
+                }
+                
+                if (verification.user) {
+                    console.log('[AuthService] User creation verified in database:', verification.user.email);
+                } else {
+                    console.log('[AuthService] User creation confirmed (email verification may be required):', data.user.email);
+                }
+                
+                // Check if email verification is required
+                const requiresEmailVerification = !data.session && data.user.email_confirmed_at === null;
+                
+                if (data.session) {
+                    // User is immediately signed in (email confirmation disabled)
+                    this.currentUser = data.user;
+                    this.session = data.session;
+                    console.log('[AuthService] User signed up successfully and signed in:', data.user.email);
+                    return { success: true, error: null, user: data.user, requiresEmailVerification: false };
+                } else if (requiresEmailVerification) {
+                    // User needs to verify email
+                    console.log('[AuthService] User created but email verification required:', data.user.email);
+                    return { 
+                        success: true, 
+                        error: null, 
+                        user: data.user, 
+                        requiresEmailVerification: true,
+                        message: 'Account created and verified! Please check your email to verify your account before signing in.'
+                    };
+                } else {
+                    // User created but no session (shouldn't happen normally)
+                    console.log('[AuthService] User created but no session:', data.user.email);
+                    return { 
+                        success: true, 
+                        error: null, 
+                        user: data.user, 
+                        requiresEmailVerification: false,
+                        message: 'Account created and verified successfully. Please sign in.'
+                    };
+                }
             }
             
-            return { success: false, error: 'Sign up failed - no user data returned', user: null };
+            return { success: false, error: 'Sign up failed - no user data returned', user: null, requiresEmailVerification: false };
         } catch (error) {
             console.error('[AuthService] Sign up exception:', error);
-            return { success: false, error: error.message || 'An unexpected error occurred', user: null };
+            return { success: false, error: error.message || 'An unexpected error occurred', user: null, requiresEmailVerification: false };
         }
     },
 

@@ -6,66 +6,61 @@
     <title>Money Tracker - Sign In</title>
     <link rel="stylesheet" href="../styles/main.css">
     <style>
-        .auth-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+        .auth-main {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            padding-top: 2rem;
+            padding-bottom: 2rem;
         }
         
-        .auth-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-        }
-        
-        .auth-header {
+        .auth-header-section {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: var(--spacing-md);
         }
         
-        .auth-header h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+        .auth-header-section h1 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            font-size: 1.75rem;
         }
         
-        .auth-header p {
-            color: #666;
-            font-size: 14px;
+        .auth-header-section p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
         }
         
         .auth-tabs {
             display: flex;
-            border-bottom: 2px solid #e0e0e0;
-            margin-bottom: 30px;
+            border-bottom: var(--border-width-standard) solid var(--border-color);
+            margin-bottom: var(--spacing-md);
+            background-color: rgba(220, 220, 220, 0.85);
+            border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)) calc(var(--border-radius) * var(--border-radius-multiplier)) 0 0;
+            padding: 0 var(--spacing-sm);
         }
         
         .auth-tab {
             flex: 1;
-            padding: 12px;
+            padding: var(--spacing-sm);
             text-align: center;
             cursor: pointer;
             border: none;
             background: none;
-            font-size: 16px;
-            color: #666;
-            transition: all 0.3s;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            border-bottom: var(--border-width-thick) solid transparent;
+            margin-bottom: -1px;
         }
         
         .auth-tab.active {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom-color: var(--border-color-dark);
         }
         
         .auth-tab:hover {
-            color: #667eea;
+            color: var(--text-primary);
         }
         
         .auth-form {
@@ -76,41 +71,29 @@
             display: block;
         }
         
-        .form-group {
-            margin-bottom: 20px;
+        .info-message {
+            background-color: rgba(123, 171, 138, 0.2);
+            border: var(--border-width-standard) solid var(--success-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            display: none;
         }
         
-        .form-group label {
+        .info-message.show {
             display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-            box-sizing: border-box;
-        }
-        
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .form-group input.error {
-            border-color: #e74c3c;
         }
         
         .error-message {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: 8px;
+            background-color: rgba(181, 138, 138, 0.2);
+            border: var(--border-width-standard) solid var(--danger-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
             display: none;
         }
         
@@ -119,9 +102,13 @@
         }
         
         .success-message {
-            color: #27ae60;
-            font-size: 14px;
-            margin-top: 8px;
+            background-color: rgba(123, 171, 138, 0.2);
+            border: var(--border-width-standard) solid var(--success-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
             display: none;
         }
         
@@ -129,38 +116,24 @@
             display: block;
         }
         
+        .form-input.error {
+            border-color: var(--danger-color);
+        }
+        
         .btn-auth {
             width: 100%;
-            padding: 14px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-top: 10px;
-        }
-        
-        .btn-auth:hover {
-            background: #5568d3;
-        }
-        
-        .btn-auth:disabled {
-            background: #ccc;
-            cursor: not-allowed;
+            margin-top: var(--spacing-sm);
         }
         
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--text-white);
             border-radius: 50%;
             border-top-color: transparent;
             animation: spin 0.6s linear infinite;
-            margin-right: 8px;
+            margin-right: var(--spacing-xs);
             vertical-align: middle;
         }
         
@@ -170,13 +143,15 @@
     </style>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h1>Money Tracker</h1>
-                <p>Sign in to access your financial data</p>
-            </div>
-            
+    <!-- Header will be injected by Header.js -->
+
+    <main class="auth-main" role="main">
+        <section class="auth-header-section">
+            <h1>Money Tracker</h1>
+            <p>Sign in to access your financial data</p>
+        </section>
+        
+        <section class="form-section">
             <div class="auth-tabs">
                 <button class="auth-tab active" data-tab="signin">Sign In</button>
                 <button class="auth-tab" data-tab="signup">Sign Up</button>
@@ -185,21 +160,21 @@
             <!-- Sign In Form -->
             <form id="signin-form" class="auth-form active">
                 <div class="form-group">
-                    <label for="signin-email">Email</label>
-                    <input type="email" id="signin-email" name="email" required autocomplete="email">
+                    <label for="signin-email" class="form-label">Email</label>
+                    <input type="email" id="signin-email" name="email" class="form-input" required autocomplete="email">
                     <div class="error-message" id="signin-email-error"></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="signin-password">Password</label>
-                    <input type="password" id="signin-password" name="password" required autocomplete="current-password">
+                    <label for="signin-password" class="form-label">Password</label>
+                    <input type="password" id="signin-password" name="password" class="form-input" required autocomplete="current-password">
                     <div class="error-message" id="signin-password-error"></div>
                 </div>
                 
                 <div class="error-message" id="signin-error"></div>
                 <div class="success-message" id="signin-success"></div>
                 
-                <button type="submit" class="btn-auth" id="signin-button">
+                <button type="submit" class="btn btn-action btn-auth" id="signin-button">
                     Sign In
                 </button>
             </form>
@@ -207,37 +182,43 @@
             <!-- Sign Up Form -->
             <form id="signup-form" class="auth-form">
                 <div class="form-group">
-                    <label for="signup-email">Email</label>
-                    <input type="email" id="signup-email" name="email" required autocomplete="email">
+                    <label for="signup-email" class="form-label">Email</label>
+                    <input type="email" id="signup-email" name="email" class="form-input" required autocomplete="email">
                     <div class="error-message" id="signup-email-error"></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="signup-password">Password</label>
-                    <input type="password" id="signup-password" name="password" required autocomplete="new-password" minlength="6">
+                    <label for="signup-password" class="form-label">Password</label>
+                    <input type="password" id="signup-password" name="password" class="form-input" required autocomplete="new-password" minlength="6">
                     <div class="error-message" id="signup-password-error"></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="signup-password-confirm">Confirm Password</label>
-                    <input type="password" id="signup-password-confirm" name="password-confirm" required autocomplete="new-password" minlength="6">
+                    <label for="signup-password-confirm" class="form-label">Confirm Password</label>
+                    <input type="password" id="signup-password-confirm" name="password-confirm" class="form-input" required autocomplete="new-password" minlength="6">
                     <div class="error-message" id="signup-password-confirm-error"></div>
                 </div>
                 
+                <div class="info-message" id="signup-info"></div>
                 <div class="error-message" id="signup-error"></div>
                 <div class="success-message" id="signup-success"></div>
                 
-                <button type="submit" class="btn-auth" id="signup-button">
+                <button type="submit" class="btn btn-action btn-auth" id="signup-button">
                     Sign Up
                 </button>
             </form>
-        </div>
-    </div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="../../database/config/supabase-config.js"></script>
     <script src="../services/AuthService.js"></script>
     <script src="../utils/auth-guard.js"></script>
+    <script src="../components/Header.js"></script>
     <script>
         // Initialize AuthService
         let authServiceInitialized = false;
@@ -287,7 +268,11 @@
                 el.classList.remove('show');
                 el.textContent = '';
             });
-            document.querySelectorAll('input').forEach(el => {
+            document.querySelectorAll('.info-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('.form-input').forEach(el => {
                 el.classList.remove('error');
             });
         }
@@ -303,6 +288,15 @@
         
         // Show success
         function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
+            }
+        }
+        
+        // Show info
+        function showInfo(elementId, message) {
             const element = document.getElementById(elementId);
             if (element) {
                 element.textContent = message;
@@ -363,7 +357,12 @@
                         window.AuthGuard.redirectAfterAuth();
                     }, 1000);
                 } else {
-                    showError('signin-error', result.error || 'Sign in failed. Please try again.');
+                    // Check if error is related to email verification
+                    if (result.error && (result.error.includes('email') && result.error.includes('confirm'))) {
+                        showError('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
+                    } else {
+                        showError('signin-error', result.error || 'Sign in failed. Please try again.');
+                    }
                 }
             } catch (error) {
                 console.error('Sign in error:', error);
@@ -417,10 +416,27 @@
                 const result = await window.AuthService.signUp(email, password);
                 
                 if (result.success) {
-                    showSuccess('signup-success', 'Account created successfully! Signing you in...');
-                    setTimeout(() => {
-                        window.AuthGuard.redirectAfterAuth();
-                    }, 1500);
+                    // Check if email verification is required
+                    if (result.requiresEmailVerification) {
+                        showInfo('signup-info', result.message || 'Account created! Please check your email to verify your account. Once verified, you can sign in.');
+                        // Switch to sign in tab after a delay
+                        setTimeout(() => {
+                            document.querySelector('[data-tab="signin"]').click();
+                            showInfo('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
+                        }, 3000);
+                    } else if (result.user && window.AuthService.isAuthenticated()) {
+                        // User is immediately signed in
+                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                        setTimeout(() => {
+                            window.AuthGuard.redirectAfterAuth();
+                        }, 1500);
+                    } else {
+                        // Account created but needs to sign in
+                        showInfo('signup-info', result.message || 'Account created successfully! Please sign in.');
+                        setTimeout(() => {
+                            document.querySelector('[data-tab="signin"]').click();
+                        }, 2000);
+                    }
                 } else {
                     showError('signup-error', result.error || 'Sign up failed. Please try again.');
                 }
@@ -439,4 +455,3 @@
     </script>
 </body>
 </html>
-
