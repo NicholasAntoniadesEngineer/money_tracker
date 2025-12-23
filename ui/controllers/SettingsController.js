@@ -763,17 +763,30 @@ const SettingsController = {
         }
 
         try {
-            // Force refresh to ensure we're checking the actual database, not cache
-            const allMonths = await DataManager.getAllMonths(true);
-            
+            if (!window.DatabaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
             // Check which example months exist in Supabase
-            const existingExampleMonths = [];
+            const foundExampleMonths = [];
             const missingExampleMonths = [];
             
             for (const monthKey of exampleMonthKeys) {
-                if (allMonths[monthKey]) {
-                    existingExampleMonths.push(allMonths[monthKey]);
-                } else {
+                try {
+                    const monthData = await window.DatabaseService.getMonth(monthKey);
+                    if (monthData) {
+                        foundExampleMonths.push(monthKey);
+                    } else {
+                        const monthNum = monthKey.split('-')[1];
+                        const monthName = exampleMonthNames[monthNum];
+                        missingExampleMonths.push({
+                            key: monthKey,
+                            monthName: monthName,
+                            year: EXAMPLE_YEAR
+                        });
+                    }
+                } catch (err) {
+                    // Month doesn't exist in Supabase
                     const monthNum = monthKey.split('-')[1];
                     const monthName = exampleMonthNames[monthNum];
                     missingExampleMonths.push({
@@ -784,41 +797,58 @@ const SettingsController = {
                 }
             }
 
-            await this.loadMonthSelector();
+            if (foundExampleMonths.length === 0) {
+                if (importStatus) {
+                    let message = '<p style="color: var(--warning-color);">No example data found in Supabase.</p>';
+                    if (missingExampleMonths.length > 0) {
+                        message += '<p style="margin-top: 0.5rem;">Missing months:</p>';
+                        message += '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                        for (const monthData of missingExampleMonths) {
+                            message += `<li>${monthData.monthName} ${monthData.year}</li>`;
+                        }
+                        message += '</ul>';
+                        message += '<p style="margin-top: 0.5rem; color: var(--text-secondary);">';
+                        message += 'To add example data to Supabase, run the SQL script from <code>database/utils/populate-example-data.sql</code> in Supabase SQL Editor.';
+                        message += '</p>';
+                    }
+                    importStatus.innerHTML = message;
+                }
+                if (loadExampleDataBtn) {
+                    loadExampleDataBtn.disabled = false;
+                    loadExampleDataBtn.textContent = 'Load Example Data';
+                }
+                return;
+            }
+
+            // Add found example months to the enabled list
+            window.DatabaseService.addEnabledExampleMonths(foundExampleMonths);
 
             if (importStatus) {
-                let message = '';
-                
-                if (existingExampleMonths.length > 0) {
-                    message = `<p style="color: var(--success-color);">Found ${existingExampleMonths.length} example month(s) in Supabase database (Year ${EXAMPLE_YEAR}).</p>`;
-                    message += '<p style="margin-top: 0.5rem;">View months:</p><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
-                    for (const monthData of existingExampleMonths) {
-                        if (monthData && monthData.key) {
-                            message += `<li><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">${monthData.monthName} ${monthData.year}</a></li>`;
-                        }
-                    }
-                    message += '</ul>';
+                let message = `<p style="color: var(--success-color);">✓ Successfully added ${foundExampleMonths.length} example month(s) to your view:</p>`;
+                message += '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                for (const monthKey of foundExampleMonths) {
+                    const monthNum = monthKey.split('-')[1];
+                    const monthName = exampleMonthNames[monthNum];
+                    message += `<li>${monthName} ${EXAMPLE_YEAR}</li>`;
                 }
-                
+                message += '</ul>';
                 if (missingExampleMonths.length > 0) {
-                    if (message) message += '<hr style="margin: 1rem 0;">';
+                    message += '<hr style="margin: 1rem 0;">';
                     message += `<p style="color: var(--warning-color);">${missingExampleMonths.length} example month(s) not found in Supabase:</p>`;
                     message += '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
                     for (const monthData of missingExampleMonths) {
-                        message += `<li>${monthData.monthName} ${monthData.year} (${monthData.key})</li>`;
+                        message += `<li>${monthData.monthName} ${monthData.year}</li>`;
                     }
                     message += '</ul>';
-                    message += '<p style="margin-top: 0.5rem; color: var(--text-secondary);">';
-                    message += 'To add example data to Supabase, run the SQL script from <code>database/utils/populate-example-data.sql</code> in Supabase SQL Editor.';
-                    message += '</p>';
                 }
-                
-                if (existingExampleMonths.length === 0 && missingExampleMonths.length === 0) {
-                    message = '<p style="color: var(--warning-color);">No example data found.</p>';
-                }
-                
+                message += '<p style="margin-top: 0.5rem;">Example data is now visible in your monthly budget. The page will reload.</p>';
                 importStatus.innerHTML = message;
             }
+
+            // Reload the page to refresh data
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
 
         } catch (error) {
             console.error('Error loading example data:', error);
@@ -834,25 +864,25 @@ const SettingsController = {
     },
 
     /**
-     * Remove example data from local cache only (not from Supabase)
-     * This clears the cached example data from the browser, but data remains in Supabase
+     * Remove example data from user's view
+     * This removes example months from the enabled list, but data remains in Supabase
      */
     async removeExampleData() {
         const importStatus = document.getElementById('import-status');
         const removeExampleDataBtn = document.getElementById('remove-example-data-button');
 
-        const confirmMessage = 'This will clear example data from your local browser cache only. The data in Supabase will remain intact and will be reloaded when you refresh the page.\n\nContinue?';
+        const confirmMessage = 'This will remove example data from your view. The data in Supabase will remain intact and can be added back anytime using the "Load Example Data" button.\n\nContinue?';
         if (!confirm(confirmMessage)) {
             return;
         }
 
         if (removeExampleDataBtn) {
             removeExampleDataBtn.disabled = true;
-            removeExampleDataBtn.textContent = 'Clearing...';
+            removeExampleDataBtn.textContent = 'Removing...';
         }
 
         if (importStatus) {
-            importStatus.innerHTML = '<p style="color: var(--text-secondary);">Clearing example data from local cache...</p>';
+            importStatus.innerHTML = '<p style="color: var(--text-secondary);">Removing example data from your view...</p>';
         }
 
         try {
@@ -860,14 +890,14 @@ const SettingsController = {
                 throw new Error('DatabaseService not available');
             }
 
-            // Clear example data from cache only (not from database)
-            await window.DatabaseService.clearExampleDataFromCache();
+            // Remove all example months from the enabled list
+            window.DatabaseService.removeEnabledExampleMonths();
 
             if (importStatus) {
-                importStatus.innerHTML = '<p style="color: var(--success-color);">✓ Example data cleared from local cache. Data in Supabase remains intact. Refresh the page to reload data from database.</p>';
+                importStatus.innerHTML = '<p style="color: var(--success-color);">✓ Example data removed from your view. Data in Supabase remains intact. You can add it back anytime using the "Load Example Data" button. The page will reload.</p>';
             }
 
-            // Reload the page to refresh data from database
+            // Reload the page to refresh data
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
