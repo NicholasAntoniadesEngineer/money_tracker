@@ -112,8 +112,41 @@ const DatabaseService = {
                 body: JSON.stringify(data)
             });
             
-            if (!response.ok || response.status === 404) {
-                // Try POST for insert
+            const patchStatus = response.status;
+            const patchStatusText = response.statusText;
+            console.log(`[DatabaseService] PATCH response status: ${patchStatus} ${patchStatusText}`);
+            
+            // Read response body to check if PATCH actually updated anything
+            let patchResult = null;
+            if (response.ok) {
+                const patchText = await response.text();
+                console.log(`[DatabaseService] PATCH response body (first 200 chars):`, patchText.substring(0, 200));
+                console.log(`[DatabaseService] PATCH response body length:`, patchText.length);
+                if (patchText && patchText.trim() !== '' && patchText.trim() !== '[]') {
+                    try {
+                        const patchData = JSON.parse(patchText);
+                        console.log(`[DatabaseService] PATCH returned data:`, Array.isArray(patchData) ? `${patchData.length} items` : 'single object');
+                        if (Array.isArray(patchData) && patchData.length > 0) {
+                            // PATCH succeeded and returned data
+                            patchResult = { data: patchData, error: null };
+                        } else if (!Array.isArray(patchData) && patchData) {
+                            // Single object returned
+                            patchResult = { data: [patchData], error: null };
+                        } else {
+                            // Empty array - no rows updated, need to POST
+                            console.log(`[DatabaseService] PATCH returned empty array - no rows matched, will try POST`);
+                        }
+                    } catch (e) {
+                        console.warn(`[DatabaseService] PATCH response not JSON:`, patchText.substring(0, 100), e);
+                    }
+                } else {
+                    console.log(`[DatabaseService] PATCH returned empty body or empty array - will try POST`);
+                }
+            }
+            
+            // If PATCH didn't work or returned empty, try POST for insert
+            if (!response.ok || response.status === 404 || !patchResult) {
+                console.log(`[DatabaseService] Trying POST for insert...`);
                 const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
                 response = await fetch(postUrl.toString(), {
                     method: 'POST',
@@ -125,9 +158,62 @@ const DatabaseService = {
                     },
                     body: JSON.stringify(data)
                 });
+                const postStatus = response.status;
+                const postStatusText = response.statusText;
+                console.log(`[DatabaseService] POST response status: ${postStatus} ${postStatusText}`);
+                
+                // Read POST response body
+                if (response.ok) {
+                    const postText = await response.text();
+                    console.log(`[DatabaseService] POST response body (first 200 chars):`, postText.substring(0, 200));
+                    console.log(`[DatabaseService] POST response body length:`, postText.length);
+                    if (postText && postText.trim() !== '' && postText.trim() !== '[]') {
+                        try {
+                            const postData = JSON.parse(postText);
+                            console.log(`[DatabaseService] POST returned data:`, Array.isArray(postData) ? `${postData.length} items` : 'single object');
+                            patchResult = Array.isArray(postData) ? { data: postData, error: null } : { data: [postData], error: null };
+                        } catch (e) {
+                            console.warn(`[DatabaseService] POST response not JSON:`, postText.substring(0, 100), e);
+                            // Try to parse as error
+                            patchResult = await this._handleResponse(new Response(postText, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers
+                            }));
+                        }
+                    } else {
+                        console.warn(`[DatabaseService] POST returned empty body or empty array`);
+                        // Empty response - might be RLS blocking return representation
+                        patchResult = { data: [], error: null };
+                    }
+                } else {
+                    // POST failed - use _handleResponse to get error
+                    patchResult = await this._handleResponse(response);
+                }
             }
             
-            return await this._handleResponse(response);
+            console.log(`[DatabaseService] queryUpsert final result:`, {
+                hasData: patchResult && patchResult.data !== null && patchResult.data !== undefined,
+                dataType: patchResult && typeof patchResult.data,
+                isArray: patchResult && Array.isArray(patchResult.data),
+                dataLength: patchResult && Array.isArray(patchResult.data) ? patchResult.data.length : 'N/A',
+                hasError: patchResult && patchResult.error !== null,
+                error: patchResult && patchResult.error
+            });
+            
+            return patchResult || { data: null, error: { message: 'Upsert failed - no response' } };
+            
+            const result = await this._handleResponse(response);
+            console.log(`[DatabaseService] queryUpsert result:`, {
+                hasData: result.data !== null && result.data !== undefined,
+                dataType: typeof result.data,
+                isArray: Array.isArray(result.data),
+                dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
+                hasError: result.error !== null,
+                error: result.error
+            });
+            
+            return result;
         } else if (identifierValue !== undefined) {
             // For settings table - use id as identifier
             const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
