@@ -1071,9 +1071,9 @@ const DatabaseService = {
             if (fetchResult.data && Array.isArray(fetchResult.data) && fetchResult.data.length > 0) {
                 data = fetchResult.data[0];
                 console.log(`[DatabaseService] Found month ${monthKey} in example_months table`);
-            } else if (fetchResult.error && (fetchResult.error.code === 'PGRST116' || fetchResult.error.status === 404)) {
-                // Not found in example_months, check user_months
-                console.log(`[DatabaseService] Not found in example_months, checking user_months...`);
+            } else {
+                // Not found in example_months (empty array or error), check user_months
+                console.log(`[DatabaseService] Not found in example_months (empty or error), checking user_months...`);
                 const userFetchResult = await this.querySelect('user_months', {
                     select: '*',
                     filter: { year: year, month: month },
@@ -1089,10 +1089,20 @@ const DatabaseService = {
                 } else if (userFetchResult.error) {
                     console.error(`[DatabaseService] Error fetching from user_months:`, userFetchResult.error);
                     error = userFetchResult.error;
+                } else if (!userFetchResult.data || (Array.isArray(userFetchResult.data) && userFetchResult.data.length === 0)) {
+                    // Empty result from user_months too
+                    console.log(`[DatabaseService] Month ${monthKey} not found in either table (both returned empty)`);
+                    return null;
                 }
-            } else if (fetchResult.error) {
-                console.error(`[DatabaseService] Error fetching from example_months:`, fetchResult.error);
-                error = fetchResult.error;
+                
+                // If we had an error from example_months but user_months worked, clear the error
+                if (data && fetchResult.error) {
+                    console.log(`[DatabaseService] Found in user_months despite example_months error, ignoring example_months error`);
+                } else if (fetchResult.error && !data) {
+                    // Both failed or both empty
+                    console.error(`[DatabaseService] Error fetching from example_months:`, fetchResult.error);
+                    error = fetchResult.error;
+                }
             }
             
             if (error) {
