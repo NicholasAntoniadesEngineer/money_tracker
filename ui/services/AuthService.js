@@ -315,6 +315,73 @@ const AuthService = {
                 });
             }
             
+            // Try to intercept network requests using fetch if possible
+            const originalFetch = window.fetch;
+            let networkRequestDetails = null;
+            
+            // Temporarily override fetch to capture request details
+            window.fetch = function(...args) {
+                const url = args[0];
+                const options = args[1] || {};
+                
+                // Check if this is a signup request
+                if (typeof url === 'string' && url.includes('/auth/v1/signup')) {
+                    console.log('[AuthService] Intercepted signup network request:', {
+                        url: url,
+                        method: options.method || 'POST',
+                        headers: options.headers ? Object.keys(options.headers) : 'N/A',
+                        hasBody: !!options.body
+                    });
+                    
+                    // Log request body (password will be in it, but we need to see the structure)
+                    if (options.body) {
+                        try {
+                            const bodyText = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+                            const bodyObj = JSON.parse(bodyText);
+                            console.log('[AuthService] Request body structure:', {
+                                hasEmail: !!bodyObj.email,
+                                hasPassword: !!bodyObj.password,
+                                email: bodyObj.email,
+                                passwordLength: bodyObj.password ? bodyObj.password.length : 0,
+                                keys: Object.keys(bodyObj)
+                            });
+                        } catch (parseError) {
+                            console.log('[AuthService] Request body (raw):', options.body.toString().substring(0, 200));
+                        }
+                    }
+                    
+                    // Call original fetch and capture response
+                    return originalFetch.apply(this, args).then(response => {
+                        console.log('[AuthService] Signup network response:', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            ok: response.ok,
+                            url: response.url,
+                            type: response.type,
+                            redirected: response.redirected
+                        });
+                        
+                        // Try to read response body
+                        const responseClone = response.clone();
+                        responseClone.text().then(text => {
+                            console.log('[AuthService] Signup response body:', text);
+                            try {
+                                const responseJson = JSON.parse(text);
+                                console.log('[AuthService] Signup response JSON:', JSON.stringify(responseJson, null, 2));
+                            } catch (parseError) {
+                                console.log('[AuthService] Response is not JSON');
+                            }
+                        }).catch(readError => {
+                            console.error('[AuthService] Could not read response body:', readError);
+                        });
+                        
+                        return response;
+                    });
+                }
+                
+                return originalFetch.apply(this, args);
+            };
+            
             const signUpStartTime = Date.now();
             
             // Monitor network requests if possible
@@ -346,7 +413,12 @@ const AuthService = {
                     });
                 }
                 
+                // Restore original fetch
+                window.fetch = originalFetch;
                 throw signUpException;
+            } finally {
+                // Restore original fetch
+                window.fetch = originalFetch;
             }
             
             const signUpDuration = Date.now() - signUpStartTime;
@@ -403,6 +475,30 @@ const AuthService = {
                     hasSession: !!data.session,
                     keys: Object.keys(data)
                 });
+                
+                // Log data.user if it exists (even if null/partial)
+                if (data.user !== undefined) {
+                    console.log('[AuthService] Data.user value:', data.user);
+                    if (data.user) {
+                        console.log('[AuthService] Data.user is truthy, logging properties:', Object.keys(data.user));
+                    } else {
+                        console.log('[AuthService] Data.user is falsy (null/undefined/empty)');
+                    }
+                }
+                
+                // Log data.session if it exists
+                if (data.session !== undefined) {
+                    console.log('[AuthService] Data.session value:', data.session);
+                }
+                
+                // Log full data object as JSON
+                try {
+                    console.log('[AuthService] Full data object JSON:', JSON.stringify(data, null, 2));
+                } catch (jsonError) {
+                    console.error('[AuthService] Could not stringify data object:', jsonError);
+                }
+            } else {
+                console.warn('[AuthService] Data object is null/undefined');
             }
             
             if (error) {
