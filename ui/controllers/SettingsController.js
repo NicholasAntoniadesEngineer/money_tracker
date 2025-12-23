@@ -636,6 +636,10 @@ const SettingsController = {
 
                 // Save to DataManager - force save to user_months table for imported data
                 await DataManager.saveMonth(monthData.key, monthData, true);
+                
+                // Small delay to ensure Supabase commit completes
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
                 results.push(`<p style="color: var(--success-color);">✓ Imported ${monthName} ${fileYear} to user_months table</p>`);
                 successCount++;
 

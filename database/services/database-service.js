@@ -55,6 +55,8 @@ const DatabaseService = {
             url.searchParams.append('limit', options.limit);
         }
         
+        console.log(`[DatabaseService] querySelect URL: ${url.toString()}`);
+        
         const response = await fetch(url.toString(), {
             method: 'GET',
             headers: {
@@ -65,7 +67,18 @@ const DatabaseService = {
             }
         });
         
-        return await this._handleResponse(response);
+        console.log(`[DatabaseService] querySelect response status: ${response.status} ${response.statusText}`);
+        
+        const result = await this._handleResponse(response);
+        console.log(`[DatabaseService] querySelect result:`, {
+            hasData: result.data !== null && result.data !== undefined,
+            dataType: typeof result.data,
+            isArray: Array.isArray(result.data),
+            dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
+            hasError: result.error !== null
+        });
+        
+        return result;
     },
     
     /**
@@ -776,16 +789,53 @@ const DatabaseService = {
             
             if (userMonthsError) {
                 console.error('[DatabaseService] Error fetching user_months:', userMonthsError);
+                console.error('[DatabaseService] Error details:', {
+                    message: userMonthsError.message,
+                    code: userMonthsError.code,
+                    status: userMonthsError.status
+                });
                 throw userMonthsError;
             }
             
             // Ensure userMonthsData is an array
-            const safeUserMonthsData = Array.isArray(userMonthsData) ? userMonthsData : (userMonthsData ? [userMonthsData] : []);
+            // Handle case where query returns null, undefined, or empty array
+            let safeUserMonthsData = [];
+            if (userMonthsData !== null && userMonthsData !== undefined) {
+                if (Array.isArray(userMonthsData)) {
+                    safeUserMonthsData = userMonthsData;
+                } else if (typeof userMonthsData === 'object') {
+                    // Single object returned instead of array
+                    safeUserMonthsData = [userMonthsData];
+                }
+            }
+            
             console.log(`[DatabaseService] user_months query result: ${safeUserMonthsData.length} months found`);
+            console.log('[DatabaseService] Raw userMonthsData type:', typeof userMonthsData, Array.isArray(userMonthsData) ? 'array' : 'not array');
+            console.log('[DatabaseService] Raw userMonthsData value:', userMonthsData);
+            
             if (safeUserMonthsData.length > 0) {
                 console.log('[DatabaseService] user_months data:', safeUserMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             } else {
                 console.warn('[DatabaseService] No user months found in database. If you just imported data, try refreshing the page.');
+                // If we just saved data, wait a moment and retry once
+                if (forceRefresh) {
+                    console.log('[DatabaseService] Force refresh requested - waiting 500ms and retrying query...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const retryResult = await this.querySelect('user_months', {
+                        select: '*',
+                        order: [
+                            { column: 'year', ascending: false },
+                            { column: 'month', ascending: false }
+                        ]
+                    });
+                    if (!retryResult.error && retryResult.data) {
+                        const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
+                        if (retryData.length > 0) {
+                            console.log(`[DatabaseService] Retry successful: found ${retryData.length} months`);
+                            safeUserMonthsData = retryData;
+                        }
+                    }
+                }
             }
             
             // Fetch example months only if requested AND user has enabled them
