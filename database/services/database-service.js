@@ -1089,14 +1089,35 @@ const DatabaseService = {
             }
             
             console.log(`[DatabaseService] Successfully saved month ${monthKey} to ${tableName} table`);
+            console.log(`[DatabaseService] Upsert result:`, {
+                hasData: upsertResult.data !== null && upsertResult.data !== undefined,
+                dataType: typeof upsertResult.data,
+                isArray: Array.isArray(upsertResult.data),
+                dataValue: upsertResult.data
+            });
+            
             if (upsertResult.data) {
                 const upsertData = Array.isArray(upsertResult.data) ? upsertResult.data : [upsertResult.data];
                 if (upsertData.length > 0) {
                     console.log(`[DatabaseService] Upsert returned data:`, upsertData[0]);
                     console.log(`[DatabaseService] Upsert returned record ID:`, upsertData[0].id);
                     console.log(`[DatabaseService] Upsert returned year/month:`, upsertData[0].year, upsertData[0].month);
+                    
+                    // Verify the data can be read back immediately
+                    console.log(`[DatabaseService] Verifying saved data can be read back...`);
+                    const verifyResult = await this.querySelect(tableName, {
+                        select: '*',
+                        filter: { year: year, month: month },
+                        limit: 1
+                    });
+                    if (verifyResult.data && Array.isArray(verifyResult.data) && verifyResult.data.length > 0) {
+                        console.log(`[DatabaseService] ✓ Verification successful - data can be read back`);
+                    } else {
+                        console.error(`[DatabaseService] ✗ Verification failed - data cannot be read back (RLS policy issue?)`);
+                        console.error(`[DatabaseService] Verify result:`, verifyResult);
+                    }
                 } else {
-                    console.warn(`[DatabaseService] Upsert succeeded but returned no data`);
+                    console.warn(`[DatabaseService] Upsert succeeded but returned empty array`);
                 }
             } else {
                 console.warn(`[DatabaseService] Upsert succeeded but upsertResult.data is null/undefined`);
