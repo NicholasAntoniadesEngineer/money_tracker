@@ -812,29 +812,35 @@ const DatabaseService = {
             console.log(`[DatabaseService] user_months query result: ${safeUserMonthsData.length} months found`);
             console.log('[DatabaseService] Raw userMonthsData type:', typeof userMonthsData, Array.isArray(userMonthsData) ? 'array' : 'not array');
             console.log('[DatabaseService] Raw userMonthsData value:', userMonthsData);
+            console.log('[DatabaseService] safeUserMonthsData length:', safeUserMonthsData.length);
+            if (safeUserMonthsData.length > 0) {
+                console.log('[DatabaseService] First month in safeUserMonthsData:', safeUserMonthsData[0]);
+            }
             
             if (safeUserMonthsData.length > 0) {
                 console.log('[DatabaseService] user_months data:', safeUserMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             } else {
                 console.warn('[DatabaseService] No user months found in database. If you just imported data, try refreshing the page.');
-                // If we just saved data, wait a moment and retry once
-                if (forceRefresh) {
-                    console.log('[DatabaseService] Force refresh requested - waiting 500ms and retrying query...');
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    const retryResult = await this.querySelect('user_months', {
-                        select: '*',
-                        order: [
-                            { column: 'year', ascending: false },
-                            { column: 'month', ascending: false }
-                        ]
-                    });
-                    if (!retryResult.error && retryResult.data) {
-                        const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
-                        if (retryData.length > 0) {
-                            console.log(`[DatabaseService] Retry successful: found ${retryData.length} months`);
-                            safeUserMonthsData = retryData;
-                        }
+                // Always retry once if no data found (helps with timing issues after import)
+                console.log('[DatabaseService] No data found - waiting 500ms and retrying query...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const retryResult = await this.querySelect('user_months', {
+                    select: '*',
+                    order: [
+                        { column: 'year', ascending: false },
+                        { column: 'month', ascending: false }
+                    ]
+                });
+                if (!retryResult.error && retryResult.data) {
+                    const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
+                    if (retryData.length > 0) {
+                        console.log(`[DatabaseService] Retry successful: found ${retryData.length} months`);
+                        safeUserMonthsData = retryData;
+                    } else {
+                        console.warn('[DatabaseService] Retry also returned empty array - data may not be committed yet or RLS policy may be blocking');
                     }
+                } else if (retryResult.error) {
+                    console.error('[DatabaseService] Retry query failed:', retryResult.error);
                 }
             }
             
@@ -1087,8 +1093,18 @@ const DatabaseService = {
                 const upsertData = Array.isArray(upsertResult.data) ? upsertResult.data : [upsertResult.data];
                 if (upsertData.length > 0) {
                     console.log(`[DatabaseService] Upsert returned data:`, upsertData[0]);
+                    console.log(`[DatabaseService] Upsert returned record ID:`, upsertData[0].id);
+                    console.log(`[DatabaseService] Upsert returned year/month:`, upsertData[0].year, upsertData[0].month);
+                } else {
+                    console.warn(`[DatabaseService] Upsert succeeded but returned no data`);
                 }
+            } else {
+                console.warn(`[DatabaseService] Upsert succeeded but upsertResult.data is null/undefined`);
             }
+            
+            // Small delay to ensure Supabase commit completes before next query
+            // This helps with timing issues where queries happen immediately after save
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // Clear cache to ensure next fetch gets fresh data
             if (this.monthsCache && this.monthsCache[monthKey]) {
