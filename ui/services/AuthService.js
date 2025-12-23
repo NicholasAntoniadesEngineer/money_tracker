@@ -2,6 +2,7 @@
  * Authentication Service
  * Handles user authentication, sign up, sign in, sign out, and session management
  * Uses Supabase for authentication
+ * Configured to work without email verification (email confirmation disabled in Supabase dashboard)
  */
 
 const AuthService = {
@@ -235,6 +236,7 @@ const AuthService = {
 
     /**
      * Sign up a new user with email and password
+     * Configured to work without email verification (email confirmation should be disabled in Supabase dashboard)
      * @param {string} email - User email
      * @param {string} password - User password
      * @returns {Promise<{success: boolean, error: string|null, user: Object|null, requiresEmailVerification: boolean, message: string|null}>}
@@ -295,6 +297,8 @@ const AuthService = {
             console.log('[AuthService] Input validation passed');
             
             // Call Supabase signup
+            // Note: Email verification is controlled in Supabase Dashboard > Authentication > Settings
+            // If "Enable email confirmations" is OFF, users will be signed in immediately
             console.log('[AuthService] Calling Supabase auth.signUp()...');
             console.log('[AuthService] SignUp parameters:', {
                 email: trimmedEmail,
@@ -302,8 +306,7 @@ const AuthService = {
                 clientAvailable: !!this.client,
                 clientType: this.client?.constructor?.name,
                 hasAuth: !!this.client?.auth,
-                supabaseUrl: this.client?.supabaseUrl || 'N/A',
-                supabaseKey: this.client?.supabaseKey ? this.client.supabaseKey.substring(0, 15) + '...' : 'N/A'
+                supabaseUrl: this.client?.supabaseUrl || 'N/A'
             });
             
             // Log client internals if available
@@ -406,6 +409,23 @@ const AuthService = {
                                 if (responseJson.message) {
                                     console.error('[AuthService] Message in response JSON:', responseJson.message);
                                 }
+                                if (responseJson.code) {
+                                    console.error('[AuthService] Error code in response JSON:', responseJson.code);
+                                }
+                                
+                                // Log all keys in response
+                                console.log('[AuthService] Response JSON keys:', Object.keys(responseJson));
+                                
+                                // Check for additional error details
+                                if (responseJson.details) {
+                                    console.error('[AuthService] Error details:', responseJson.details);
+                                }
+                                if (responseJson.hint) {
+                                    console.error('[AuthService] Error hint:', responseJson.hint);
+                                }
+                                if (responseJson.status) {
+                                    console.error('[AuthService] Error status:', responseJson.status);
+                                }
                             } catch (parseError) {
                                 console.log('[AuthService] Response is not JSON, raw text:', text.substring(0, 500));
                             }
@@ -439,13 +459,25 @@ const AuthService = {
             console.log('[AuthService] Starting signUp API call at', new Date().toISOString());
             console.log('[AuthService] IMPORTANT: Check browser DevTools Network tab for request to /auth/v1/signup');
             console.log('[AuthService] Look for the Response tab to see the raw error message from Supabase');
+            console.log('[AuthService]');
+            console.log('[AuthService] NOTE: Email verification is controlled in Supabase Dashboard');
+            console.log('[AuthService] If email verification is disabled, users will be signed in immediately');
+            console.log('[AuthService] If email verification is enabled, users must verify email before signing in');
             
             let signUpResponse;
             try {
-                // Wrap in Promise to catch any synchronous errors
+                // Sign up - Supabase will handle email verification based on dashboard settings
+                // If email verification is disabled, user will be signed in immediately
+                // If email verification is enabled, user will need to verify email first
+                console.log('[AuthService] Calling Supabase auth.signUp() without emailRedirectTo option');
+                console.log('[AuthService] Email verification behavior depends on Supabase Dashboard settings');
+                
                 signUpResponse = await Promise.resolve(this.client.auth.signUp({
                     email: trimmedEmail,
                     password: password
+                    // Note: We don't set emailRedirectTo or other options
+                    // Email verification is controlled in Supabase Dashboard > Authentication > Settings
+                    // If "Enable email confirmations" is OFF, user will be signed in immediately
                 }));
                 console.log('[AuthService] SignUp promise resolved successfully');
             } catch (signUpException) {
@@ -505,6 +537,7 @@ const AuthService = {
             const { data, error } = signUpResponse;
             
             // Log full response
+            console.log('[AuthService] ========== SIGNUP RESPONSE RECEIVED ==========');
             console.log('[AuthService] SignUp response object:', {
                 hasData: !!data,
                 hasUser: !!data?.user,
@@ -516,8 +549,9 @@ const AuthService = {
                 errorName: error?.name
             });
             
-            // Log full error object if present
+            // Log full error object if present (do this BEFORE data logging)
             if (error) {
+                console.error('[AuthService] ========== ERROR OBJECT DETAILS ==========');
                 console.error('[AuthService] Full error object:', JSON.stringify(error, null, 2));
                 console.error('[AuthService] Error properties:', {
                     message: error.message,
@@ -528,22 +562,43 @@ const AuthService = {
                     toString: error.toString()
                 });
                 
+                // Try to get more details from error - check all possible properties
+                console.error('[AuthService] Checking error for additional properties...');
+                const errorKeys = Object.keys(error);
+                console.error('[AuthService] Error object keys:', errorKeys);
+                
+                for (const key of errorKeys) {
+                    if (key !== 'stack' && typeof error[key] !== 'function') {
+                        try {
+                            const value = error[key];
+                            if (typeof value === 'object' && value !== null) {
+                                console.error(`[AuthService] Error.${key}:`, JSON.stringify(value, null, 2));
+                            } else {
+                                console.error(`[AuthService] Error.${key}:`, value);
+                            }
+                        } catch (e) {
+                            console.error(`[AuthService] Could not log Error.${key}:`, e.message);
+                        }
+                    }
+                }
+                
                 // Try to get more details from error
                 if (error.response) {
-                    console.error('[AuthService] Error response:', {
-                        status: error.response.status,
-                        statusText: error.response.statusText,
-                        headers: error.response.headers,
-                        url: error.response.url
-                    });
+                    console.error('[AuthService] Error response:', error.response);
                 }
                 
                 if (error.context) {
                     console.error('[AuthService] Error context:', error.context);
                 }
+                
+                // Check for Supabase-specific error properties
+                if (error.__isAuthError !== undefined) {
+                    console.error('[AuthService] Error is auth error:', error.__isAuthError);
+                }
             }
             
-            // Log full data object if present
+            // Log full data object if present (ALWAYS log, even if error exists)
+            console.log('[AuthService] ========== DATA OBJECT DETAILS ==========');
             if (data) {
                 console.log('[AuthService] Full data object structure:', {
                     hasUser: !!data.user,
@@ -717,8 +772,9 @@ const AuthService = {
                 // Provide more helpful error messages for common issues
                 let userFriendlyError = error.message;
                 if (error.message && error.message.includes('Database error')) {
-                    userFriendlyError = 'Database configuration error. Please contact support or check your Supabase project settings. The user account may not have been created.';
+                    userFriendlyError = 'Database configuration error. This may be caused by email rate limiting. Please disable email verification in Supabase Dashboard (Authentication > Settings > Enable email confirmations: OFF). The user account may not have been created.';
                     console.error('[AuthService] Database error detected - checking for common causes:');
+                    console.error('[AuthService] - Email rate limiting (if email verification enabled)');
                     console.error('[AuthService] - RLS policies (user confirmed not blocking)');
                     console.error('[AuthService] - Database triggers');
                     console.error('[AuthService] - Database functions');
@@ -1025,4 +1081,3 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AuthService;
 }
-
