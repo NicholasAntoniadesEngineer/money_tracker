@@ -430,11 +430,15 @@ const AuthService = {
             };
             
             console.log('[AuthService] Fetch interception set up, waiting for network call...');
+            console.log('[AuthService] NOTE: If fetch interception does not appear, Supabase may be using XMLHttpRequest or a different method');
+            console.log('[AuthService] Please check browser Network tab for the actual HTTP request/response');
             
             const signUpStartTime = Date.now();
             
             // Monitor network requests if possible
             console.log('[AuthService] Starting signUp API call at', new Date().toISOString());
+            console.log('[AuthService] IMPORTANT: Check browser DevTools Network tab for request to /auth/v1/signup');
+            console.log('[AuthService] Look for the Response tab to see the raw error message from Supabase');
             
             let signUpResponse;
             try {
@@ -472,13 +476,31 @@ const AuthService = {
             
             const signUpDuration = Date.now() - signUpStartTime;
             console.log('[AuthService] Supabase signUp() completed in', signUpDuration, 'ms');
-            console.log('[AuthService] Fetch interception status:', fetchIntercepted ? 'INTERCEPTED' : 'NOT INTERCEPTED (Supabase may use different method)');
+            console.log('[AuthService] Fetch interception status:', fetchIntercepted ? 'INTERCEPTED' : 'NOT INTERCEPTED (Supabase may use XMLHttpRequest or different method)');
+            
+            if (!fetchIntercepted) {
+                console.warn('[AuthService] ========== IMPORTANT: FETCH INTERCEPTION DID NOT WORK ==========');
+                console.warn('[AuthService] Supabase is likely using XMLHttpRequest or a different method');
+                console.warn('[AuthService] Please check your browser DevTools Network tab:');
+                console.warn('[AuthService] 1. Open DevTools (F12 or Cmd+Option+I)');
+                console.warn('[AuthService] 2. Go to Network tab');
+                console.warn('[AuthService] 3. Filter by "signup" or look for requests to /auth/v1/signup');
+                console.warn('[AuthService] 4. Click on the request and check the Response tab');
+                console.warn('[AuthService] 5. The Response tab will show the raw error message from Supabase');
+                console.warn('[AuthService] ================================================================');
+            }
+            
             console.log('[AuthService] SignUp response type:', typeof signUpResponse);
             console.log('[AuthService] SignUp response is object:', typeof signUpResponse === 'object');
             console.log('[AuthService] SignUp response keys:', signUpResponse ? Object.keys(signUpResponse) : 'null/undefined');
             
             // Log full response object
-            console.log('[AuthService] Full signUpResponse object:', JSON.stringify(signUpResponse, null, 2));
+            try {
+                console.log('[AuthService] Full signUpResponse object:', JSON.stringify(signUpResponse, null, 2));
+            } catch (jsonError) {
+                console.error('[AuthService] Could not stringify signUpResponse:', jsonError);
+                console.log('[AuthService] signUpResponse (direct):', signUpResponse);
+            }
             
             const { data, error } = signUpResponse;
             
@@ -606,7 +628,10 @@ const AuthService = {
                 console.warn('[AuthService] Data object is null/undefined');
                 console.warn('[AuthService] Data === null:', data === null);
                 console.warn('[AuthService] Data === undefined:', data === undefined);
+                console.warn('[AuthService] Data type:', typeof data);
             }
+            
+            console.log('[AuthService] ========== END DATA OBJECT DETAILS ==========');
             
             if (error) {
                 console.error('[AuthService] ========== SIGNUP ERROR DETECTED ==========');
