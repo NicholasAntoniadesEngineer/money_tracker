@@ -696,9 +696,9 @@ const DatabaseService = {
         return { data: null, error: null };
     },
 
-    async getAllMonths(forceRefresh = false) {
+    async getAllMonths(forceRefresh = false, includeExampleData = true) {
         try {
-            console.log('[DatabaseService] getAllMonths() called, forceRefresh:', forceRefresh);
+            console.log('[DatabaseService] getAllMonths() called, forceRefresh:', forceRefresh, 'includeExampleData:', includeExampleData);
             
             if (!this.client) {
                 console.log('[DatabaseService] Client not initialized, initializing...');
@@ -728,33 +728,37 @@ const DatabaseService = {
                 console.log('[DatabaseService] user_months data:', userMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             }
             
-            // Fetch example months using centralized query interface
-            console.log('[DatabaseService] Querying example_months table...');
+            // Fetch example months only if requested
             let exampleMonthsData = [];
-            const { data: exampleData, error: exampleMonthsError } = await this.querySelect('example_months', {
-                select: '*',
-                order: [
-                    { column: 'year', ascending: false },
-                    { column: 'month', ascending: false }
-                ]
-            });
-            
-            if (exampleMonthsError) {
-                // If table doesn't exist yet, log warning but don't fail
-                if (exampleMonthsError.message && exampleMonthsError.message.includes('relation') && exampleMonthsError.message.includes('does not exist')) {
-                    console.warn('[DatabaseService] example_months table does not exist yet. Run schema-fresh-install.sql to create it.');
-                    exampleMonthsData = [];
+            if (includeExampleData) {
+                console.log('[DatabaseService] Querying example_months table...');
+                const { data: exampleData, error: exampleMonthsError } = await this.querySelect('example_months', {
+                    select: '*',
+                    order: [
+                        { column: 'year', ascending: false },
+                        { column: 'month', ascending: false }
+                    ]
+                });
+                
+                if (exampleMonthsError) {
+                    // If table doesn't exist yet, log warning but don't fail
+                    if (exampleMonthsError.message && exampleMonthsError.message.includes('relation') && exampleMonthsError.message.includes('does not exist')) {
+                        console.warn('[DatabaseService] example_months table does not exist yet. Run schema-fresh-install.sql to create it.');
+                        exampleMonthsData = [];
+                    } else {
+                        console.error('[DatabaseService] Error fetching example_months:', exampleMonthsError);
+                        // Don't throw - just log and continue with empty array
+                        exampleMonthsData = [];
+                    }
                 } else {
-                    console.error('[DatabaseService] Error fetching example_months:', exampleMonthsError);
-                    // Don't throw - just log and continue with empty array
-                    exampleMonthsData = [];
+                    exampleMonthsData = exampleData || [];
+                    console.log(`[DatabaseService] example_months query result: ${exampleMonthsData.length} months found`);
+                    if (exampleMonthsData.length > 0) {
+                        console.log('[DatabaseService] example_months data:', exampleMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
+                    }
                 }
             } else {
-                exampleMonthsData = exampleData || [];
-                console.log(`[DatabaseService] example_months query result: ${exampleMonthsData.length} months found`);
-                if (exampleMonthsData.length > 0) {
-                    console.log('[DatabaseService] example_months data:', exampleMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
-                }
+                console.log('[DatabaseService] Skipping example_months query (includeExampleData=false)');
             }
             
             const monthsObject = {};
@@ -768,8 +772,8 @@ const DatabaseService = {
                 });
             }
             
-            // Add example months (they will override user months if same key exists, which shouldn't happen)
-            if (Array.isArray(exampleMonthsData) && exampleMonthsData.length > 0) {
+            // Add example months only if requested (they will override user months if same key exists, which shouldn't happen)
+            if (includeExampleData && Array.isArray(exampleMonthsData) && exampleMonthsData.length > 0) {
                 console.log(`[DatabaseService] Processing ${exampleMonthsData.length} example months...`);
                 exampleMonthsData.forEach(monthRecord => {
                     const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);

@@ -80,8 +80,8 @@ const MonthlyBudgetController = {
         const urlParams = new URLSearchParams(window.location.search);
         const monthParam = urlParams.get('month');
 
-        // Load months from database
-        const allMonths = await DataManager.getAllMonths();
+        // Load months from database (only user months, not example data)
+        const allMonths = await DataManager.getAllMonths(false, false);
 
         this.loadMonthSelector();
 
@@ -104,7 +104,8 @@ const MonthlyBudgetController = {
         const selector = document.getElementById('month-selector');
         const selectorInitial = document.getElementById('month-selector-initial');
 
-        const allMonths = await DataManager.getAllMonths();
+        // Load only user months, not example data
+        const allMonths = await DataManager.getAllMonths(false, false);
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         const optionsHtml = monthKeys.length > 0 
@@ -2177,7 +2178,8 @@ const MonthlyBudgetController = {
 
                 await this.loadMonthSelector();
 
-                const allMonths = await DataManager.getAllMonths();
+                // Load only user months, not example data
+                const allMonths = await DataManager.getAllMonths(false, false);
                 const monthKeys = Object.keys(allMonths).sort().reverse();
                 if (monthKeys.length > 0) {
                     await this.loadMonth(monthKeys[0]);
@@ -2209,7 +2211,8 @@ const MonthlyBudgetController = {
     async populateCopyMonthSelectors() {
         if (!this.currentMonthKey) return;
 
-        const allMonths = await DataManager.getAllMonths();
+        // Load only user months, not example data
+        const allMonths = await DataManager.getAllMonths(false, false);
         const monthKeys = Object.keys(allMonths)
             .filter(key => key !== this.currentMonthKey)
             .sort()

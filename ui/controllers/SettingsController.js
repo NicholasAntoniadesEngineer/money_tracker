@@ -233,12 +233,6 @@ const SettingsController = {
                     return;
                 }
 
-                // Double confirmation
-                const doubleConfirm = confirm('FINAL WARNING: This will permanently delete ALL your user data from Supabase. This cannot be undone. Click OK to proceed or Cancel to abort.');
-                if (!doubleConfirm) {
-                    return;
-                }
-
                 const fileOperationsStatus = document.getElementById('file-operations-status');
                 if (fileOperationsStatus) {
                     fileOperationsStatus.innerHTML = '<p style="color: var(--text-secondary);">Deleting all user data from Supabase...</p>';

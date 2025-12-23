@@ -39,14 +39,15 @@ const DataManager = {
     /**
      * Get all months data from database
      * @param {boolean} forceRefresh - Force refresh from database, bypass cache
+     * @param {boolean} includeExampleData - Include example months data (default: true)
      * @returns {Promise<Object>} Object with all months keyed by monthKey
      */
-    async getAllMonths(forceRefresh = false) {
+    async getAllMonths(forceRefresh = false, includeExampleData = true) {
         try {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            return await window.DatabaseService.getAllMonths(forceRefresh);
+            return await window.DatabaseService.getAllMonths(forceRefresh, includeExampleData);
         } catch (error) {
             console.error('Error getting all months:', error);
             throw error;
