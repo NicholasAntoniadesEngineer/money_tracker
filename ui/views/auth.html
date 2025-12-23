@@ -454,10 +454,27 @@
             
             try {
                 console.log('[AuthPage] Calling AuthService.signUp()...');
-                const signUpStartTime = Date.now();
-                const result = await window.AuthService.signUp(email, password);
-                const signUpDuration = Date.now() - signUpStartTime;
+                console.log('[AuthPage] Pre-signup state:', {
+                    hasAuthService: !!window.AuthService,
+                    isAuthenticated: window.AuthService?.isAuthenticated(),
+                    hasClient: !!window.AuthService?.client,
+                    currentUser: window.AuthService?.getCurrentUser()?.email
+                });
                 
+                const signUpStartTime = Date.now();
+                let result;
+                try {
+                    result = await window.AuthService.signUp(email, password);
+                } catch (signUpException) {
+                    console.error('[AuthPage] Exception caught from signUp():', {
+                        message: signUpException.message,
+                        name: signUpException.name,
+                        stack: signUpException.stack
+                    });
+                    throw signUpException;
+                }
+                
+                const signUpDuration = Date.now() - signUpStartTime;
                 console.log('[AuthPage] AuthService.signUp() completed in', signUpDuration, 'ms');
                 console.log('[AuthPage] SignUp result:', {
                     success: result.success,
@@ -469,6 +486,7 @@
                     requiresEmailVerification: result.requiresEmailVerification,
                     message: result.message
                 });
+                console.log('[AuthPage] Full result object:', JSON.stringify(result, null, 2));
                 
                 if (result.success) {
                     console.log('[AuthPage] Signup successful, processing result...');

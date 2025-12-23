@@ -16,31 +16,75 @@ const AuthService = {
      */
     async initialize() {
         try {
+            console.log('[AuthService] initialize() called');
+            
             if (!window.SupabaseConfig) {
                 throw new Error('SupabaseConfig not available');
             }
             
-            this.client = await window.SupabaseConfig.initialize();
+            // Reuse existing client if available to avoid multiple instances
+            if (!this.client) {
+                console.log('[AuthService] Creating new Supabase client...');
+                const clientInitStart = Date.now();
+                this.client = await window.SupabaseConfig.initialize();
+                const clientInitDuration = Date.now() - clientInitStart;
+                console.log('[AuthService] Supabase client created in', clientInitDuration, 'ms');
+                console.log('[AuthService] Client details:', {
+                    hasClient: !!this.client,
+                    clientType: this.client?.constructor?.name,
+                    hasAuth: !!this.client?.auth,
+                    supabaseUrl: this.client?.supabaseUrl,
+                    supabaseKey: this.client?.supabaseKey ? this.client.supabaseKey.substring(0, 10) + '...' : 'N/A'
+                });
+            } else {
+                console.log('[AuthService] Reusing existing Supabase client');
+                console.log('[AuthService] Existing client details:', {
+                    clientType: this.client?.constructor?.name,
+                    hasAuth: !!this.client?.auth,
+                    supabaseUrl: this.client?.supabaseUrl
+                });
+            }
             
             // Check for existing session
+            console.log('[AuthService] Checking for existing session...');
             const { data: { session }, error: sessionError } = await this.client.auth.getSession();
+            
             if (sessionError) {
-                console.error('[AuthService] Error getting session:', sessionError);
+                console.error('[AuthService] Error getting session:', {
+                    message: sessionError.message,
+                    code: sessionError.code,
+                    status: sessionError.status
+                });
                 throw sessionError;
             }
             
             if (session) {
                 this.session = session;
                 this.currentUser = session.user;
-                console.log('[AuthService] Existing session found for user:', this.currentUser.email);
+                console.log('[AuthService] Existing session found for user:', {
+                    email: this.currentUser.email,
+                    userId: this.currentUser.id,
+                    emailConfirmed: this.currentUser.email_confirmed_at
+                });
+            } else {
+                console.log('[AuthService] No existing session found');
             }
             
-            // Set up auth state listener
-            this.setupAuthStateListener();
+            // Set up auth state listener (only if not already set up)
+            if (!this.authStateListener) {
+                this.setupAuthStateListener();
+            } else {
+                console.log('[AuthService] Auth state listener already set up, skipping');
+            }
             
+            console.log('[AuthService] Initialization completed successfully');
             return { success: true };
         } catch (error) {
-            console.error('[AuthService] Initialization error:', error);
+            console.error('[AuthService] Initialization error:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
             throw error;
         }
     },
@@ -50,12 +94,23 @@ const AuthService = {
      * @returns {void}
      */
     setupAuthStateListener() {
-        if (this.authStateListener) {
-            this.client.auth.removeAuthStateChangeListener(this.authStateListener);
+        // Remove existing listener if present (Supabase v2 returns subscription object)
+        if (this.authStateListener && typeof this.authStateListener.unsubscribe === 'function') {
+            console.log('[AuthService] Removing existing auth state listener');
+            try {
+                this.authStateListener.unsubscribe();
+            } catch (unsubscribeError) {
+                console.warn('[AuthService] Error unsubscribing from auth state listener:', unsubscribeError);
+            }
+            this.authStateListener = null;
         }
         
+        console.log('[AuthService] Setting up new auth state listener');
         this.authStateListener = this.client.auth.onAuthStateChange((event, session) => {
-            console.log('[AuthService] Auth state changed:', event);
+            console.log('[AuthService] Auth state changed:', event, {
+                hasSession: !!session,
+                userEmail: session?.user?.email
+            });
             
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                 this.session = session;
@@ -73,6 +128,8 @@ const AuthService = {
                 window.dispatchEvent(new CustomEvent('auth:signout'));
             }
         });
+        
+        console.log('[AuthService] Auth state listener set up successfully');
     },
 
     /**
@@ -187,10 +244,23 @@ const AuthService = {
         console.log('[AuthService] signUp() called with:', {
             email: email ? email.substring(0, 3) + '***' : 'null',
             passwordLength: password ? password.length : 0,
-            hasClient: !!this.client
+            hasClient: !!this.client,
+            isAuthenticated: this.isAuthenticated(),
+            currentUserEmail: this.currentUser?.email
         });
         
         try {
+            // Check if user is already signed in - sign them out first
+            if (this.isAuthenticated()) {
+                console.log('[AuthService] User already authenticated, signing out before signup...');
+                const signOutResult = await this.signOut();
+                if (!signOutResult.success) {
+                    console.warn('[AuthService] Failed to sign out existing user:', signOutResult.error);
+                } else {
+                    console.log('[AuthService] Successfully signed out existing user');
+                }
+            }
+            
             // Initialize client if needed
             if (!this.client) {
                 console.log('[AuthService] Client not initialized, initializing...');
@@ -226,36 +296,217 @@ const AuthService = {
             
             // Call Supabase signup
             console.log('[AuthService] Calling Supabase auth.signUp()...');
+            console.log('[AuthService] SignUp parameters:', {
+                email: trimmedEmail,
+                passwordLength: password.length,
+                clientAvailable: !!this.client,
+                clientType: this.client?.constructor?.name,
+                hasAuth: !!this.client?.auth,
+                supabaseUrl: this.client?.supabaseUrl || 'N/A',
+                supabaseKey: this.client?.supabaseKey ? this.client.supabaseKey.substring(0, 15) + '...' : 'N/A'
+            });
+            
+            // Log client internals if available
+            if (this.client?.auth) {
+                console.log('[AuthService] Auth client details:', {
+                    hasSignUp: typeof this.client.auth.signUp === 'function',
+                    hasGetUser: typeof this.client.auth.getUser === 'function',
+                    hasGetSession: typeof this.client.auth.getSession === 'function'
+                });
+            }
+            
             const signUpStartTime = Date.now();
             
-            const { data, error } = await this.client.auth.signUp({
-                email: trimmedEmail,
-                password: password
-            });
+            // Monitor network requests if possible
+            console.log('[AuthService] Starting signUp API call at', new Date().toISOString());
+            
+            let signUpResponse;
+            try {
+                // Wrap in Promise to catch any synchronous errors
+                signUpResponse = await Promise.resolve(this.client.auth.signUp({
+                    email: trimmedEmail,
+                    password: password
+                }));
+                console.log('[AuthService] SignUp promise resolved successfully');
+            } catch (signUpException) {
+                console.error('[AuthService] SignUp promise rejected with exception:', {
+                    message: signUpException.message,
+                    name: signUpException.name,
+                    stack: signUpException.stack,
+                    cause: signUpException.cause,
+                    toString: signUpException.toString()
+                });
+                
+                // Try to extract more details from the exception
+                if (signUpException.response) {
+                    console.error('[AuthService] Exception response:', {
+                        status: signUpException.response.status,
+                        statusText: signUpException.response.statusText,
+                        data: signUpException.response.data
+                    });
+                }
+                
+                throw signUpException;
+            }
             
             const signUpDuration = Date.now() - signUpStartTime;
             console.log('[AuthService] Supabase signUp() completed in', signUpDuration, 'ms');
+            console.log('[AuthService] SignUp response type:', typeof signUpResponse);
+            console.log('[AuthService] SignUp response is object:', typeof signUpResponse === 'object');
+            console.log('[AuthService] SignUp response keys:', signUpResponse ? Object.keys(signUpResponse) : 'null/undefined');
+            
+            const { data, error } = signUpResponse;
             
             // Log full response
-            console.log('[AuthService] SignUp response:', {
+            console.log('[AuthService] SignUp response object:', {
                 hasData: !!data,
                 hasUser: !!data?.user,
                 hasSession: !!data?.session,
                 hasError: !!error,
                 errorMessage: error?.message,
                 errorCode: error?.code,
-                errorStatus: error?.status
+                errorStatus: error?.status,
+                errorName: error?.name
             });
             
+            // Log full error object if present
             if (error) {
-                console.error('[AuthService] Sign up error from Supabase:', {
+                console.error('[AuthService] Full error object:', JSON.stringify(error, null, 2));
+                console.error('[AuthService] Error properties:', {
                     message: error.message,
                     code: error.code,
                     status: error.status,
                     name: error.name,
-                    stack: error.stack
+                    statusCode: error.statusCode,
+                    toString: error.toString()
                 });
-                return { success: false, error: error.message, user: null, requiresEmailVerification: false };
+                
+                // Try to get more details from error
+                if (error.response) {
+                    console.error('[AuthService] Error response:', {
+                        status: error.response.status,
+                        statusText: error.response.statusText,
+                        headers: error.response.headers,
+                        url: error.response.url
+                    });
+                }
+                
+                if (error.context) {
+                    console.error('[AuthService] Error context:', error.context);
+                }
+            }
+            
+            // Log full data object if present
+            if (data) {
+                console.log('[AuthService] Full data object structure:', {
+                    hasUser: !!data.user,
+                    hasSession: !!data.session,
+                    keys: Object.keys(data)
+                });
+            }
+            
+            if (error) {
+                console.error('[AuthService] ========== SIGNUP ERROR DETECTED ==========');
+                console.error('[AuthService] Sign up error from Supabase:', {
+                    message: error.message,
+                    code: error.code,
+                    status: error.status,
+                    statusCode: error.statusCode,
+                    name: error.name,
+                    stack: error.stack,
+                    toString: error.toString()
+                });
+                
+                // Log all error properties
+                console.error('[AuthService] All error properties:', Object.keys(error));
+                for (const key of Object.keys(error)) {
+                    if (key !== 'stack' && typeof error[key] !== 'function') {
+                        console.error(`[AuthService] Error.${key}:`, error[key]);
+                    }
+                }
+                
+                // Check for nested error details
+                if (error.error) {
+                    console.error('[AuthService] Nested error object:', error.error);
+                }
+                
+                if (error.details) {
+                    console.error('[AuthService] Error details:', error.details);
+                }
+                
+                if (error.hint) {
+                    console.error('[AuthService] Error hint:', error.hint);
+                }
+                
+                // Check for response object
+                if (error.response) {
+                    console.error('[AuthService] Error response object:', {
+                        status: error.response.status,
+                        statusText: error.response.statusText,
+                        url: error.response.url,
+                        type: error.response.type,
+                        redirected: error.response.redirected,
+                        ok: error.response.ok
+                    });
+                    
+                    // Try to read response headers
+                    if (error.response.headers) {
+                        try {
+                            const headersObj = {};
+                            error.response.headers.forEach((value, key) => {
+                                headersObj[key] = value;
+                            });
+                            console.error('[AuthService] Error response headers:', headersObj);
+                        } catch (headerError) {
+                            console.error('[AuthService] Could not read response headers:', headerError);
+                        }
+                    }
+                    
+                    // Try to read response body (if it's a Response object)
+                    if (typeof error.response.text === 'function') {
+                        try {
+                            const responseText = await error.response.clone().text();
+                            console.error('[AuthService] Error response body:', responseText);
+                            try {
+                                const responseJson = JSON.parse(responseText);
+                                console.error('[AuthService] Error response JSON:', JSON.stringify(responseJson, null, 2));
+                            } catch (parseError) {
+                                console.error('[AuthService] Response body is not JSON, raw text:', responseText.substring(0, 500));
+                            }
+                        } catch (readError) {
+                            console.error('[AuthService] Could not read error response body:', readError);
+                        }
+                    } else if (error.response.data) {
+                        console.error('[AuthService] Error response data:', error.response.data);
+                    }
+                }
+                
+                // Check for context
+                if (error.context) {
+                    console.error('[AuthService] Error context:', error.context);
+                }
+                
+                // Provide more helpful error messages for common issues
+                let userFriendlyError = error.message;
+                if (error.message && error.message.includes('Database error')) {
+                    userFriendlyError = 'Database configuration error. Please contact support or check your Supabase project settings. The user account may not have been created.';
+                    console.error('[AuthService] Database error detected - checking for common causes:');
+                    console.error('[AuthService] - RLS policies (user confirmed not blocking)');
+                    console.error('[AuthService] - Database triggers');
+                    console.error('[AuthService] - Database functions');
+                    console.error('[AuthService] - Foreign key constraints');
+                    console.error('[AuthService] - Check constraints');
+                    console.error('[AuthService] - Network/firewall issues');
+                } else if (error.message && error.message.includes('User already registered')) {
+                    userFriendlyError = 'An account with this email already exists. Please sign in instead.';
+                } else if (error.message && error.message.includes('Invalid email')) {
+                    userFriendlyError = 'Please enter a valid email address.';
+                } else if (error.message && error.message.includes('Password')) {
+                    userFriendlyError = 'Password does not meet requirements. Please use a stronger password.';
+                }
+                
+                console.error('[AuthService] ========== END SIGNUP ERROR ==========');
+                return { success: false, error: userFriendlyError, user: null, requiresEmailVerification: false };
             }
             
             // Log user data if available
@@ -266,10 +517,16 @@ const AuthService = {
                     emailConfirmed: data.user.email_confirmed_at,
                     createdAt: data.user.created_at,
                     lastSignIn: data.user.last_sign_in_at,
-                    confirmedAt: data.user.confirmed_at
+                    confirmedAt: data.user.confirmed_at,
+                    appMetadata: data.user.app_metadata,
+                    userMetadata: data.user.user_metadata,
+                    aud: data.user.aud,
+                    role: data.user.role
                 });
+                console.log('[AuthService] Full user object keys:', Object.keys(data.user));
             } else {
                 console.warn('[AuthService] No user data in response');
+                console.warn('[AuthService] Data object:', data);
             }
             
             // Log session data if available
@@ -279,10 +536,21 @@ const AuthService = {
                     refreshToken: data.session.refresh_token ? data.session.refresh_token.substring(0, 20) + '...' : 'null',
                     expiresAt: data.session.expires_at,
                     expiresIn: data.session.expires_in,
-                    tokenType: data.session.token_type
+                    tokenType: data.session.token_type,
+                    user: data.session.user ? {
+                        id: data.session.user.id,
+                        email: data.session.user.email
+                    } : null
                 });
+                console.log('[AuthService] Full session object keys:', Object.keys(data.session));
             } else {
                 console.log('[AuthService] No session data in response (email verification may be required)');
+                console.log('[AuthService] Session absence reason check:', {
+                    hasData: !!data,
+                    hasUser: !!data?.user,
+                    emailConfirmed: data?.user?.email_confirmed_at,
+                    emailConfirmationRequired: !data?.user?.email_confirmed_at
+                });
             }
             
             if (data.user) {
