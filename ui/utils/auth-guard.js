@@ -126,6 +126,9 @@ const AuthGuard = {
      * @returns {void}
      */
     redirectAfterAuth() {
+        console.log('[AuthGuard] ========== REDIRECT AFTER AUTH ==========');
+        console.log('[AuthGuard] redirectAfterAuth() called');
+        
         const redirectKey = 'auth_redirecting';
         const redirectTimestamp = 'auth_redirect_timestamp';
         
@@ -139,6 +142,7 @@ const AuthGuard = {
         
         // Set timestamp to prevent duplicate calls
         sessionStorage.setItem(redirectTimestamp, now.toString());
+        console.log('[AuthGuard] Set redirect timestamp to prevent duplicates');
         
         // Clear the timestamp after a delay
         setTimeout(() => {
@@ -146,12 +150,19 @@ const AuthGuard = {
         }, 3000);
         
         const returnUrl = this.getReturnUrl();
+        console.log('[AuthGuard] Return URL from query params:', returnUrl);
+        
         let targetUrl = null;
         
         if (returnUrl) {
             // Check if we're already on the target page
             const currentUrl = window.location.href.split('?')[0];
             const targetUrlParsed = returnUrl.split('?')[0];
+            console.log('[AuthGuard] Checking if already on target page:', {
+                currentUrl: currentUrl,
+                targetUrl: targetUrlParsed
+            });
+            
             if (currentUrl === targetUrlParsed) {
                 console.log('[AuthGuard] Already on target page, skipping redirect');
                 sessionStorage.removeItem(redirectTimestamp);
@@ -163,6 +174,12 @@ const AuthGuard = {
             const basePath = window.location.pathname.includes('/views/') ? '../' : '';
             const targetPath = `${basePath}index.html`;
             const currentPath = window.location.pathname;
+            
+            console.log('[AuthGuard] No return URL, using default:', {
+                basePath: basePath,
+                targetPath: targetPath,
+                currentPath: currentPath
+            });
             
             // Check if we're already on the target page
             if (currentPath.includes('index.html') || (currentPath.endsWith('/') && !currentPath.includes('/views/'))) {
@@ -176,11 +193,15 @@ const AuthGuard = {
         
         // Perform the redirect
         if (targetUrl) {
-            console.log('[AuthGuard] Redirecting to:', targetUrl);
+            console.log('[AuthGuard] Performing redirect to:', targetUrl);
+            console.log('[AuthGuard] Current location:', window.location.href);
             // Use a small delay to ensure any pending operations complete
             setTimeout(() => {
+                console.log('[AuthGuard] Executing redirect now...');
                 window.location.href = targetUrl;
             }, 100);
+        } else {
+            console.error('[AuthGuard] ERROR: No target URL determined for redirect');
         }
     }
 };

@@ -66,42 +66,41 @@ const AuthService = {
             }
             
             // Check for existing session with timeout to prevent hanging
-            console.log('[AuthService] Checking for existing session...');
-            let sessionResult;
-            try {
-                sessionResult = await Promise.race([
-                    this.client.auth.getSession(),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
-                    )
-                ]);
-            } catch (timeoutError) {
-                console.warn('[AuthService] Session check timed out or failed:', timeoutError.message);
+            // Make this non-blocking - if it hangs, we'll continue without session
+            console.log('[AuthService] Checking for existing session (non-blocking)...');
+            
+            // Start session check but don't wait for it - set up listeners first
+            const sessionCheckPromise = Promise.race([
+                this.client.auth.getSession(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Session check timeout after 3 seconds')), 3000)
+                )
+            ]).then(result => {
+                const { data: { session }, error: sessionError } = result;
+                
+                if (sessionError) {
+                    console.warn('[AuthService] Session check error (non-blocking):', sessionError.message);
+                    return;
+                }
+                
+                if (session) {
+                    this.session = session;
+                    this.currentUser = session.user;
+                    console.log('[AuthService] Existing session found for user:', {
+                        email: this.currentUser.email,
+                        userId: this.currentUser.id,
+                        emailConfirmed: this.currentUser.email_confirmed_at
+                    });
+                } else {
+                    console.log('[AuthService] No existing session found');
+                }
+            }).catch(error => {
+                console.warn('[AuthService] Session check timed out or failed (non-blocking):', error.message);
                 // Continue without session - user can still sign in
-                sessionResult = { data: { session: null }, error: null };
-            }
+            });
             
-            const { data: { session }, error: sessionError } = sessionResult;
-            
-            if (sessionError) {
-                console.error('[AuthService] Error getting session:', {
-                    message: sessionError.message,
-                    code: sessionError.code,
-                    status: sessionError.status
-                });
-                // Don't throw - allow initialization to continue without session
-                console.log('[AuthService] Continuing initialization without session');
-            } else if (session) {
-                this.session = session;
-                this.currentUser = session.user;
-                console.log('[AuthService] Existing session found for user:', {
-                    email: this.currentUser.email,
-                    userId: this.currentUser.id,
-                    emailConfirmed: this.currentUser.email_confirmed_at
-                });
-            } else {
-                console.log('[AuthService] No existing session found');
-            }
+            // Don't await - let it run in background, continue with initialization
+            // The auth state listener will pick up the session when it's ready
             
             // Set up auth state listener (only if not already set up)
             if (!this.authStateListener) {
@@ -1071,35 +1070,153 @@ const AuthService = {
      * @returns {Promise<{success: boolean, error: string|null, user: Object|null}>}
      */
     async signIn(email, password) {
+        console.log('[AuthService] ========== SIGN IN STARTED ==========');
+        console.log('[AuthService] signIn() called with email:', email ? email.substring(0, 3) + '***' : 'empty');
+        
         try {
+            // Step 1: Ensure client is initialized (but don't wait for full initialization if it's hanging)
+            console.log('[AuthService] Step 1: Checking client initialization...');
             if (!this.client) {
-                await this.initialize();
+                console.log('[AuthService] Client not available, initializing...');
+                try {
+                    // Initialize with timeout to prevent hanging
+                    await Promise.race([
+                        this.initialize(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+                        )
+                    ]);
+                    console.log('[AuthService] Client initialized, hasClient:', !!this.client);
+                } catch (initError) {
+                    console.warn('[AuthService] Initialization timed out or failed, but continuing with sign-in attempt:', initError.message);
+                    // Try to get client from SupabaseConfig directly
+                    if (window.SupabaseConfig) {
+                        console.log('[AuthService] Attempting to get client directly from SupabaseConfig...');
+                        this.client = await window.SupabaseConfig.getClient();
+                        console.log('[AuthService] Got client directly, hasClient:', !!this.client);
+                    }
+                }
+            } else {
+                console.log('[AuthService] Client already available');
             }
             
+            if (!this.client) {
+                console.error('[AuthService] ERROR: Client still not available after initialization attempts');
+                return { success: false, error: 'Authentication service not available. Please refresh the page.', user: null };
+            }
+            
+            if (!this.client.auth) {
+                console.error('[AuthService] ERROR: Client auth not available');
+                return { success: false, error: 'Authentication service not properly initialized. Please refresh the page.', user: null };
+            }
+            
+            // Step 2: Validate input
+            console.log('[AuthService] Step 2: Validating input...');
             if (!email || !password) {
+                console.error('[AuthService] ERROR: Missing email or password');
                 return { success: false, error: 'Email and password are required', user: null };
             }
             
-            const { data, error } = await this.client.auth.signInWithPassword({
-                email: email.trim(),
-                password: password
+            const trimmedEmail = email.trim();
+            console.log('[AuthService] Input validated - email length:', trimmedEmail.length, 'password length:', password.length);
+            
+            // Step 3: Call Supabase signInWithPassword
+            console.log('[AuthService] Step 3: Calling Supabase signInWithPassword...');
+            console.log('[AuthService] Client details:', {
+                hasClient: !!this.client,
+                hasAuth: !!this.client.auth,
+                hasSignInWithPassword: typeof this.client.auth.signInWithPassword === 'function'
+            });
+            
+            const signInStartTime = Date.now();
+            let data, error;
+            
+            try {
+                const result = await this.client.auth.signInWithPassword({
+                    email: trimmedEmail,
+                    password: password
+                });
+                data = result.data;
+                error = result.error;
+            } catch (signInException) {
+                console.error('[AuthService] Exception during signInWithPassword:', {
+                    message: signInException.message,
+                    name: signInException.name,
+                    stack: signInException.stack
+                });
+                error = signInException;
+            }
+            
+            const signInDuration = Date.now() - signInStartTime;
+            console.log('[AuthService] Supabase signInWithPassword completed in', signInDuration, 'ms');
+            
+            // Step 4: Handle response
+            console.log('[AuthService] Step 4: Processing response...');
+            console.log('[AuthService] Response details:', {
+                hasError: !!error,
+                errorMessage: error?.message,
+                errorCode: error?.code,
+                errorStatus: error?.status,
+                hasData: !!data,
+                hasUser: !!data?.user,
+                hasSession: !!data?.session,
+                userId: data?.user?.id,
+                userEmail: data?.user?.email
             });
             
             if (error) {
-                console.error('[AuthService] Sign in error:', error);
+                console.error('[AuthService] ERROR: Sign in failed with error:', {
+                    message: error.message,
+                    code: error.code,
+                    status: error.status,
+                    name: error.name
+                });
                 return { success: false, error: error.message, user: null };
             }
             
-            if (data.user && data.session) {
-                this.currentUser = data.user;
-                this.session = data.session;
-                console.log('[AuthService] User signed in successfully:', data.user.email);
-                return { success: true, error: null, user: data.user };
+            if (!data) {
+                console.error('[AuthService] ERROR: No data returned from signInWithPassword');
+                return { success: false, error: 'Sign in failed - no data returned', user: null };
             }
             
-            return { success: false, error: 'Sign in failed - no user data returned', user: null };
+            if (!data.user) {
+                console.error('[AuthService] ERROR: No user in response data');
+                return { success: false, error: 'Sign in failed - no user data returned', user: null };
+            }
+            
+            if (!data.session) {
+                console.error('[AuthService] ERROR: No session in response data');
+                return { success: false, error: 'Sign in failed - no session data returned', user: null };
+            }
+            
+            // Step 5: Update local state
+            console.log('[AuthService] Step 5: Updating local state...');
+            this.currentUser = data.user;
+            this.session = data.session;
+            console.log('[AuthService] Local state updated:', {
+                hasCurrentUser: !!this.currentUser,
+                hasSession: !!this.session,
+                userEmail: this.currentUser?.email,
+                userId: this.currentUser?.id,
+                sessionAccessToken: this.session?.access_token ? 'present' : 'missing'
+            });
+            
+            // Step 6: Dispatch sign in event
+            console.log('[AuthService] Step 6: Dispatching sign in event...');
+            window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
+            console.log('[AuthService] Sign in event dispatched');
+            
+            console.log('[AuthService] ========== SIGN IN SUCCESSFUL ==========');
+            console.log('[AuthService] User signed in successfully:', this.currentUser.email);
+            
+            return { success: true, error: null, user: this.currentUser };
         } catch (error) {
-            console.error('[AuthService] Sign in exception:', error);
+            console.error('[AuthService] ========== SIGN IN EXCEPTION ==========');
+            console.error('[AuthService] Exception details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
             return { success: false, error: error.message || 'An unexpected error occurred', user: null };
         }
     },

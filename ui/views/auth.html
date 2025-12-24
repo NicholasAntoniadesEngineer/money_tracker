@@ -390,55 +390,116 @@
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            
+            console.log('[AuthPage] ========== SIGN IN FORM SUBMITTED ==========');
+            
             clearErrors();
             
-            // Ensure AuthService is initialized (wait if in progress)
+            // Step 1: Ensure AuthService is initialized (wait if in progress)
+            console.log('[AuthPage] Step 1: Checking AuthService initialization...');
             if (!authServiceInitialized) {
+                console.log('[AuthPage] AuthService not initialized, initializing...');
                 try {
                     await initializeAuth();
+                    console.log('[AuthPage] AuthService initialized successfully');
                 } catch (initError) {
-                    console.error('[AuthPage] Failed to initialize AuthService:', initError);
+                    console.error('[AuthPage] ERROR: Failed to initialize AuthService:', initError);
                     showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
                     return;
                 }
+            } else {
+                console.log('[AuthPage] AuthService already initialized');
             }
             
-            // Verify AuthService is available
-            if (!window.AuthService || !window.AuthService.client) {
-                console.error('[AuthPage] AuthService or client not available');
+            // Step 2: Verify AuthService is available
+            console.log('[AuthPage] Step 2: Verifying AuthService availability...');
+            if (!window.AuthService) {
+                console.error('[AuthPage] ERROR: AuthService not available');
                 showError('signin-error', 'Authentication service not available. Please refresh the page and try again.');
                 return;
             }
             
+            if (!window.AuthService.client) {
+                console.log('[AuthPage] Client not available, attempting to initialize...');
+                try {
+                    await window.AuthService.initialize();
+                } catch (clientInitError) {
+                    console.error('[AuthPage] ERROR: Failed to initialize client:', clientInitError);
+                    showError('signin-error', 'Failed to initialize authentication client. Please refresh the page and try again.');
+                    return;
+                }
+            }
+            
+            console.log('[AuthPage] AuthService verified:', {
+                hasAuthService: !!window.AuthService,
+                hasClient: !!window.AuthService.client,
+                hasAuth: !!window.AuthService.client?.auth
+            });
+            
+            // Step 3: Get form values
+            console.log('[AuthPage] Step 3: Getting form values...');
             const email = document.getElementById('signin-email').value.trim();
             const password = document.getElementById('signin-password').value;
             
-            // Validation
+            console.log('[AuthPage] Form values:', {
+                emailLength: email.length,
+                passwordLength: password.length,
+                emailPrefix: email ? email.substring(0, 3) + '***' : 'empty'
+            });
+            
+            // Step 4: Validate input
+            console.log('[AuthPage] Step 4: Validating input...');
             if (!email) {
+                console.error('[AuthPage] ERROR: Email is required');
                 showError('signin-email-error', 'Email is required');
                 document.getElementById('signin-email').classList.add('error');
                 return;
             }
             
             if (!password) {
+                console.error('[AuthPage] ERROR: Password is required');
                 showError('signin-password-error', 'Password is required');
                 document.getElementById('signin-password').classList.add('error');
                 return;
             }
             
+            console.log('[AuthPage] Input validation passed');
+            
+            // Step 5: Disable button and show loading
+            console.log('[AuthPage] Step 5: Setting button to loading state...');
             setButtonLoading('signin-button', true);
             
+            // Step 6: Call signIn
+            console.log('[AuthPage] Step 6: Calling AuthService.signIn()...');
+            const signInStartTime = Date.now();
+            
             try {
-                console.log('[AuthPage] Attempting sign in for:', email);
                 const result = await window.AuthService.signIn(email, password);
-                console.log('[AuthPage] Sign in result:', { success: result.success, error: result.error });
+                const signInDuration = Date.now() - signInStartTime;
+                
+                console.log('[AuthPage] Sign in completed in', signInDuration, 'ms');
+                console.log('[AuthPage] Sign in result:', {
+                    success: result.success,
+                    hasError: !!result.error,
+                    error: result.error,
+                    hasUser: !!result.user,
+                    userEmail: result.user?.email
+                });
                 
                 if (result.success) {
+                    console.log('[AuthPage] ========== SIGN IN SUCCESSFUL ==========');
+                    console.log('[AuthPage] Showing success message and preparing redirect...');
                     showSuccess('signin-success', 'Sign in successful! Redirecting...');
+                    
+                    // Wait a moment for user to see success message
                     setTimeout(() => {
+                        console.log('[AuthPage] Redirecting to main page...');
                         window.AuthGuard.redirectAfterAuth();
                     }, 1000);
                 } else {
+                    console.error('[AuthPage] ========== SIGN IN FAILED ==========');
+                    console.error('[AuthPage] Error:', result.error);
+                    
                     // Check if error is related to email verification
                     if (result.error && (result.error.includes('email') && result.error.includes('confirm'))) {
                         showError('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
@@ -447,9 +508,15 @@
                     }
                 }
             } catch (error) {
-                console.error('[AuthPage] Sign in error:', error);
+                console.error('[AuthPage] ========== SIGN IN EXCEPTION ==========');
+                console.error('[AuthPage] Exception:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
                 showError('signin-error', error.message || 'An unexpected error occurred. Please try again.');
             } finally {
+                console.log('[AuthPage] Re-enabling sign in button');
                 setButtonLoading('signin-button', false);
             }
         });
