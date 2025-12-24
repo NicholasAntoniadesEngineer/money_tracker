@@ -116,25 +116,15 @@ class Header {
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
                         <div class="user-dropdown-item user-dropdown-username">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
-                                <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
-                            </svg>
+                            <i class="fa-regular fa-user user-dropdown-icon"></i>
                             <span>${userEmail}</span>
                         </div>
                         <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5Z" fill="currentColor"/>
-                                <path d="M8 0L9.5 0.5L11 0L12 1.5L13.5 1.5L14.5 3L13.5 4.5L12 4.5L11 6L9.5 5.5L8 7L6.5 5.5L5 6L4 4.5L2.5 4.5L1.5 3L2.5 1.5L4 1.5L5 0L6.5 0.5L8 0Z" fill="currentColor"/>
-                            </svg>
+                            <i class="fa-regular fa-gear user-dropdown-icon"></i>
                             <span>Settings</span>
                         </a>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
+                            <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                             <span>Sign Out</span>
                         </button>
                     </div>
@@ -519,25 +509,15 @@ class Header {
                         </button>
                         <div class="user-dropdown-menu" id="user-dropdown-menu">
                             <div class="user-dropdown-item user-dropdown-username">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
-                                    <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
-                                </svg>
+                                <i class="fa-regular fa-user user-dropdown-icon"></i>
                                 <span>${userEmail}</span>
                             </div>
                             <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5Z" fill="currentColor"/>
-                                    <path d="M8 0L9.5 0.5L11 0L12 1.5L13.5 1.5L14.5 3L13.5 4.5L12 4.5L11 6L9.5 5.5L8 7L6.5 5.5L5 6L4 4.5L2.5 4.5L1.5 3L2.5 1.5L4 1.5L5 0L6.5 0.5L8 0Z" fill="currentColor"/>
-                                </svg>
+                                <i class="fa-regular fa-gear user-dropdown-icon"></i>
                                 <span>Settings</span>
                             </a>
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                    <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                </svg>
+                                <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                                 <span>Sign Out</span>
                             </button>
                         </div>
