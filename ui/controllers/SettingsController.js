@@ -104,6 +104,8 @@ const SettingsController = {
         if (success) {
             // Apply font size immediately
             document.documentElement.style.fontSize = fontSize + 'px';
+            // Update localStorage cache for immediate application on next page load
+            localStorage.setItem('money_tracker_fontSize', fontSize);
         }
         
         return success;

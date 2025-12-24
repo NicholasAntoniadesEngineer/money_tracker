@@ -248,9 +248,12 @@ const DataManager = {
             const settings = await this.getSettings();
             const fontSize = settings && settings.fontSize ? settings.fontSize : '16';
             document.documentElement.style.fontSize = fontSize + 'px';
+            // Update localStorage cache for immediate application on next page load
+            localStorage.setItem('money_tracker_fontSize', fontSize);
         } catch (error) {
             console.error('Error applying font size:', error);
             document.documentElement.style.fontSize = '16px';
+            localStorage.setItem('money_tracker_fontSize', '16');
         }
     },
     
