@@ -113,13 +113,18 @@ const AuthService = {
                 userEmail: session?.user?.email
             });
             
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                 this.session = session;
                 this.currentUser = session?.user || null;
-                console.log('[AuthService] User signed in:', this.currentUser?.email);
-                
-                // Dispatch custom event for other parts of the app
-                window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
+                if (this.currentUser) {
+                    console.log('[AuthService] User session active:', this.currentUser?.email);
+                    // Only dispatch signin event for actual sign-in events, not INITIAL_SESSION
+                    if (event !== 'INITIAL_SESSION') {
+                        window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
+                    }
+                } else {
+                    console.log('[AuthService] No user in session');
+                }
             } else if (event === 'SIGNED_OUT') {
                 this.session = null;
                 this.currentUser = null;

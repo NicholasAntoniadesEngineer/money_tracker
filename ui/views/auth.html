@@ -222,6 +222,7 @@
     <script>
         // Initialize AuthService
         let authServiceInitialized = false;
+        let redirectCheckDone = false;
         
         async function initializeAuth() {
             console.log('[AuthPage] initializeAuth() called');
@@ -241,17 +242,35 @@
                 authServiceInitialized = true;
                 console.log('[AuthPage] AuthService initialized successfully');
                 
-                // If already authenticated, redirect
-                const isAuthenticated = window.AuthService.isAuthenticated();
-                console.log('[AuthPage] Authentication status:', {
-                    isAuthenticated: isAuthenticated,
-                    hasUser: !!window.AuthService.getCurrentUser(),
-                    userEmail: window.AuthService.getCurrentUser()?.email
-                });
+                // Wait a bit for session to be fully loaded
+                await new Promise(resolve => setTimeout(resolve, 200));
                 
-                if (isAuthenticated) {
-                    console.log('[AuthPage] User already authenticated, redirecting...');
-                    window.AuthGuard.redirectAfterAuth();
+                // If already authenticated, redirect (only once)
+                if (!redirectCheckDone) {
+                    redirectCheckDone = true;
+                    
+                    // Try to get session directly to ensure it's loaded
+                    try {
+                        const session = await window.AuthService.client.auth.getSession();
+                        if (session.data?.session) {
+                            window.AuthService.session = session.data.session;
+                            window.AuthService.currentUser = session.data.session.user;
+                        }
+                    } catch (sessionError) {
+                        console.warn('[AuthPage] Error getting session:', sessionError);
+                    }
+                    
+                    const isAuthenticated = window.AuthService.isAuthenticated();
+                    console.log('[AuthPage] Authentication status:', {
+                        isAuthenticated: isAuthenticated,
+                        hasUser: !!window.AuthService.getCurrentUser(),
+                        userEmail: window.AuthService.getCurrentUser()?.email
+                    });
+                    
+                    if (isAuthenticated) {
+                        console.log('[AuthPage] User already authenticated, redirecting...');
+                        window.AuthGuard.redirectAfterAuth();
+                    }
                 }
             } catch (error) {
                 console.error('[AuthPage] Error initializing auth:', {
