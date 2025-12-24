@@ -6,6 +6,7 @@
     <title>Settings - Money Tracker</title>
     <link rel="stylesheet" href="../styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
     <!-- Header will be injected by Header.js -->
@@ -69,6 +70,28 @@
         </section>
 
         <section class="settings-section form-section">
+            <h2 class="section-title">Subscription</h2>
+            
+            <div id="subscription-status-container" class="subscription-status-container">
+                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
+                    Loading subscription status...
+                </div>
+                <div id="trial-days-remaining" class="trial-days-remaining" style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: var(--spacing-xs); display: none;"></div>
+            </div>
+            
+            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm);">
+                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
+                    Start Subscription (€5/month)
+                </button>
+                <button id="refresh-subscription-button" class="btn btn-secondary">
+                    Refresh Status
+                </button>
+            </div>
+            
+            <div id="subscription-status" class="settings-status"></div>
+        </section>
+
+        <section class="settings-section form-section">
             <h2 class="section-title">Export & Delete</h2>
             
             <div class="settings-row">
@@ -108,7 +131,9 @@
     <script src="../services/AuthService.js"></script>
     <script src="../../database/services/database-service.js"></script>
     <script src="../../payments/config/stripe-config.js"></script>
+    <script src="../../payments/services/StripeService.js"></script>
     <script src="../../payments/services/SubscriptionService.js"></script>
+    <script src="../../payments/services/PaymentService.js"></script>
     <script src="../../payments/utils/subscription-checker.js"></script>
     <script src="../utils/auth-guard.js"></script>
     <script src="../../database/models/data-manager.js"></script>
@@ -161,6 +186,29 @@
                 }).catch(err => {
                     console.warn('[SettingsPage] Settings loading error:', err);
                 });
+                
+                // Handle payment return from Stripe
+                const urlParams = new URLSearchParams(window.location.search);
+                const paymentStatus = urlParams.get('payment');
+                if (paymentStatus === 'success') {
+                    const statusDiv = document.getElementById('subscription-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<p style="color: var(--success-color);">Payment successful! Your subscription is now active.</p>';
+                    }
+                    // Refresh subscription status
+                    if (window.SettingsController) {
+                        await window.SettingsController.loadSubscriptionStatus();
+                    }
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (paymentStatus === 'cancelled') {
+                    const statusDiv = document.getElementById('subscription-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<p style="color: var(--warning-color);">Payment was cancelled. You can try again when ready.</p>';
+                    }
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
                 
             } catch (error) {
                 console.error('[SettingsPage] Error initializing application:', error);

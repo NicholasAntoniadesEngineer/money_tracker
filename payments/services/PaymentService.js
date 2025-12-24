@@ -18,11 +18,18 @@ const PaymentService = {
             
             const paymentRecord = {
                 user_id: userId,
+                subscription_id: paymentData.subscriptionId || null,
                 stripe_payment_intent_id: paymentData.stripePaymentIntentId || null,
+                stripe_charge_id: paymentData.stripeChargeId || null,
+                stripe_invoice_id: paymentData.stripeInvoiceId || null,
                 amount: paymentData.amount || 0,
                 currency: paymentData.currency || 'eur',
                 status: paymentData.status || 'pending',
-                payment_date: paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString() : new Date().toISOString()
+                payment_method: paymentData.paymentMethod || null,
+                payment_date: paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString() : new Date().toISOString(),
+                refunded_amount: paymentData.refundedAmount || 0,
+                refunded_date: paymentData.refundedDate ? new Date(paymentData.refundedDate).toISOString() : null,
+                metadata: paymentData.metadata || {}
             };
             
             const result = await window.DatabaseService.queryInsert('payment_history', paymentRecord);

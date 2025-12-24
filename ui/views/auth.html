@@ -630,11 +630,34 @@
                         }, 3000);
                     } else if (result.user && window.AuthService.isAuthenticated()) {
                         console.log('[AuthPage] User immediately signed in');
-                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                        
+                        // Show trial information
+                        if (window.SubscriptionService) {
+                            try {
+                                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+                                if (subscriptionResult.success && subscriptionResult.subscription) {
+                                    const subscription = subscriptionResult.subscription;
+                                    if (subscription.status === 'trial') {
+                                        const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
+                                        showSuccess('signup-success', `Account created successfully! You have a 30-day free trial. ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining. Signing you in...`);
+                                    } else {
+                                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                                    }
+                                } else {
+                                    showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                                }
+                            } catch (error) {
+                                console.warn('[AuthPage] Error getting subscription info:', error);
+                                showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                            }
+                        } else {
+                            showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                        }
+                        
                         setTimeout(() => {
                             console.log('[AuthPage] Redirecting after auth...');
                             window.AuthGuard.redirectAfterAuth();
-                        }, 1500);
+                        }, 2000);
                     } else {
                         console.log('[AuthPage] Account created but needs sign in');
                         showInfo('signup-info', result.message || 'Account created successfully! Please sign in.');

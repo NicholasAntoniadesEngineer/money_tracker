@@ -5,7 +5,50 @@
 
 const SubscriptionService = {
     /**
+     * Get default subscription plan from database
+     * @returns {Promise<{success: boolean, plan: Object|null, error: string|null}>}
+     */
+    async getDefaultPlan() {
+        try {
+            if (!window.DatabaseService) {
+                throw new Error('DatabaseService not available');
+            }
+            
+            const result = await window.DatabaseService.querySelect('subscription_plans', {
+                filter: { is_active: true },
+                order: [{ column: 'id', ascending: true }],
+                limit: 1
+            });
+            
+            if (result.error) {
+                console.error('[SubscriptionService] Error getting default plan:', result.error);
+                return {
+                    success: false,
+                    plan: null,
+                    error: result.error.message || 'Failed to get default plan'
+                };
+            }
+            
+            const plan = result.data && result.data.length > 0 ? result.data[0] : null;
+            
+            return {
+                success: true,
+                plan: plan,
+                error: null
+            };
+        } catch (error) {
+            console.error('[SubscriptionService] Exception getting default plan:', error);
+            return {
+                success: false,
+                plan: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
      * Create a 30-day trial subscription for a new user
+     * Fetches plan details from database
      * @param {string} userId - User ID from Supabase
      * @returns {Promise<{success: boolean, subscription: Object|null, error: string|null}>}
      */
@@ -15,27 +58,77 @@ const SubscriptionService = {
                 throw new Error('DatabaseService not available');
             }
             
-            if (!window.StripeConfig) {
-                throw new Error('StripeConfig not available');
-            }
-            
             console.log('[SubscriptionService] Creating trial subscription for user:', userId);
             
-            const trialPeriodDays = window.StripeConfig.getTrialPeriodDays();
+            // Get default plan from database
+            const planResult = await this.getDefaultPlan();
+            if (!planResult.success || !planResult.plan) {
+                // Fallback to config if no plan in database
+                console.warn('[SubscriptionService] No plan found in database, using config fallback');
+                if (!window.StripeConfig) {
+                    throw new Error('StripeConfig not available and no plan in database');
+                }
+                
+                const trialPeriodDays = window.StripeConfig.getTrialPeriodDays();
+                const trialStartDate = new Date();
+                const trialEndDate = new Date(trialStartDate);
+                trialEndDate.setDate(trialEndDate.getDate() + trialPeriodDays);
+                
+                const subscriptionData = {
+                    user_id: userId,
+                    plan_id: null,
+                    status: 'trial',
+                    trial_start_date: trialStartDate.toISOString(),
+                    trial_end_date: trialEndDate.toISOString(),
+                    subscription_start_date: null,
+                    subscription_end_date: null,
+                    next_billing_date: null,
+                    stripe_customer_id: null,
+                    stripe_subscription_id: null,
+                    stripe_price_id: null,
+                    last_payment_date: null,
+                    cancellation_date: null,
+                    cancellation_reason: null
+                };
+                
+                const result = await window.DatabaseService.queryUpsert('subscriptions', subscriptionData, {
+                    identifier: 'user_id',
+                    identifierValue: userId
+                });
+                
+                if (result.error) {
+                    throw new Error(result.error.message || 'Failed to create trial subscription');
+                }
+                
+                const subscription = result.data && result.data.length > 0 ? result.data[0] : null;
+                return {
+                    success: true,
+                    subscription: subscription,
+                    error: null
+                };
+            }
+            
+            const plan = planResult.plan;
+            const trialPeriodDays = plan.trial_period_days || 30;
             const trialStartDate = new Date();
             const trialEndDate = new Date(trialStartDate);
             trialEndDate.setDate(trialEndDate.getDate() + trialPeriodDays);
             
             const subscriptionData = {
                 user_id: userId,
+                plan_id: plan.id,
                 status: 'trial',
                 trial_start_date: trialStartDate.toISOString(),
                 trial_end_date: trialEndDate.toISOString(),
                 subscription_start_date: null,
                 subscription_end_date: null,
+                next_billing_date: null,
                 stripe_customer_id: null,
                 stripe_subscription_id: null,
-                last_payment_date: null
+                stripe_price_id: plan.stripe_price_id || null,
+                last_payment_date: null,
+                cancellation_date: null,
+                cancellation_reason: null
             };
             
             const result = await window.DatabaseService.queryUpsert('subscriptions', subscriptionData, {
@@ -56,6 +149,8 @@ const SubscriptionService = {
             
             console.log('[SubscriptionService] Trial subscription created successfully:', {
                 userId: userId,
+                planId: plan.id,
+                planName: plan.plan_name,
                 trialEndDate: trialEndDate.toISOString()
             });
             
@@ -75,8 +170,9 @@ const SubscriptionService = {
     },
     
     /**
-     * Get subscription for current user
-     * @returns {Promise<{success: boolean, subscription: Object|null, error: string|null}>}
+     * Get subscription for current user with plan details
+     * Fetches subscription and related plan from database
+     * @returns {Promise<{success: boolean, subscription: Object|null, plan: Object|null, error: string|null}>}
      */
     async getCurrentUserSubscription() {
         try {
@@ -93,29 +189,46 @@ const SubscriptionService = {
                 return {
                     success: false,
                     subscription: null,
+                    plan: null,
                     error: 'User not authenticated'
                 };
             }
             
-            const result = await window.DatabaseService.querySelect('subscriptions', {
+            // Get subscription
+            const subscriptionResult = await window.DatabaseService.querySelect('subscriptions', {
                 filter: { user_id: userId },
                 limit: 1
             });
             
-            if (result.error) {
-                console.error('[SubscriptionService] Error getting subscription:', result.error);
+            if (subscriptionResult.error) {
+                console.error('[SubscriptionService] Error getting subscription:', subscriptionResult.error);
                 return {
                     success: false,
                     subscription: null,
-                    error: result.error.message || 'Failed to get subscription'
+                    plan: null,
+                    error: subscriptionResult.error.message || 'Failed to get subscription'
                 };
             }
             
-            const subscription = result.data && result.data.length > 0 ? result.data[0] : null;
+            const subscription = subscriptionResult.data && subscriptionResult.data.length > 0 ? subscriptionResult.data[0] : null;
+            
+            // Get plan details if subscription has plan_id
+            let plan = null;
+            if (subscription && subscription.plan_id) {
+                const planResult = await window.DatabaseService.querySelect('subscription_plans', {
+                    filter: { id: subscription.plan_id },
+                    limit: 1
+                });
+                
+                if (planResult.success && planResult.data && planResult.data.length > 0) {
+                    plan = planResult.data[0];
+                }
+            }
             
             return {
                 success: true,
                 subscription: subscription,
+                plan: plan,
                 error: null
             };
         } catch (error) {
@@ -123,6 +236,7 @@ const SubscriptionService = {
             return {
                 success: false,
                 subscription: null,
+                plan: null,
                 error: error.message || 'An unexpected error occurred'
             };
         }

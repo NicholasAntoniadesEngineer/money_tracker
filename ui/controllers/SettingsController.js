@@ -37,6 +37,13 @@ const SettingsController = {
             console.error('[SettingsController] Error loading month selector:', error);
         }
         
+        try {
+            await this.loadSubscriptionStatus();
+            console.log('[SettingsController] Subscription status loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading subscription status:', error);
+        }
+        
         console.log('[SettingsController] init() completed');
     },
 
@@ -452,6 +459,18 @@ const SettingsController = {
                 const showDelete = selectedValue && selectedValue !== '' && selectedValue !== 'all';
                 deleteMonthBtn.style.display = showDelete ? 'inline-block' : 'none';
             });
+        }
+        
+        // Subscription buttons
+        const startSubscriptionBtn = document.getElementById('start-subscription-button');
+        const refreshSubscriptionBtn = document.getElementById('refresh-subscription-button');
+        
+        if (startSubscriptionBtn) {
+            startSubscriptionBtn.addEventListener('click', () => this.handleStartSubscription());
+        }
+        
+        if (refreshSubscriptionBtn) {
+            refreshSubscriptionBtn.addEventListener('click', () => this.loadSubscriptionStatus());
         }
     },
 
@@ -921,6 +940,181 @@ const SettingsController = {
             if (removeExampleDataBtn) {
                 removeExampleDataBtn.disabled = false;
                 removeExampleDataBtn.textContent = 'Remove Example Data';
+            }
+        }
+    },
+    
+    /**
+     * Load and display subscription status
+     */
+    async loadSubscriptionStatus() {
+        const statusContainer = document.getElementById('subscription-status-container');
+        const statusMessage = document.getElementById('subscription-status-message');
+        const daysRemainingContainer = document.getElementById('trial-days-remaining');
+        const startSubscriptionBtn = document.getElementById('start-subscription-button');
+        const statusDiv = document.getElementById('subscription-status');
+        
+        if (!statusContainer || !statusMessage) {
+            return;
+        }
+        
+        try {
+            if (!window.SubscriptionService) {
+                throw new Error('SubscriptionService not available');
+            }
+            
+            const result = await window.SubscriptionService.getCurrentUserSubscription();
+            
+            if (!result.success || !result.subscription) {
+                statusMessage.textContent = 'No subscription found. Please subscribe to access the application.';
+                statusMessage.className = 'subscription-message subscription-message-error';
+                statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
+                statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+                if (startSubscriptionBtn) {
+                    startSubscriptionBtn.style.display = 'block';
+                }
+                if (daysRemainingContainer) {
+                    daysRemainingContainer.style.display = 'none';
+                }
+                return;
+            }
+            
+            const subscription = result.subscription;
+            const plan = result.plan;
+            const isActive = window.SubscriptionService.isSubscriptionActive(subscription);
+            
+            // Display plan information if available
+            if (plan) {
+                const planInfo = `Plan: ${plan.plan_name} - €${plan.price_amount}/${plan.billing_interval}`;
+                // You can add this to the status message if needed
+            }
+            
+            if (subscription.status === 'trial') {
+                const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
+                const isExpired = window.SubscriptionService.isTrialExpired(subscription);
+                
+                if (isExpired) {
+                    statusMessage.textContent = 'Your trial has expired. Please subscribe to continue using the application.';
+                    statusMessage.className = 'subscription-message subscription-message-error';
+                    statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
+                    statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+                    if (startSubscriptionBtn) {
+                        startSubscriptionBtn.style.display = 'block';
+                    }
+                    if (daysRemainingContainer) {
+                        daysRemainingContainer.style.display = 'none';
+                    }
+                } else {
+                    statusMessage.textContent = 'You are currently on a 30-day trial.';
+                    statusMessage.className = 'subscription-message subscription-message-info';
+                    statusMessage.style.backgroundColor = 'rgba(123, 171, 138, 0.2)';
+                    statusMessage.style.border = 'var(--border-width-standard) solid var(--success-color)';
+                    if (daysRemainingContainer) {
+                        daysRemainingContainer.style.display = 'block';
+                        daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
+                    }
+                    if (startSubscriptionBtn) {
+                        startSubscriptionBtn.style.display = 'none';
+                    }
+                }
+            } else if (subscription.status === 'active') {
+                statusMessage.textContent = 'Your subscription is active.';
+                statusMessage.className = 'subscription-message subscription-message-success';
+                statusMessage.style.backgroundColor = 'rgba(123, 171, 138, 0.3)';
+                statusMessage.style.border = 'var(--border-width-standard) solid var(--success-color)';
+                if (startSubscriptionBtn) {
+                    startSubscriptionBtn.style.display = 'none';
+                }
+                if (daysRemainingContainer) {
+                    daysRemainingContainer.style.display = 'none';
+                }
+            } else {
+                statusMessage.textContent = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;
+                statusMessage.className = 'subscription-message subscription-message-error';
+                statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
+                statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+                if (startSubscriptionBtn) {
+                    startSubscriptionBtn.style.display = 'block';
+                }
+                if (daysRemainingContainer) {
+                    daysRemainingContainer.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error loading subscription status:', error);
+            statusMessage.textContent = `Error loading subscription status: ${error.message}`;
+            statusMessage.className = 'subscription-message subscription-message-error';
+            statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
+            statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+        }
+    },
+    
+    /**
+     * Handle start subscription button click
+     */
+    async handleStartSubscription() {
+        try {
+            const button = document.getElementById('start-subscription-button');
+            const statusDiv = document.getElementById('subscription-status');
+            
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Processing...';
+            }
+            
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                throw new Error('User not authenticated');
+            }
+            
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.email) {
+                throw new Error('User email not available');
+            }
+            
+            const currentUrl = window.location.href.split('?')[0];
+            const successUrl = `${currentUrl}?payment=success`;
+            const cancelUrl = `${currentUrl}?payment=cancelled`;
+            
+            if (!window.StripeService) {
+                throw new Error('StripeService not available');
+            }
+            
+            await window.StripeService.initialize();
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-checkout-session`;
+            
+            const result = await window.StripeService.createCheckoutSession(
+                currentUser.email,
+                currentUser.id,
+                successUrl,
+                cancelUrl,
+                backendEndpoint
+            );
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to create checkout session');
+            }
+            
+            if (result.sessionId) {
+                const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
+                if (!redirectResult.success) {
+                    throw new Error(redirectResult.error || 'Failed to redirect to checkout');
+                }
+            } else {
+                throw new Error('Checkout session requires backend implementation. Please set up a server endpoint to create Stripe checkout sessions.');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error starting subscription:', error);
+            const statusDiv = document.getElementById('subscription-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = `<p style="color: var(--danger-color);">Error: ${error.message || 'Failed to start subscription. Please try again.'}</p>`;
+            }
+            
+            const button = document.getElementById('start-subscription-button');
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Start Subscription (€5/month)';
             }
         }
     }
