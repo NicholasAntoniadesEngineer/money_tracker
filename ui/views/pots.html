@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pots & Investments - Money Tracker</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="pots-main" role="main">
+        <section class="hero-section hero-section-pots">
+            <h2 class="hero-title">Pots & Investments</h2>
+        </section>
+
+        <section class="summary-section">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots (Estimated)</div>
+                    <div id="total-pots-estimated" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots (Actual)</div>
+                    <div id="total-pots-actual" class="summary-card-value">0.00</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="pots-list-section form-section" style="margin-bottom: 1rem;">
+            <h2 class="section-title">All Pots</h2>
+            <div class="pots-table-container" style="background-color: rgba(213, 213, 213, 0.85); padding: 1rem; border-radius: 0px; border: var(--border-width-thin) solid var(--border-color-black);">
+                <table class="data-table" id="pots-table" style="background-color: rgba(213, 213, 213, 0.85);">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Estimated Amount</th>
+                        <th>Actual Amount</th>
+                        <th class="delete-column-header"></th>
+                    </tr>
+                </thead>
+                <tbody id="pots-tbody">
+                </tbody>
+            </table>
+            </div>
+            <div style="margin-top: 1rem;">
+                <button id="add-pot-button" class="btn btn-action">Add New Pot</button>
+            </div>
+        </section>
+
+        <section class="pots-by-month-section form-section">
+            <h2 class="section-title">Pots by Month</h2>
+            <div style="margin-bottom: 1rem;">
+                <select id="month-selector-pots" class="form-select">
+                    <option value="">Select a month...</option>
+                </select>
+            </div>
+            <div id="pots-by-month-container">
+                <p class="empty-message">Please select a month to view pots.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
+
+    <!-- Database Layer -->
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../utils/auth-guard.js"></script>
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../../database/models/data-manager.js"></script>
+    <script src="../../database/models/month-factory.js"></script>
+    
+    <!-- UI Layer -->
+    <script src="../services/CalculationService.js"></script>
+    <script src="../services/FormHandler.js"></script>
+    <script src="../services/TableRenderer.js"></script>
+    <script src="../utils/formatters.js"></script>
+    <script src="../services/ExportService.js"></script>
+    <script src="../components/Header.js"></script>
+    <script src="../controllers/PotsController.js"></script>
+    <script>
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Check authentication first
+                const isAuthenticated = await window.AuthGuard.checkAuth();
+                if (!isAuthenticated) {
+                    return;
+                }
+                
+                // Initialize database service
+                await window.DatabaseService.initialize();
+                
+                // Initialize settings
+                await window.DataManager.initializeSettings();
+                await window.DataManager.applyFontSize();
+                
+                // Now initialize the controller
+                if (window.PotsController) {
+                    await window.PotsController.init();
+                }
+            } catch (error) {
+                console.error('Error initializing application:', error);
+                alert('Error initializing application. Please check console for details.');
+            }
+        });
+    </script>
+</body>
+</html>
+

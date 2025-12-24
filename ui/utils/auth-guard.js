@@ -1,0 +1,218 @@
+/**
+ * Authentication Guard
+ * Protects routes and ensures only authenticated users can access pages
+ * Redirects unauthenticated users to the auth page
+ */
+
+const AuthGuard = {
+    redirecting: false,
+    
+    /**
+     * Check if user is authenticated and redirect if not
+     * @returns {Promise<boolean>} True if authenticated, false if redirected
+     */
+    async checkAuth() {
+        try {
+            // Initialize AuthService if not already initialized
+            if (!window.AuthService) {
+                console.error('[AuthGuard] AuthService not available');
+                this.redirectToAuth();
+                return false;
+            }
+            
+            // Initialize if needed
+            if (!window.AuthService.client) {
+                await window.AuthService.initialize();
+            }
+            
+            // Wait a bit for session to be loaded after redirect
+            // This prevents race conditions where session isn't ready immediately
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Try to get the session directly to ensure it's loaded
+            let hasValidSession = false;
+            try {
+                const sessionResult = await window.AuthService.client.auth.getSession();
+                if (sessionResult.data?.session) {
+                    window.AuthService.session = sessionResult.data.session;
+                    window.AuthService.currentUser = sessionResult.data.session.user;
+                    hasValidSession = true;
+                } else {
+                    // No session data - clear local state
+                    window.AuthService.session = null;
+                    window.AuthService.currentUser = null;
+                    console.log('[AuthGuard] No session found in database - clearing local state');
+                }
+            } catch (sessionError) {
+                console.warn('[AuthGuard] Error getting session:', sessionError);
+                // Session check failed - treat as no session
+                window.AuthService.session = null;
+                window.AuthService.currentUser = null;
+                hasValidSession = false;
+            }
+            
+            // Check if user is authenticated
+            const isAuthenticated = window.AuthService.isAuthenticated();
+            
+            // If no valid session or not authenticated, redirect to sign-in
+            if (!hasValidSession || !isAuthenticated) {
+                console.log('[AuthGuard] User not authenticated or session missing, redirecting to auth page');
+                // Clear any stale local state
+                window.AuthService.session = null;
+                window.AuthService.currentUser = null;
+                this.redirectToAuth();
+                return false;
+            }
+            
+            console.log('[AuthGuard] User authenticated:', window.AuthService.getCurrentUser()?.email);
+            return true;
+        } catch (error) {
+            console.error('[AuthGuard] Error checking authentication:', error);
+            this.redirectToAuth();
+            return false;
+        }
+    },
+
+    /**
+     * Redirect to authentication page
+     * @returns {void}
+     */
+    redirectToAuth() {
+        // Prevent multiple redirects
+        if (this.redirecting) {
+            return;
+        }
+        
+        const currentPath = window.location.pathname;
+        const authPath = 'views/auth.html';
+        
+        // Don't redirect if already on auth page
+        if (currentPath.includes('auth.html')) {
+            return;
+        }
+        
+        this.redirecting = true;
+        
+        // Store the intended destination for redirect after login
+        const returnUrl = encodeURIComponent(window.location.href);
+        window.location.href = `${authPath}?return=${returnUrl}`;
+    },
+
+    /**
+     * Protect a route - call this at the start of page initialization
+     * @param {Function} onAuthenticated - Callback to execute if authenticated
+     * @returns {Promise<void>}
+     */
+    async protectRoute(onAuthenticated) {
+        const isAuthenticated = await this.checkAuth();
+        
+        if (isAuthenticated && onAuthenticated) {
+            await onAuthenticated();
+        }
+    },
+
+    /**
+     * Get the return URL from query parameters
+     * @returns {string|null} Return URL or null if not present
+     */
+    getReturnUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('return');
+        return returnUrl ? decodeURIComponent(returnUrl) : null;
+    },
+
+    /**
+     * Redirect to the return URL or default page
+     * @returns {void}
+     */
+    redirectAfterAuth() {
+        console.log('[AuthGuard] ========== REDIRECT AFTER AUTH ==========');
+        console.log('[AuthGuard] redirectAfterAuth() called');
+        
+        const redirectKey = 'auth_redirecting';
+        const redirectTimestamp = 'auth_redirect_timestamp';
+        
+        // Check if redirect was recently attempted (within last 2 seconds)
+        const lastRedirectTime = sessionStorage.getItem(redirectTimestamp);
+        const now = Date.now();
+        if (lastRedirectTime && (now - parseInt(lastRedirectTime, 10)) < 2000) {
+            console.log('[AuthGuard] Redirect was recently attempted, skipping duplicate call');
+            return;
+        }
+        
+        // Set timestamp to prevent duplicate calls
+        sessionStorage.setItem(redirectTimestamp, now.toString());
+        console.log('[AuthGuard] Set redirect timestamp to prevent duplicates');
+        
+        // Clear the timestamp after a delay
+        setTimeout(() => {
+            sessionStorage.removeItem(redirectTimestamp);
+        }, 3000);
+        
+        const returnUrl = this.getReturnUrl();
+        console.log('[AuthGuard] Return URL from query params:', returnUrl);
+        
+        let targetUrl = null;
+        
+        if (returnUrl) {
+            // Check if we're already on the target page
+            const currentUrl = window.location.href.split('?')[0];
+            const targetUrlParsed = returnUrl.split('?')[0];
+            console.log('[AuthGuard] Checking if already on target page:', {
+                currentUrl: currentUrl,
+                targetUrl: targetUrlParsed
+            });
+            
+            if (currentUrl === targetUrlParsed) {
+                console.log('[AuthGuard] Already on target page, skipping redirect');
+                sessionStorage.removeItem(redirectTimestamp);
+                return;
+            }
+            targetUrl = returnUrl;
+        } else {
+            // Default to home page
+            const basePath = window.location.pathname.includes('/views/') ? '../' : '';
+            const targetPath = `${basePath}index.html`;
+            const currentPath = window.location.pathname;
+            
+            console.log('[AuthGuard] No return URL, using default:', {
+                basePath: basePath,
+                targetPath: targetPath,
+                currentPath: currentPath
+            });
+            
+            // Check if we're already on the target page
+            if (currentPath.includes('index.html') || (currentPath.endsWith('/') && !currentPath.includes('/views/'))) {
+                console.log('[AuthGuard] Already on home page, skipping redirect');
+                sessionStorage.removeItem(redirectTimestamp);
+                return;
+            }
+            
+            targetUrl = targetPath;
+        }
+        
+        // Perform the redirect
+        if (targetUrl) {
+            console.log('[AuthGuard] Performing redirect to:', targetUrl);
+            console.log('[AuthGuard] Current location:', window.location.href);
+            // Use a small delay to ensure any pending operations complete
+            setTimeout(() => {
+                console.log('[AuthGuard] Executing redirect now...');
+                window.location.href = targetUrl;
+            }, 100);
+        } else {
+            console.error('[AuthGuard] ERROR: No target URL determined for redirect');
+        }
+    }
+};
+
+// Make AuthGuard available globally
+if (typeof window !== 'undefined') {
+    window.AuthGuard = AuthGuard;
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = AuthGuard;
+}
+

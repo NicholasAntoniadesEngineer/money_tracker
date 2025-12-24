@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - Sign In</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <style>
+        .auth-main {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            padding-top: calc(2rem + 70px);
+            padding-bottom: 2rem;
+        }
+        
+        .auth-header-section {
+            text-align: center;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .auth-header-section h1 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            font-size: 1.75rem;
+        }
+        
+        .auth-header-section p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            border-bottom: var(--border-width-standard) solid var(--border-color);
+            margin-bottom: var(--spacing-md);
+            background-color: rgba(220, 220, 220, 0.85);
+            border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)) calc(var(--border-radius) * var(--border-radius-multiplier)) 0 0;
+            padding: 0 var(--spacing-sm);
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: var(--spacing-sm);
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            border-bottom: var(--border-width-thick) solid transparent;
+            margin-bottom: -1px;
+        }
+        
+        .auth-tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--border-color-dark);
+        }
+        
+        .auth-tab:hover {
+            color: var(--text-primary);
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .info-message {
+            background-color: rgba(123, 171, 138, 0.2);
+            border: var(--border-width-standard) solid var(--success-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .info-message.show {
+            display: block;
+        }
+        
+        .error-message {
+            background-color: rgba(181, 138, 138, 0.2);
+            border: var(--border-width-standard) solid var(--danger-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .success-message {
+            background-color: rgba(123, 171, 138, 0.2);
+            border: var(--border-width-standard) solid var(--success-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+        
+        .form-input.error {
+            border-color: var(--danger-color);
+        }
+        
+        .btn-auth {
+            width: 100%;
+            margin-top: var(--spacing-sm);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--text-white);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            margin-right: var(--spacing-xs);
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="auth-main" role="main">
+        <section class="auth-header-section">
+            <h1>Money Tracker</h1>
+            <p>Sign in to access your financial data</p>
+        </section>
+        
+        <section class="form-section">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="signin">Sign In</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+            
+            <!-- Sign In Form -->
+            <form id="signin-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="signin-email" class="form-label">Email</label>
+                    <input type="email" id="signin-email" name="email" class="form-input" required autocomplete="email">
+                    <div class="error-message" id="signin-email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signin-password" class="form-label">Password</label>
+                    <input type="password" id="signin-password" name="password" class="form-input" required autocomplete="current-password">
+                    <div class="error-message" id="signin-password-error"></div>
+                </div>
+                
+                <div class="error-message" id="signin-error"></div>
+                <div class="success-message" id="signin-success"></div>
+                
+                <button type="submit" class="btn btn-action btn-auth" id="signin-button">
+                    Sign In
+                </button>
+            </form>
+            
+            <!-- Sign Up Form -->
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-email" class="form-label">Email</label>
+                    <input type="email" id="signup-email" name="email" class="form-input" required autocomplete="email">
+                    <div class="error-message" id="signup-email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password" class="form-label">Password</label>
+                    <input type="password" id="signup-password" name="password" class="form-input" required autocomplete="new-password" minlength="6">
+                    <div class="error-message" id="signup-password-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password-confirm" class="form-label">Confirm Password</label>
+                    <input type="password" id="signup-password-confirm" name="password-confirm" class="form-input" required autocomplete="new-password" minlength="6">
+                    <div class="error-message" id="signup-password-confirm-error"></div>
+                </div>
+                
+                <div class="info-message" id="signup-info"></div>
+                <div class="error-message" id="signup-error"></div>
+                <div class="success-message" id="signup-success"></div>
+                
+                <button type="submit" class="btn btn-action btn-auth" id="signup-button">
+                    Sign Up
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../utils/auth-guard.js"></script>
+    <script src="../components/Header.js"></script>
+    <script>
+        // Initialize AuthService
+        let authServiceInitialized = false;
+        let redirectCheckDone = false;
+        let initializationInProgress = false;
+        let initializationPromise = null;
+        
+        async function initializeAuth() {
+            // Prevent multiple simultaneous initializations
+            if (initializationInProgress && initializationPromise) {
+                console.log('[AuthPage] Initialization already in progress, waiting...');
+                return await initializationPromise;
+            }
+            
+            if (authServiceInitialized) {
+                console.log('[AuthPage] AuthService already initialized');
+                return;
+            }
+            
+            console.log('[AuthPage] initializeAuth() called');
+            initializationInProgress = true;
+            
+            initializationPromise = (async () => {
+                try {
+                    console.log('[AuthPage] Checking if AuthService is available:', !!window.AuthService);
+                    if (!window.AuthService) {
+                        console.error('[AuthPage] AuthService not available');
+                        return;
+                    }
+                    
+                    console.log('[AuthPage] Calling AuthService.initialize()...');
+                    const initStartTime = Date.now();
+                    await window.AuthService.initialize();
+                    const initDuration = Date.now() - initStartTime;
+                    console.log('[AuthPage] AuthService.initialize() completed in', initDuration, 'ms');
+                    
+                    authServiceInitialized = true;
+                    console.log('[AuthPage] AuthService initialized successfully');
+                    
+                    // Wait a bit for session to be fully loaded
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // If already authenticated, redirect (only once)
+                    if (!redirectCheckDone) {
+                        redirectCheckDone = true;
+                        
+                        // Try to get session directly to ensure it's loaded
+                        try {
+                            const session = await window.AuthService.client.auth.getSession();
+                            if (session.data?.session) {
+                                window.AuthService.session = session.data.session;
+                                window.AuthService.currentUser = session.data.session.user;
+                            }
+                        } catch (sessionError) {
+                            console.warn('[AuthPage] Error getting session:', sessionError);
+                        }
+                        
+                        const isAuthenticated = window.AuthService.isAuthenticated();
+                        console.log('[AuthPage] Authentication status:', {
+                            isAuthenticated: isAuthenticated,
+                            hasUser: !!window.AuthService.getCurrentUser(),
+                            userEmail: window.AuthService.getCurrentUser()?.email
+                        });
+                        
+                        if (isAuthenticated) {
+                            console.log('[AuthPage] User already authenticated, redirecting...');
+                            window.AuthGuard.redirectAfterAuth();
+                        }
+                    }
+                } catch (error) {
+                    console.error('[AuthPage] Error initializing auth:', {
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack
+                    });
+                } finally {
+                    initializationInProgress = false;
+                }
+            })();
+            
+            return await initializationPromise;
+        }
+        
+        // Tab switching
+        const tabs = document.querySelectorAll('.auth-tab');
+        const forms = document.querySelectorAll('.auth-form');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active form
+                forms.forEach(f => f.classList.remove('active'));
+                document.getElementById(`${targetTab}-form`).classList.add('active');
+                
+                // Clear errors
+                clearErrors();
+            });
+        });
+        
+        // Clear error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('.success-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('.info-message').forEach(el => {
+                el.classList.remove('show');
+                el.textContent = '';
+            });
+            document.querySelectorAll('.form-input').forEach(el => {
+                el.classList.remove('error');
+            });
+        }
+        
+        // Show error
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
+            }
+        }
+        
+        // Show success
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
+            }
+        }
+        
+        // Show info
+        function showInfo(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.classList.add('show');
+            }
+        }
+        
+        // Set button loading state
+        function setButtonLoading(buttonId, loading) {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.disabled = loading;
+                if (loading) {
+                    button.innerHTML = '<span class="loading"></span>Processing...';
+                } else {
+                    if (buttonId === 'signin-button') {
+                        button.textContent = 'Sign In';
+                    } else {
+                        button.textContent = 'Sign Up';
+                    }
+                }
+            }
+        }
+        
+        // Sign In Form Handler
+        document.getElementById('signin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('[AuthPage] ========== SIGN IN FORM SUBMITTED ==========');
+            
+            clearErrors();
+            
+            // Step 1: Ensure AuthService is initialized (wait if in progress)
+            console.log('[AuthPage] Step 1: Checking AuthService initialization...');
+            if (!authServiceInitialized) {
+                console.log('[AuthPage] AuthService not initialized, initializing...');
+                try {
+                    await initializeAuth();
+                    console.log('[AuthPage] AuthService initialized successfully');
+                } catch (initError) {
+                    console.error('[AuthPage] ERROR: Failed to initialize AuthService:', initError);
+                    showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
+                    return;
+                }
+            } else {
+                console.log('[AuthPage] AuthService already initialized');
+            }
+            
+            // Step 2: Verify AuthService is available
+            console.log('[AuthPage] Step 2: Verifying AuthService availability...');
+            if (!window.AuthService) {
+                console.error('[AuthPage] ERROR: AuthService not available');
+                showError('signin-error', 'Authentication service not available. Please refresh the page and try again.');
+                return;
+            }
+            
+            if (!window.AuthService.client) {
+                console.log('[AuthPage] Client not available, attempting to initialize...');
+                try {
+                    await window.AuthService.initialize();
+                } catch (clientInitError) {
+                    console.error('[AuthPage] ERROR: Failed to initialize client:', clientInitError);
+                    showError('signin-error', 'Failed to initialize authentication client. Please refresh the page and try again.');
+                    return;
+                }
+            }
+            
+            console.log('[AuthPage] AuthService verified:', {
+                hasAuthService: !!window.AuthService,
+                hasClient: !!window.AuthService.client,
+                hasAuth: !!window.AuthService.client?.auth
+            });
+            
+            // Step 3: Get form values
+            console.log('[AuthPage] Step 3: Getting form values...');
+            const email = document.getElementById('signin-email').value.trim();
+            const password = document.getElementById('signin-password').value;
+            
+            console.log('[AuthPage] Form values:', {
+                emailLength: email.length,
+                passwordLength: password.length,
+                emailPrefix: email ? email.substring(0, 3) + '***' : 'empty'
+            });
+            
+            // Step 4: Validate input
+            console.log('[AuthPage] Step 4: Validating input...');
+            if (!email) {
+                console.error('[AuthPage] ERROR: Email is required');
+                showError('signin-email-error', 'Email is required');
+                document.getElementById('signin-email').classList.add('error');
+                return;
+            }
+            
+            if (!password) {
+                console.error('[AuthPage] ERROR: Password is required');
+                showError('signin-password-error', 'Password is required');
+                document.getElementById('signin-password').classList.add('error');
+                return;
+            }
+            
+            console.log('[AuthPage] Input validation passed');
+            
+            // Step 5: Disable button and show loading
+            console.log('[AuthPage] Step 5: Setting button to loading state...');
+            setButtonLoading('signin-button', true);
+            
+            // Step 6: Call signIn
+            console.log('[AuthPage] Step 6: Calling AuthService.signIn()...');
+            const signInStartTime = Date.now();
+            
+            try {
+                const result = await window.AuthService.signIn(email, password);
+                const signInDuration = Date.now() - signInStartTime;
+                
+                console.log('[AuthPage] Sign in completed in', signInDuration, 'ms');
+                console.log('[AuthPage] Sign in result:', {
+                    success: result.success,
+                    hasError: !!result.error,
+                    error: result.error,
+                    hasUser: !!result.user,
+                    userEmail: result.user?.email
+                });
+                
+                if (result.success) {
+                    console.log('[AuthPage] ========== SIGN IN SUCCESSFUL ==========');
+                    console.log('[AuthPage] Showing success message and preparing redirect...');
+                    showSuccess('signin-success', 'Sign in successful! Redirecting...');
+                    
+                    // Wait a moment for user to see success message
+                    setTimeout(() => {
+                        console.log('[AuthPage] Redirecting to main page...');
+                        window.AuthGuard.redirectAfterAuth();
+                    }, 1000);
+                } else {
+                    console.error('[AuthPage] ========== SIGN IN FAILED ==========');
+                    console.error('[AuthPage] Error:', result.error);
+                    
+                    // Check if error is related to email verification
+                    if (result.error && (result.error.includes('email') && result.error.includes('confirm'))) {
+                        showError('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
+                    } else {
+                        showError('signin-error', result.error || 'Sign in failed. Please try again.');
+                    }
+                }
+            } catch (error) {
+                console.error('[AuthPage] ========== SIGN IN EXCEPTION ==========');
+                console.error('[AuthPage] Exception:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
+                showError('signin-error', error.message || 'An unexpected error occurred. Please try again.');
+            } finally {
+                console.log('[AuthPage] Re-enabling sign in button');
+                setButtonLoading('signin-button', false);
+            }
+        });
+        
+        // Sign Up Form Handler
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('[AuthPage] ========== SIGNUP FORM SUBMITTED ==========');
+            clearErrors();
+            
+            if (!authServiceInitialized) {
+                console.log('[AuthPage] AuthService not initialized, initializing...');
+                await initializeAuth();
+                console.log('[AuthPage] AuthService initialized:', authServiceInitialized);
+            }
+            
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const passwordConfirm = document.getElementById('signup-password-confirm').value;
+            
+            console.log('[AuthPage] Form values:', {
+                email: email ? email.substring(0, 3) + '***' : 'empty',
+                passwordLength: password.length,
+                passwordConfirmLength: passwordConfirm.length
+            });
+            
+            // Validation
+            console.log('[AuthPage] Starting validation...');
+            if (!email) {
+                console.error('[AuthPage] Validation failed: Email is required');
+                showError('signup-email-error', 'Email is required');
+                document.getElementById('signup-email').classList.add('error');
+                return;
+            }
+            
+            if (!password) {
+                console.error('[AuthPage] Validation failed: Password is required');
+                showError('signup-password-error', 'Password is required');
+                document.getElementById('signup-password').classList.add('error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                console.error('[AuthPage] Validation failed: Password too short', { length: password.length });
+                showError('signup-password-error', 'Password must be at least 6 characters');
+                document.getElementById('signup-password').classList.add('error');
+                return;
+            }
+            
+            if (password !== passwordConfirm) {
+                console.error('[AuthPage] Validation failed: Passwords do not match');
+                showError('signup-password-confirm-error', 'Passwords do not match');
+                document.getElementById('signup-password-confirm').classList.add('error');
+                return;
+            }
+            
+            console.log('[AuthPage] Validation passed');
+            setButtonLoading('signup-button', true);
+            
+            try {
+                console.log('[AuthPage] Calling AuthService.signUp()...');
+                console.log('[AuthPage] Pre-signup state:', {
+                    hasAuthService: !!window.AuthService,
+                    isAuthenticated: window.AuthService?.isAuthenticated(),
+                    hasClient: !!window.AuthService?.client,
+                    currentUser: window.AuthService?.getCurrentUser()?.email
+                });
+                
+                const signUpStartTime = Date.now();
+                let result;
+                try {
+                    result = await window.AuthService.signUp(email, password);
+                } catch (signUpException) {
+                    console.error('[AuthPage] Exception caught from signUp():', {
+                        message: signUpException.message,
+                        name: signUpException.name,
+                        stack: signUpException.stack
+                    });
+                    throw signUpException;
+                }
+                
+                const signUpDuration = Date.now() - signUpStartTime;
+                console.log('[AuthPage] AuthService.signUp() completed in', signUpDuration, 'ms');
+                console.log('[AuthPage] SignUp result:', {
+                    success: result.success,
+                    hasError: !!result.error,
+                    error: result.error,
+                    hasUser: !!result.user,
+                    userId: result.user?.id,
+                    userEmail: result.user?.email,
+                    requiresEmailVerification: result.requiresEmailVerification,
+                    message: result.message
+                });
+                console.log('[AuthPage] Full result object:', JSON.stringify(result, null, 2));
+                
+                if (result.success) {
+                    console.log('[AuthPage] Signup successful, processing result...');
+                    
+                    // Check if email verification is required
+                    if (result.requiresEmailVerification) {
+                        console.log('[AuthPage] Email verification required');
+                        showInfo('signup-info', result.message || 'Account created! Please check your email to verify your account. Once verified, you can sign in.');
+                        // Switch to sign in tab after a delay
+                        setTimeout(() => {
+                            console.log('[AuthPage] Switching to sign in tab');
+                            document.querySelector('[data-tab="signin"]').click();
+                            showInfo('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
+                        }, 3000);
+                    } else if (result.user && window.AuthService.isAuthenticated()) {
+                        console.log('[AuthPage] User immediately signed in');
+                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
+                        setTimeout(() => {
+                            console.log('[AuthPage] Redirecting after auth...');
+                            window.AuthGuard.redirectAfterAuth();
+                        }, 1500);
+                    } else {
+                        console.log('[AuthPage] Account created but needs sign in');
+                        showInfo('signup-info', result.message || 'Account created successfully! Please sign in.');
+                        setTimeout(() => {
+                            console.log('[AuthPage] Switching to sign in tab');
+                            document.querySelector('[data-tab="signin"]').click();
+                        }, 2000);
+                    }
+                } else {
+                    console.error('[AuthPage] Signup failed:', result.error);
+                    showError('signup-error', result.error || 'Sign up failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('[AuthPage] Sign up exception:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
+                showError('signup-error', 'An unexpected error occurred. Please try again.');
+            } finally {
+                setButtonLoading('signup-button', false);
+                console.log('[AuthPage] ========== SIGNUP FORM HANDLING COMPLETE ==========');
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeAuth();
+        });
+    </script>
+</body>
+</html>
