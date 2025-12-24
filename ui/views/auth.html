@@ -223,62 +223,83 @@
         // Initialize AuthService
         let authServiceInitialized = false;
         let redirectCheckDone = false;
+        let initializationInProgress = false;
+        let initializationPromise = null;
         
         async function initializeAuth() {
-            console.log('[AuthPage] initializeAuth() called');
-            try {
-                console.log('[AuthPage] Checking if AuthService is available:', !!window.AuthService);
-                if (!window.AuthService) {
-                    console.error('[AuthPage] AuthService not available');
-                    return;
-                }
-                
-                console.log('[AuthPage] Calling AuthService.initialize()...');
-                const initStartTime = Date.now();
-                await window.AuthService.initialize();
-                const initDuration = Date.now() - initStartTime;
-                console.log('[AuthPage] AuthService.initialize() completed in', initDuration, 'ms');
-                
-                authServiceInitialized = true;
-                console.log('[AuthPage] AuthService initialized successfully');
-                
-                // Wait a bit for session to be fully loaded
-                await new Promise(resolve => setTimeout(resolve, 200));
-                
-                // If already authenticated, redirect (only once)
-                if (!redirectCheckDone) {
-                    redirectCheckDone = true;
-                    
-                    // Try to get session directly to ensure it's loaded
-                    try {
-                        const session = await window.AuthService.client.auth.getSession();
-                        if (session.data?.session) {
-                            window.AuthService.session = session.data.session;
-                            window.AuthService.currentUser = session.data.session.user;
-                        }
-                    } catch (sessionError) {
-                        console.warn('[AuthPage] Error getting session:', sessionError);
-                    }
-                    
-                    const isAuthenticated = window.AuthService.isAuthenticated();
-                    console.log('[AuthPage] Authentication status:', {
-                        isAuthenticated: isAuthenticated,
-                        hasUser: !!window.AuthService.getCurrentUser(),
-                        userEmail: window.AuthService.getCurrentUser()?.email
-                    });
-                    
-                    if (isAuthenticated) {
-                        console.log('[AuthPage] User already authenticated, redirecting...');
-                        window.AuthGuard.redirectAfterAuth();
-                    }
-                }
-            } catch (error) {
-                console.error('[AuthPage] Error initializing auth:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack
-                });
+            // Prevent multiple simultaneous initializations
+            if (initializationInProgress && initializationPromise) {
+                console.log('[AuthPage] Initialization already in progress, waiting...');
+                return await initializationPromise;
             }
+            
+            if (authServiceInitialized) {
+                console.log('[AuthPage] AuthService already initialized');
+                return;
+            }
+            
+            console.log('[AuthPage] initializeAuth() called');
+            initializationInProgress = true;
+            
+            initializationPromise = (async () => {
+                try {
+                    console.log('[AuthPage] Checking if AuthService is available:', !!window.AuthService);
+                    if (!window.AuthService) {
+                        console.error('[AuthPage] AuthService not available');
+                        return;
+                    }
+                    
+                    console.log('[AuthPage] Calling AuthService.initialize()...');
+                    const initStartTime = Date.now();
+                    await window.AuthService.initialize();
+                    const initDuration = Date.now() - initStartTime;
+                    console.log('[AuthPage] AuthService.initialize() completed in', initDuration, 'ms');
+                    
+                    authServiceInitialized = true;
+                    console.log('[AuthPage] AuthService initialized successfully');
+                    
+                    // Wait a bit for session to be fully loaded
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // If already authenticated, redirect (only once)
+                    if (!redirectCheckDone) {
+                        redirectCheckDone = true;
+                        
+                        // Try to get session directly to ensure it's loaded
+                        try {
+                            const session = await window.AuthService.client.auth.getSession();
+                            if (session.data?.session) {
+                                window.AuthService.session = session.data.session;
+                                window.AuthService.currentUser = session.data.session.user;
+                            }
+                        } catch (sessionError) {
+                            console.warn('[AuthPage] Error getting session:', sessionError);
+                        }
+                        
+                        const isAuthenticated = window.AuthService.isAuthenticated();
+                        console.log('[AuthPage] Authentication status:', {
+                            isAuthenticated: isAuthenticated,
+                            hasUser: !!window.AuthService.getCurrentUser(),
+                            userEmail: window.AuthService.getCurrentUser()?.email
+                        });
+                        
+                        if (isAuthenticated) {
+                            console.log('[AuthPage] User already authenticated, redirecting...');
+                            window.AuthGuard.redirectAfterAuth();
+                        }
+                    }
+                } catch (error) {
+                    console.error('[AuthPage] Error initializing auth:', {
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack
+                    });
+                } finally {
+                    initializationInProgress = false;
+                }
+            })();
+            
+            return await initializationPromise;
         }
         
         // Tab switching
@@ -368,10 +389,25 @@
         // Sign In Form Handler
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
             clearErrors();
             
+            // Ensure AuthService is initialized (wait if in progress)
             if (!authServiceInitialized) {
-                await initializeAuth();
+                try {
+                    await initializeAuth();
+                } catch (initError) {
+                    console.error('[AuthPage] Failed to initialize AuthService:', initError);
+                    showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
+                    return;
+                }
+            }
+            
+            // Verify AuthService is available
+            if (!window.AuthService || !window.AuthService.client) {
+                console.error('[AuthPage] AuthService or client not available');
+                showError('signin-error', 'Authentication service not available. Please refresh the page and try again.');
+                return;
             }
             
             const email = document.getElementById('signin-email').value.trim();
@@ -393,7 +429,9 @@
             setButtonLoading('signin-button', true);
             
             try {
+                console.log('[AuthPage] Attempting sign in for:', email);
                 const result = await window.AuthService.signIn(email, password);
+                console.log('[AuthPage] Sign in result:', { success: result.success, error: result.error });
                 
                 if (result.success) {
                     showSuccess('signin-success', 'Sign in successful! Redirecting...');
@@ -409,8 +447,8 @@
                     }
                 }
             } catch (error) {
-                console.error('Sign in error:', error);
-                showError('signin-error', 'An unexpected error occurred. Please try again.');
+                console.error('[AuthPage] Sign in error:', error);
+                showError('signin-error', error.message || 'An unexpected error occurred. Please try again.');
             } finally {
                 setButtonLoading('signin-button', false);
             }

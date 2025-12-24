@@ -12,21 +12,38 @@ const AuthService = {
     authStateListener: null,
     sessionValidationInterval: null,
     SESSION_CHECK_INTERVAL: 5 * 60 * 1000, // Check every 5 minutes
+    initializationInProgress: false,
+    initializationPromise: null,
 
     /**
      * Initialize the authentication service
+     * Prevents multiple simultaneous initializations
      * @returns {Promise<void>}
      */
     async initialize() {
-        try {
-            console.log('[AuthService] initialize() called');
-            
-            if (!window.SupabaseConfig) {
-                throw new Error('SupabaseConfig not available');
-            }
-            
-            // Reuse existing client if available to avoid multiple instances
-            if (!this.client) {
+        // If initialization is already in progress, wait for it
+        if (this.initializationInProgress && this.initializationPromise) {
+            console.log('[AuthService] Initialization already in progress, waiting...');
+            return await this.initializationPromise;
+        }
+        
+        // If already initialized, return immediately
+        if (this.client && this.authStateListener) {
+            console.log('[AuthService] Already initialized, skipping');
+            return { success: true };
+        }
+        
+        console.log('[AuthService] initialize() called');
+        this.initializationInProgress = true;
+        
+        this.initializationPromise = (async () => {
+            try {
+                if (!window.SupabaseConfig) {
+                    throw new Error('SupabaseConfig not available');
+                }
+                
+                // Reuse existing client if available to avoid multiple instances
+                if (!this.client) {
                 console.log('[AuthService] Creating new Supabase client...');
                 const clientInitStart = Date.now();
                 this.client = await window.SupabaseConfig.initialize();
@@ -87,16 +104,21 @@ const AuthService = {
                 console.log('[AuthService] Periodic session validation already set up, skipping');
             }
             
-            console.log('[AuthService] Initialization completed successfully');
-            return { success: true };
-        } catch (error) {
-            console.error('[AuthService] Initialization error:', {
-                message: error.message,
-                name: error.name,
-                stack: error.stack
-            });
-            throw error;
-        }
+                console.log('[AuthService] Initialization completed successfully');
+                return { success: true };
+            } catch (error) {
+                console.error('[AuthService] Initialization error:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
+                throw error;
+            } finally {
+                this.initializationInProgress = false;
+            }
+        })();
+        
+        return await this.initializationPromise;
     },
 
     /**
