@@ -114,7 +114,7 @@
 @media (max-width: 480px) {
     /* Currency row - keep label and dropdown on same line */
     .settings-row {
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap;
         gap: var(--spacing-sm);
     }
     
@@ -129,6 +129,25 @@
         flex: 1;
         min-width: 0;
         max-width: none;
+    }
+    
+    /* Buttons on mobile - allow wrapping and adjust sizing */
+    .settings-row .btn {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 0.85rem;
+        white-space: normal;
+        word-wrap: break-word;
+        padding: 0.3rem 0.4rem;
+        line-height: 1.2;
+    }
+    
+    /* Long button text - allow it to wrap */
+    .settings-row .btn,
+    .settings-row a.btn {
+        white-space: normal;
+        text-align: center;
     }
     
     .settings-inline-group {

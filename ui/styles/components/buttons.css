@@ -16,11 +16,23 @@
     text-decoration: none;
     text-align: center;
     min-height: 1.9rem;
-    height: 1.9rem;
+    height: auto;
     box-sizing: border-box;
-    line-height: 1;
+    line-height: 1.2;
     white-space: nowrap;
     vertical-align: middle;
+}
+
+/* Allow button text to wrap on mobile */
+@media (max-width: 480px) {
+    .btn {
+        white-space: normal;
+        word-wrap: break-word;
+        height: auto;
+        min-height: 1.9rem;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.85rem;
+    }
 }
 
 /* Ensure anchor tags styled as buttons match button styling exactly */
