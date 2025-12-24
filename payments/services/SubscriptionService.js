@@ -175,22 +175,65 @@ const SubscriptionService = {
      * @returns {Promise<{success: boolean, subscription: Object|null, plan: Object|null, error: string|null}>}
      */
     async getCurrentUserSubscription() {
+        const methodStartTime = Date.now();
+        console.log('[SubscriptionService] ========== getCurrentUserSubscription() CALLED ==========');
+        console.log('[SubscriptionService] getCurrentUserSubscription - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
+        
         try {
+            console.log('[SubscriptionService] getCurrentUserSubscription - checking services availability...');
             if (!window.DatabaseService) {
-                throw new Error('DatabaseService not available');
+                const error = new Error('DatabaseService not available');
+                console.error('[SubscriptionService] ❌ getCurrentUserSubscription error:', error);
+                throw error;
             }
             
             if (!window.AuthService) {
-                throw new Error('AuthService not available');
+                const error = new Error('AuthService not available');
+                console.error('[SubscriptionService] ❌ getCurrentUserSubscription error:', error);
+                throw error;
             }
+            
+            console.log('[SubscriptionService] getCurrentUserSubscription - services available');
+            console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state:', {
+                hasDatabaseService: !!window.DatabaseService,
+                hasClient: !!window.DatabaseService.client,
+                clientType: window.DatabaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl,
+                clientIsNull: window.DatabaseService.client === null,
+                clientIsUndefined: window.DatabaseService.client === undefined
+            });
             
             // Ensure DatabaseService is initialized before using it
             if (!window.DatabaseService.client) {
-                console.log('[SubscriptionService] DatabaseService not initialized, initializing...');
-                await window.DatabaseService.initialize();
+                console.log('[SubscriptionService] ⚠️ DatabaseService not initialized, initializing...');
+                const initStartTime = Date.now();
+                try {
+                    await window.DatabaseService.initialize();
+                    const initElapsed = Date.now() - initStartTime;
+                    console.log(`[SubscriptionService] DatabaseService.initialize() completed in ${initElapsed}ms`);
+                } catch (initError) {
+                    console.error('[SubscriptionService] ❌ DatabaseService.initialize() failed:', initError);
+                    console.error('[SubscriptionService] init error details:', {
+                        message: initError.message,
+                        name: initError.name,
+                        stack: initError.stack
+                    });
+                    throw initError;
+                }
+            } else {
+                console.log('[SubscriptionService] DatabaseService already initialized');
             }
             
+            console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state AFTER init check:', {
+                hasClient: !!window.DatabaseService.client,
+                clientType: window.DatabaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl,
+                supabaseUrl: window.DatabaseService.client?.supabaseUrl
+            });
+            
+            console.log('[SubscriptionService] getCurrentUserSubscription - calling _getCurrentUserId()...');
             const userId = await window.DatabaseService._getCurrentUserId();
+            console.log('[SubscriptionService] getCurrentUserSubscription - userId:', userId);
             if (!userId) {
                 return {
                     success: false,
@@ -201,13 +244,35 @@ const SubscriptionService = {
             }
             
             // Get subscription
+            console.log('[SubscriptionService] getCurrentUserSubscription - calling querySelect for subscriptions...');
+            console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state BEFORE querySelect:', {
+                hasClient: !!window.DatabaseService.client,
+                clientType: window.DatabaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl
+            });
+            
+            const queryStartTime = Date.now();
             const subscriptionResult = await window.DatabaseService.querySelect('subscriptions', {
                 filter: { user_id: userId },
                 limit: 1
             });
+            const queryElapsed = Date.now() - queryStartTime;
+            console.log(`[SubscriptionService] getCurrentUserSubscription - querySelect completed in ${queryElapsed}ms`);
+            console.log('[SubscriptionService] getCurrentUserSubscription - subscriptionResult:', {
+                hasData: !!subscriptionResult.data,
+                dataIsArray: Array.isArray(subscriptionResult.data),
+                dataLength: Array.isArray(subscriptionResult.data) ? subscriptionResult.data.length : 'N/A',
+                hasError: !!subscriptionResult.error,
+                errorMessage: subscriptionResult.error?.message
+            });
             
             if (subscriptionResult.error) {
-                console.error('[SubscriptionService] Error getting subscription:', subscriptionResult.error);
+                console.error('[SubscriptionService] ❌ Error getting subscription:', subscriptionResult.error);
+                console.error('[SubscriptionService] subscriptionResult.error details:', {
+                    message: subscriptionResult.error.message,
+                    code: subscriptionResult.error.code,
+                    status: subscriptionResult.error.status
+                });
                 return {
                     success: false,
                     subscription: null,
@@ -217,6 +282,11 @@ const SubscriptionService = {
             }
             
             const subscription = subscriptionResult.data && subscriptionResult.data.length > 0 ? subscriptionResult.data[0] : null;
+            console.log('[SubscriptionService] getCurrentUserSubscription - subscription:', {
+                hasSubscription: !!subscription,
+                subscriptionStatus: subscription?.status,
+                planId: subscription?.plan_id
+            });
             
             // Get plan details if subscription has plan_id
             let plan = null;
@@ -231,6 +301,10 @@ const SubscriptionService = {
                 }
             }
             
+            const methodElapsed = Date.now() - methodStartTime;
+            console.log(`[SubscriptionService] ✅ getCurrentUserSubscription completed successfully in ${methodElapsed}ms`);
+            console.log('[SubscriptionService] ========== getCurrentUserSubscription() COMPLETE ==========');
+            
             return {
                 success: true,
                 subscription: subscription,
@@ -238,7 +312,22 @@ const SubscriptionService = {
                 error: null
             };
         } catch (error) {
-            console.error('[SubscriptionService] Exception getting subscription:', error);
+            const methodElapsed = Date.now() - methodStartTime;
+            console.error(`[SubscriptionService] ❌ Exception getting subscription after ${methodElapsed}ms:`, error);
+            console.error('[SubscriptionService] getCurrentUserSubscription - error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            console.error('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state on error:', {
+                hasDatabaseService: !!window.DatabaseService,
+                hasClient: !!window.DatabaseService?.client,
+                clientType: window.DatabaseService?.client?.constructor?.name,
+                clientIsNull: window.DatabaseService?.client === null,
+                clientIsUndefined: window.DatabaseService?.client === undefined
+            });
+            console.error('[SubscriptionService] ========== getCurrentUserSubscription() FAILED ==========');
+            
             return {
                 success: false,
                 subscription: null,

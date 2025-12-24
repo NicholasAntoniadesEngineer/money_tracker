@@ -86,8 +86,28 @@ const DatabaseService = {
      * Uses authenticated user token if available, otherwise falls back to API key
      * Note: This is synchronous for performance - session validation happens in _getCurrentUserId()
      * @returns {Object} Headers object with apikey and Authorization
+     * @throws {Error} If client is not initialized
      */
     _getAuthHeaders() {
+        console.log('[DatabaseService] _getAuthHeaders() called');
+        console.log('[DatabaseService] _getAuthHeaders - client state:', {
+            hasClient: !!this.client,
+            clientType: this.client?.constructor?.name,
+            hasSupabaseKey: !!this.client?.supabaseKey,
+            supabaseKeyLength: this.client?.supabaseKey?.length,
+            clientIsNull: this.client === null,
+            clientIsUndefined: this.client === undefined
+        });
+        
+        if (!this.client || !this.client.supabaseKey) {
+            const error = new Error('DatabaseService client not initialized - cannot get auth headers');
+            console.error('[DatabaseService] ❌ _getAuthHeaders error:', error);
+            console.error('[DatabaseService] _getAuthHeaders - client value:', this.client);
+            console.error('[DatabaseService] _getAuthHeaders - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
+            throw error;
+        }
+        
+        console.log('[DatabaseService] _getAuthHeaders - client is valid, proceeding');
         let authToken = this.client.supabaseKey;
         
         // Try to get authenticated user token from AuthService
@@ -115,6 +135,75 @@ const DatabaseService = {
      * @returns {Promise<{data: Array|null, error: Object|null}>}
      */
     async querySelect(table, options = {}) {
+        console.log('[DatabaseService] ========== querySelect CALLED ==========');
+        console.log('[DatabaseService] querySelect - table:', table);
+        console.log('[DatabaseService] querySelect - options:', JSON.stringify(options));
+        console.log('[DatabaseService] querySelect - client state BEFORE check:', {
+            hasClient: !!this.client,
+            clientType: this.client?.constructor?.name,
+            hasSupabaseUrl: !!this.client?.supabaseUrl,
+            supabaseUrl: this.client?.supabaseUrl,
+            hasSupabaseKey: !!this.client?.supabaseKey,
+            clientKeys: this.client ? Object.keys(this.client) : []
+        });
+        console.log('[DatabaseService] querySelect - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
+        
+        // Ensure client is initialized before using it
+        if (!this.client) {
+            console.log('[DatabaseService] ⚠️ Client not initialized in querySelect, initializing...');
+            console.log('[DatabaseService] querySelect - calling initialize()...');
+            const initStartTime = Date.now();
+            try {
+                await this.initialize();
+                const initElapsed = Date.now() - initStartTime;
+                console.log(`[DatabaseService] querySelect - initialize() completed in ${initElapsed}ms`);
+            } catch (initError) {
+                console.error('[DatabaseService] querySelect - initialize() failed:', initError);
+                console.error('[DatabaseService] querySelect - init error stack:', initError.stack);
+                return {
+                    data: null,
+                    error: {
+                        message: `Failed to initialize DatabaseService: ${initError.message}`,
+                        code: 'INITIALIZATION_FAILED',
+                        status: 500,
+                        originalError: initError.message
+                    }
+                };
+            }
+        }
+        
+        console.log('[DatabaseService] querySelect - client state AFTER initialization check:', {
+            hasClient: !!this.client,
+            clientType: this.client?.constructor?.name,
+            hasSupabaseUrl: !!this.client?.supabaseUrl,
+            supabaseUrl: this.client?.supabaseUrl,
+            hasSupabaseKey: !!this.client?.supabaseKey,
+            clientIsNull: this.client === null,
+            clientIsUndefined: this.client === undefined
+        });
+        
+        if (!this.client || !this.client.supabaseUrl) {
+            const error = new Error('DatabaseService client not initialized');
+            console.error('[DatabaseService] ❌ querySelect error - client still not initialized after initialize() call');
+            console.error('[DatabaseService] querySelect - client value:', this.client);
+            console.error('[DatabaseService] querySelect - client.supabaseUrl:', this.client?.supabaseUrl);
+            console.error('[DatabaseService] querySelect - error details:', {
+                message: error.message,
+                clientNull: this.client === null,
+                clientUndefined: this.client === undefined,
+                supabaseUrlMissing: !this.client?.supabaseUrl
+            });
+            return {
+                data: null,
+                error: {
+                    message: error.message,
+                    code: 'CLIENT_NOT_INITIALIZED',
+                    status: 500
+                }
+            };
+        }
+        
+        console.log('[DatabaseService] querySelect - building URL with supabaseUrl:', this.client.supabaseUrl);
         const url = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
         
         // Add query parameters
@@ -137,21 +226,64 @@ const DatabaseService = {
         
         console.log(`[DatabaseService] querySelect URL: ${url.toString()}`);
         
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            headers: this._getAuthHeaders()
+        console.log('[DatabaseService] querySelect - client state BEFORE fetch:', {
+            hasClient: !!this.client,
+            hasSupabaseUrl: !!this.client?.supabaseUrl,
+            supabaseUrl: this.client?.supabaseUrl
         });
         
+        console.log('[DatabaseService] querySelect - calling _getAuthHeaders()...');
+        let authHeaders;
+        try {
+            authHeaders = this._getAuthHeaders();
+            console.log('[DatabaseService] querySelect - _getAuthHeaders() succeeded');
+        } catch (headerError) {
+            console.error('[DatabaseService] ❌ querySelect - _getAuthHeaders() failed:', headerError);
+            console.error('[DatabaseService] querySelect - header error stack:', headerError.stack);
+            return {
+                data: null,
+                error: {
+                    message: `Failed to get auth headers: ${headerError.message}`,
+                    code: 'AUTH_HEADERS_FAILED',
+                    status: 500,
+                    originalError: headerError.message
+                }
+            };
+        }
+        
+        console.log('[DatabaseService] querySelect - calling fetch()...');
+        const fetchStartTime = Date.now();
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: authHeaders
+        });
+        const fetchElapsed = Date.now() - fetchStartTime;
+        console.log(`[DatabaseService] querySelect - fetch() completed in ${fetchElapsed}ms`);
         console.log(`[DatabaseService] querySelect response status: ${response.status} ${response.statusText}`);
         
+        console.log('[DatabaseService] querySelect - client state AFTER fetch:', {
+            hasClient: !!this.client,
+            hasSupabaseUrl: !!this.client?.supabaseUrl,
+            supabaseUrl: this.client?.supabaseUrl
+        });
+        
+        console.log('[DatabaseService] querySelect - calling _handleResponse()...');
         const result = await this._handleResponse(response);
         console.log(`[DatabaseService] querySelect result:`, {
             hasData: result.data !== null && result.data !== undefined,
             dataType: typeof result.data,
             isArray: Array.isArray(result.data),
             dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
-            hasError: result.error !== null
+            hasError: result.error !== null,
+            errorMessage: result.error?.message,
+            errorCode: result.error?.code
         });
+        
+        console.log('[DatabaseService] querySelect - client state BEFORE return:', {
+            hasClient: !!this.client,
+            hasSupabaseUrl: !!this.client?.supabaseUrl
+        });
+        console.log('[DatabaseService] ========== querySelect COMPLETE ==========');
         
         return result;
     },
@@ -671,19 +803,52 @@ const DatabaseService = {
      * @returns {Promise<boolean>} Success status
      */
     async initialize() {
+        const initStartTime = Date.now();
+        console.log('[DatabaseService] ========== initialize() CALLED ==========');
+        console.log('[DatabaseService] initialize - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
+        console.log('[DatabaseService] initialize - client state BEFORE:', {
+            hasClient: !!this.client,
+            clientType: this.client?.constructor?.name,
+            clientIsNull: this.client === null,
+            clientIsUndefined: this.client === undefined
+        });
+        
         try {
             console.log('[DatabaseService] Initializing...');
             
             if (!window.SupabaseConfig) {
-                throw new Error('SupabaseConfig not available');
+                const error = new Error('SupabaseConfig not available');
+                console.error('[DatabaseService] ❌ initialize error - SupabaseConfig not available');
+                throw error;
             }
             
+            console.log('[DatabaseService] initialize - calling SupabaseConfig.getClient()...');
             this.client = window.SupabaseConfig.getClient();
+            console.log('[DatabaseService] initialize - getClient() returned:', {
+                hasClient: !!this.client,
+                clientType: this.client?.constructor?.name,
+                hasSupabaseUrl: !!this.client?.supabaseUrl,
+                supabaseUrl: this.client?.supabaseUrl,
+                hasSupabaseKey: !!this.client?.supabaseKey,
+                supabaseKeyLength: this.client?.supabaseKey?.length,
+                clientIsNull: this.client === null,
+                clientIsUndefined: this.client === undefined
+            });
             console.log('[DatabaseService] Supabase client obtained:', this.client ? 'Success' : 'Failed');
             
             if (!this.client) {
-                throw new Error('Failed to initialize Supabase client');
+                const error = new Error('Failed to initialize Supabase client - getClient() returned null/undefined');
+                console.error('[DatabaseService] ❌ initialize error:', error);
+                throw error;
             }
+            
+            console.log('[DatabaseService] initialize - client state AFTER assignment:', {
+                hasClient: !!this.client,
+                clientType: this.client?.constructor?.name,
+                hasSupabaseUrl: !!this.client?.supabaseUrl,
+                supabaseUrl: this.client?.supabaseUrl,
+                hasSupabaseKey: !!this.client?.supabaseKey
+            });
             
             // Test the client connection - check if we can reach Supabase at all
             console.log('[DatabaseService] Testing Supabase connection...');
@@ -814,11 +979,32 @@ const DatabaseService = {
             // User data is always loaded from user_months table on every page load
             // Example data is loaded from example_months table
             // Cache is only used for example data clearing functionality (local only)
-            console.log('[DatabaseService] Initialized successfully - will fetch fresh data from database');
+            const initElapsed = Date.now() - initStartTime;
+            console.log(`[DatabaseService] ✅ Initialized successfully in ${initElapsed}ms - will fetch fresh data from database`);
+            console.log('[DatabaseService] initialize - FINAL client state:', {
+                hasClient: !!this.client,
+                clientType: this.client?.constructor?.name,
+                hasSupabaseUrl: !!this.client?.supabaseUrl,
+                supabaseUrl: this.client?.supabaseUrl,
+                hasSupabaseKey: !!this.client?.supabaseKey
+            });
+            console.log('[DatabaseService] ========== initialize() COMPLETE ==========');
             
             return true;
         } catch (error) {
-            console.error('[DatabaseService] Error initializing:', error);
+            const initElapsed = Date.now() - initStartTime;
+            console.error(`[DatabaseService] ❌ Error initializing after ${initElapsed}ms:`, error);
+            console.error('[DatabaseService] initialize - error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            console.error('[DatabaseService] initialize - client state on error:', {
+                hasClient: !!this.client,
+                clientIsNull: this.client === null,
+                clientIsUndefined: this.client === undefined
+            });
+            console.error('[DatabaseService] ========== initialize() FAILED ==========');
             throw error;
         }
     },
