@@ -48,9 +48,11 @@ const SettingsController = {
         if (!currencySelect) return;
 
         const settings = await DataManager.getSettings();
-        const currentCurrency = settings && settings.currency ? settings.currency : '£';
-        
-        currencySelect.value = currentCurrency;
+        if (settings && settings.currency) {
+            currencySelect.value = settings.currency;
+        } else {
+            currencySelect.value = '';
+        }
     },
 
     /**
@@ -77,9 +79,11 @@ const SettingsController = {
         if (!fontSizeSelect) return;
 
         const settings = await DataManager.getSettings();
-        const currentFontSize = settings && settings.fontSize ? settings.fontSize : '16';
-        
-        fontSizeSelect.value = currentFontSize;
+        if (settings && settings.fontSize) {
+            fontSizeSelect.value = settings.fontSize;
+        } else {
+            fontSizeSelect.value = '';
+        }
     },
 
     /**

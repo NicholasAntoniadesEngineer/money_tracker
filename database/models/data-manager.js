@@ -5,6 +5,8 @@
  */
 
 const DataManager = {
+    _cachedSettings: null,
+    
     /**
      * Initialize default settings if they don't exist
      * @returns {Promise<Object>} Settings object
@@ -21,6 +23,7 @@ const DataManager = {
                     defaultPots: []
                 };
                 await this.saveSettings(defaultSettings);
+                this._cachedSettings = defaultSettings;
                 return defaultSettings;
             }
             
@@ -29,6 +32,7 @@ const DataManager = {
                 await this.saveSettings(existingSettings);
             }
             
+            this._cachedSettings = existingSettings;
             return existingSettings;
         } catch (error) {
             console.error('Error initializing settings:', error);
@@ -190,7 +194,11 @@ const DataManager = {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            return await window.DatabaseService.getSettings();
+            const settings = await window.DatabaseService.getSettings();
+            if (settings) {
+                this._cachedSettings = settings;
+            }
+            return settings;
         } catch (error) {
             // Only log error once to prevent spam
             if (!this._settingsErrorLogged) {
@@ -203,6 +211,15 @@ const DataManager = {
     },
     
     /**
+     * Get cached settings synchronously (for use in synchronous contexts)
+     * Returns null if settings haven't been loaded yet
+     * @returns {Object|null} Cached settings object or null
+     */
+    getCachedSettings() {
+        return this._cachedSettings;
+    },
+    
+    /**
      * Save settings
      * @param {Object} settings - Settings object
      * @returns {Promise<boolean>} Success status
@@ -212,7 +229,11 @@ const DataManager = {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            return await window.DatabaseService.saveSettings(settings);
+            const success = await window.DatabaseService.saveSettings(settings);
+            if (success) {
+                this._cachedSettings = settings;
+            }
+            return success;
         } catch (error) {
             console.error('Error saving settings:', error);
             throw error;

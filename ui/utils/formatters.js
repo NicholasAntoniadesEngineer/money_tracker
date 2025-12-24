@@ -6,10 +6,11 @@
 const Formatters = {
     /**
      * Get currency symbol from settings
+     * Uses cached settings for synchronous access
      */
     getCurrencySymbol() {
         if (typeof window !== 'undefined' && window.DataManager) {
-            const settings = DataManager.getSettings();
+            const settings = DataManager.getCachedSettings();
             if (settings && settings.currency) {
                 return settings.currency;
             }
