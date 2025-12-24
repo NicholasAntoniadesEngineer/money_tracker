@@ -117,6 +117,7 @@ const SubscriptionService = {
             const subscriptionData = {
                 user_id: userId,
                 plan_id: plan.id,
+                subscription_type: 'trial', // Clear distinction: this is a free trial subscription (no payment)
                 status: 'trial',
                 trial_start_date: trialStartDate.toISOString(),
                 trial_end_date: trialEndDate.toISOString(),
@@ -339,6 +340,7 @@ const SubscriptionService = {
     
     /**
      * Update subscription status
+     * Automatically sets subscription_type to 'paid' when Stripe payment information is added
      * @param {string} userId - User ID
      * @param {Object} updateData - Data to update
      * @returns {Promise<{success: boolean, subscription: Object|null, error: string|null}>}
@@ -347,6 +349,15 @@ const SubscriptionService = {
         try {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
+            }
+            
+            // Automatically set subscription_type to 'paid' when Stripe payment info is added
+            // This clearly distinguishes trial subscriptions from paying subscriptions
+            if (updateData.stripe_customer_id || updateData.stripe_subscription_id || updateData.last_payment_date) {
+                if (!updateData.subscription_type) {
+                    updateData.subscription_type = 'paid';
+                    console.log('[SubscriptionService] Automatically setting subscription_type to "paid" due to Stripe payment information');
+                }
             }
             
             const result = await window.DatabaseService.queryUpsert('subscriptions', {
@@ -482,6 +493,69 @@ const SubscriptionService = {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         return diffDays;
+    },
+    
+    /**
+     * Check if subscription is a trial (free, no payment)
+     * @param {Object} subscription - Subscription object
+     * @returns {boolean} True if subscription is a trial
+     */
+    isTrialSubscription(subscription) {
+        if (!subscription) {
+            return false;
+        }
+        // Check subscription_type first (most reliable)
+        if (subscription.subscription_type === 'trial') {
+            return true;
+        }
+        // Fallback: if subscription_type is 'paid', it's not a trial
+        if (subscription.subscription_type === 'paid') {
+            return false;
+        }
+        // Legacy check: if no Stripe payment info and status is 'trial', it's a trial
+        if (subscription.status === 'trial' && !subscription.stripe_customer_id && !subscription.stripe_subscription_id && !subscription.last_payment_date) {
+            return true;
+        }
+        return false;
+    },
+    
+    /**
+     * Check if subscription is a paid subscription (requires Stripe payment)
+     * @param {Object} subscription - Subscription object
+     * @returns {boolean} True if subscription is paid
+     */
+    isPaidSubscription(subscription) {
+        if (!subscription) {
+            return false;
+        }
+        // Check subscription_type first (most reliable)
+        if (subscription.subscription_type === 'paid') {
+            return true;
+        }
+        // Fallback: if subscription_type is 'trial', it's not paid
+        if (subscription.subscription_type === 'trial') {
+            return false;
+        }
+        // Legacy check: if has Stripe payment info, it's paid
+        if (subscription.stripe_customer_id || subscription.stripe_subscription_id || subscription.last_payment_date) {
+            return true;
+        }
+        return false;
+    },
+    
+    /**
+     * Get subscription type description for display
+     * @param {Object} subscription - Subscription object
+     * @returns {string} Description of subscription type ('Trial' or 'Paid')
+     */
+    getSubscriptionTypeDescription(subscription) {
+        if (this.isPaidSubscription(subscription)) {
+            return 'Paid';
+        }
+        if (this.isTrialSubscription(subscription)) {
+            return 'Trial';
+        }
+        return 'Unknown';
     }
 };
 

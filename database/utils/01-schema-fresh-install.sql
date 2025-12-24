@@ -88,15 +88,23 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
 );
 
 -- Subscriptions table (tracks user subscription status and trials)
+-- DISTINCTION: subscription_type clearly separates 'trial' (free, no payment) from 'paid' (requires Stripe payment)
+-- status tracks lifecycle: 'trial', 'active', 'expired', 'cancelled', 'past_due'
 CREATE TABLE IF NOT EXISTS subscriptions (
     user_id UUID NOT NULL PRIMARY KEY,
     plan_id BIGINT REFERENCES subscription_plans(id),
+    -- subscription_type: 'trial' = free trial (no payment), 'paid' = paid subscription (Stripe payment required)
+    subscription_type TEXT NOT NULL DEFAULT 'trial' CHECK (subscription_type IN ('trial', 'paid')),
+    -- status: lifecycle state ('trial', 'active', 'expired', 'cancelled', 'past_due')
     status TEXT NOT NULL CHECK (status IN ('trial', 'active', 'expired', 'cancelled', 'past_due')),
+    -- Trial period dates (used for both trial and paid subscriptions that started with a trial)
     trial_start_date TIMESTAMPTZ,
     trial_end_date TIMESTAMPTZ,
+    -- Paid subscription dates (only set when subscription_type = 'paid')
     subscription_start_date TIMESTAMPTZ,
     subscription_end_date TIMESTAMPTZ,
     next_billing_date TIMESTAMPTZ,
+    -- Stripe payment information (only set when subscription_type = 'paid')
     stripe_customer_id TEXT,
     stripe_subscription_id TEXT,
     stripe_price_id TEXT,
@@ -154,6 +162,8 @@ CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscription_plans_is_active ON subscription_plans(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_type ON subscriptions(subscription_type);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_type_status ON subscriptions(subscription_type, status);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_id ON subscriptions(plan_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_trial_end_date ON subscriptions(trial_end_date);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_end_date ON subscriptions(subscription_end_date);

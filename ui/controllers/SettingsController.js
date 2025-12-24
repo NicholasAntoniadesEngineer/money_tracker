@@ -1046,13 +1046,7 @@ const SettingsController = {
             const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
             
             if (subscriptionHeading) {
-                if (subscription.status === 'active') {
-                    subscriptionHeading.textContent = `Subscription - ${planName}`;
-                } else if (subscription.status === 'trial') {
-                    subscriptionHeading.textContent = 'Subscription - Trial';
-                } else {
-                    subscriptionHeading.textContent = 'Subscription';
-                }
+                subscriptionHeading.textContent = 'Subscription';
             }
             
             let statusText = '';
@@ -1073,11 +1067,11 @@ const SettingsController = {
                         startSubscriptionBtn.style.display = 'block';
                     }
                 } else {
-                    const trialPeriodDays = plan ? (plan.trial_period_days || 30) : 30;
-                    statusText = `You are currently on a ${trialPeriodDays}-day trial.`;
-                    statusClass = 'subscription-message-info';
-                    statusBgColor = 'rgba(123, 171, 138, 0.2)';
-                    statusBorderColor = 'var(--success-color)';
+                    // Hide status message when subscription details are shown (details table has all info)
+                    statusText = '';
+                    statusClass = '';
+                    statusBgColor = 'transparent';
+                    statusBorderColor = 'transparent';
                     if (startSubscriptionBtn) {
                         startSubscriptionBtn.style.display = 'none';
                     }
@@ -1096,16 +1090,18 @@ const SettingsController = {
                             startSubscriptionBtn.style.display = 'block';
                         }
                     } else {
-                        statusText = `Your ${planName} subscription is active.`;
-                        statusClass = 'subscription-message-success';
-                        statusBgColor = 'rgba(123, 171, 138, 0.3)';
-                        statusBorderColor = 'var(--success-color)';
+                        // Hide status message when subscription details are shown (details table has all info)
+                        statusText = '';
+                        statusClass = '';
+                        statusBgColor = 'transparent';
+                        statusBorderColor = 'transparent';
                     }
                 } else {
-                    statusText = `Your ${planName} subscription is active.`;
-                    statusClass = 'subscription-message-success';
-                    statusBgColor = 'rgba(123, 171, 138, 0.3)';
-                    statusBorderColor = 'var(--success-color)';
+                    // Hide status message when subscription details are shown (details table has all info)
+                    statusText = '';
+                    statusClass = '';
+                    statusBgColor = 'transparent';
+                    statusBorderColor = 'transparent';
                 }
                 
                 if (startSubscriptionBtn) {
@@ -1121,17 +1117,24 @@ const SettingsController = {
                 }
             }
             
-            statusMessage.textContent = statusText;
-            statusMessage.className = `subscription-message ${statusClass}`;
-            statusMessage.style.backgroundColor = statusBgColor;
-            statusMessage.style.border = `var(--border-width-standard) solid ${statusBorderColor}`;
+            // Only show status message if there's actual text (hide when details table shows all info)
+            if (statusText) {
+                statusMessage.textContent = statusText;
+                statusMessage.className = `subscription-message ${statusClass}`;
+                statusMessage.style.backgroundColor = statusBgColor;
+                statusMessage.style.border = `var(--border-width-standard) solid ${statusBorderColor}`;
+                statusMessage.style.display = 'block';
+            } else {
+                // Hide status message when subscription details table is shown
+                statusMessage.style.display = 'none';
+            }
             
             if (subscriptionDetailsContainer && subscriptionDetailsContent) {
                 const detailsHtml = [];
                 
-                // Status (always show)
-                const subscriptionStatusText = subscription.status ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'N/A';
-                detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span>${subscriptionStatusText}</span></div>`);
+                // Subscription Type (always show - clearly distinguishes trial vs paid)
+                const subscriptionType = window.SubscriptionService ? window.SubscriptionService.getSubscriptionTypeDescription(subscription) : (subscription.subscription_type ? subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1) : 'Unknown');
+                detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscriptionType}</span></div>`);
                 
                 // Days Remaining (calculate and show)
                 let daysRemaining = null;
