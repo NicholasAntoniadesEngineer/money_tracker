@@ -120,30 +120,49 @@ class Header {
      * Initialize and inject header into the page
      */
     static async init() {
+        console.log('[Header] ========== HEADER INIT STARTED ==========');
+        console.log('[Header] init() called');
+        
         // Wait for AuthService to be available if it exists
         if (window.AuthService && !window.AuthService.client) {
+            console.log('[Header] AuthService available but client not initialized, initializing...');
             try {
                 await window.AuthService.initialize();
+                console.log('[Header] AuthService initialized');
             } catch (error) {
                 console.warn('[Header] AuthService initialization failed:', error);
             }
+        } else {
+            console.log('[Header] AuthService status:', {
+                hasAuthService: !!window.AuthService,
+                hasClient: !!window.AuthService?.client
+            });
         }
         
         // Find where to insert the header (before main or body's first child)
         const main = document.querySelector('main');
         const body = document.body;
         
+        console.log('[Header] Finding insertion point:', {
+            hasMain: !!main,
+            hasBody: !!body
+        });
+        
         if (main) {
             // Insert before main element
+            console.log('[Header] Inserting header before main element');
             main.insertAdjacentHTML('beforebegin', this.render());
         } else if (body) {
             // Insert as first child of body
+            console.log('[Header] Inserting header as first child of body');
             body.insertAdjacentHTML('afterbegin', this.render());
         } else {
-            console.error('Header: Could not find insertion point');
+            console.error('[Header] ERROR: Could not find insertion point');
             return;
         }
 
+        console.log('[Header] Header rendered, initializing components...');
+        
         // Initialize hamburger menu functionality
         this.initHamburgerMenu();
         
@@ -155,6 +174,12 @@ class Header {
         
         // Listen for auth state changes to update header
         this.setupAuthStateListener();
+        
+        // Update header immediately to show user menu if already authenticated
+        console.log('[Header] Updating header with current auth state...');
+        this.updateHeader();
+        
+        console.log('[Header] ========== HEADER INIT COMPLETE ==========');
     }
 
     /**
@@ -251,37 +276,78 @@ class Header {
      * Setup auth state listener to update header when auth state changes
      */
     static setupAuthStateListener() {
+        console.log('[Header] Setting up auth state listener...');
+        
         // Listen for auth state changes
         window.addEventListener('auth:signin', () => {
-            this.updateHeader();
+            console.log('[Header] auth:signin event received, updating header...');
+            // Small delay to ensure AuthService state is updated
+            setTimeout(() => {
+                this.updateHeader();
+            }, 100);
         });
         
         window.addEventListener('auth:signout', () => {
+            console.log('[Header] auth:signout event received, updating header...');
             this.updateHeader();
         });
+        
+        console.log('[Header] Auth state listener set up successfully');
     }
 
     /**
      * Update header to reflect current auth state
      */
     static updateHeader() {
+        console.log('[Header] ========== UPDATE HEADER CALLED ==========');
+        console.log('[Header] updateHeader() called');
+        
         const header = document.querySelector('.main-header');
-        if (header) {
-            const nav = header.querySelector('.main-navigation');
-            if (nav) {
-                const oldUserMenu = nav.querySelector('.header-user-menu');
-                if (oldUserMenu) {
-                    oldUserMenu.remove();
-                }
-                
-                // Add user menu if authenticated
-                if (window.AuthService && window.AuthService.isAuthenticated()) {
-                    const user = window.AuthService.getCurrentUser();
-                    const userEmail = user?.email || 'User';
-                    const userInitials = this.getUserInitials(userEmail);
-                    const basePath = this.getBasePath();
-                    const settingsHref = basePath + 'settings.html';
-                    const userInfoHtml = `
+        console.log('[Header] Header element found:', !!header);
+        
+        if (!header) {
+            console.warn('[Header] Header element not found in DOM');
+            return;
+        }
+        
+        const nav = header.querySelector('.main-navigation');
+        console.log('[Header] Navigation element found:', !!nav);
+        
+        if (!nav) {
+            console.warn('[Header] Navigation element not found in header');
+            return;
+        }
+        
+        const oldUserMenu = nav.querySelector('.header-user-menu');
+        if (oldUserMenu) {
+            console.log('[Header] Removing existing user menu');
+            oldUserMenu.remove();
+        }
+        
+        // Check authentication status
+        const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
+        console.log('[Header] Authentication status:', {
+            hasAuthService: !!window.AuthService,
+            isAuthenticated: isAuthenticated,
+            hasCurrentUser: !!window.AuthService?.getCurrentUser(),
+            userEmail: window.AuthService?.getCurrentUser()?.email
+        });
+        
+        // Add user menu if authenticated
+        if (isAuthenticated) {
+            const user = window.AuthService.getCurrentUser();
+            const userEmail = user?.email || 'User';
+            const userInitials = this.getUserInitials(userEmail);
+            const basePath = this.getBasePath();
+            const settingsHref = basePath + 'settings.html';
+            
+            console.log('[Header] Adding user menu:', {
+                userEmail: userEmail,
+                userInitials: userInitials,
+                settingsHref: settingsHref
+            });
+            
+            const userInfoHtml = `
                     <div class="header-user-menu">
                         <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                             <span class="user-initials">${userInitials}</span>
@@ -292,12 +358,15 @@ class Header {
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
                         </div>
                     </div>`;
-                    nav.insertAdjacentHTML('beforeend', userInfoHtml);
-                    this.initUserMenu();
-                    this.initSignOutButton();
-                }
-            }
+            nav.insertAdjacentHTML('beforeend', userInfoHtml);
+            this.initUserMenu();
+            this.initSignOutButton();
+            console.log('[Header] User menu added successfully');
+        } else {
+            console.log('[Header] User not authenticated, not adding user menu');
         }
+        
+        console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
     }
 }
 

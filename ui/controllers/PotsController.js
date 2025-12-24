@@ -35,7 +35,7 @@ const PotsController = {
      * Load pots data from all months
      */
     async loadPotsData() {
-        const allMonths = await DataManager.getAllMonths();
+        const allMonths = await window.DataManager.getAllMonths();
         const potsMap = {};
 
         Object.keys(allMonths).forEach(monthKey => {
@@ -55,7 +55,7 @@ const PotsController = {
                     potsMap[category].actualAmount += Formatters.parseNumber(pot.actualAmount);
                     potsMap[category].months.push({
                         monthKey: monthKey,
-                        monthName: monthData.monthName || DataManager.getMonthName(monthData.month),
+                        monthName: monthData.monthName || window.DataManager.getMonthName(monthData.month),
                         year: monthData.year,
                         estimatedAmount: Formatters.parseNumber(pot.estimatedAmount),
                         actualAmount: Formatters.parseNumber(pot.actualAmount)
@@ -124,7 +124,7 @@ const PotsController = {
         
         if (!monthSelector || !container) return;
 
-        const allMonths = await DataManager.getAllMonths();
+        const allMonths = await window.DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
         if (monthKeys.length === 0) {
@@ -157,7 +157,7 @@ const PotsController = {
             return;
         }
 
-        const allMonths = await DataManager.getAllMonths();
+        const allMonths = await window.DataManager.getAllMonths();
         const monthData = allMonths[monthKey];
 
         if (!monthData) {
@@ -247,7 +247,7 @@ const PotsController = {
      * Remove pot from all months
      */
     async removePotFromAllMonths(category) {
-        const allMonths = await DataManager.getAllMonths();
+        const allMonths = await window.DataManager.getAllMonths();
         let modified = false;
 
         Object.keys(allMonths).forEach(monthKey => {
@@ -257,7 +257,7 @@ const PotsController = {
                 monthData.pots = monthData.pots.filter(pot => (pot.category || '') !== category);
                 if (monthData.pots.length !== originalLength) {
                     monthData.updatedAt = new Date().toISOString();
-                    await DataManager.saveMonth(monthKey, monthData);
+                    await window.DataManager.saveMonth(monthKey, monthData);
                     modified = true;
                 }
             }
