@@ -30,10 +30,38 @@ const DatabaseService = {
     
     /**
      * Get the current authenticated user ID
+     * Validates session before returning user ID
+     * @returns {Promise<string|null>} User ID or null if not authenticated
+     * @throws {Error} If AuthService is not available
+     */
+    async _getCurrentUserId() {
+        if (!window.AuthService) {
+            throw new Error('AuthService not available - cannot get current user ID');
+        }
+        
+        // Validate session before returning user ID
+        const sessionValidation = await window.AuthService.validateSession();
+        if (!sessionValidation.valid) {
+            console.warn('[DatabaseService] Session validation failed - cannot get user ID');
+            return null;
+        }
+        
+        const currentUser = window.AuthService.getCurrentUser();
+        if (!currentUser || !currentUser.id) {
+            console.warn('[DatabaseService] No current user found after session validation');
+            return null;
+        }
+        
+        return currentUser.id;
+    },
+    
+    /**
+     * Synchronous version of _getCurrentUserId for backward compatibility
+     * Note: This does not validate session - use async version when possible
      * @returns {string|null} User ID or null if not authenticated
      * @throws {Error} If AuthService is not available
      */
-    _getCurrentUserId() {
+    _getCurrentUserIdSync() {
         if (!window.AuthService) {
             throw new Error('AuthService not available - cannot get current user ID');
         }
@@ -53,12 +81,15 @@ const DatabaseService = {
     /**
      * Get authentication headers for database requests
      * Uses authenticated user token if available, otherwise falls back to API key
+     * Note: This is synchronous for performance - session validation happens in _getCurrentUserId()
      * @returns {Object} Headers object with apikey and Authorization
      */
     _getAuthHeaders() {
         let authToken = this.client.supabaseKey;
         
         // Try to get authenticated user token from AuthService
+        // Note: We don't validate session here for performance - validation happens in _getCurrentUserId()
+        // If session is invalid, _getCurrentUserId() will handle redirect
         if (window.AuthService && window.AuthService.isAuthenticated()) {
             const accessToken = window.AuthService.getAccessToken();
             if (accessToken) {
@@ -919,8 +950,8 @@ const DatabaseService = {
             // Fetch user months using centralized query interface
             console.log('[DatabaseService] Querying user_months table...');
             
-            // Get current user ID for filtering
-            const currentUserId = this._getCurrentUserId();
+            // Get current user ID for filtering (validates session)
+            const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
                 console.warn('[DatabaseService] No authenticated user - skipping user_months query');
                 // Return empty array for user months, but still process example months if enabled
@@ -1174,8 +1205,8 @@ const DatabaseService = {
                 // Not found in example_months (empty array or error), check user_months
                 console.log(`[DatabaseService] Not found in example_months (empty or error), checking user_months...`);
                 
-                // Get current user ID for filtering
-                const currentUserId = this._getCurrentUserId();
+                // Get current user ID for filtering (validates session)
+                const currentUserId = await this._getCurrentUserId();
                 if (!currentUserId) {
                     console.log(`[DatabaseService] No authenticated user - skipping user_months query`);
                     return null;
@@ -1272,10 +1303,10 @@ const DatabaseService = {
                 console.log(`[DatabaseService] Using ${tableName} table (determined from monthKey)`);
             }
             
-            // Get user ID if saving to user_months table
+            // Get user ID if saving to user_months table (validates session)
             let userId = null;
             if (tableName === 'user_months') {
-                userId = this._getCurrentUserId();
+                userId = await this._getCurrentUserId();
                 if (!userId) {
                     throw new Error('User not authenticated - cannot save to user_months without authentication');
                 }
@@ -1397,8 +1428,8 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            // Get user ID for user_months deletion
-            const userId = this._getCurrentUserId();
+            // Get user ID for user_months deletion (validates session)
+            const userId = await this._getCurrentUserId();
             if (!userId) {
                 throw new Error('User not authenticated - cannot delete from user_months without authentication');
             }
@@ -1532,8 +1563,8 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Get current user ID for filtering (must be done first for user-specific queries)
-            const currentUserId = this._getCurrentUserId();
+            // Get current user ID for filtering (validates session)
+            const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
                 console.warn('[DatabaseService] No authenticated user - cannot fetch settings');
                 return null;
@@ -1646,8 +1677,8 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Get current user ID
-            const currentUserId = this._getCurrentUserId();
+            // Get current user ID (validates session)
+            const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
                 throw new Error('User must be authenticated to save settings');
             }
@@ -1911,8 +1942,8 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            // Get current user ID - required to filter deletions to only current user's data
-            const currentUserId = this._getCurrentUserId();
+            // Get current user ID - required to filter deletions to only current user's data (validates session)
+            const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
                 throw new Error('User not authenticated - cannot delete user data without authentication');
             }

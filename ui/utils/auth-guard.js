@@ -30,21 +30,36 @@ const AuthGuard = {
             await new Promise(resolve => setTimeout(resolve, 100));
             
             // Try to get the session directly to ensure it's loaded
+            let hasValidSession = false;
             try {
-                const session = await window.AuthService.client.auth.getSession();
-                if (session.data?.session) {
-                    window.AuthService.session = session.data.session;
-                    window.AuthService.currentUser = session.data.session.user;
+                const sessionResult = await window.AuthService.client.auth.getSession();
+                if (sessionResult.data?.session) {
+                    window.AuthService.session = sessionResult.data.session;
+                    window.AuthService.currentUser = sessionResult.data.session.user;
+                    hasValidSession = true;
+                } else {
+                    // No session data - clear local state
+                    window.AuthService.session = null;
+                    window.AuthService.currentUser = null;
+                    console.log('[AuthGuard] No session found in database - clearing local state');
                 }
             } catch (sessionError) {
                 console.warn('[AuthGuard] Error getting session:', sessionError);
+                // Session check failed - treat as no session
+                window.AuthService.session = null;
+                window.AuthService.currentUser = null;
+                hasValidSession = false;
             }
             
             // Check if user is authenticated
             const isAuthenticated = window.AuthService.isAuthenticated();
             
-            if (!isAuthenticated) {
-                console.log('[AuthGuard] User not authenticated, redirecting to auth page');
+            // If no valid session or not authenticated, redirect to sign-in
+            if (!hasValidSession || !isAuthenticated) {
+                console.log('[AuthGuard] User not authenticated or session missing, redirecting to auth page');
+                // Clear any stale local state
+                window.AuthService.session = null;
+                window.AuthService.currentUser = null;
                 this.redirectToAuth();
                 return false;
             }

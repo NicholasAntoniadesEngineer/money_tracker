@@ -10,6 +10,8 @@ const AuthService = {
     currentUser: null,
     session: null,
     authStateListener: null,
+    sessionValidationInterval: null,
+    SESSION_CHECK_INTERVAL: 5 * 60 * 1000, // Check every 5 minutes
 
     /**
      * Initialize the authentication service
@@ -78,6 +80,13 @@ const AuthService = {
                 console.log('[AuthService] Auth state listener already set up, skipping');
             }
             
+            // Set up periodic session validation (only if not already set up)
+            if (!this.sessionValidationInterval) {
+                this.setupPeriodicSessionValidation();
+            } else {
+                console.log('[AuthService] Periodic session validation already set up, skipping');
+            }
+            
             console.log('[AuthService] Initialization completed successfully');
             return { success: true };
         } catch (error) {
@@ -123,19 +132,92 @@ const AuthService = {
                         window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
                     }
                 } else {
-                    console.log('[AuthService] No user in session');
+                    console.log('[AuthService] No user in session - redirecting to sign-in');
+                    // No user in session means session is invalid - redirect to sign-in
+                    this.session = null;
+                    this.currentUser = null;
+                    this._redirectToSignIn();
                 }
             } else if (event === 'SIGNED_OUT') {
                 this.session = null;
                 this.currentUser = null;
-                console.log('[AuthService] User signed out');
+                console.log('[AuthService] User signed out - redirecting to sign-in');
+                
+                // Stop periodic validation when signed out
+                this.stopPeriodicSessionValidation();
                 
                 // Dispatch custom event for other parts of the app
                 window.dispatchEvent(new CustomEvent('auth:signout'));
+                
+                // Always redirect to sign-in page when signed out
+                this._redirectToSignIn();
+            } else if (event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') {
+                // These events don't require redirect
+                if (session) {
+                    this.session = session;
+                    this.currentUser = session?.user || null;
+                }
+            } else {
+                // Any other event without a valid session means session is lost
+                if (!session) {
+                    console.log('[AuthService] Session lost during event:', event, '- redirecting to sign-in');
+                    this.session = null;
+                    this.currentUser = null;
+                    this._redirectToSignIn();
+                }
             }
         });
         
         console.log('[AuthService] Auth state listener set up successfully');
+    },
+    
+    /**
+     * Set up periodic session validation
+     * Checks session validity every few minutes to catch expired sessions
+     * @returns {void}
+     */
+    setupPeriodicSessionValidation() {
+        // Clear existing interval if present
+        if (this.sessionValidationInterval) {
+            clearInterval(this.sessionValidationInterval);
+            this.sessionValidationInterval = null;
+        }
+        
+        console.log('[AuthService] Setting up periodic session validation');
+        
+        // Only set up validation if we have a client
+        if (!this.client) {
+            console.warn('[AuthService] Cannot set up periodic validation - client not initialized');
+            return;
+        }
+        
+        // Run validation check periodically
+        this.sessionValidationInterval = setInterval(async () => {
+            // Only validate if we think we're authenticated
+            if (this.isAuthenticated()) {
+                console.log('[AuthService] Periodic session validation check...');
+                const validation = await this.validateSession();
+                if (!validation.valid) {
+                    console.log('[AuthService] Periodic check found invalid session - redirect will occur');
+                } else {
+                    console.log('[AuthService] Periodic session validation passed');
+                }
+            }
+        }, this.SESSION_CHECK_INTERVAL);
+        
+        console.log('[AuthService] Periodic session validation set up successfully');
+    },
+    
+    /**
+     * Stop periodic session validation
+     * @returns {void}
+     */
+    stopPeriodicSessionValidation() {
+        if (this.sessionValidationInterval) {
+            clearInterval(this.sessionValidationInterval);
+            this.sessionValidationInterval = null;
+            console.log('[AuthService] Periodic session validation stopped');
+        }
     },
 
     /**
@@ -989,28 +1071,101 @@ const AuthService = {
 
     /**
      * Sign out the current user
+     * Handles cases where session may be missing (e.g., on mobile, expired sessions)
+     * If session is missing, clears local state and redirects to sign-in page
      * @returns {Promise<{success: boolean, error: string|null}>}
      */
     async signOut() {
         try {
             if (!this.client) {
-                return { success: false, error: 'Auth service not initialized' };
+                // No client means no session - redirect to sign-in
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+                return { success: true, error: null };
             }
             
-            const { error } = await this.client.auth.signOut();
-            
-            if (error) {
-                console.error('[AuthService] Sign out error:', error);
-                return { success: false, error: error.message };
+            // Check if there's an active session before attempting to sign out
+            // This prevents "Auth session missing!" errors on mobile or when session has expired
+            let hasActiveSession = false;
+            try {
+                const { data: { session } } = await this.client.auth.getSession();
+                hasActiveSession = !!session;
+            } catch (sessionError) {
+                console.warn('[AuthService] Could not check session before sign out:', sessionError.message);
+                // Session check failed - treat as no session
+                hasActiveSession = false;
             }
             
+            // Only attempt Supabase signOut if there's an active session
+            if (hasActiveSession) {
+                const { error } = await this.client.auth.signOut();
+                
+                if (error) {
+                    // If error is about missing session, treat as success but redirect to sign-in
+                    if (error.message && (error.message.includes('Auth session missing') || error.message.includes('session') && error.message.includes('missing'))) {
+                        console.log('[AuthService] Session already missing - clearing local state and redirecting to sign-in');
+                        this.currentUser = null;
+                        this.session = null;
+                        this._redirectToSignIn();
+                        return { success: true, error: null };
+                    }
+                    console.error('[AuthService] Sign out error:', error);
+                    // Even on error, clear state and redirect
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                    return { success: false, error: error.message };
+                }
+            } else {
+                console.log('[AuthService] No active session found - clearing local state and redirecting to sign-in');
+            }
+            
+            // Always clear local state regardless of whether Supabase signOut was called
             this.currentUser = null;
             this.session = null;
-            console.log('[AuthService] User signed out successfully');
+            console.log('[AuthService] User signed out successfully - redirecting to sign-in');
+            
+            // Always redirect to sign-in page after sign out
+            this._redirectToSignIn();
             return { success: true, error: null };
         } catch (error) {
+            // If error is about missing session, treat as success but redirect to sign-in
+            if (error.message && (error.message.includes('Auth session missing') || error.message.includes('session') && error.message.includes('missing'))) {
+                console.log('[AuthService] Session missing during sign out - clearing local state and redirecting to sign-in');
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+                return { success: true, error: null };
+            }
             console.error('[AuthService] Sign out exception:', error);
+            // Even on exception, clear local state and redirect to sign-in
+            this.currentUser = null;
+            this.session = null;
+            this._redirectToSignIn();
             return { success: false, error: error.message || 'An unexpected error occurred' };
+        }
+    },
+    
+    /**
+     * Redirect to sign-in page
+     * Private helper method
+     * @private
+     */
+    _redirectToSignIn() {
+        const currentPath = window.location.pathname;
+        const authPath = 'views/auth.html';
+        
+        // Don't redirect if already on auth page
+        if (currentPath.includes('auth.html')) {
+            return;
+        }
+        
+        // Use AuthGuard if available, otherwise direct redirect
+        if (window.AuthGuard) {
+            window.AuthGuard.redirectToAuth();
+        } else {
+            window.location.href = authPath;
         }
     },
 
@@ -1036,6 +1191,77 @@ const AuthService = {
      */
     isAuthenticated() {
         return this.currentUser !== null && this.session !== null;
+    },
+    
+    /**
+     * Validate and refresh the current session
+     * Checks if session exists and is valid, refreshes if needed
+     * Redirects to sign-in if session is invalid or missing
+     * @returns {Promise<{valid: boolean, session: Object|null, error: string|null}>}
+     */
+    async validateSession() {
+        try {
+            if (!this.client) {
+                console.warn('[AuthService] Client not initialized during session validation');
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+                return { valid: false, session: null, error: 'Auth service not initialized' };
+            }
+            
+            // Get current session from Supabase
+            const { data: { session }, error } = await this.client.auth.getSession();
+            
+            if (error) {
+                console.warn('[AuthService] Error getting session during validation:', error.message);
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+                return { valid: false, session: null, error: error.message };
+            }
+            
+            if (!session) {
+                console.log('[AuthService] No session found during validation - redirecting to sign-in');
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+                return { valid: false, session: null, error: 'No active session' };
+            }
+            
+            // Check if session is expired
+            if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+                console.log('[AuthService] Session expired - attempting refresh');
+                try {
+                    const refreshResult = await this.refreshSession();
+                    if (!refreshResult.success) {
+                        console.log('[AuthService] Session refresh failed - redirecting to sign-in');
+                        this.currentUser = null;
+                        this.session = null;
+                        this._redirectToSignIn();
+                        return { valid: false, session: null, error: 'Session expired and refresh failed' };
+                    }
+                    // Refresh successful, return updated session
+                    return { valid: true, session: this.session, error: null };
+                } catch (refreshError) {
+                    console.error('[AuthService] Session refresh exception:', refreshError);
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                    return { valid: false, session: null, error: 'Session refresh failed' };
+                }
+            }
+            
+            // Session is valid - update local state
+            this.session = session;
+            this.currentUser = session.user;
+            return { valid: true, session: session, error: null };
+        } catch (error) {
+            console.error('[AuthService] Session validation exception:', error);
+            this.currentUser = null;
+            this.session = null;
+            this._redirectToSignIn();
+            return { valid: false, session: null, error: error.message || 'Session validation failed' };
+        }
     },
 
     /**
