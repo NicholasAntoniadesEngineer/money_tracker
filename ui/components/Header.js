@@ -231,16 +231,17 @@ class Header {
             signOutButton.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                
+                // Disable button immediately to prevent multiple clicks
+                signOutButton.disabled = true;
+                signOutButton.textContent = 'Signing out...';
+                
+                // Call signOut - it handles everything including redirect
                 if (window.AuthService) {
-                    const result = await window.AuthService.signOut();
-                    if (result.success) {
-                        // Redirect to auth page
-                        const basePath = window.location.pathname.includes('/views/') ? '' : 'views/';
-                        window.location.href = `${basePath}auth.html`;
-                    } else {
-                        console.error('[Header] Sign out failed:', result.error);
-                        alert('Sign out failed: ' + (result.error || 'Unknown error'));
-                    }
+                    await window.AuthService.signOut();
+                } else {
+                    // Fallback if AuthService not available
+                    window.location.href = 'views/auth.html';
                 }
             });
         }

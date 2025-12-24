@@ -20,6 +20,7 @@ const DatabaseService = {
     EXAMPLE_YEAR: 2045, // Example data year - protected from deletion
     settingsCache: null,
     settingsCacheUserId: null,
+    settingsCachePromise: null,
     
     /**
      * ============================================================================
@@ -548,6 +549,7 @@ const DatabaseService = {
         this.cacheTimestamp = null;
         this.settingsCache = null;
         this.settingsCacheUserId = null;
+        this.settingsCachePromise = null;
         try {
             localStorage.removeItem(this.CACHE_STORAGE_KEY);
             localStorage.removeItem(this.CACHE_TIMESTAMP_KEY);
@@ -1557,6 +1559,7 @@ const DatabaseService = {
     /**
      * Get settings from database
      * Uses caching to prevent excessive database calls
+     * Handles concurrent requests by reusing the same promise
      * @returns {Promise<Object|null>} Settings object or null
      */
     async getSettings() {
@@ -1579,83 +1582,102 @@ const DatabaseService = {
                 return this.settingsCache;
             }
             
+            // If there's already a pending request for this user, return that promise
+            if (this.settingsCachePromise && this.settingsCacheUserId === currentUserId) {
+                console.log('[DatabaseService] getSettings() reusing pending request');
+                return await this.settingsCachePromise;
+            }
+            
             console.log('[DatabaseService] getSettings() called - fetching from database');
             const startTime = Date.now();
             
-            console.log('[DatabaseService] Querying settings table for user_id:', currentUserId);
-            
-            // Use centralized query interface for settings
-            const queryResult = await Promise.race([
-                this.querySelect('settings', {
-                    select: '*',
-                    filter: { user_id: currentUserId },
-                    limit: 1
-                }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 5000))
-            ]).catch(err => {
-                console.error('[DatabaseService] Settings query failed:', err);
-                return { data: null, error: err };
-            });
-            
-            const totalElapsed = Date.now() - startTime;
-            console.log(`[DatabaseService] Settings fetch completed in ${totalElapsed}ms`);
-            
-            // Convert direct fetch result to Supabase-like format
-            let queryResultFormatted;
-            if (queryResult.error) {
-                queryResultFormatted = { data: null, error: queryResult.error };
-            } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
-                // Return single item (like .single() would)
-                queryResultFormatted = { data: queryResult.data[0], error: null };
-            } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length === 0) {
-                // No data found
-                queryResultFormatted = { data: null, error: { code: 'PGRST116', message: 'No rows found' } };
-            } else {
-                queryResultFormatted = { data: queryResult.data, error: null };
-            }
-            
-            const { data, error } = queryResultFormatted;
-            
-            if (error) {
-                if (error.code === 'TIMEOUT') {
-                    console.warn('[DatabaseService] Settings query timed out - returning null');
-                    return null;
-                }
-                if (error.code === 'PGRST116') {
-                    console.log('[DatabaseService] Settings not found (PGRST116) - returning null');
-                    return null;
-                }
-                // Handle network/connection errors gracefully
-                if (error.message && error.message.includes('Load failed')) {
-                    console.warn('[DatabaseService] Settings table may not exist or connection failed. Returning null.');
-                    return null;
-                }
-                console.error('[DatabaseService] Error fetching settings:', error);
-                console.error('[DatabaseService] Error details:', {
-                    message: error.message,
-                    code: error.code,
-                    details: error.details,
-                    hint: error.hint
-                });
-                // Return null instead of throwing to prevent blocking initialization
-                return null;
-            }
-            
-            console.log('[DatabaseService] Settings fetched successfully:', data ? 'Found' : 'Not found');
-            const settings = data ? this.transformSettingsFromDatabase(data) : null;
-            
-            // Cache the settings for this user
-            this.settingsCache = settings;
+            // Create a promise for this request and cache it to handle concurrent calls
             this.settingsCacheUserId = currentUserId;
+            this.settingsCachePromise = (async () => {
+                try {
+                    console.log('[DatabaseService] Querying settings table for user_id:', currentUserId);
+                    
+                    // Use centralized query interface for settings
+                    const queryResult = await Promise.race([
+                        this.querySelect('settings', {
+                            select: '*',
+                            filter: { user_id: currentUserId },
+                            limit: 1
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 5000))
+                    ]).catch(err => {
+                        console.error('[DatabaseService] Settings query failed:', err);
+                        return { data: null, error: err };
+                    });
+                    
+                    const totalElapsed = Date.now() - startTime;
+                    console.log(`[DatabaseService] Settings fetch completed in ${totalElapsed}ms`);
+                    
+                    // Convert direct fetch result to Supabase-like format
+                    let queryResultFormatted;
+                    if (queryResult.error) {
+                        queryResultFormatted = { data: null, error: queryResult.error };
+                    } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
+                        // Return single item (like .single() would)
+                        queryResultFormatted = { data: queryResult.data[0], error: null };
+                    } else if (queryResult.data && Array.isArray(queryResult.data) && queryResult.data.length === 0) {
+                        // No data found
+                        queryResultFormatted = { data: null, error: { code: 'PGRST116', message: 'No rows found' } };
+                    } else {
+                        queryResultFormatted = { data: queryResult.data, error: null };
+                    }
+                    
+                    const { data, error } = queryResultFormatted;
+                    
+                    if (error) {
+                        if (error.code === 'TIMEOUT') {
+                            console.warn('[DatabaseService] Settings query timed out - returning null');
+                            return null;
+                        }
+                        if (error.code === 'PGRST116') {
+                            console.log('[DatabaseService] Settings not found (PGRST116) - returning null');
+                            return null;
+                        }
+                        // Handle network/connection errors gracefully
+                        if (error.message && error.message.includes('Load failed')) {
+                            console.warn('[DatabaseService] Settings table may not exist or connection failed. Returning null.');
+                            return null;
+                        }
+                        console.error('[DatabaseService] Error fetching settings:', error);
+                        console.error('[DatabaseService] Error details:', {
+                            message: error.message,
+                            code: error.code,
+                            details: error.details,
+                            hint: error.hint
+                        });
+                        // Return null instead of throwing to prevent blocking initialization
+                        return null;
+                    }
+                    
+                    console.log('[DatabaseService] Settings fetched successfully:', data ? 'Found' : 'Not found');
+                    const settings = data ? this.transformSettingsFromDatabase(data) : null;
+                    
+                    // Cache the settings for this user
+                    this.settingsCache = settings;
+                    
+                    if (settings) {
+                        console.log('[DatabaseService] Settings data cached');
+                    } else {
+                        console.log('[DatabaseService] No settings data returned');
+                    }
+                    
+                    return settings;
+                } finally {
+                    // Clear the promise cache after completion
+                    this.settingsCachePromise = null;
+                }
+            })();
             
-            if (settings) {
-                console.log('[DatabaseService] Settings data cached');
-            } else {
-                console.log('[DatabaseService] No settings data returned');
-            }
-            
-            return settings;
+            return await this.settingsCachePromise;
         } catch (error) {
+            // Clear promise cache on error
+            this.settingsCachePromise = null;
+            
             // Only log error once, don't spam console
             if (!this._settingsErrorLogged) {
                 console.error('[DatabaseService] Error getting settings:', error);
@@ -1729,6 +1751,7 @@ const DatabaseService = {
             // Invalidate settings cache after saving
             this.settingsCache = null;
             this.settingsCacheUserId = null;
+            this.settingsCachePromise = null;
             console.log('[DatabaseService] Settings cache invalidated');
             
             return true;
