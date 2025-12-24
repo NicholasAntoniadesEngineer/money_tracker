@@ -10,8 +10,8 @@
 
 -- User months table (for user-created months)
 CREATE TABLE IF NOT EXISTS user_months (
-    id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
     month_name TEXT NOT NULL,
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS example_months (
 
 -- Pots table (user-specific savings pots)
 CREATE TABLE IF NOT EXISTS pots (
-    id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     estimated_amount NUMERIC(12, 2) DEFAULT 0,
     actual_amount NUMERIC(12, 2) DEFAULT 0,
@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS pots (
 
 -- Settings table (one row per user)
 CREATE TABLE IF NOT EXISTS settings (
-    id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
     currency TEXT DEFAULT '£',
     font_size TEXT DEFAULT '16',
     default_fixed_costs JSONB DEFAULT '[]',
