@@ -1,8 +1,9 @@
 -- Populate Complete Example Data into Supabase
 -- Run this ONCE in Supabase SQL Editor to add example months
+-- Run this AFTER 01-schema-fresh-install.sql
 -- Example data uses year 2045 to avoid conflicts with real data
 -- This includes ALL complete example data (weekly breakdown, income, fixed costs, variable costs, unplanned expenses, pots)
--- NOTE: This script now inserts into the example_months table (separate from user_months)
+-- NOTE: This script inserts into the example_months table (separate from user_months)
 
 -- Insert example months (January, September, October, November 2045)
 INSERT INTO example_months (year, month, month_name, date_range, weekly_breakdown, fixed_costs, variable_costs, unplanned_expenses, income_sources, pots, created_at, updated_at)

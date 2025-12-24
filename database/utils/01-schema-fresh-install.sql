@@ -2,6 +2,11 @@
 -- Supabase PostgreSQL Schema
 -- Run this script ONCE in Supabase SQL Editor for a fresh installation
 -- This creates separate tables for example months and user months
+-- 
+-- SETUP ORDER:
+-- 1. Run this script first (01-schema-fresh-install.sql)
+-- 2. Optionally run 02-populate-example-data.sql for example data
+-- 3. Optionally run 03-enable-public-access.sql if not using authentication
 
 -- User months table (for user-created months)
 CREATE TABLE IF NOT EXISTS user_months (

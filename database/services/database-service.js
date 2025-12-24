@@ -29,6 +29,28 @@ const DatabaseService = {
      */
     
     /**
+     * Get the current authenticated user ID
+     * @returns {string|null} User ID or null if not authenticated
+     * @throws {Error} If AuthService is not available
+     */
+    _getCurrentUserId() {
+        if (!window.AuthService) {
+            throw new Error('AuthService not available - cannot get current user ID');
+        }
+        
+        if (!window.AuthService.isAuthenticated()) {
+            return null;
+        }
+        
+        const currentUser = window.AuthService.getCurrentUser();
+        if (!currentUser || !currentUser.id) {
+            return null;
+        }
+        
+        return currentUser.id;
+    },
+    
+    /**
      * Get authentication headers for database requests
      * Uses authenticated user token if available, otherwise falls back to API key
      * @returns {Object} Headers object with apikey and Authorization
@@ -109,15 +131,19 @@ const DatabaseService = {
      */
     async queryUpsert(table, data, options = {}) {
         // Try PATCH first (update if exists), then POST (insert if not)
-        const { year, month } = options.filter || {};
+        const { year, month, user_id } = options.filter || {};
         const identifier = options.identifier || 'id';
         const identifierValue = options.identifierValue;
         
         if (year !== undefined && month !== undefined) {
             // For months table - use year/month as identifier
+            // For user_months, also include user_id in filter
             const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
             patchUrl.searchParams.append('year', `eq.${year}`);
             patchUrl.searchParams.append('month', `eq.${month}`);
+            if (user_id !== undefined && table === 'user_months') {
+                patchUrl.searchParams.append('user_id', `eq.${user_id}`);
+            }
             patchUrl.searchParams.append('select', '*');
             
             let response = await fetch(patchUrl.toString(), {
@@ -845,35 +871,54 @@ const DatabaseService = {
             // Fetch user months using centralized query interface
             console.log('[DatabaseService] Querying user_months table...');
             
-            // First, do a diagnostic query to check if ANY data exists (just count)
-            try {
-                const diagnosticUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
-                diagnosticUrl.searchParams.append('select', 'id');
-                diagnosticUrl.searchParams.append('limit', '1');
-                
-                const diagnosticResponse = await fetch(diagnosticUrl.toString(), {
-                    method: 'GET',
-                    headers: this._getAuthHeaders()
-                });
-                
-                const diagnosticText = await diagnosticResponse.text();
-                const diagnosticData = diagnosticText ? JSON.parse(diagnosticText) : [];
-                console.log(`[DatabaseService] Diagnostic query: Status ${diagnosticResponse.status}, Found ${Array.isArray(diagnosticData) ? diagnosticData.length : 'unknown'} rows`);
-                console.log(`[DatabaseService] Diagnostic response headers:`, {
-                    'content-range': diagnosticResponse.headers.get('content-range'),
-                    'content-length': diagnosticResponse.headers.get('content-length')
-                });
-            } catch (diagError) {
-                console.warn('[DatabaseService] Diagnostic query failed:', diagError);
+            // Get current user ID for filtering
+            const currentUserId = this._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[DatabaseService] No authenticated user - skipping user_months query');
+                // Return empty array for user months, but still process example months if enabled
+            } else {
+                console.log(`[DatabaseService] Filtering user_months by user_id: ${currentUserId}`);
             }
             
-            const { data: userMonthsData, error: userMonthsError } = await this.querySelect('user_months', {
+            // First, do a diagnostic query to check if ANY data exists (just count)
+            if (currentUserId) {
+                try {
+                    const diagnosticUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
+                    diagnosticUrl.searchParams.append('select', 'id');
+                    diagnosticUrl.searchParams.append('user_id', `eq.${currentUserId}`);
+                    diagnosticUrl.searchParams.append('limit', '1');
+                    
+                    const diagnosticResponse = await fetch(diagnosticUrl.toString(), {
+                        method: 'GET',
+                        headers: this._getAuthHeaders()
+                    });
+                    
+                    const diagnosticText = await diagnosticResponse.text();
+                    const diagnosticData = diagnosticText ? JSON.parse(diagnosticText) : [];
+                    console.log(`[DatabaseService] Diagnostic query: Status ${diagnosticResponse.status}, Found ${Array.isArray(diagnosticData) ? diagnosticData.length : 'unknown'} rows`);
+                    console.log(`[DatabaseService] Diagnostic response headers:`, {
+                        'content-range': diagnosticResponse.headers.get('content-range'),
+                        'content-length': diagnosticResponse.headers.get('content-length')
+                    });
+                } catch (diagError) {
+                    console.warn('[DatabaseService] Diagnostic query failed:', diagError);
+                }
+            }
+            
+            // Query user_months with user_id filter
+            const userMonthsQueryOptions = {
                 select: '*',
                 order: [
                     { column: 'year', ascending: false },
                     { column: 'month', ascending: false }
                 ]
-            });
+            };
+            
+            if (currentUserId) {
+                userMonthsQueryOptions.filter = { user_id: currentUserId };
+            }
+            
+            const { data: userMonthsData, error: userMonthsError } = await this.querySelect('user_months', userMonthsQueryOptions);
             
             if (userMonthsError) {
                 console.error('[DatabaseService] Error fetching user_months:', userMonthsError);
@@ -908,27 +953,31 @@ const DatabaseService = {
             if (safeUserMonthsData.length > 0) {
                 console.log('[DatabaseService] user_months data:', safeUserMonthsData.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`));
             } else {
-                console.warn('[DatabaseService] No user months found in database. If you just imported data, try refreshing the page.');
-                // Always retry once if no data found (helps with timing issues after import)
-                console.log('[DatabaseService] No data found - waiting 500ms and retrying query...');
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const retryResult = await this.querySelect('user_months', {
-                    select: '*',
-                    order: [
-                        { column: 'year', ascending: false },
-                        { column: 'month', ascending: false }
-                    ]
-                });
-                if (!retryResult.error && retryResult.data) {
-                    const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
-                    if (retryData.length > 0) {
-                        console.log(`[DatabaseService] Retry successful: found ${retryData.length} months`);
-                        safeUserMonthsData = retryData;
-                    } else {
-                        console.warn('[DatabaseService] Retry also returned empty array - data may not be committed yet or RLS policy may be blocking');
+                if (currentUserId) {
+                    console.warn('[DatabaseService] No user months found in database. If you just imported data, try refreshing the page.');
+                    // Always retry once if no data found (helps with timing issues after import)
+                    console.log('[DatabaseService] No data found - waiting 500ms and retrying query...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const retryQueryOptions = {
+                        select: '*',
+                        order: [
+                            { column: 'year', ascending: false },
+                            { column: 'month', ascending: false }
+                        ],
+                        filter: { user_id: currentUserId }
+                    };
+                    const retryResult = await this.querySelect('user_months', retryQueryOptions);
+                    if (!retryResult.error && retryResult.data) {
+                        const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
+                        if (retryData.length > 0) {
+                            console.log(`[DatabaseService] Retry successful: found ${retryData.length} months`);
+                            safeUserMonthsData = retryData;
+                        } else {
+                            console.warn('[DatabaseService] Retry also returned empty array - data may not be committed yet or RLS policy may be blocking');
+                        }
+                    } else if (retryResult.error) {
+                        console.error('[DatabaseService] Retry query failed:', retryResult.error);
                     }
-                } else if (retryResult.error) {
-                    console.error('[DatabaseService] Retry query failed:', retryResult.error);
                 }
             }
             
@@ -950,7 +999,7 @@ const DatabaseService = {
                 if (exampleMonthsError) {
                     // If table doesn't exist yet, log warning but don't fail
                     if (exampleMonthsError.message && exampleMonthsError.message.includes('relation') && exampleMonthsError.message.includes('does not exist')) {
-                        console.warn('[DatabaseService] example_months table does not exist yet. Run schema-fresh-install.sql to create it.');
+                        console.warn('[DatabaseService] example_months table does not exist yet. Run 01-schema-fresh-install.sql to create it.');
                         exampleMonthsData = [];
                     } else {
                         console.error('[DatabaseService] Error fetching example_months:', exampleMonthsError);
@@ -1076,9 +1125,18 @@ const DatabaseService = {
             } else {
                 // Not found in example_months (empty array or error), check user_months
                 console.log(`[DatabaseService] Not found in example_months (empty or error), checking user_months...`);
+                
+                // Get current user ID for filtering
+                const currentUserId = this._getCurrentUserId();
+                if (!currentUserId) {
+                    console.log(`[DatabaseService] No authenticated user - skipping user_months query`);
+                    return null;
+                }
+                
+                const userFetchFilter = { year: year, month: month, user_id: currentUserId };
                 const userFetchResult = await this.querySelect('user_months', {
                     select: '*',
-                    filter: { year: year, month: month },
+                    filter: userFetchFilter,
                     limit: 1
                 });
                 
@@ -1154,13 +1212,6 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
-            const monthRecord = this.transformMonthToDatabase(monthData, year, month);
-            console.log(`[DatabaseService] Transformed month record:`, {
-                year: monthRecord.year,
-                month: monthRecord.month,
-                month_name: monthRecord.month_name
-            });
-            
             // Determine which table to use
             // If forceUserTable is true (for imports), always use user_months
             // Otherwise, check if it's example data
@@ -1173,12 +1224,34 @@ const DatabaseService = {
                 console.log(`[DatabaseService] Using ${tableName} table (determined from monthKey)`);
             }
             
+            // Get user ID if saving to user_months table
+            let userId = null;
+            if (tableName === 'user_months') {
+                userId = this._getCurrentUserId();
+                if (!userId) {
+                    throw new Error('User not authenticated - cannot save to user_months without authentication');
+                }
+                console.log(`[DatabaseService] User ID for user_months: ${userId}`);
+            }
+            
+            const monthRecord = this.transformMonthToDatabase(monthData, year, month, userId);
+            console.log(`[DatabaseService] Transformed month record:`, {
+                year: monthRecord.year,
+                month: monthRecord.month,
+                month_name: monthRecord.month_name,
+                user_id: monthRecord.user_id || 'N/A (example_months)'
+            });
+            
             console.log(`[DatabaseService] Upserting to ${tableName} table...`);
             
             // Use centralized upsert method
-            const upsertResult = await this.queryUpsert(tableName, monthRecord, {
-                filter: { year, month }
-            });
+            // For user_months, include user_id in filter to ensure we update the correct user's record
+            const upsertOptions = { filter: { year, month } };
+            if (tableName === 'user_months' && userId) {
+                upsertOptions.filter.user_id = userId;
+            }
+            
+            const upsertResult = await this.queryUpsert(tableName, monthRecord, upsertOptions);
             
             if (upsertResult.error) {
                 console.error(`[DatabaseService] Error upserting to ${tableName}:`, upsertResult.error);
@@ -1276,10 +1349,18 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
             
+            // Get user ID for user_months deletion
+            const userId = this._getCurrentUserId();
+            if (!userId) {
+                throw new Error('User not authenticated - cannot delete from user_months without authentication');
+            }
+            console.log(`[DatabaseService] User ID for deletion: ${userId}`);
+            
             // Only delete from user_months (never from example_months) using centralized query interface
+            // Include user_id in filter to ensure we only delete the current user's records
             console.log(`[DatabaseService] Deleting from user_months table...`);
             
-            const deleteResult = await this.queryDelete('user_months', { year, month });
+            const deleteResult = await this.queryDelete('user_months', { year, month, user_id: userId });
             
             if (deleteResult.error) {
                 console.error(`[DatabaseService] Error deleting from user_months:`, deleteResult.error);
@@ -1655,10 +1736,10 @@ const DatabaseService = {
      * @param {number} month - Month
      * @returns {Object} Database format record
      */
-    transformMonthToDatabase(monthData, year, month) {
+    transformMonthToDatabase(monthData, year, month, userId = null) {
         const now = new Date().toISOString();
         
-        return {
+        const record = {
             year: year,
             month: month,
             month_name: monthData.monthName || this.getMonthName(month),
@@ -1672,6 +1753,13 @@ const DatabaseService = {
             updated_at: now,
             created_at: monthData.createdAt || now
         };
+        
+        // Include user_id only for user_months table
+        if (userId !== null) {
+            record.user_id = userId;
+        }
+        
+        return record;
     },
     
     /**

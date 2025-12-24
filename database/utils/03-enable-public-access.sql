@@ -1,6 +1,8 @@
 -- Enable Public Access for Money Tracker Tables
 -- Run this script in Supabase SQL Editor to allow anonymous access
--- This is needed if you're not using authentication
+-- Run this AFTER 01-schema-fresh-install.sql
+-- This is needed ONLY if you're not using Supabase authentication
+-- The default schema uses authenticated user access
 
 -- Drop ALL existing policies first (to avoid conflicts)
 -- Use CASCADE to drop dependent policies
