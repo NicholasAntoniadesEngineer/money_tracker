@@ -23,15 +23,18 @@
     vertical-align: middle;
 }
 
-/* Allow button text to wrap on mobile */
+/* Buttons on mobile - shrink to fit or wrap to next line, never wrap text */
 @media (max-width: 480px) {
     .btn {
-        white-space: normal;
-        word-wrap: break-word;
-        height: auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 1.9rem;
         min-height: 1.9rem;
+        max-width: 100%;
+        min-width: 0;
         padding: 0.3rem 0.4rem;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
 }
 
