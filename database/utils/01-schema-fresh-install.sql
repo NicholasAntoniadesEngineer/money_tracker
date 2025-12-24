@@ -11,6 +11,7 @@
 -- User months table (for user-created months)
 CREATE TABLE IF NOT EXISTS user_months (
     id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
     month_name TEXT NOT NULL,
@@ -23,7 +24,7 @@ CREATE TABLE IF NOT EXISTS user_months (
     pots JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(year, month)
+    UNIQUE(user_id, year, month)
 );
 
 -- Example months table (for protected example data)
@@ -44,9 +45,10 @@ CREATE TABLE IF NOT EXISTS example_months (
     UNIQUE(year, month)
 );
 
--- Pots table
+-- Pots table (user-specific savings pots)
 CREATE TABLE IF NOT EXISTS pots (
     id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
     name TEXT NOT NULL,
     estimated_amount NUMERIC(12, 2) DEFAULT 0,
     actual_amount NUMERIC(12, 2) DEFAULT 0,
@@ -70,10 +72,13 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_user_months_user_id ON user_months(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_months_year_month ON user_months(year, month);
+CREATE INDEX IF NOT EXISTS idx_user_months_user_year_month ON user_months(user_id, year, month);
 CREATE INDEX IF NOT EXISTS idx_user_months_created_at ON user_months(created_at);
 CREATE INDEX IF NOT EXISTS idx_example_months_year_month ON example_months(year, month);
 CREATE INDEX IF NOT EXISTS idx_example_months_created_at ON example_months(created_at);
+CREATE INDEX IF NOT EXISTS idx_pots_user_id ON pots(user_id);
 CREATE INDEX IF NOT EXISTS idx_pots_created_at ON pots(created_at);
 CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id);
 
