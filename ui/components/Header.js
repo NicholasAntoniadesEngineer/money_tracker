@@ -4,6 +4,9 @@
  */
 
 class Header {
+    static updateInProgress = false;
+    static lastUpdateState = null;
+    
     /**
      * Check if we're on the auth page
      * @returns {boolean} True if on auth page
@@ -340,19 +343,49 @@ class Header {
     static setupAuthStateListener() {
         console.log('[Header] Setting up auth state listener...');
         
-        // Listen for auth state changes
-        window.addEventListener('auth:signin', () => {
+        // Remove existing listeners to prevent duplicates
+        if (this._authSignInHandler) {
+            window.removeEventListener('auth:signin', this._authSignInHandler);
+        }
+        if (this._authSignOutHandler) {
+            window.removeEventListener('auth:signout', this._authSignOutHandler);
+        }
+        if (this._authInitialSessionHandler) {
+            window.removeEventListener('auth:initial_session', this._authInitialSessionHandler);
+        }
+        
+        // Create handler functions
+        this._authSignInHandler = () => {
             console.log('[Header] auth:signin event received, updating header...');
             // Small delay to ensure AuthService state is updated
             setTimeout(() => {
                 this.updateHeader();
             }, 100);
-        });
+        };
         
-        window.addEventListener('auth:signout', () => {
+        this._authSignOutHandler = () => {
             console.log('[Header] auth:signout event received, updating header...');
             this.updateHeader();
-        });
+        };
+        
+        // Listen for initial session event (only once, with debounce)
+        this._authInitialSessionHandler = () => {
+            console.log('[Header] auth:initial_session event received');
+            // Only update if we haven't updated recently (debounce)
+            if (!this.updateInProgress) {
+                setTimeout(() => {
+                    if (!this.updateInProgress) {
+                        console.log('[Header] Executing header update after initial_session event (200ms delay)...');
+                        this.updateHeader();
+                    }
+                }, 200);
+            }
+        };
+        
+        // Listen for auth state changes
+        window.addEventListener('auth:signin', this._authSignInHandler);
+        window.addEventListener('auth:signout', this._authSignOutHandler);
+        window.addEventListener('auth:initial_session', this._authInitialSessionHandler);
         
         console.log('[Header] Auth state listener set up successfully');
     }
@@ -362,64 +395,88 @@ class Header {
      */
     static updateHeader() {
         console.log('[Header] ========== UPDATE HEADER CALLED ==========');
+        
+        if (this.updateInProgress) {
+            console.log('[Header] Update already in progress, skipping duplicate call');
+            return;
+        }
+        
+        this.updateInProgress = true;
         console.log('[Header] updateHeader() called');
         
-        const header = document.querySelector('.main-header');
-        console.log('[Header] Header element found:', !!header);
-        
-        if (!header) {
-            console.warn('[Header] Header element not found in DOM');
-            return;
-        }
-        
-        const nav = header.querySelector('.main-navigation');
-        console.log('[Header] Navigation element found:', !!nav);
-        
-        if (!nav) {
-            console.warn('[Header] Navigation element not found in header');
-            return;
-        }
-        
-        const oldUserMenu = nav.querySelector('.header-user-menu');
-        if (oldUserMenu) {
-            console.log('[Header] Removing existing user menu');
-            oldUserMenu.remove();
-        }
-        
-        // Check authentication status
-        // Be more resilient - check both isAuthenticated() and direct session/user state
-        let isAuthenticated = false;
-        if (window.AuthService) {
-            // Check both the method and direct state to handle timeout scenarios
-            const methodCheck = window.AuthService.isAuthenticated();
-            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
-            isAuthenticated = methodCheck || directCheck;
-        }
-        
-        console.log('[Header] Authentication status:', {
-            hasAuthService: !!window.AuthService,
-            isAuthenticated: isAuthenticated,
-            methodCheck: window.AuthService?.isAuthenticated(),
-            directCheck: window.AuthService?.currentUser !== null && window.AuthService?.session !== null,
-            hasCurrentUser: !!window.AuthService?.getCurrentUser(),
-            userEmail: window.AuthService?.getCurrentUser()?.email
-        });
-        
-        // Add user menu if authenticated
-        if (isAuthenticated) {
-            const user = window.AuthService.getCurrentUser();
-            const userEmail = user?.email || 'User';
-            const userInitials = this.getUserInitials(userEmail);
-            const basePath = this.getBasePath();
-            const settingsHref = basePath + 'settings.html';
+        try {
+            const header = document.querySelector('.main-header');
+            console.log('[Header] Header element found:', !!header);
             
-            console.log('[Header] Adding user menu:', {
-                userEmail: userEmail,
-                userInitials: userInitials,
-                settingsHref: settingsHref
+            if (!header) {
+                console.warn('[Header] Header element not found in DOM');
+                return;
+            }
+            
+            const nav = header.querySelector('.main-navigation');
+            console.log('[Header] Navigation element found:', !!nav);
+            
+            if (!nav) {
+                console.warn('[Header] Navigation element not found in header');
+                return;
+            }
+            
+            // Check authentication status
+            // Be more resilient - check both isAuthenticated() and direct session/user state
+            let isAuthenticated = false;
+            let currentUserEmail = null;
+            if (window.AuthService) {
+                // Check both the method and direct state to handle timeout scenarios
+                const methodCheck = window.AuthService.isAuthenticated();
+                const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+                isAuthenticated = methodCheck || directCheck;
+                const user = window.AuthService.getCurrentUser();
+                currentUserEmail = user?.email || null;
+            }
+            
+            const currentState = {
+                isAuthenticated: isAuthenticated,
+                userEmail: currentUserEmail
+            };
+            
+            // Check if state has actually changed
+            if (this.lastUpdateState && 
+                this.lastUpdateState.isAuthenticated === currentState.isAuthenticated &&
+                this.lastUpdateState.userEmail === currentState.userEmail) {
+                console.log('[Header] Auth state unchanged, skipping update');
+                return;
+            }
+            
+            console.log('[Header] Authentication status:', {
+                hasAuthService: !!window.AuthService,
+                isAuthenticated: isAuthenticated,
+                methodCheck: window.AuthService?.isAuthenticated(),
+                directCheck: window.AuthService?.currentUser !== null && window.AuthService?.session !== null,
+                hasCurrentUser: !!window.AuthService?.getCurrentUser(),
+                userEmail: currentUserEmail
             });
             
-            const userInfoHtml = `
+            const oldUserMenu = nav.querySelector('.header-user-menu');
+            if (oldUserMenu) {
+                console.log('[Header] Removing existing user menu');
+                oldUserMenu.remove();
+            }
+            
+            // Add user menu if authenticated
+            if (isAuthenticated) {
+                const user = window.AuthService.getCurrentUser();
+                const userEmail = user?.email || 'User';
+                const userInitials = this.getUserInitials(userEmail);
+                const basePath = this.getBasePath();
+                const settingsHref = basePath + 'settings.html';
+                
+                console.log('[Header] Adding user menu:', {
+                    userEmail: userEmail,
+                    userInitials: userInitials,
+                    settingsHref: settingsHref
+                });
+                
+                const userInfoHtml = `
                     <div class="header-user-menu">
                         <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                             <span class="user-initials">${userInitials}</span>
@@ -449,15 +506,19 @@ class Header {
                             </button>
                         </div>
                     </div>`;
-            nav.insertAdjacentHTML('beforeend', userInfoHtml);
-            this.initUserMenu();
-            this.initSignOutButton();
-            console.log('[Header] User menu added successfully');
-        } else {
-            console.log('[Header] User not authenticated, not adding user menu');
+                nav.insertAdjacentHTML('beforeend', userInfoHtml);
+                this.initUserMenu();
+                this.initSignOutButton();
+                console.log('[Header] User menu added successfully');
+            } else {
+                console.log('[Header] User not authenticated, not adding user menu');
+            }
+            
+            this.lastUpdateState = currentState;
+            console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
+        } finally {
+            this.updateInProgress = false;
         }
-        
-        console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
     }
 }
 
