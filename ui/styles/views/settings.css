@@ -20,6 +20,9 @@
     gap: var(--spacing-md);
     flex-wrap: wrap;
     margin-bottom: var(--spacing-sm);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Ensure all buttons in settings rows align properly */
@@ -66,6 +69,16 @@
     vertical-align: middle;
     max-width: 100%;
     min-width: 0;
+    width: auto;
+}
+
+/* Specific rule for manage payment link to ensure it never exceeds container */
+#manage-payment-link {
+    max-width: 100%;
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .settings-row-full {
@@ -142,6 +155,7 @@
         flex: 0 1 auto;
         min-width: 0;
         max-width: 100%;
+        width: auto;
         font-size: 0.9rem;
         white-space: nowrap;
         overflow: hidden;
@@ -153,6 +167,16 @@
     .settings-row a.btn {
         white-space: nowrap;
         text-align: center;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure manage payment link respects container width on mobile */
+    #manage-payment-link {
+        max-width: 100%;
+        width: auto;
+        flex-shrink: 1;
+        min-width: 0;
     }
     
     .settings-inline-group {

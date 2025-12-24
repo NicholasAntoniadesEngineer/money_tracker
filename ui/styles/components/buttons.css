@@ -16,11 +16,16 @@
     text-decoration: none;
     text-align: center;
     min-height: 1.9rem;
-    height: auto;
+    height: 1.9rem;
     box-sizing: border-box;
     line-height: 1.2;
     white-space: nowrap;
     vertical-align: middle;
+    max-width: 100%;
+    min-width: 0;
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Buttons on mobile - shrink to fit or wrap to next line, never wrap text */

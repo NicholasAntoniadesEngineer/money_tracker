@@ -40,6 +40,7 @@
     border: var(--border-width-standard) solid var(--border-color);
     border-radius: var(--border-radius);
     font-size: 1rem;
+    font-weight: 500;
     transition: var(--transition);
     font-family: inherit;
     background-color: rgba(230, 230, 230, 0.85);
@@ -93,6 +94,12 @@ textarea {
     background-color: rgba(230, 230, 230, 0.85);
     color: var(--text-primary);
     border-color: var(--border-color);
+    font-weight: 500;
+}
+
+/* Ensure select options have consistent font weight */
+select option {
+    font-weight: 500;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
