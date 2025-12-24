@@ -1009,7 +1009,6 @@ const SettingsController = {
         const statusMessage = document.getElementById('subscription-status-message');
         const subscriptionSection = statusContainer ? statusContainer.closest('.settings-section') : null;
         const subscriptionHeading = subscriptionSection ? subscriptionSection.querySelector('h2.section-title') : null;
-        const daysRemainingContainer = document.getElementById('trial-days-remaining');
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         const statusDiv = document.getElementById('subscription-status');
         const subscriptionDetailsContainer = document.getElementById('subscription-details');
@@ -1034,9 +1033,6 @@ const SettingsController = {
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'block';
                 }
-                if (daysRemainingContainer) {
-                    daysRemainingContainer.style.display = 'none';
-                }
                 if (subscriptionDetailsContainer) {
                     subscriptionDetailsContainer.style.display = 'none';
                 }
@@ -1051,19 +1047,9 @@ const SettingsController = {
             
             if (subscriptionHeading) {
                 if (subscription.status === 'active') {
-                    const daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
-                    if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
-                        subscriptionHeading.textContent = `Subscription - ${planName} (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
-                    } else {
-                        subscriptionHeading.textContent = `Subscription - ${planName}`;
-                    }
+                    subscriptionHeading.textContent = `Subscription - ${planName}`;
                 } else if (subscription.status === 'trial') {
-                    const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
-                    if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
-                        subscriptionHeading.textContent = `Subscription - Trial (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
-                    } else {
-                        subscriptionHeading.textContent = 'Subscription - Trial Expired';
-                    }
+                    subscriptionHeading.textContent = 'Subscription - Trial';
                 } else {
                     subscriptionHeading.textContent = 'Subscription';
                 }
@@ -1086,19 +1072,12 @@ const SettingsController = {
                     if (startSubscriptionBtn) {
                         startSubscriptionBtn.style.display = 'block';
                     }
-                    if (daysRemainingContainer) {
-                        daysRemainingContainer.style.display = 'none';
-                    }
                 } else {
                     const trialPeriodDays = plan ? (plan.trial_period_days || 30) : 30;
                     statusText = `You are currently on a ${trialPeriodDays}-day trial.`;
                     statusClass = 'subscription-message-info';
                     statusBgColor = 'rgba(123, 171, 138, 0.2)';
                     statusBorderColor = 'var(--success-color)';
-                    if (daysRemainingContainer) {
-                        daysRemainingContainer.style.display = 'block';
-                        daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
-                    }
                     if (startSubscriptionBtn) {
                         startSubscriptionBtn.style.display = 'none';
                     }
@@ -1121,10 +1100,6 @@ const SettingsController = {
                         statusClass = 'subscription-message-success';
                         statusBgColor = 'rgba(123, 171, 138, 0.3)';
                         statusBorderColor = 'var(--success-color)';
-                        if (daysRemainingContainer) {
-                            daysRemainingContainer.style.display = 'block';
-                            daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
-                        }
                     }
                 } else {
                     statusText = `Your ${planName} subscription is active.`;
@@ -1144,9 +1119,6 @@ const SettingsController = {
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'block';
                 }
-                if (daysRemainingContainer) {
-                    daysRemainingContainer.style.display = 'none';
-                }
             }
             
             statusMessage.textContent = statusText;
@@ -1157,60 +1129,39 @@ const SettingsController = {
             if (subscriptionDetailsContainer && subscriptionDetailsContent) {
                 const detailsHtml = [];
                 
-                if (plan) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Plan Name:</strong><span>${plan.plan_name || 'N/A'}</span></div>`);
-                    if (plan.plan_description) {
-                        detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Description:</strong><span>${plan.plan_description}</span></div>`);
-                    }
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Price:</strong><span>${this.formatCurrency(plan.price_amount, plan.price_currency)}/${plan.billing_interval || 'month'}</span></div>`);
+                // Status (always show)
+                const subscriptionStatusText = subscription.status ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'N/A';
+                detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span>${subscriptionStatusText}</span></div>`);
+                
+                // Days Remaining (calculate and show)
+                let daysRemaining = null;
+                if (subscription.status === 'trial') {
+                    daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
+                } else if (subscription.status === 'active') {
+                    daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
                 }
                 
-                detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span style="text-transform: capitalize; font-weight: 600;">${subscription.status || 'N/A'}</span></div>`);
+                if (daysRemaining !== null && daysRemaining !== undefined) {
+                    const daysText = daysRemaining === 0 ? 'Expired' : `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Days Remaining:</strong><span>${daysText}</span></div>`);
+                }
                 
+                // Trial Start (show if available)
                 if (subscription.trial_start_date) {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial Start:</strong><span>${this.formatDate(subscription.trial_start_date)}</span></div>`);
                 }
                 
+                // Trial End (show if available)
                 if (subscription.trial_end_date) {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial End:</strong><span>${this.formatDate(subscription.trial_end_date)}</span></div>`);
                 }
                 
-                if (subscription.subscription_start_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription Start:</strong><span>${this.formatDate(subscription.subscription_start_date)}</span></div>`);
-                }
-                
-                if (subscription.subscription_end_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscription.subscription_end_date)}</span></div>`);
-                }
-                
-                if (subscription.next_billing_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing Date:</strong><span>${this.formatDate(subscription.next_billing_date)}</span></div>`);
-                }
-                
-                if (subscription.last_payment_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Last Payment:</strong><span>${this.formatDate(subscription.last_payment_date)}</span></div>`);
-                }
-                
-                if (subscription.cancellation_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Cancellation Date:</strong><span>${this.formatDate(subscription.cancellation_date)}</span></div>`);
-                }
-                
-                if (subscription.cancellation_reason) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Cancellation Reason:</strong><span>${subscription.cancellation_reason}</span></div>`);
-                }
-                
-                if (subscription.stripe_customer_id) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Stripe Customer ID:</strong><span style="font-family: monospace; font-size: 0.85em;">${subscription.stripe_customer_id}</span></div>`);
-                }
-                
-                if (subscription.stripe_subscription_id) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Stripe Subscription ID:</strong><span style="font-family: monospace; font-size: 0.85em;">${subscription.stripe_subscription_id}</span></div>`);
-                }
-                
+                // Created (always show if available)
                 if (subscription.created_at) {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;"><strong>Created:</strong><span>${this.formatDate(subscription.created_at)}</span></div>`);
                 }
                 
+                // Always show the details box if we have a subscription
                 if (detailsHtml.length > 0) {
                     subscriptionDetailsContent.innerHTML = detailsHtml.join('');
                     subscriptionDetailsContainer.style.display = 'block';

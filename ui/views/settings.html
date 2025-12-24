@@ -71,38 +71,6 @@
         </section>
 
         <section class="settings-section form-section">
-            <h2 class="section-title">Subscription</h2>
-            
-            <div id="subscription-status-container" class="subscription-status-container">
-                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
-                    Loading subscription status...
-                </div>
-                <div id="trial-days-remaining" class="trial-days-remaining" style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: var(--spacing-xs); display: none;"></div>
-                
-                <div id="subscription-details" class="subscription-details" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: var(--background-secondary, rgba(0, 0, 0, 0.02)); border-radius: var(--border-radius);">
-                    <h3 style="margin: 0 0 var(--spacing-sm) 0; font-size: 1.1rem; font-weight: 600;">Subscription Details</h3>
-                    <div id="subscription-details-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
-                        <!-- Details will be populated by JavaScript -->
-                    </div>
-                </div>
-            </div>
-            
-            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm);">
-                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
-                    Start Subscription (€5/month)
-                </button>
-                <button id="refresh-subscription-button" class="btn btn-secondary">
-                    Refresh Status
-                </button>
-                <a id="manage-payment-link" href="../../payments/views/payment.html" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">
-                    Manage Subscription & Payment
-                </a>
-            </div>
-            
-            <div id="subscription-status" class="settings-status"></div>
-        </section>
-
-        <section class="settings-section form-section">
             <h2 class="section-title">Export & Delete</h2>
             
             <div class="settings-row">
@@ -128,6 +96,37 @@
             <div class="settings-row">
                 <button id="delete-all-user-data-button" class="btn btn-danger">Delete All User Data from Supabase</button>
             </div>
+        </section>
+
+        <section class="settings-section form-section">
+            <h2 class="section-title">Subscription</h2>
+            
+            <div id="subscription-status-container" class="subscription-status-container">
+                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
+                    Loading subscription status...
+                </div>
+                
+                <div id="subscription-details" class="subscription-details" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+                    <h3 style="margin: 0 0 var(--spacing-md) 0; font-size: 1.1rem; font-weight: 600;">Subscription Details</h3>
+                    <div id="subscription-details-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
+                        <!-- Details will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm);">
+                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
+                    Start Subscription (€5/month)
+                </button>
+                <button id="refresh-subscription-button" class="btn btn-action">
+                    Refresh Status
+                </button>
+                <a id="manage-payment-link" href="../../payments/views/payment.html" class="btn btn-action">
+                    Manage Subscription & Payment
+                </a>
+            </div>
+            
+            <div id="subscription-status" class="settings-status"></div>
         </section>
 
         <div id="file-operations-status" class="settings-status"></div>

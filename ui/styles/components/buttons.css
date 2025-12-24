@@ -20,6 +20,20 @@
     box-sizing: border-box;
     line-height: 1;
     white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* Ensure anchor tags styled as buttons match button styling exactly */
+a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+a.btn:hover {
+    text-decoration: none;
 }
 
 .btn-primary {
