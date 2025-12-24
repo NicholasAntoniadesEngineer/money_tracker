@@ -80,6 +80,7 @@ const AuthService = {
                 
                 if (sessionError) {
                     console.warn('[AuthService] Session check error (non-blocking):', sessionError.message);
+                    // Don't clear existing session state on error - might be network issue
                     return;
                 }
                 
@@ -93,10 +94,17 @@ const AuthService = {
                     });
                 } else {
                     console.log('[AuthService] No existing session found');
+                    // Only clear session if we actually got a response saying no session
+                    // Don't clear on timeout - might still be valid
+                    this.session = null;
+                    this.currentUser = null;
                 }
             }).catch(error => {
                 console.warn('[AuthService] Session check timed out or failed (non-blocking):', error.message);
-                // Continue without session - user can still sign in
+                // On timeout, don't clear existing session state - might still be valid
+                // The auth state listener will handle actual session changes
+                // Only clear if we're certain there's no session
+                console.log('[AuthService] Session check timeout - preserving existing state if any');
             });
             
             // Don't await - let it run in background, continue with initialization
@@ -1223,110 +1231,96 @@ const AuthService = {
 
     /**
      * Sign out the current user
-     * Stops all operations, confirms sign out on server, clears state, and redirects
+     * Forcefully stops all operations, clears state immediately, and redirects
+     * Does not wait for server confirmation - forces immediate logout
      * @returns {Promise<{success: boolean, error: string|null}>}
      */
     async signOut() {
+        console.log('[AuthService] ========== FORCE SIGN OUT INITIATED ==========');
+        
+        // Stop all ongoing operations immediately (don't wait)
+        this.stopPeriodicSessionValidation();
+        
+        // Clear local state immediately (before any async operations)
+        this.currentUser = null;
+        this.session = null;
+        console.log('[AuthService] Local state cleared immediately');
+        
+        // Clear Supabase session data from localStorage BEFORE redirect
+        // This prevents Supabase from auto-restoring the session on page reload
+        // Supabase stores session with keys like: sb-<project-ref>-auth-token
         try {
-            console.log('[AuthService] Sign out initiated - stopping all operations');
+            const supabaseUrl = this.client?.supabaseUrl || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const projectRef = supabaseUrl.split('//')[1]?.split('.')[0] || 'ofutzrxfbrgtbkyafndv';
+            const sessionKey = `sb-${projectRef}-auth-token`;
             
-            // Stop all ongoing operations immediately
-            this.stopPeriodicSessionValidation();
+            console.log('[AuthService] Clearing Supabase session from localStorage:', sessionKey);
+            localStorage.removeItem(sessionKey);
             
-            // Clear local state immediately
-            this.currentUser = null;
-            this.session = null;
-            
-            // Force sign out on server side if client is available
-            if (this.client) {
-                try {
-                    console.log('[AuthService] Confirming sign out on server...');
-                    const { error } = await this.client.auth.signOut();
-                    
-                    if (error) {
-                        // Log error but continue with logout - server may have already cleared session
-                        console.warn('[AuthService] Server sign out returned error (may be expected):', error.message);
-                    } else {
-                        console.log('[AuthService] Server confirmed sign out');
-                    }
-                } catch (signOutError) {
-                    // Log error but continue with logout - network errors shouldn't block logout
-                    console.warn('[AuthService] Server sign out error (continuing with logout):', signOutError.message);
+            // Also clear any other Supabase-related auth keys
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('sb-') && (key.includes('auth') || key.includes('token')))) {
+                    keysToRemove.push(key);
                 }
             }
+            keysToRemove.forEach(key => {
+                console.log('[AuthService] Removing Supabase localStorage key:', key);
+                localStorage.removeItem(key);
+            });
             
-            // Dispatch sign out event
-            window.dispatchEvent(new CustomEvent('auth:signout'));
-            
-            console.log('[AuthService] Sign out complete - redirecting to sign-in');
-            
-            // Redirect directly to sign-in page (no return URL)
-            const currentPath = window.location.pathname;
-            console.log('[AuthService] Current path for redirect:', currentPath);
-            console.log('[AuthService] Current URL:', window.location.href);
-            
-            // Build absolute path to auth.html
-            // auth.html is always at: /ui/views/auth.html (or similar structure)
-            const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-            
-            // Find where 'ui' is in the path, or construct from current location
-            let authPath;
-            if (currentPath.includes('/views/')) {
-                // We're in views folder, auth.html is in same folder
-                // Replace current file with auth.html
-                authPath = currentPath.replace(/[^/]+$/, 'auth.html');
-            } else {
-                // We're in ui root or elsewhere
-                // Find 'ui' in path and append views/auth.html
-                const uiIndex = pathParts.indexOf('ui');
-                if (uiIndex >= 0) {
-                    // Build path: /.../ui/views/auth.html
-                    const baseParts = pathParts.slice(0, uiIndex + 1);
-                    authPath = '/' + baseParts.join('/') + '/views/auth.html';
-                } else {
-                    // Fallback: try to construct relative path
-                    authPath = 'views/auth.html';
-                }
-            }
-            
-            console.log('[AuthService] Determined auth path:', authPath);
-            console.log('[AuthService] Redirecting directly to:', authPath);
-            window.location.href = authPath;
-            
-            return { success: true, error: null };
-        } catch (error) {
-            console.error('[AuthService] Sign out exception:', error);
-            // Even on exception, clear state and redirect
-            this.currentUser = null;
-            this.session = null;
-            this.stopPeriodicSessionValidation();
-            
-            // Redirect directly to sign-in page (no return URL)
-            const currentPath = window.location.pathname;
-            console.log('[AuthService] Current path for redirect (exception):', currentPath);
-            
-            // Build absolute path to auth.html
-            let authPath;
-            if (currentPath.includes('/views/')) {
-                // We're in views folder, auth.html is in same folder
-                authPath = currentPath.replace(/[^/]+$/, 'auth.html');
-            } else {
-                // We're in ui root or elsewhere
-                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                const uiIndex = pathParts.indexOf('ui');
-                if (uiIndex >= 0) {
-                    const baseParts = pathParts.slice(0, uiIndex + 1);
-                    authPath = '/' + baseParts.join('/') + '/views/auth.html';
-                } else {
-                    authPath = 'views/auth.html';
-                }
-            }
-            
-            console.log('[AuthService] Exception during sign out - redirecting to:', authPath);
-            window.location.href = authPath;
-            
-            return { success: true, error: null };
+            console.log('[AuthService] Cleared', keysToRemove.length + 1, 'Supabase session keys from localStorage');
+        } catch (clearError) {
+            console.warn('[AuthService] Error clearing Supabase storage:', clearError);
         }
+        
+        // Dispatch sign out event immediately
+        window.dispatchEvent(new CustomEvent('auth:signout'));
+        console.log('[AuthService] Sign out event dispatched');
+        
+        // Attempt server sign-out in background with timeout (don't block on this)
+        if (this.client && this.client.auth) {
+            Promise.race([
+                this.client.auth.signOut(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Server sign out timeout')), 2000)
+                )
+            ]).then(result => {
+                if (result && result.error) {
+                    console.warn('[AuthService] Server sign out returned error (non-blocking):', result.error.message);
+                } else {
+                    console.log('[AuthService] Server confirmed sign out (background)');
+                }
+            }).catch(error => {
+                // Timeout or error - continue with logout anyway
+                console.warn('[AuthService] Server sign out timeout/error (non-blocking):', error.message);
+            });
+        }
+        
+        // Determine redirect path
+        const currentPath = window.location.pathname;
+        let authPath;
+        
+        if (currentPath.includes('/views/')) {
+            // We're in views folder, auth.html is in same folder
+            authPath = currentPath.replace(/[^/]+$/, 'auth.html');
+        } else if (currentPath.includes('/ui/')) {
+            // We're in ui folder, go to views/auth.html
+            authPath = currentPath.replace(/\/[^/]+$/, '/views/auth.html');
+        } else {
+            // Fallback: try relative path
+            authPath = 'views/auth.html';
+        }
+        
+        console.log('[AuthService] Force redirecting to:', authPath);
+        console.log('[AuthService] ========== FORCE SIGN OUT COMPLETE ==========');
+        
+        // Force immediate redirect - don't wait for anything
+        window.location.href = authPath;
+        
+        // Return immediately (redirect will happen before this)
+        return { success: true, error: null };
     },
     
     /**

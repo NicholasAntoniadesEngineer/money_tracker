@@ -250,7 +250,8 @@ const PotsController = {
         const allMonths = await window.DataManager.getAllMonths();
         let modified = false;
 
-        Object.keys(allMonths).forEach(monthKey => {
+        const monthKeys = Object.keys(allMonths);
+        for (const monthKey of monthKeys) {
             const monthData = allMonths[monthKey];
             if (monthData.pots && Array.isArray(monthData.pots)) {
                 const originalLength = monthData.pots.length;
@@ -261,7 +262,7 @@ const PotsController = {
                     modified = true;
                 }
             }
-        });
+        }
 
         if (modified) {
             await this.loadPotsData();

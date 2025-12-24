@@ -5,6 +5,16 @@
 
 class Header {
     /**
+     * Check if we're on the auth page
+     * @returns {boolean} True if on auth page
+     */
+    static isAuthPage() {
+        const path = window.location.pathname;
+        const filename = path.split('/').pop() || '';
+        return filename.includes('auth.html') || path.includes('/auth.html');
+    }
+
+    /**
      * Get the current page name from the current URL
      */
     static getCurrentPage() {
@@ -60,6 +70,11 @@ class Header {
      * Render the header HTML
      */
     static render() {
+        // Don't render navigation on auth page
+        if (this.isAuthPage()) {
+            return '';
+        }
+        
         const currentPage = this.getCurrentPage();
         const basePath = this.getBasePath();
         const isInViews = window.location.pathname.includes('/views/');
@@ -78,23 +93,30 @@ class Header {
         }).join('\n                ');
 
         // Get user info if authenticated
+        // Be resilient to session check timeouts - check both method and direct state
         let userInfoHtml = '';
-        if (window.AuthService && window.AuthService.isAuthenticated()) {
-            const user = window.AuthService.getCurrentUser();
-            const userEmail = user?.email || 'User';
-            const userInitials = this.getUserInitials(userEmail);
-            const settingsHref = basePath + 'settings.html';
-            userInfoHtml = `
-            <div class="header-user-menu">
-                <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
-                    <span class="user-initials">${userInitials}</span>
-                </button>
-                <div class="user-dropdown-menu" id="user-dropdown-menu">
-                    <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
-                    <div class="user-dropdown-username">${userEmail}</div>
-                    <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
-                </div>
-            </div>`;
+        if (window.AuthService) {
+            const methodCheck = window.AuthService.isAuthenticated();
+            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+            const isAuthenticated = methodCheck || directCheck;
+            
+            if (isAuthenticated) {
+                const user = window.AuthService.getCurrentUser() || window.AuthService.currentUser;
+                const userEmail = user?.email || 'User';
+                const userInitials = this.getUserInitials(userEmail);
+                const settingsHref = basePath + 'settings.html';
+                userInfoHtml = `
+                <div class="header-user-menu">
+                    <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
+                        <span class="user-initials">${userInitials}</span>
+                    </button>
+                    <div class="user-dropdown-menu" id="user-dropdown-menu">
+                        <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
+                        <div class="user-dropdown-username">${userEmail}</div>
+                        <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                    </div>
+                </div>`;
+            }
         }
 
         return `
@@ -123,6 +145,12 @@ class Header {
         console.log('[Header] ========== HEADER INIT STARTED ==========');
         console.log('[Header] init() called');
         
+        // Don't initialize header on auth page
+        if (this.isAuthPage()) {
+            console.log('[Header] On auth page, skipping header initialization');
+            return;
+        }
+        
         // Wait for AuthService to be available if it exists
         if (window.AuthService && !window.AuthService.client) {
             console.log('[Header] AuthService available but client not initialized, initializing...');
@@ -148,14 +176,20 @@ class Header {
             hasBody: !!body
         });
         
+        const headerHtml = this.render();
+        if (!headerHtml) {
+            console.log('[Header] No header to render, skipping');
+            return;
+        }
+        
         if (main) {
             // Insert before main element
             console.log('[Header] Inserting header before main element');
-            main.insertAdjacentHTML('beforebegin', this.render());
+            main.insertAdjacentHTML('beforebegin', headerHtml);
         } else if (body) {
             // Insert as first child of body
             console.log('[Header] Inserting header as first child of body');
-            body.insertAdjacentHTML('afterbegin', this.render());
+            body.insertAdjacentHTML('afterbegin', headerHtml);
         } else {
             console.error('[Header] ERROR: Could not find insertion point');
             return;
@@ -253,7 +287,7 @@ class Header {
     static initSignOutButton() {
         const signOutButton = document.getElementById('header-signout-button');
         if (signOutButton) {
-            signOutButton.addEventListener('click', async (e) => {
+            signOutButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -262,8 +296,17 @@ class Header {
                 signOutButton.textContent = 'Signing out...';
                 
                 // Call signOut - it handles everything including redirect
+                // Don't await - signOut will redirect immediately
                 if (window.AuthService) {
-                    await window.AuthService.signOut();
+                    window.AuthService.signOut().catch(error => {
+                        // If signOut fails, force redirect anyway
+                        console.error('[Header] Sign out error, forcing redirect:', error);
+                        const currentPath = window.location.pathname;
+                        const authPath = currentPath.includes('/views/') 
+                            ? currentPath.replace(/[^/]+$/, 'auth.html')
+                            : 'views/auth.html';
+                        window.location.href = authPath;
+                    });
                 } else {
                     // Fallback if AuthService not available
                     window.location.href = 'views/auth.html';
@@ -325,10 +368,20 @@ class Header {
         }
         
         // Check authentication status
-        const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
+        // Be more resilient - check both isAuthenticated() and direct session/user state
+        let isAuthenticated = false;
+        if (window.AuthService) {
+            // Check both the method and direct state to handle timeout scenarios
+            const methodCheck = window.AuthService.isAuthenticated();
+            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+            isAuthenticated = methodCheck || directCheck;
+        }
+        
         console.log('[Header] Authentication status:', {
             hasAuthService: !!window.AuthService,
             isAuthenticated: isAuthenticated,
+            methodCheck: window.AuthService?.isAuthenticated(),
+            directCheck: window.AuthService?.currentUser !== null && window.AuthService?.session !== null,
             hasCurrentUser: !!window.AuthService?.getCurrentUser(),
             userEmail: window.AuthService?.getCurrentUser()?.email
         });
