@@ -1,9 +1,11 @@
 /**
  * Subscription Checker Utility
  * Provides functions to check subscription status and access
+ * VERSION: 2.0.0-auto-trial-creation
  */
 
 const SubscriptionChecker = {
+    VERSION: '2.0.0-auto-trial-creation',
     /**
      * Check if user has active access (trial or paid subscription)
      * @returns {Promise<{hasAccess: boolean, status: string, details: Object|null, error: string|null}>}
@@ -11,6 +13,7 @@ const SubscriptionChecker = {
     async checkAccess() {
         const methodStartTime = Date.now();
         console.log('[SubscriptionChecker] ========== checkAccess() CALLED ==========');
+        console.log('[SubscriptionChecker] SubscriptionChecker VERSION:', this.VERSION);
         console.log('[SubscriptionChecker] checkAccess - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
         
         try {
@@ -262,6 +265,8 @@ const SubscriptionChecker = {
 
 if (typeof window !== 'undefined') {
     window.SubscriptionChecker = SubscriptionChecker;
+    console.log(`[SubscriptionChecker] ✅ SubscriptionChecker loaded - VERSION: ${SubscriptionChecker.VERSION}`);
+    console.log(`[SubscriptionChecker] SubscriptionChecker loaded at: ${new Date().toISOString()}`);
 }
 
 if (typeof module !== 'undefined' && module.exports) {

@@ -225,8 +225,33 @@ const AuthGuard = {
             pathParts: pathParts,
             basePathParts: basePathParts,
             basePath: basePath,
-            paymentUrl: paymentUrl
+            paymentUrl: paymentUrl,
+            origin: baseUrl,
+            fullUrl: paymentUrl
         });
+        
+        // Verify the URL is valid before redirecting
+        try {
+            const testUrl = new URL(paymentUrl);
+            console.log('[AuthGuard] Payment URL is valid:', {
+                href: testUrl.href,
+                origin: testUrl.origin,
+                pathname: testUrl.pathname,
+                search: testUrl.search
+            });
+        } catch (urlError) {
+            console.error('[AuthGuard] ❌ Invalid payment URL:', urlError);
+            console.error('[AuthGuard] Payment URL that failed:', paymentUrl);
+            // Fallback to relative path
+            const fallbackPath = currentPath.includes('/ui/views/') 
+                ? '../../payments/views/payment.html'
+                : currentPath.includes('/ui/')
+                ? '../payments/views/payment.html'
+                : 'payments/views/payment.html';
+            console.log('[AuthGuard] Using fallback path:', fallbackPath);
+            window.location.href = fallbackPath;
+            return;
+        }
         
         window.location.href = paymentUrl;
     },
