@@ -945,7 +945,42 @@ const SettingsController = {
     },
     
     /**
-     * Load and display subscription status
+     * Format date for display
+     */
+    formatDate(dateString) {
+        if (!dateString) {
+            return 'N/A';
+        }
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return dateString;
+        }
+    },
+    
+    /**
+     * Format currency amount
+     */
+    formatCurrency(amount, currency = 'EUR') {
+        if (amount === null || amount === undefined) {
+            return 'N/A';
+        }
+        const currencySymbols = {
+            'EUR': '€',
+            'GBP': '£',
+            'USD': '$'
+        };
+        const symbol = currencySymbols[currency.toUpperCase()] || currency;
+        return `${symbol}${parseFloat(amount).toFixed(2)}`;
+    },
+    
+    /**
+     * Load and display subscription status with detailed information from database
      */
     async loadSubscriptionStatus() {
         const statusContainer = document.getElementById('subscription-status-container');
@@ -953,6 +988,8 @@ const SettingsController = {
         const daysRemainingContainer = document.getElementById('trial-days-remaining');
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         const statusDiv = document.getElementById('subscription-status');
+        const subscriptionDetailsContainer = document.getElementById('subscription-details');
+        const subscriptionDetailsContent = document.getElementById('subscription-details-content');
         
         if (!statusContainer || !statusMessage) {
             return;
@@ -976,6 +1013,9 @@ const SettingsController = {
                 if (daysRemainingContainer) {
                     daysRemainingContainer.style.display = 'none';
                 }
+                if (subscriptionDetailsContainer) {
+                    subscriptionDetailsContainer.style.display = 'none';
+                }
                 return;
             }
             
@@ -983,21 +1023,20 @@ const SettingsController = {
             const plan = result.plan;
             const isActive = window.SubscriptionService.isSubscriptionActive(subscription);
             
-            // Display plan information if available
-            if (plan) {
-                const planInfo = `Plan: ${plan.plan_name} - €${plan.price_amount}/${plan.billing_interval}`;
-                // You can add this to the status message if needed
-            }
+            let statusText = '';
+            let statusClass = '';
+            let statusBgColor = '';
+            let statusBorderColor = '';
             
             if (subscription.status === 'trial') {
                 const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
                 const isExpired = window.SubscriptionService.isTrialExpired(subscription);
                 
                 if (isExpired) {
-                    statusMessage.textContent = 'Your trial has expired. Please subscribe to continue using the application.';
-                    statusMessage.className = 'subscription-message subscription-message-error';
-                    statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
-                    statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+                    statusText = 'Your trial has expired. Please subscribe to continue using the application.';
+                    statusClass = 'subscription-message-error';
+                    statusBgColor = 'rgba(181, 138, 138, 0.2)';
+                    statusBorderColor = 'var(--danger-color)';
                     if (startSubscriptionBtn) {
                         startSubscriptionBtn.style.display = 'block';
                     }
@@ -1005,10 +1044,11 @@ const SettingsController = {
                         daysRemainingContainer.style.display = 'none';
                     }
                 } else {
-                    statusMessage.textContent = 'You are currently on a 30-day trial.';
-                    statusMessage.className = 'subscription-message subscription-message-info';
-                    statusMessage.style.backgroundColor = 'rgba(123, 171, 138, 0.2)';
-                    statusMessage.style.border = 'var(--border-width-standard) solid var(--success-color)';
+                    const trialPeriodDays = plan ? (plan.trial_period_days || 30) : 30;
+                    statusText = `You are currently on a ${trialPeriodDays}-day trial.`;
+                    statusClass = 'subscription-message-info';
+                    statusBgColor = 'rgba(123, 171, 138, 0.2)';
+                    statusBorderColor = 'var(--success-color)';
                     if (daysRemainingContainer) {
                         daysRemainingContainer.style.display = 'block';
                         daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
@@ -1018,10 +1058,10 @@ const SettingsController = {
                     }
                 }
             } else if (subscription.status === 'active') {
-                statusMessage.textContent = 'Your subscription is active.';
-                statusMessage.className = 'subscription-message subscription-message-success';
-                statusMessage.style.backgroundColor = 'rgba(123, 171, 138, 0.3)';
-                statusMessage.style.border = 'var(--border-width-standard) solid var(--success-color)';
+                statusText = 'Your subscription is active.';
+                statusClass = 'subscription-message-success';
+                statusBgColor = 'rgba(123, 171, 138, 0.3)';
+                statusBorderColor = 'var(--success-color)';
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'none';
                 }
@@ -1029,15 +1069,85 @@ const SettingsController = {
                     daysRemainingContainer.style.display = 'none';
                 }
             } else {
-                statusMessage.textContent = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;
-                statusMessage.className = 'subscription-message subscription-message-error';
-                statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
-                statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+                statusText = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;
+                statusClass = 'subscription-message-error';
+                statusBgColor = 'rgba(181, 138, 138, 0.2)';
+                statusBorderColor = 'var(--danger-color)';
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'block';
                 }
                 if (daysRemainingContainer) {
                     daysRemainingContainer.style.display = 'none';
+                }
+            }
+            
+            statusMessage.textContent = statusText;
+            statusMessage.className = `subscription-message ${statusClass}`;
+            statusMessage.style.backgroundColor = statusBgColor;
+            statusMessage.style.border = `var(--border-width-standard) solid ${statusBorderColor}`;
+            
+            if (subscriptionDetailsContainer && subscriptionDetailsContent) {
+                const detailsHtml = [];
+                
+                if (plan) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Plan Name:</strong><span>${plan.plan_name || 'N/A'}</span></div>`);
+                    if (plan.plan_description) {
+                        detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Description:</strong><span>${plan.plan_description}</span></div>`);
+                    }
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Price:</strong><span>${this.formatCurrency(plan.price_amount, plan.price_currency)}/${plan.billing_interval || 'month'}</span></div>`);
+                }
+                
+                detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span style="text-transform: capitalize; font-weight: 600;">${subscription.status || 'N/A'}</span></div>`);
+                
+                if (subscription.trial_start_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial Start:</strong><span>${this.formatDate(subscription.trial_start_date)}</span></div>`);
+                }
+                
+                if (subscription.trial_end_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial End:</strong><span>${this.formatDate(subscription.trial_end_date)}</span></div>`);
+                }
+                
+                if (subscription.subscription_start_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription Start:</strong><span>${this.formatDate(subscription.subscription_start_date)}</span></div>`);
+                }
+                
+                if (subscription.subscription_end_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscription.subscription_end_date)}</span></div>`);
+                }
+                
+                if (subscription.next_billing_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing Date:</strong><span>${this.formatDate(subscription.next_billing_date)}</span></div>`);
+                }
+                
+                if (subscription.last_payment_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Last Payment:</strong><span>${this.formatDate(subscription.last_payment_date)}</span></div>`);
+                }
+                
+                if (subscription.cancellation_date) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Cancellation Date:</strong><span>${this.formatDate(subscription.cancellation_date)}</span></div>`);
+                }
+                
+                if (subscription.cancellation_reason) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Cancellation Reason:</strong><span>${subscription.cancellation_reason}</span></div>`);
+                }
+                
+                if (subscription.stripe_customer_id) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Stripe Customer ID:</strong><span style="font-family: monospace; font-size: 0.85em;">${subscription.stripe_customer_id}</span></div>`);
+                }
+                
+                if (subscription.stripe_subscription_id) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Stripe Subscription ID:</strong><span style="font-family: monospace; font-size: 0.85em;">${subscription.stripe_subscription_id}</span></div>`);
+                }
+                
+                if (subscription.created_at) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;"><strong>Created:</strong><span>${this.formatDate(subscription.created_at)}</span></div>`);
+                }
+                
+                if (detailsHtml.length > 0) {
+                    subscriptionDetailsContent.innerHTML = detailsHtml.join('');
+                    subscriptionDetailsContainer.style.display = 'block';
+                } else {
+                    subscriptionDetailsContainer.style.display = 'none';
                 }
             }
         } catch (error) {
@@ -1046,6 +1156,9 @@ const SettingsController = {
             statusMessage.className = 'subscription-message subscription-message-error';
             statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
             statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+            if (subscriptionDetailsContainer) {
+                subscriptionDetailsContainer.style.display = 'none';
+            }
         }
     },
     
