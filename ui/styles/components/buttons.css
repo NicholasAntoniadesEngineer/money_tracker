@@ -47,12 +47,12 @@ a.btn:hover {
 
 .btn-secondary {
     background-color: rgba(210, 210, 210, 0.85);
-    color: var(--text-black);
+    color: var(--text-white);
 }
 
 .btn-secondary:hover {
     background-color: rgba(200, 200, 200, 0.85);
-    color: var(--text-black);
+    color: var(--text-white);
 }
 
 .btn-danger {
