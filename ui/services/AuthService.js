@@ -65,9 +65,23 @@ const AuthService = {
                 });
             }
             
-            // Check for existing session
+            // Check for existing session with timeout to prevent hanging
             console.log('[AuthService] Checking for existing session...');
-            const { data: { session }, error: sessionError } = await this.client.auth.getSession();
+            let sessionResult;
+            try {
+                sessionResult = await Promise.race([
+                    this.client.auth.getSession(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
+                    )
+                ]);
+            } catch (timeoutError) {
+                console.warn('[AuthService] Session check timed out or failed:', timeoutError.message);
+                // Continue without session - user can still sign in
+                sessionResult = { data: { session: null }, error: null };
+            }
+            
+            const { data: { session }, error: sessionError } = sessionResult;
             
             if (sessionError) {
                 console.error('[AuthService] Error getting session:', {
@@ -75,10 +89,9 @@ const AuthService = {
                     code: sessionError.code,
                     status: sessionError.status
                 });
-                throw sessionError;
-            }
-            
-            if (session) {
+                // Don't throw - allow initialization to continue without session
+                console.log('[AuthService] Continuing initialization without session');
+            } else if (session) {
                 this.session = session;
                 this.currentUser = session.user;
                 console.log('[AuthService] Existing session found for user:', {
