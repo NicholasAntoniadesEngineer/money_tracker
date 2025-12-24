@@ -1099,23 +1099,61 @@ const AuthService = {
             
             // Only attempt Supabase signOut if there's an active session
             if (hasActiveSession) {
-                const { error } = await this.client.auth.signOut();
-                
-                if (error) {
-                    // If error is about missing session, treat as success but redirect to sign-in
-                    if (error.message && (error.message.includes('Auth session missing') || error.message.includes('session') && error.message.includes('missing'))) {
-                        console.log('[AuthService] Session already missing - clearing local state and redirecting to sign-in');
+                try {
+                    const { error } = await this.client.auth.signOut();
+                    
+                    if (error) {
+                        // If error is about missing session or 403 (forbidden - session already invalid), treat as success
+                        const isSessionError = error.message && (
+                            error.message.includes('Auth session missing') || 
+                            error.message.includes('session') && error.message.includes('missing')
+                        );
+                        const isForbiddenError = error.status === 403 || error.statusCode === 403 || 
+                                                (error.message && error.message.toLowerCase().includes('forbidden'));
+                        
+                        if (isSessionError || isForbiddenError) {
+                            console.log('[AuthService] Session already invalid or missing - clearing local state and redirecting to sign-in');
+                            this.currentUser = null;
+                            this.session = null;
+                            this._redirectToSignIn();
+                            return { success: true, error: null };
+                        }
+                        console.error('[AuthService] Sign out error:', error);
+                        // Even on error, clear state and redirect
+                        this.currentUser = null;
+                        this.session = null;
+                        this._redirectToSignIn();
+                        return { success: false, error: error.message };
+                    }
+                } catch (signOutError) {
+                    // Handle network errors (like 403) that might occur during signOut
+                    const isForbiddenError = signOutError.status === 403 || signOutError.statusCode === 403 ||
+                                           (signOutError.message && signOutError.message.toLowerCase().includes('forbidden')) ||
+                                           (signOutError.message && signOutError.message.toLowerCase().includes('403'));
+                    
+                    if (isForbiddenError) {
+                        console.log('[AuthService] Sign out returned 403 (expected when session already invalid) - clearing local state and redirecting to sign-in');
                         this.currentUser = null;
                         this.session = null;
                         this._redirectToSignIn();
                         return { success: true, error: null };
                     }
-                    console.error('[AuthService] Sign out error:', error);
-                    // Even on error, clear state and redirect
+                    
+                    // For other errors, check if it's a session-related error
+                    if (signOutError.message && (signOutError.message.includes('Auth session missing') || signOutError.message.includes('session') && signOutError.message.includes('missing'))) {
+                        console.log('[AuthService] Session missing during sign out - clearing local state and redirecting to sign-in');
+                        this.currentUser = null;
+                        this.session = null;
+                        this._redirectToSignIn();
+                        return { success: true, error: null };
+                    }
+                    
+                    console.error('[AuthService] Sign out exception:', signOutError);
+                    // Even on exception, clear local state and redirect to sign-in
                     this.currentUser = null;
                     this.session = null;
                     this._redirectToSignIn();
-                    return { success: false, error: error.message };
+                    return { success: false, error: signOutError.message || 'An unexpected error occurred' };
                 }
             } else {
                 console.log('[AuthService] No active session found - clearing local state and redirecting to sign-in');

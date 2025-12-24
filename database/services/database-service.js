@@ -18,6 +18,8 @@ const DatabaseService = {
     CACHE_STORAGE_KEY: 'money_tracker_months_cache',
     CACHE_TIMESTAMP_KEY: 'money_tracker_cache_timestamp',
     EXAMPLE_YEAR: 2045, // Example data year - protected from deletion
+    settingsCache: null,
+    settingsCacheUserId: null,
     
     /**
      * ============================================================================
@@ -538,11 +540,14 @@ const DatabaseService = {
     
     /**
      * Clear cache (both memory and storage)
+     * Also clears settings cache
      */
     clearCache() {
         console.log('[DatabaseService] clearCache() called');
         this.monthsCache = null;
         this.cacheTimestamp = null;
+        this.settingsCache = null;
+        this.settingsCacheUserId = null;
         try {
             localStorage.removeItem(this.CACHE_STORAGE_KEY);
             localStorage.removeItem(this.CACHE_TIMESTAMP_KEY);
@@ -1551,13 +1556,11 @@ const DatabaseService = {
     
     /**
      * Get settings from database
+     * Uses caching to prevent excessive database calls
      * @returns {Promise<Object|null>} Settings object or null
      */
     async getSettings() {
         try {
-            console.log('[DatabaseService] getSettings() called');
-            const startTime = Date.now();
-            
             if (!this.client) {
                 console.log('[DatabaseService] Client not initialized, initializing...');
                 await this.initialize();
@@ -1570,10 +1573,16 @@ const DatabaseService = {
                 return null;
             }
             
+            // Check cache first - return cached settings if available for this user
+            if (this.settingsCache && this.settingsCacheUserId === currentUserId) {
+                console.log('[DatabaseService] getSettings() returning cached settings');
+                return this.settingsCache;
+            }
+            
+            console.log('[DatabaseService] getSettings() called - fetching from database');
+            const startTime = Date.now();
+            
             console.log('[DatabaseService] Querying settings table for user_id:', currentUserId);
-            console.log('[DatabaseService] Client status:', this.client ? 'Available' : 'Not available');
-            console.log('[DatabaseService] Client type:', typeof this.client);
-            console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
             
             // Use centralized query interface for settings
             const queryResult = await Promise.race([
@@ -1634,8 +1643,13 @@ const DatabaseService = {
             
             console.log('[DatabaseService] Settings fetched successfully:', data ? 'Found' : 'Not found');
             const settings = data ? this.transformSettingsFromDatabase(data) : null;
+            
+            // Cache the settings for this user
+            this.settingsCache = settings;
+            this.settingsCacheUserId = currentUserId;
+            
             if (settings) {
-                console.log('[DatabaseService] Settings data:', settings);
+                console.log('[DatabaseService] Settings data cached');
             } else {
                 console.log('[DatabaseService] No settings data returned');
             }
@@ -1711,6 +1725,11 @@ const DatabaseService = {
             if (upsertResult.data) {
                 console.log('[DatabaseService] Upsert returned data:', upsertResult.data);
             }
+            
+            // Invalidate settings cache after saving
+            this.settingsCache = null;
+            this.settingsCacheUserId = null;
+            console.log('[DatabaseService] Settings cache invalidated');
             
             return true;
         } catch (error) {
