@@ -29,11 +29,29 @@ a.btn {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: inherit;
+    color: var(--text-white);
 }
 
 a.btn:hover {
     text-decoration: none;
+    color: var(--text-white);
+}
+
+/* Ensure anchor buttons with specific classes use white text */
+a.btn-primary,
+a.btn-secondary,
+a.btn-danger,
+a.btn-success,
+a.btn-action {
+    color: var(--text-white);
+}
+
+a.btn-primary:hover,
+a.btn-secondary:hover,
+a.btn-danger:hover,
+a.btn-success:hover,
+a.btn-action:hover {
+    color: var(--text-white);
 }
 
 .btn-primary {
