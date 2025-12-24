@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription & Payment - Money Tracker</title>
+    <link rel="stylesheet" href="../../ui/styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        .payment-main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            padding-top: calc(2rem + 70px);
+            padding-bottom: 2rem;
+        }
+        
+        .subscription-section {
+            background-color: rgba(213, 213, 213, 0.85);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            border: var(--border-width-thin) solid var(--border-color-black);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .subscription-status-container {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .subscription-message {
+            padding: var(--spacing-sm);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-sm);
+            font-weight: 500;
+        }
+        
+        .subscription-message-info {
+            background-color: rgba(123, 171, 138, 0.2);
+            border: var(--border-width-standard) solid var(--success-color);
+            color: var(--text-primary);
+        }
+        
+        .subscription-message-success {
+            background-color: rgba(123, 171, 138, 0.3);
+            border: var(--border-width-standard) solid var(--success-color);
+            color: var(--text-primary);
+        }
+        
+        .subscription-message-error {
+            background-color: rgba(181, 138, 138, 0.2);
+            border: var(--border-width-standard) solid var(--danger-color);
+            color: var(--text-primary);
+        }
+        
+        .trial-days-remaining {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: var(--spacing-xs);
+        }
+        
+        .payment-history-section {
+            background-color: rgba(213, 213, 213, 0.85);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            border: var(--border-width-thin) solid var(--border-color-black);
+        }
+        
+        .payment-status-pending {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+        
+        .payment-status-success {
+            color: var(--success-color);
+            font-weight: 500;
+        }
+        
+        .payment-status-error {
+            color: var(--danger-color);
+            font-weight: 500;
+        }
+        
+        .section-title {
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-sm);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="payment-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Subscription & Payment</h2>
+        </section>
+
+        <section class="subscription-section form-section">
+            <h2 class="section-title">Subscription Status</h2>
+            
+            <div id="subscription-status-container" class="subscription-status-container">
+                <div id="subscription-status-message" class="subscription-message">
+                    Loading subscription status...
+                </div>
+                <div id="trial-days-remaining" class="trial-days-remaining" style="display: none;"></div>
+            </div>
+            
+            <div class="button-group">
+                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
+                    Start Subscription (€5/month)
+                </button>
+                <button id="refresh-subscription-button" class="btn btn-secondary">
+                    Refresh Status
+                </button>
+            </div>
+        </section>
+
+        <section class="payment-history-section form-section">
+            <h2 class="section-title">Payment History</h2>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Payment ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payment-history-tbody">
+                        <tr>
+                            <td colspan="4" style="text-align: center;">Loading payment history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Load scripts in order -->
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../../ui/services/AuthService.js"></script>
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../config/stripe-config.js"></script>
+    <script src="../services/StripeService.js"></script>
+    <script src="../services/SubscriptionService.js"></script>
+    <script src="../services/PaymentService.js"></script>
+    <script src="../utils/subscription-checker.js"></script>
+    <script src="../../ui/components/Header.js"></script>
+    <script src="../controllers/PaymentController.js"></script>
+    
+    <script>
+        // Initialize page when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Initialize AuthService first
+                if (window.AuthService) {
+                    await window.AuthService.initialize();
+                }
+                
+                // Check authentication
+                if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                    console.log('[PaymentPage] User not authenticated, redirecting to auth...');
+                    window.location.href = '../../ui/views/auth.html';
+                    return;
+                }
+                
+                // Initialize DatabaseService
+                if (window.DatabaseService) {
+                    await window.DatabaseService.initialize();
+                }
+                
+                // Initialize PaymentController
+                if (window.PaymentController) {
+                    await window.PaymentController.init();
+                }
+                
+                // Handle payment return from Stripe
+                const urlParams = new URLSearchParams(window.location.search);
+                const paymentStatus = urlParams.get('payment');
+                if (paymentStatus === 'success') {
+                    alert('Payment successful! Your subscription is now active.');
+                    // Refresh subscription data
+                    if (window.PaymentController) {
+                        await window.PaymentController.refreshSubscriptionData();
+                    }
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (paymentStatus === 'cancelled') {
+                    alert('Payment was cancelled. You can try again when ready.');
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (error) {
+                console.error('[PaymentPage] Initialization error:', error);
+                alert('Error initializing payment page. Please refresh and try again.');
+            }
+        });
+    </script>
+</body>
+</html>
+

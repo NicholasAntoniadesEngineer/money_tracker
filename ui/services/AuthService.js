@@ -1021,6 +1021,24 @@ const AuthService = {
                         email: data.user.email,
                         userId: data.user.id
                     });
+                    
+                    // Create trial subscription for new user
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    } else {
+                        console.warn('[AuthService] SubscriptionService not available - trial subscription not created');
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (IMMEDIATE SIGN IN) ==========');
                     return { success: true, error: null, user: data.user, requiresEmailVerification: false };
                 } else if (requiresEmailVerification) {
@@ -1029,6 +1047,22 @@ const AuthService = {
                         email: data.user.email,
                         userId: data.user.id
                     });
+                    
+                    // Create trial subscription for new user (even if email verification required)
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user (email verification pending)...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (EMAIL VERIFICATION REQUIRED) ==========');
                     return { 
                         success: true, 
@@ -1044,6 +1078,22 @@ const AuthService = {
                         userId: data.user.id,
                         emailConfirmed: data.user.email_confirmed_at
                     });
+                    
+                    // Create trial subscription for new user
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user (no session)...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (NO SESSION) ==========');
                     return { 
                         success: true, 

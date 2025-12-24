@@ -391,6 +391,46 @@ const DatabaseService = {
     },
     
     /**
+     * Execute an INSERT operation
+     * @param {string} table - Table name
+     * @param {Object|Array} data - Data to insert
+     * @returns {Promise<{data: Array|null, error: Object|null}>}
+     */
+    async queryInsert(table, data) {
+        const insertUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+        insertUrl.searchParams.append('select', '*');
+        
+        const response = await fetch(insertUrl.toString(), {
+            method: 'POST',
+            headers: this._getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        
+        return await this._handleResponse(response);
+    },
+    
+    /**
+     * Execute an UPDATE operation
+     * @param {string} table - Table name
+     * @param {string|number} id - Record ID to update
+     * @param {Object} updateData - Data to update
+     * @returns {Promise<{data: Array|null, error: Object|null}>}
+     */
+    async queryUpdate(table, id, updateData) {
+        const updateUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+        updateUrl.searchParams.append('id', `eq.${id}`);
+        updateUrl.searchParams.append('select', '*');
+        
+        const response = await fetch(updateUrl.toString(), {
+            method: 'PATCH',
+            headers: this._getAuthHeaders(),
+            body: JSON.stringify(updateData)
+        });
+        
+        return await this._handleResponse(response);
+    },
+    
+    /**
      * Handle HTTP response and convert to standard format
      * @private
      */

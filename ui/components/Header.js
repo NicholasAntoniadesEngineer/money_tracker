@@ -120,8 +120,8 @@ class Header {
                         </div>
                         <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
                             <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
-                                <path d="M8 0.5L9.5 1.5L11.5 1L12.5 2.5L14.5 2.5L15.5 4.5L14.5 6.5L12.5 6.5L11.5 8L9.5 7.5L8 9L6.5 7.5L4.5 8L3.5 6.5L1.5 6.5L0.5 4.5L1.5 2.5L3.5 2.5L4.5 1L6.5 1.5L8 0.5Z" fill="currentColor"/>
+                                <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5Z" fill="currentColor"/>
+                                <path d="M8 0L9.5 0.5L11 0L12 1.5L13.5 1.5L14.5 3L13.5 4.5L12 4.5L11 6L9.5 5.5L8 7L6.5 5.5L5 6L4 4.5L2.5 4.5L1.5 3L2.5 1.5L4 1.5L5 0L6.5 0.5L8 0Z" fill="currentColor"/>
                             </svg>
                             <span>Settings</span>
                         </a>
@@ -434,8 +434,8 @@ class Header {
                             </div>
                             <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
                                 <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
-                                    <path d="M8 0.5L9.5 1.5L11 0.5L12 2L13.5 2L14.5 3.5L13.5 5L12 5L11 6.5L9.5 5.5L8 7L6.5 5.5L5 6.5L4 5L2.5 5L1.5 3.5L2.5 2L4 2L5 0.5L6.5 1.5L8 0.5Z" fill="currentColor"/>
+                                    <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5Z" fill="currentColor"/>
+                                    <path d="M8 0L9.5 0.5L11 0L12 1.5L13.5 1.5L14.5 3L13.5 4.5L12 4.5L11 6L9.5 5.5L8 7L6.5 5.5L5 6L4 4.5L2.5 4.5L1.5 3L2.5 1.5L4 1.5L5 0L6.5 0.5L8 0Z" fill="currentColor"/>
                                 </svg>
                                 <span>Settings</span>
                             </a>

@@ -65,6 +65,25 @@ const AuthGuard = {
             }
             
             console.log('[AuthGuard] User authenticated:', window.AuthService.getCurrentUser()?.email);
+            
+            // Check subscription status
+            if (window.SubscriptionChecker) {
+                try {
+                    const accessCheck = await window.SubscriptionChecker.checkAccess();
+                    if (!accessCheck.hasAccess) {
+                        console.log('[AuthGuard] User does not have active subscription, redirecting to payment page');
+                        const currentPath = window.location.pathname;
+                        if (!currentPath.includes('payment.html')) {
+                            window.location.href = '../../payments/views/payment.html';
+                        }
+                        return false;
+                    }
+                    console.log('[AuthGuard] User has active subscription:', accessCheck.status);
+                } catch (subscriptionError) {
+                    console.warn('[AuthGuard] Error checking subscription, allowing access:', subscriptionError);
+                }
+            }
+            
             return true;
         } catch (error) {
             console.error('[AuthGuard] Error checking authentication:', error);

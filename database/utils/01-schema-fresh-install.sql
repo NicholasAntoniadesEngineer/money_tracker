@@ -71,6 +71,33 @@ CREATE TABLE IF NOT EXISTS settings (
     UNIQUE(user_id)
 );
 
+-- Subscriptions table (tracks user subscription status and trials)
+CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id UUID NOT NULL PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('trial', 'active', 'expired', 'cancelled')),
+    trial_start_date TIMESTAMPTZ,
+    trial_end_date TIMESTAMPTZ,
+    subscription_start_date TIMESTAMPTZ,
+    subscription_end_date TIMESTAMPTZ,
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    last_payment_date TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payment history table (logs all payment transactions)
+CREATE TABLE IF NOT EXISTS payment_history (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
+    stripe_payment_intent_id TEXT,
+    amount NUMERIC(10, 2) NOT NULL,
+    currency TEXT DEFAULT 'eur',
+    status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
+    payment_date TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_months_user_id ON user_months(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_months_year_month ON user_months(year, month);
@@ -81,6 +108,13 @@ CREATE INDEX IF NOT EXISTS idx_example_months_created_at ON example_months(creat
 CREATE INDEX IF NOT EXISTS idx_pots_user_id ON pots(user_id);
 CREATE INDEX IF NOT EXISTS idx_pots_created_at ON pots(created_at);
 CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_trial_end_date ON subscriptions(trial_end_date);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_end_date ON subscriptions(subscription_end_date);
+CREATE INDEX IF NOT EXISTS idx_payment_history_user_id ON payment_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_history_status ON payment_history(status);
+CREATE INDEX IF NOT EXISTS idx_payment_history_payment_date ON payment_history(payment_date);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -104,11 +138,16 @@ CREATE TRIGGER update_pots_updated_at BEFORE UPDATE ON pots
 CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Row Level Security (RLS) policies
 ALTER TABLE user_months ENABLE ROW LEVEL SECURITY;
 ALTER TABLE example_months ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_history ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow all operations for authenticated users
 -- Note: Adjust these policies based on your authentication requirements
@@ -122,6 +161,12 @@ CREATE POLICY "Allow all operations for authenticated users" ON pots
     FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow all operations for authenticated users" ON settings
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations for authenticated users" ON subscriptions
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations for authenticated users" ON payment_history
     FOR ALL USING (true) WITH CHECK (true);
 
 -- For public access (if needed), use:
