@@ -8,9 +8,12 @@
  * - Currently uses direct fetch (native fetch API) due to Supabase JS client hanging
  * - To switch implementations, only modify the query methods below
  * - This ensures reliable, always-fresh data from Supabase
+ * 
+ * VERSION: 2.0.0 - Enhanced logging for debugging (2025-12-24)
  */
 
 const DatabaseService = {
+    VERSION: '2.0.0-enhanced-logging',
     client: null,
     monthsCache: null,
     cacheTimestamp: null,
@@ -252,14 +255,58 @@ const DatabaseService = {
         }
         
         console.log('[DatabaseService] querySelect - calling fetch()...');
-        const fetchStartTime = Date.now();
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            headers: authHeaders
+        console.log('[DatabaseService] querySelect - fetch URL:', url.toString());
+        console.log('[DatabaseService] querySelect - fetch headers:', {
+            hasApikey: !!authHeaders.apikey,
+            hasAuthorization: !!authHeaders.Authorization,
+            authorizationLength: authHeaders.Authorization?.length,
+            authorizationPrefix: authHeaders.Authorization?.substring(0, 20)
         });
+        
+        const fetchStartTime = Date.now();
+        let response;
+        try {
+            response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: authHeaders
+            });
+        } catch (fetchError) {
+            const fetchElapsed = Date.now() - fetchStartTime;
+            console.error(`[DatabaseService] ❌ querySelect - fetch() FAILED after ${fetchElapsed}ms:`, fetchError);
+            console.error('[DatabaseService] querySelect - fetch error details:', {
+                name: fetchError.name,
+                message: fetchError.message,
+                stack: fetchError.stack,
+                isCorsError: fetchError.message?.includes('CORS') || fetchError.message?.includes('access control'),
+                isNetworkError: fetchError.message?.includes('Load failed') || fetchError.message?.includes('Failed to fetch')
+            });
+            console.error('[DatabaseService] querySelect - fetch error - URL was:', url.toString());
+            console.error('[DatabaseService] querySelect - fetch error - client state:', {
+                hasClient: !!this.client,
+                hasSupabaseUrl: !!this.client?.supabaseUrl
+            });
+            return {
+                data: null,
+                error: {
+                    message: `Fetch failed: ${fetchError.message}`,
+                    code: 'FETCH_FAILED',
+                    status: 0,
+                    isCorsError: fetchError.message?.includes('CORS') || fetchError.message?.includes('access control'),
+                    originalError: fetchError.message
+                }
+            };
+        }
+        
         const fetchElapsed = Date.now() - fetchStartTime;
         console.log(`[DatabaseService] querySelect - fetch() completed in ${fetchElapsed}ms`);
         console.log(`[DatabaseService] querySelect response status: ${response.status} ${response.statusText}`);
+        console.log('[DatabaseService] querySelect - response headers:', {
+            contentType: response.headers.get('content-type'),
+            contentLength: response.headers.get('content-length'),
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
         
         console.log('[DatabaseService] querySelect - client state AFTER fetch:', {
             hasClient: !!this.client,
@@ -805,6 +852,7 @@ const DatabaseService = {
     async initialize() {
         const initStartTime = Date.now();
         console.log('[DatabaseService] ========== initialize() CALLED ==========');
+        console.log('[DatabaseService] DatabaseService VERSION:', this.VERSION || 'UNKNOWN');
         console.log('[DatabaseService] initialize - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
         console.log('[DatabaseService] initialize - client state BEFORE:', {
             hasClient: !!this.client,
@@ -2275,7 +2323,10 @@ const DatabaseService = {
     }
 };
 
+// Log version on load to confirm which version is running
 if (typeof window !== 'undefined') {
     window.DatabaseService = DatabaseService;
+    console.log('[DatabaseService] ✅ DatabaseService loaded - VERSION:', DatabaseService.VERSION || 'UNKNOWN');
+    console.log('[DatabaseService] DatabaseService loaded at:', new Date().toISOString());
 }
 

@@ -9,39 +9,80 @@ const SubscriptionChecker = {
      * @returns {Promise<{hasAccess: boolean, status: string, details: Object|null, error: string|null}>}
      */
     async checkAccess() {
+        const methodStartTime = Date.now();
+        console.log('[SubscriptionChecker] ========== checkAccess() CALLED ==========');
+        console.log('[SubscriptionChecker] checkAccess - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
+        
         try {
             if (!window.SubscriptionService) {
-                throw new Error('SubscriptionService not available');
+                const error = new Error('SubscriptionService not available');
+                console.error('[SubscriptionChecker] ❌ checkAccess error:', error);
+                return {
+                    hasAccess: false,
+                    status: 'error',
+                    details: null,
+                    error: error.message
+                };
             }
             
+            console.log('[SubscriptionChecker] checkAccess - calling SubscriptionService.getCurrentUserSubscription()...');
             const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+            console.log('[SubscriptionChecker] checkAccess - subscriptionResult:', {
+                success: subscriptionResult.success,
+                hasSubscription: !!subscriptionResult.subscription,
+                hasPlan: !!subscriptionResult.plan,
+                subscriptionStatus: subscriptionResult.subscription?.status,
+                hasError: !!subscriptionResult.error,
+                errorMessage: subscriptionResult.error
+            });
             
             if (!subscriptionResult.success) {
-                return {
+                console.log('[SubscriptionChecker] ⚠️ checkAccess - subscriptionResult not successful');
+                console.log('[SubscriptionChecker] checkAccess - error:', subscriptionResult.error);
+                const result = {
                     hasAccess: false,
                     status: 'no_subscription',
                     details: null,
                     error: subscriptionResult.error || 'Failed to check subscription'
                 };
+                console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                return result;
             }
             
             const subscription = subscriptionResult.subscription;
+            console.log('[SubscriptionChecker] checkAccess - subscription:', {
+                hasSubscription: !!subscription,
+                subscriptionStatus: subscription?.status,
+                planId: subscription?.plan_id,
+                trialStartDate: subscription?.trial_start_date,
+                trialEndDate: subscription?.trial_end_date,
+                subscriptionStartDate: subscription?.subscription_start_date,
+                subscriptionEndDate: subscription?.subscription_end_date
+            });
             
             if (!subscription) {
-                return {
+                console.log('[SubscriptionChecker] ⚠️ checkAccess - NO SUBSCRIPTION FOUND');
+                console.log('[SubscriptionChecker] checkAccess - User has no subscription record in database');
+                const result = {
                     hasAccess: false,
                     status: 'no_subscription',
                     details: null,
                     error: null
                 };
+                console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                return result;
             }
             
+            console.log('[SubscriptionChecker] checkAccess - checking if subscription is active...');
             const isActive = window.SubscriptionService.isSubscriptionActive(subscription);
+            console.log('[SubscriptionChecker] checkAccess - isActive:', isActive);
             
             if (isActive) {
                 if (subscription.status === 'trial') {
                     const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
-                    return {
+                    console.log('[SubscriptionChecker] ✅ checkAccess - User has ACTIVE TRIAL');
+                    console.log('[SubscriptionChecker] checkAccess - daysRemaining:', daysRemaining);
+                    const result = {
                         hasAccess: true,
                         status: 'trial',
                         details: {
@@ -50,8 +91,11 @@ const SubscriptionChecker = {
                         },
                         error: null
                     };
+                    console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                    return result;
                 } else if (subscription.status === 'active') {
-                    return {
+                    console.log('[SubscriptionChecker] ✅ checkAccess - User has ACTIVE SUBSCRIPTION');
+                    const result = {
                         hasAccess: true,
                         status: 'active',
                         details: {
@@ -59,12 +103,15 @@ const SubscriptionChecker = {
                         },
                         error: null
                     };
+                    console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                    return result;
                 }
             }
             
             // Check if trial expired
             if (subscription.status === 'trial' && window.SubscriptionService.isTrialExpired(subscription)) {
-                return {
+                console.log('[SubscriptionChecker] ⚠️ checkAccess - TRIAL EXPIRED');
+                const result = {
                     hasAccess: false,
                     status: 'trial_expired',
                     details: {
@@ -72,9 +119,13 @@ const SubscriptionChecker = {
                     },
                     error: null
                 };
+                console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                return result;
             }
             
-            return {
+            console.log('[SubscriptionChecker] ⚠️ checkAccess - Subscription exists but NOT ACTIVE');
+            console.log('[SubscriptionChecker] checkAccess - subscription status:', subscription.status);
+            const result = {
                 hasAccess: false,
                 status: subscription.status || 'expired',
                 details: {
@@ -82,14 +133,28 @@ const SubscriptionChecker = {
                 },
                 error: null
             };
+            console.log('[SubscriptionChecker] checkAccess - returning:', result);
+            const methodElapsed = Date.now() - methodStartTime;
+            console.log(`[SubscriptionChecker] checkAccess completed in ${methodElapsed}ms`);
+            console.log('[SubscriptionChecker] ========== checkAccess() COMPLETE ==========');
+            return result;
         } catch (error) {
-            console.error('[SubscriptionChecker] Exception checking access:', error);
-            return {
+            const methodElapsed = Date.now() - methodStartTime;
+            console.error(`[SubscriptionChecker] ❌ Exception checking access after ${methodElapsed}ms:`, error);
+            console.error('[SubscriptionChecker] checkAccess - error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            const result = {
                 hasAccess: false,
                 status: 'error',
                 details: null,
                 error: error.message || 'An unexpected error occurred'
             };
+            console.log('[SubscriptionChecker] checkAccess - returning error result:', result);
+            console.log('[SubscriptionChecker] ========== checkAccess() FAILED ==========');
+            return result;
         }
     },
     

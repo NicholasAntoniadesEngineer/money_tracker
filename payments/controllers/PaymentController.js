@@ -39,24 +39,71 @@ const PaymentController = {
      * Load subscription data for current user
      */
     async loadSubscriptionData() {
+        const methodStartTime = Date.now();
+        console.log('[PaymentController] ========== loadSubscriptionData() CALLED ==========');
+        
         try {
             if (!window.SubscriptionService) {
-                throw new Error('SubscriptionService not available');
+                const error = new Error('SubscriptionService not available');
+                console.error('[PaymentController] ❌ loadSubscriptionData error:', error);
+                throw error;
             }
             
+            console.log('[PaymentController] loadSubscriptionData - calling SubscriptionService.getCurrentUserSubscription()...');
             const result = await window.SubscriptionService.getCurrentUserSubscription();
+            const methodElapsed = Date.now() - methodStartTime;
+            console.log(`[PaymentController] loadSubscriptionData - getCurrentUserSubscription() completed in ${methodElapsed}ms`);
+            
+            console.log('[PaymentController] loadSubscriptionData - result:', {
+                success: result.success,
+                hasSubscription: !!result.subscription,
+                subscriptionStatus: result.subscription?.status,
+                hasPlan: !!result.plan,
+                planName: result.plan?.plan_name,
+                hasError: !!result.error,
+                errorMessage: result.error
+            });
             
             if (result.success) {
                 this.currentSubscription = result.subscription;
-                console.log('[PaymentController] Subscription loaded:', this.currentSubscription);
+                if (this.currentSubscription) {
+                    console.log('[PaymentController] ✅ Subscription loaded successfully:', {
+                        status: this.currentSubscription.status,
+                        planId: this.currentSubscription.plan_id,
+                        trialStartDate: this.currentSubscription.trial_start_date,
+                        trialEndDate: this.currentSubscription.trial_end_date
+                    });
+                } else {
+                    console.log('[PaymentController] ⚠️ Subscription query succeeded but returned null subscription');
+                    console.log('[PaymentController] This means the user has NO subscription record in the database');
+                }
             } else {
-                console.error('[PaymentController] Failed to load subscription:', result.error);
+                console.error('[PaymentController] ❌ Failed to load subscription:', result.error);
+                console.error('[PaymentController] loadSubscriptionData - error details:', {
+                    error: result.error,
+                    hasSubscription: !!result.subscription,
+                    hasPlan: !!result.plan
+                });
                 this.currentSubscription = null;
             }
         } catch (error) {
-            console.error('[PaymentController] Exception loading subscription:', error);
+            const methodElapsed = Date.now() - methodStartTime;
+            console.error(`[PaymentController] ❌ Exception loading subscription after ${methodElapsed}ms:`, error);
+            console.error('[PaymentController] loadSubscriptionData - exception details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
             this.currentSubscription = null;
         }
+        
+        const totalElapsed = Date.now() - methodStartTime;
+        console.log(`[PaymentController] loadSubscriptionData completed in ${totalElapsed}ms`);
+        console.log('[PaymentController] loadSubscriptionData - final currentSubscription:', {
+            hasSubscription: !!this.currentSubscription,
+            subscriptionStatus: this.currentSubscription?.status
+        });
+        console.log('[PaymentController] ========== loadSubscriptionData() COMPLETE ==========');
     },
     
     /**
@@ -87,24 +134,63 @@ const PaymentController = {
      * Render subscription status
      */
     renderSubscriptionStatus() {
+        console.log('[PaymentController] ========== renderSubscriptionStatus() CALLED ==========');
         const statusContainer = document.getElementById('subscription-status-container');
         const statusMessage = document.getElementById('subscription-status-message');
         const daysRemainingContainer = document.getElementById('trial-days-remaining');
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         
+        console.log('[PaymentController] renderSubscriptionStatus - elements found:', {
+            hasStatusContainer: !!statusContainer,
+            hasStatusMessage: !!statusMessage,
+            hasDaysRemainingContainer: !!daysRemainingContainer,
+            hasStartSubscriptionBtn: !!startSubscriptionBtn
+        });
+        
         if (!statusContainer || !statusMessage) {
+            console.warn('[PaymentController] renderSubscriptionStatus - required elements not found');
             return;
         }
         
+        console.log('[PaymentController] renderSubscriptionStatus - currentSubscription:', {
+            hasSubscription: !!this.currentSubscription,
+            subscriptionStatus: this.currentSubscription?.status,
+            subscriptionId: this.currentSubscription?.id
+        });
+        
         if (!this.currentSubscription) {
-            statusMessage.textContent = 'No subscription found. Please subscribe to access the application.';
+            console.log('[PaymentController] ⚠️ NO SUBSCRIPTION FOUND - User needs to subscribe');
+            
+            // Show prominent banner
+            const noSubscriptionBanner = document.getElementById('no-subscription-banner');
+            if (noSubscriptionBanner) {
+                noSubscriptionBanner.style.display = 'block';
+                console.log('[PaymentController] renderSubscriptionStatus - showing no subscription banner');
+            }
+            
+            const noSubscriptionMessage = 'No subscription found. You need to subscribe to access the application.\n\nClick "Start Subscription" below to begin.';
+            statusMessage.textContent = noSubscriptionMessage;
+            statusMessage.className = 'subscription-message subscription-message-error';
+            statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.3)';
+            statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
+            statusMessage.style.fontWeight = '600';
+            statusMessage.style.padding = 'var(--spacing-md)';
+            
             if (startSubscriptionBtn) {
                 startSubscriptionBtn.style.display = 'block';
+                console.log('[PaymentController] renderSubscriptionStatus - showing start subscription button');
             }
             if (daysRemainingContainer) {
                 daysRemainingContainer.style.display = 'none';
             }
+            console.log('[PaymentController] ========== renderSubscriptionStatus() COMPLETE - NO SUBSCRIPTION ==========');
             return;
+        }
+        
+        // Hide banner if subscription exists
+        const noSubscriptionBanner = document.getElementById('no-subscription-banner');
+        if (noSubscriptionBanner) {
+            noSubscriptionBanner.style.display = 'none';
         }
         
         const subscription = this.currentSubscription;

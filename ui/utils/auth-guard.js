@@ -67,22 +67,63 @@ const AuthGuard = {
             console.log('[AuthGuard] User authenticated:', window.AuthService.getCurrentUser()?.email);
             
             // Check subscription status
+            console.log('[AuthGuard] ========== CHECKING SUBSCRIPTION STATUS ==========');
             if (window.SubscriptionChecker) {
                 try {
+                    console.log('[AuthGuard] SubscriptionChecker available, calling checkAccess()...');
                     const accessCheck = await window.SubscriptionChecker.checkAccess();
+                    console.log('[AuthGuard] Subscription check result:', {
+                        hasAccess: accessCheck.hasAccess,
+                        status: accessCheck.status,
+                        error: accessCheck.error,
+                        hasDetails: !!accessCheck.details
+                    });
+                    
                     if (!accessCheck.hasAccess) {
-                        console.log('[AuthGuard] User does not have active subscription, redirecting to payment page');
+                        console.log('[AuthGuard] ⚠️ User does NOT have active subscription');
+                        console.log('[AuthGuard] Subscription status:', accessCheck.status);
+                        console.log('[AuthGuard] Error (if any):', accessCheck.error);
+                        
+                        // Show user-friendly notification
+                        const statusMessage = window.SubscriptionChecker.getStatusMessage(accessCheck);
+                        console.log('[AuthGuard] Status message for user:', statusMessage);
+                        
+                        // Show alert to user before redirecting
+                        if (accessCheck.status === 'no_subscription') {
+                            alert('Welcome! You need to subscribe to access the application.\n\nYou will be redirected to the subscription page.');
+                        } else if (accessCheck.status === 'trial_expired') {
+                            alert('Your trial has expired. Please subscribe to continue using the application.\n\nYou will be redirected to the subscription page.');
+                        } else {
+                            alert(`Subscription required: ${statusMessage}\n\nYou will be redirected to the subscription page.`);
+                        }
+                        
                         const currentPath = window.location.pathname;
+                        console.log('[AuthGuard] Current path:', currentPath);
                         if (!currentPath.includes('payment.html')) {
+                            console.log('[AuthGuard] Redirecting to payment page...');
                             window.location.href = '../../payments/views/payment.html';
+                        } else {
+                            console.log('[AuthGuard] Already on payment page, not redirecting');
                         }
                         return false;
                     }
-                    console.log('[AuthGuard] User has active subscription:', accessCheck.status);
+                    console.log('[AuthGuard] ✅ User has active subscription:', accessCheck.status);
+                    if (accessCheck.details?.daysRemaining !== null && accessCheck.details?.daysRemaining !== undefined) {
+                        console.log('[AuthGuard] Trial days remaining:', accessCheck.details.daysRemaining);
+                    }
                 } catch (subscriptionError) {
-                    console.warn('[AuthGuard] Error checking subscription, allowing access:', subscriptionError);
+                    console.error('[AuthGuard] ❌ Error checking subscription:', subscriptionError);
+                    console.error('[AuthGuard] Subscription error details:', {
+                        message: subscriptionError.message,
+                        name: subscriptionError.name,
+                        stack: subscriptionError.stack
+                    });
+                    console.warn('[AuthGuard] Error checking subscription, allowing access (fail-open):', subscriptionError);
                 }
+            } else {
+                console.warn('[AuthGuard] SubscriptionChecker not available, skipping subscription check');
             }
+            console.log('[AuthGuard] ========== SUBSCRIPTION CHECK COMPLETE ==========');
             
             return true;
         } catch (error) {
