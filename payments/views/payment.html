@@ -54,18 +54,69 @@
             color: var(--text-primary);
         }
         
-        .trial-days-remaining {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-top: var(--spacing-xs);
-        }
-        
         .payment-history-section {
             background-color: rgba(213, 213, 213, 0.85);
             padding: var(--spacing-md);
             border-radius: var(--border-radius);
             border: var(--border-width-thin) solid var(--border-color-black);
+        }
+        
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .data-table {
+            width: 100%;
+            min-width: 100%;
+            table-layout: auto;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .data-table th:first-child,
+        .data-table td:first-child {
+            min-width: 100px;
+        }
+        
+        .data-table th:nth-child(2),
+        .data-table td:nth-child(2) {
+            min-width: 80px;
+        }
+        
+        .data-table th:nth-child(3),
+        .data-table td:nth-child(3) {
+            min-width: 90px;
+        }
+        
+        .data-table th:last-child,
+        .data-table td:last-child {
+            min-width: 150px;
+            max-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+            .data-table {
+                font-size: 0.9rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: var(--spacing-xs);
+                font-size: 0.85rem;
+            }
+            
+            .data-table th:last-child,
+            .data-table td:last-child {
+                max-width: 120px;
+            }
         }
         
         .payment-status-pending {
@@ -104,31 +155,34 @@
         </section>
 
         <section class="subscription-section form-section">
-            <h2 class="section-title">Subscription Status</h2>
-            
-            <div id="no-subscription-banner" class="no-subscription-banner" style="display: none; background-color: rgba(181, 138, 138, 0.3); border: 2px solid var(--danger-color); border-radius: var(--border-radius); padding: var(--spacing-md); margin-bottom: var(--spacing-md);">
-                <h3 style="margin: 0 0 var(--spacing-sm) 0; color: var(--danger-color); font-size: 1.2rem;">⚠️ Subscription Required</h3>
-                <p style="margin: 0; font-size: 1rem; line-height: 1.5;">
-                    You need an active subscription to access the Money Tracker application.<br>
-                    Please start a subscription below to continue.
-                </p>
-            </div>
+            <h2 class="section-title">Subscription</h2>
             
             <div id="subscription-status-container" class="subscription-status-container">
-                <div id="subscription-status-message" class="subscription-message">
+                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
                     Loading subscription status...
                 </div>
-                <div id="trial-days-remaining" class="trial-days-remaining" style="display: none;"></div>
+                
+                <div id="subscription-details" class="subscription-details" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+                    <div id="subscription-details-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
+                        <!-- Details will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div id="account-created-container" class="account-created-container" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); font-size: 0.95rem;">
+                    <strong>Account Created:</strong> <span id="account-created-date"></span>
+                </div>
             </div>
             
-            <div class="button-group">
+            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm); width: 100%; max-width: 100%; box-sizing: border-box;">
                 <button id="start-subscription-button" class="btn btn-action" style="display: none;">
                     Start Subscription (€5/month)
                 </button>
-                <button id="refresh-subscription-button" class="btn btn-secondary">
+                <button id="refresh-subscription-button" class="btn btn-action">
                     Refresh Status
                 </button>
             </div>
+            
+            <div id="subscription-status" class="settings-status"></div>
         </section>
 
         <section class="payment-history-section form-section">
