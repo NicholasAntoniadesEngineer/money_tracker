@@ -250,7 +250,7 @@ const DatabaseService = {
             
             return result;
         } else if (identifierValue !== undefined) {
-            // For settings table - use id as identifier
+            // For settings table - use user_id as identifier
             const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
             patchUrl.searchParams.append(identifier, `eq.${identifierValue}`);
             patchUrl.searchParams.append('select', '*');
@@ -261,17 +261,65 @@ const DatabaseService = {
                 body: JSON.stringify(data)
             });
             
-            if (!response.ok || response.status === 404) {
-                // Try POST for insert
+            const patchStatus = response.status;
+            const patchOk = response.ok;
+            
+            // Check if PATCH actually updated a row by reading the response
+            let patchUpdatedRow = false;
+            if (patchOk && patchStatus === 200) {
+                const responseClone = response.clone();
+                const patchResponseText = await responseClone.text();
+                console.log(`[DatabaseService] PATCH response body:`, patchResponseText);
+                
+                if (patchResponseText && patchResponseText.trim() !== '' && patchResponseText.trim() !== '[]') {
+                    try {
+                        const patchResponseData = JSON.parse(patchResponseText);
+                        const isArray = Array.isArray(patchResponseData);
+                        const hasData = isArray ? patchResponseData.length > 0 : !!patchResponseData;
+                        console.log(`[DatabaseService] PATCH returned data:`, isArray ? `${patchResponseData.length} items` : 'single object', hasData ? patchResponseData : 'empty');
+                        patchUpdatedRow = hasData;
+                    } catch (e) {
+                        console.warn(`[DatabaseService] PATCH response not valid JSON:`, patchResponseText.substring(0, 200));
+                    }
+                } else {
+                    console.log(`[DatabaseService] PATCH returned empty body - no rows matched, will try POST`);
+                    patchUpdatedRow = false;
+                }
+            }
+            
+            if (!patchOk || patchStatus === 404 || !patchUpdatedRow) {
+                // Try POST for insert (either PATCH failed or no rows were updated)
+                console.log(`[DatabaseService] PATCH ${patchUpdatedRow ? 'updated row' : 'did not match any rows'} (status: ${patchStatus}), trying POST for insert...`);
                 const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
+                // Ensure identifier is in the data (data already has it, but be explicit)
+                const postData = { ...data };
+                if (!postData[identifier]) {
+                    postData[identifier] = identifierValue;
+                }
+                console.log(`[DatabaseService] POST body for ${table}:`, JSON.stringify(postData));
                 response = await fetch(postUrl.toString(), {
                     method: 'POST',
                     headers: this._getAuthHeaders(),
-                    body: JSON.stringify({ [identifier]: identifierValue, ...data })
+                    body: JSON.stringify(postData)
                 });
+                const postStatus = response.status;
+                console.log(`[DatabaseService] POST response status: ${postStatus}`);
+                if (postStatus === 201 || postStatus === 200) {
+                    const postResponseClone = response.clone();
+                    const postResponseText = await postResponseClone.text();
+                    console.log(`[DatabaseService] POST response body:`, postResponseText);
+                }
             }
             
-            return await this._handleResponse(response);
+            const result = await this._handleResponse(response);
+            
+            // Check for column existence errors
+            if (result.error && result.error.message && result.error.message.includes('does not exist')) {
+                console.error(`[DatabaseService] Database schema error: ${result.error.message}`);
+                console.error(`[DatabaseService] The ${table} table may be missing the ${identifier} column. Please run the migration script.`);
+            }
+            
+            return result;
         } else {
             // Simple POST for new records
             const postUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
@@ -1484,93 +1532,19 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            console.log('[DatabaseService] Querying settings table...');
-            console.log('[DatabaseService] Client status:', this.client ? 'Available' : 'Not available');
-            console.log('[DatabaseService] Client type:', typeof this.client);
-            console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
-            
-            // First, check if the settings table exists and has any data using direct fetch
-            console.log('[DatabaseService] Checking if settings table exists and has data...');
-            try {
-                const tableCheckStart = Date.now();
-                
-                // Use centralized query interface to check table existence and row count
-                console.log('[DatabaseService] Executing table existence and row count check...');
-                const tableCheckResult = await Promise.race([
-                    this.querySelect('settings', {
-                        select: '*',
-                        limit: 1
-                    }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Table check timeout')), 3000))
-                ]);
-                
-                const tableCheckElapsed = Date.now() - tableCheckStart;
-                console.log(`[DatabaseService] Table check completed in ${tableCheckElapsed}ms`);
-                console.log('[DatabaseService] Table check result:', tableCheckResult);
-                
-                if (tableCheckResult && tableCheckResult.error) {
-                    console.error('[DatabaseService] Settings table check returned error:', tableCheckResult.error);
-                    const errorMsg = tableCheckResult.error.message || '';
-                    const errorCode = tableCheckResult.error.code || '';
-                    
-                    if (errorMsg.includes('relation') && errorMsg.includes('does not exist')) {
-                        console.warn('[DatabaseService] Settings table does not exist - returning null');
-                        return null;
-                    }
-                    
-                    if (errorCode === 'PGRST116' || errorMsg.includes('No rows found')) {
-                        console.warn('[DatabaseService] Settings table exists but is empty (PGRST116) - returning null');
-                        return null;
-                    }
-                    
-                    // If it's a different error, log it but continue with main query
-                    console.warn('[DatabaseService] Table check error (continuing anyway):', tableCheckResult.error);
-                }
-                
-                // Check if we got data back
-                if (tableCheckResult && tableCheckResult.data !== undefined) {
-                    const rowCount = Array.isArray(tableCheckResult.data) ? tableCheckResult.data.length : 0;
-                    const count = tableCheckResult.count !== undefined ? tableCheckResult.count : rowCount;
-                    
-                    console.log(`[DatabaseService] Settings table row count: ${count} (from data array: ${rowCount})`);
-                    
-                    if (count === 0 || rowCount === 0) {
-                        console.warn('[DatabaseService] Settings table exists but is empty - returning null');
-                        return null;
-                    }
-                    
-                    console.log('[DatabaseService] Settings table exists and has data - proceeding with main query');
-                } else {
-                    console.warn('[DatabaseService] Table check returned no data - table may be empty or inaccessible');
-                    // Continue with main query to see if we get a more specific error
-                }
-            } catch (tableCheckError) {
-                console.warn('[DatabaseService] Table check failed (non-fatal):', tableCheckError);
-                const errorMsg = tableCheckError.message || '';
-                
-                if (errorMsg.includes('does not exist') || errorMsg.includes('relation')) {
-                    console.warn('[DatabaseService] Settings table does not exist - returning null');
-                    return null;
-                }
-                
-                if (errorMsg.includes('timeout')) {
-                    console.warn('[DatabaseService] Table check timed out - there may be a connection issue');
-                    // Continue with main query to see if it works
-                } else {
-                    // Continue with the main query even if the check failed
-                    console.log('[DatabaseService] Continuing with main query despite check failure');
-                }
-            }
-            
-            // Get current user ID for filtering
+            // Get current user ID for filtering (must be done first for user-specific queries)
             const currentUserId = this._getCurrentUserId();
             if (!currentUserId) {
                 console.warn('[DatabaseService] No authenticated user - cannot fetch settings');
                 return null;
             }
             
+            console.log('[DatabaseService] Querying settings table for user_id:', currentUserId);
+            console.log('[DatabaseService] Client status:', this.client ? 'Available' : 'Not available');
+            console.log('[DatabaseService] Client type:', typeof this.client);
+            console.log('[DatabaseService] Client has from method:', typeof this.client?.from === 'function');
+            
             // Use centralized query interface for settings
-            console.log('[DatabaseService] Querying settings for user_id:', currentUserId);
             const queryResult = await Promise.race([
                 this.querySelect('settings', {
                     select: '*',
