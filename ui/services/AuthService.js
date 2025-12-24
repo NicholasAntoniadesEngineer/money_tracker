@@ -1262,15 +1262,34 @@ const AuthService = {
             
             // Redirect directly to sign-in page (no return URL)
             const currentPath = window.location.pathname;
+            console.log('[AuthService] Current path for redirect:', currentPath);
+            console.log('[AuthService] Current URL:', window.location.href);
+            
+            // Build absolute path to auth.html
+            // auth.html is always at: /ui/views/auth.html (or similar structure)
+            const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+            
+            // Find where 'ui' is in the path, or construct from current location
             let authPath;
             if (currentPath.includes('/views/')) {
-                authPath = 'auth.html';
-            } else if (currentPath.includes('/ui/')) {
-                authPath = 'views/auth.html';
+                // We're in views folder, auth.html is in same folder
+                // Replace current file with auth.html
+                authPath = currentPath.replace(/[^/]+$/, 'auth.html');
             } else {
-                authPath = 'views/auth.html';
+                // We're in ui root or elsewhere
+                // Find 'ui' in path and append views/auth.html
+                const uiIndex = pathParts.indexOf('ui');
+                if (uiIndex >= 0) {
+                    // Build path: /.../ui/views/auth.html
+                    const baseParts = pathParts.slice(0, uiIndex + 1);
+                    authPath = '/' + baseParts.join('/') + '/views/auth.html';
+                } else {
+                    // Fallback: try to construct relative path
+                    authPath = 'views/auth.html';
+                }
             }
             
+            console.log('[AuthService] Determined auth path:', authPath);
             console.log('[AuthService] Redirecting directly to:', authPath);
             window.location.href = authPath;
             
@@ -1284,13 +1303,23 @@ const AuthService = {
             
             // Redirect directly to sign-in page (no return URL)
             const currentPath = window.location.pathname;
+            console.log('[AuthService] Current path for redirect (exception):', currentPath);
+            
+            // Build absolute path to auth.html
             let authPath;
             if (currentPath.includes('/views/')) {
-                authPath = 'auth.html';
-            } else if (currentPath.includes('/ui/')) {
-                authPath = 'views/auth.html';
+                // We're in views folder, auth.html is in same folder
+                authPath = currentPath.replace(/[^/]+$/, 'auth.html');
             } else {
-                authPath = 'views/auth.html';
+                // We're in ui root or elsewhere
+                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                const uiIndex = pathParts.indexOf('ui');
+                if (uiIndex >= 0) {
+                    const baseParts = pathParts.slice(0, uiIndex + 1);
+                    authPath = '/' + baseParts.join('/') + '/views/auth.html';
+                } else {
+                    authPath = 'views/auth.html';
+                }
             }
             
             console.log('[AuthService] Exception during sign out - redirecting to:', authPath);
