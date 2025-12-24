@@ -6,6 +6,7 @@
 class Header {
     static updateInProgress = false;
     static lastUpdateState = null;
+    static initialized = false;
     
     /**
      * Check if we're on the auth page
@@ -167,6 +168,12 @@ class Header {
         console.log('[Header] ========== HEADER INIT STARTED ==========');
         console.log('[Header] init() called');
         
+        // Prevent multiple initializations
+        if (this.initialized) {
+            console.log('[Header] Already initialized, skipping duplicate init');
+            return;
+        }
+        
         // Don't initialize header on auth page
         if (this.isAuthPage()) {
             console.log('[Header] On auth page, skipping header initialization');
@@ -235,6 +242,7 @@ class Header {
         console.log('[Header] Updating header with current auth state...');
         this.updateHeader();
         
+        this.initialized = true;
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
     }
 

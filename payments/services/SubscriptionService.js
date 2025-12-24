@@ -184,6 +184,12 @@ const SubscriptionService = {
                 throw new Error('AuthService not available');
             }
             
+            // Ensure DatabaseService is initialized before using it
+            if (!window.DatabaseService.client) {
+                console.log('[SubscriptionService] DatabaseService not initialized, initializing...');
+                await window.DatabaseService.initialize();
+            }
+            
             const userId = await window.DatabaseService._getCurrentUserId();
             if (!userId) {
                 return {
