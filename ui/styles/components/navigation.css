@@ -161,10 +161,27 @@ body:not(.landing-page) .main-navigation {
     background: none;
     text-align: left;
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .user-dropdown-item:hover {
     background-color: var(--hover-overlay);
+}
+
+.user-dropdown-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: currentColor;
+}
+
+.user-dropdown-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-dropdown-settings {
@@ -172,18 +189,11 @@ body:not(.landing-page) .main-navigation {
 }
 
 .user-dropdown-username {
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    border-bottom: var(--border-width-thin) solid var(--border-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--text-primary);
 }
 
 .user-dropdown-signout {
     color: var(--danger-color);
-    font-weight: 600;
 }
 
 .user-dropdown-signout:hover {

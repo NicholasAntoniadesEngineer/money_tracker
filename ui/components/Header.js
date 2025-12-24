@@ -111,9 +111,28 @@ class Header {
                         <span class="user-initials">${userInitials}</span>
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
-                        <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
-                        <div class="user-dropdown-username">${userEmail}</div>
-                        <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                        <div class="user-dropdown-item user-dropdown-username">
+                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
+                                <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
+                            </svg>
+                            <span>${userEmail}</span>
+                        </div>
+                        <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
+                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
+                                <path d="M8 0.5L9.5 1.5L11.5 1L12.5 2.5L14.5 2.5L15.5 4.5L14.5 6.5L12.5 6.5L11.5 8L9.5 7.5L8 9L6.5 7.5L4.5 8L3.5 6.5L1.5 6.5L0.5 4.5L1.5 2.5L3.5 2.5L4.5 1L6.5 1.5L8 0.5Z" fill="currentColor"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
+                        <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
+                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Sign Out</span>
+                        </button>
                     </div>
                 </div>`;
             }
@@ -406,9 +425,28 @@ class Header {
                             <span class="user-initials">${userInitials}</span>
                         </button>
                         <div class="user-dropdown-menu" id="user-dropdown-menu">
-                            <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
-                            <div class="user-dropdown-username">${userEmail}</div>
-                            <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                            <div class="user-dropdown-item user-dropdown-username">
+                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
+                                    <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
+                                </svg>
+                                <span>${userEmail}</span>
+                            </div>
+                            <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
+                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
+                                    <path d="M8 0.5L9.5 1.5L11 0.5L12 2L13.5 2L14.5 3.5L13.5 5L12 5L11 6.5L9.5 5.5L8 7L6.5 5.5L5 6.5L4 5L2.5 5L1.5 3.5L2.5 2L4 2L5 0.5L6.5 1.5L8 0.5Z" fill="currentColor"/>
+                                </svg>
+                                <span>Settings</span>
+                            </a>
+                            <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
+                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                    <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                                <span>Sign Out</span>
+                            </button>
                         </div>
                     </div>`;
             nav.insertAdjacentHTML('beforeend', userInfoHtml);
