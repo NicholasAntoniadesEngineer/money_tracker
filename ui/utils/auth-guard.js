@@ -126,32 +126,38 @@ const AuthGuard = {
      * @returns {void}
      */
     redirectAfterAuth() {
-        // Prevent multiple redirects using sessionStorage
         const redirectKey = 'auth_redirecting';
-        if (sessionStorage.getItem(redirectKey)) {
-            console.log('[AuthGuard] Redirect already in progress, skipping');
+        const redirectTimestamp = 'auth_redirect_timestamp';
+        
+        // Check if redirect was recently attempted (within last 2 seconds)
+        const lastRedirectTime = sessionStorage.getItem(redirectTimestamp);
+        const now = Date.now();
+        if (lastRedirectTime && (now - parseInt(lastRedirectTime, 10)) < 2000) {
+            console.log('[AuthGuard] Redirect was recently attempted, skipping duplicate call');
             return;
         }
         
-        sessionStorage.setItem(redirectKey, 'true');
+        // Set timestamp to prevent duplicate calls
+        sessionStorage.setItem(redirectTimestamp, now.toString());
         
-        // Clear the flag after a delay to allow redirect to complete
+        // Clear the timestamp after a delay
         setTimeout(() => {
-            sessionStorage.removeItem(redirectKey);
-        }, 2000);
+            sessionStorage.removeItem(redirectTimestamp);
+        }, 3000);
         
         const returnUrl = this.getReturnUrl();
+        let targetUrl = null;
         
         if (returnUrl) {
             // Check if we're already on the target page
             const currentUrl = window.location.href.split('?')[0];
-            const targetUrl = returnUrl.split('?')[0];
-            if (currentUrl === targetUrl) {
+            const targetUrlParsed = returnUrl.split('?')[0];
+            if (currentUrl === targetUrlParsed) {
                 console.log('[AuthGuard] Already on target page, skipping redirect');
-                sessionStorage.removeItem(redirectKey);
+                sessionStorage.removeItem(redirectTimestamp);
                 return;
             }
-            window.location.href = returnUrl;
+            targetUrl = returnUrl;
         } else {
             // Default to home page
             const basePath = window.location.pathname.includes('/views/') ? '../' : '';
@@ -161,11 +167,20 @@ const AuthGuard = {
             // Check if we're already on the target page
             if (currentPath.includes('index.html') || (currentPath.endsWith('/') && !currentPath.includes('/views/'))) {
                 console.log('[AuthGuard] Already on home page, skipping redirect');
-                sessionStorage.removeItem(redirectKey);
+                sessionStorage.removeItem(redirectTimestamp);
                 return;
             }
             
-            window.location.href = targetPath;
+            targetUrl = targetPath;
+        }
+        
+        // Perform the redirect
+        if (targetUrl) {
+            console.log('[AuthGuard] Redirecting to:', targetUrl);
+            // Use a small delay to ensure any pending operations complete
+            setTimeout(() => {
+                window.location.href = targetUrl;
+            }, 100);
         }
     }
 };
