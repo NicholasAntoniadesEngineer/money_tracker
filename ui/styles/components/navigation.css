@@ -66,6 +66,27 @@ body:not(.landing-page) .main-navigation {
     padding: 0;
 }
 
+#header-app-title {
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+}
+
+#header-app-title:hover {
+    color: var(--primary-color);
+    opacity: 0.8;
+}
+
+#header-app-title:active {
+    opacity: 0.6;
+}
+
+#header-app-title:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: var(--border-radius);
+}
+
 .header-title-group > .hamburger-menu {
     flex-shrink: 0;
     margin: 0;

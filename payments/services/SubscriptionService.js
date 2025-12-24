@@ -455,6 +455,33 @@ const SubscriptionService = {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         return diffDays;
+    },
+    
+    /**
+     * Get days remaining in active subscription
+     * @param {Object} subscription - Subscription object
+     * @returns {number|null} Days remaining or null if not active or no end date
+     */
+    getSubscriptionDaysRemaining(subscription) {
+        if (!subscription || subscription.status !== 'active') {
+            return null;
+        }
+        
+        if (!subscription.subscription_end_date) {
+            return null;
+        }
+        
+        const subscriptionEndDate = new Date(subscription.subscription_end_date);
+        const now = new Date();
+        
+        if (now > subscriptionEndDate) {
+            return 0;
+        }
+        
+        const diffTime = subscriptionEndDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return diffDays;
     }
 };
 

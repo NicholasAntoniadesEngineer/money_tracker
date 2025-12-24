@@ -5,6 +5,7 @@
 
 const PaymentController = {
     currentSubscription: null,
+    currentPlan: null,
     paymentHistory: [],
     
     /**
@@ -66,12 +67,14 @@ const PaymentController = {
             
             if (result.success) {
                 this.currentSubscription = result.subscription;
+                this.currentPlan = result.plan;
                 if (this.currentSubscription) {
                     console.log('[PaymentController] ✅ Subscription loaded successfully:', {
                         status: this.currentSubscription.status,
                         planId: this.currentSubscription.plan_id,
                         trialStartDate: this.currentSubscription.trial_start_date,
-                        trialEndDate: this.currentSubscription.trial_end_date
+                        trialEndDate: this.currentSubscription.trial_end_date,
+                        planName: this.currentPlan?.plan_name
                     });
                 } else {
                     console.log('[PaymentController] ⚠️ Subscription query succeeded but returned null subscription');
@@ -85,6 +88,7 @@ const PaymentController = {
                     hasPlan: !!result.plan
                 });
                 this.currentSubscription = null;
+                this.currentPlan = null;
             }
         } catch (error) {
             const methodElapsed = Date.now() - methodStartTime;
@@ -139,6 +143,8 @@ const PaymentController = {
         const statusMessage = document.getElementById('subscription-status-message');
         const daysRemainingContainer = document.getElementById('trial-days-remaining');
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
+        const subscriptionSection = statusContainer ? statusContainer.closest('.subscription-section') : null;
+        const subscriptionHeading = subscriptionSection ? subscriptionSection.querySelector('h2.section-title') : null;
         
         console.log('[PaymentController] renderSubscriptionStatus - elements found:', {
             hasStatusContainer: !!statusContainer,
@@ -194,7 +200,29 @@ const PaymentController = {
         }
         
         const subscription = this.currentSubscription;
+        const plan = this.currentPlan;
         const isActive = window.SubscriptionService.isSubscriptionActive(subscription);
+        const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
+        
+        if (subscriptionHeading) {
+            if (subscription.status === 'active') {
+                const daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
+                if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
+                    subscriptionHeading.textContent = `Subscription Status - ${planName} (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
+                } else {
+                    subscriptionHeading.textContent = `Subscription Status - ${planName}`;
+                }
+            } else if (subscription.status === 'trial') {
+                const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
+                if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
+                    subscriptionHeading.textContent = `Subscription Status - Trial (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
+                } else {
+                    subscriptionHeading.textContent = 'Subscription Status - Trial Expired';
+                }
+            } else {
+                subscriptionHeading.textContent = 'Subscription Status';
+            }
+        }
         
         if (subscription.status === 'trial') {
             const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
@@ -221,13 +249,30 @@ const PaymentController = {
                 }
             }
         } else if (subscription.status === 'active') {
-            statusMessage.textContent = 'Your subscription is active.';
-            statusMessage.className = 'subscription-message subscription-message-success';
-            if (startSubscriptionBtn) {
-                startSubscriptionBtn.style.display = 'none';
+            const daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
+            
+            if (daysRemaining !== null && daysRemaining !== undefined) {
+                if (daysRemaining === 0) {
+                    statusMessage.textContent = `Your ${planName} subscription has expired. Please renew to continue.`;
+                    statusMessage.className = 'subscription-message subscription-message-error';
+                    if (startSubscriptionBtn) {
+                        startSubscriptionBtn.style.display = 'block';
+                    }
+                } else {
+                    statusMessage.textContent = `Your ${planName} subscription is active.`;
+                    statusMessage.className = 'subscription-message subscription-message-success';
+                    if (daysRemainingContainer) {
+                        daysRemainingContainer.style.display = 'block';
+                        daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
+                    }
+                }
+            } else {
+                statusMessage.textContent = `Your ${planName} subscription is active.`;
+                statusMessage.className = 'subscription-message subscription-message-success';
             }
-            if (daysRemainingContainer) {
-                daysRemainingContainer.style.display = 'none';
+            
+            if (startSubscriptionBtn && daysRemaining !== 0) {
+                startSubscriptionBtn.style.display = 'none';
             }
         } else {
             statusMessage.textContent = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;

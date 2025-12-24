@@ -44,12 +44,29 @@ class Header {
      */
     static getBasePath() {
         const path = window.location.pathname;
-        // If we're in the views folder, we're already in ui/views/
-        if (path.includes('/views/')) {
+        
+        // If we're in payments/views/, we need to go up to ui/views/
+        if (path.includes('/payments/views/')) {
+            return '../../ui/views/';
+        }
+        
+        // If we're in ui/views/, we're already in the right place
+        if (path.includes('/ui/views/')) {
             return '';
         }
-        // If we're at root index.html, paths go to views/
-        return 'views/';
+        
+        // If we're in payments/ but not in views/, go to ui/views/
+        if (path.includes('/payments/')) {
+            return '../ui/views/';
+        }
+        
+        // If we're at root or in ui/ but not in views/, paths go to views/
+        if (path.includes('/ui/')) {
+            return 'views/';
+        }
+        
+        // Default: assume we're at root level
+        return 'ui/views/';
     }
 
     /**
@@ -81,10 +98,27 @@ class Header {
         
         const currentPage = this.getCurrentPage();
         const basePath = this.getBasePath();
-        const isInViews = window.location.pathname.includes('/views/');
+        const path = window.location.pathname;
+        const isInPaymentsViews = path.includes('/payments/views/');
+        const isInUiViews = path.includes('/ui/views/');
+        const isInViews = isInPaymentsViews || isInUiViews;
+        
+        // Determine Home link based on current location
+        let homeHref;
+        if (isInPaymentsViews) {
+            homeHref = '../../ui/index.html';
+        } else if (isInUiViews) {
+            homeHref = '../index.html';
+        } else if (path.includes('/payments/')) {
+            homeHref = '../ui/index.html';
+        } else if (path.includes('/ui/')) {
+            homeHref = 'index.html';
+        } else {
+            homeHref = 'ui/index.html';
+        }
         
         const navItems = [
-            { name: 'Home', href: isInViews ? '../index.html' : 'index.html', page: 'Home' },
+            { name: 'Home', href: homeHref, page: 'Home' },
             { name: 'Monthly Budget', href: basePath + 'monthly-budget.html', page: 'Monthly Budget' },
             { name: 'Pots & Investments', href: basePath + 'pots.html', page: 'Pots & Investments' }
         ];
@@ -136,7 +170,7 @@ class Header {
     <header class="main-header">
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
             <div class="header-title-group">
-                <h1 class="site-title">Money Tracker</h1>
+                <h1 class="site-title" id="header-app-title" role="button" tabindex="0" aria-label="Go to home page">Money Tracker</h1>
                 <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
                     <span class="hamburger-line"></span>
                     <span class="hamburger-line"></span>
@@ -219,6 +253,9 @@ class Header {
         // Initialize hamburger menu functionality
         this.initHamburgerMenu();
         
+        // Initialize app title click handler
+        this.initAppTitleClick();
+        
         // Initialize user menu dropdown
         this.initUserMenu();
         
@@ -264,6 +301,40 @@ class Header {
             if (e.target.classList.contains('nav-link')) {
                 hamburgerBtn.setAttribute('aria-expanded', 'false');
                 navList.classList.remove('nav-open');
+            }
+        });
+    }
+
+    /**
+     * Initialize app title click handler
+     * Redirects to landing page if authenticated, sign-in page if not
+     */
+    static initAppTitleClick() {
+        const appTitle = document.getElementById('header-app-title');
+        if (!appTitle) return;
+
+        const handleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
+            const basePath = this.getBasePath();
+            const isInViews = window.location.pathname.includes('/views/');
+            
+            if (isAuthenticated) {
+                const landingPageUrl = isInViews ? '../index.html' : 'index.html';
+                window.location.href = landingPageUrl;
+            } else {
+                const authPageUrl = basePath + 'auth.html';
+                window.location.href = authPageUrl;
+            }
+        };
+
+        appTitle.addEventListener('click', handleClick);
+        appTitle.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick(e);
             }
         });
     }

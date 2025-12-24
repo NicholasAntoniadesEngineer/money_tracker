@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscription & Payment - Money Tracker</title>
+    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
     <link rel="stylesheet" href="../../ui/styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
@@ -174,7 +175,22 @@
                     await window.AuthService.initialize();
                 }
                 
-                // Check authentication
+                // Wait for session to be checked (session check runs in background)
+                // Poll for authentication status with timeout
+                let authenticated = false;
+                const maxWaitTime = 5000; // 5 seconds max wait
+                const checkInterval = 100; // Check every 100ms
+                const startTime = Date.now();
+                
+                while (!authenticated && (Date.now() - startTime) < maxWaitTime) {
+                    if (window.AuthService && window.AuthService.isAuthenticated()) {
+                        authenticated = true;
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, checkInterval));
+                }
+                
+                // Check authentication after waiting
                 if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                     console.log('[PaymentPage] User not authenticated, redirecting to auth...');
                     // Use absolute URL to avoid path resolution issues

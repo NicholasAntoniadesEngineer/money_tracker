@@ -472,6 +472,28 @@ const SettingsController = {
         if (refreshSubscriptionBtn) {
             refreshSubscriptionBtn.addEventListener('click', () => this.loadSubscriptionStatus());
         }
+        
+        // Set up payment page link
+        const managePaymentLink = document.getElementById('manage-payment-link');
+        if (managePaymentLink) {
+            // Calculate correct path to payment page based on current location
+            const path = window.location.pathname;
+            let paymentHref;
+            
+            if (path.includes('/ui/views/')) {
+                // From ui/views/settings.html, go to payments/views/payment.html
+                paymentHref = '../../payments/views/payment.html';
+            } else if (path.includes('/ui/')) {
+                // From ui/settings.html (if exists), go to payments/views/payment.html
+                paymentHref = '../payments/views/payment.html';
+            } else {
+                // Default fallback
+                paymentHref = 'payments/views/payment.html';
+            }
+            
+            managePaymentLink.href = paymentHref;
+            console.log('[SettingsController] Payment link set to:', paymentHref);
+        }
     },
 
     /**
@@ -985,6 +1007,8 @@ const SettingsController = {
     async loadSubscriptionStatus() {
         const statusContainer = document.getElementById('subscription-status-container');
         const statusMessage = document.getElementById('subscription-status-message');
+        const subscriptionSection = statusContainer ? statusContainer.closest('.settings-section') : null;
+        const subscriptionHeading = subscriptionSection ? subscriptionSection.querySelector('h2.section-title') : null;
         const daysRemainingContainer = document.getElementById('trial-days-remaining');
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         const statusDiv = document.getElementById('subscription-status');
@@ -1023,6 +1047,28 @@ const SettingsController = {
             const plan = result.plan;
             const isActive = window.SubscriptionService.isSubscriptionActive(subscription);
             
+            const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
+            
+            if (subscriptionHeading) {
+                if (subscription.status === 'active') {
+                    const daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
+                    if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
+                        subscriptionHeading.textContent = `Subscription - ${planName} (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
+                    } else {
+                        subscriptionHeading.textContent = `Subscription - ${planName}`;
+                    }
+                } else if (subscription.status === 'trial') {
+                    const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
+                    if (daysRemaining !== null && daysRemaining !== undefined && daysRemaining > 0) {
+                        subscriptionHeading.textContent = `Subscription - Trial (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining)`;
+                    } else {
+                        subscriptionHeading.textContent = 'Subscription - Trial Expired';
+                    }
+                } else {
+                    subscriptionHeading.textContent = 'Subscription';
+                }
+            }
+            
             let statusText = '';
             let statusClass = '';
             let statusBgColor = '';
@@ -1058,15 +1104,37 @@ const SettingsController = {
                     }
                 }
             } else if (subscription.status === 'active') {
-                statusText = 'Your subscription is active.';
-                statusClass = 'subscription-message-success';
-                statusBgColor = 'rgba(123, 171, 138, 0.3)';
-                statusBorderColor = 'var(--success-color)';
+                const daysRemaining = window.SubscriptionService.getSubscriptionDaysRemaining(subscription);
+                const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
+                
+                if (daysRemaining !== null && daysRemaining !== undefined) {
+                    if (daysRemaining === 0) {
+                        statusText = `Your ${planName} subscription has expired. Please renew to continue.`;
+                        statusClass = 'subscription-message-error';
+                        statusBgColor = 'rgba(181, 138, 138, 0.2)';
+                        statusBorderColor = 'var(--danger-color)';
+                        if (startSubscriptionBtn) {
+                            startSubscriptionBtn.style.display = 'block';
+                        }
+                    } else {
+                        statusText = `Your ${planName} subscription is active.`;
+                        statusClass = 'subscription-message-success';
+                        statusBgColor = 'rgba(123, 171, 138, 0.3)';
+                        statusBorderColor = 'var(--success-color)';
+                        if (daysRemainingContainer) {
+                            daysRemainingContainer.style.display = 'block';
+                            daysRemainingContainer.textContent = `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
+                        }
+                    }
+                } else {
+                    statusText = `Your ${planName} subscription is active.`;
+                    statusClass = 'subscription-message-success';
+                    statusBgColor = 'rgba(123, 171, 138, 0.3)';
+                    statusBorderColor = 'var(--success-color)';
+                }
+                
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'none';
-                }
-                if (daysRemainingContainer) {
-                    daysRemainingContainer.style.display = 'none';
                 }
             } else {
                 statusText = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;
