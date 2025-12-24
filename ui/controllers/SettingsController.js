@@ -220,13 +220,15 @@ const SettingsController = {
         // Delete all user data from Supabase button
         if (deleteAllUserDataBtn) {
             deleteAllUserDataBtn.addEventListener('click', async () => {
-                const confirmMessage = 'WARNING: This will PERMANENTLY DELETE all user data from Supabase!\n\n' +
+                const confirmMessage = 'WARNING: This will PERMANENTLY DELETE all YOUR user data from Supabase!\n\n' +
                     'This includes:\n' +
-                    '- All user months (user_months table)\n' +
-                    '- All pots (pots table)\n\n' +
+                    '- All your user months (user_months table)\n' +
+                    '- All your pots (pots table)\n\n' +
                     'This will NOT delete:\n' +
                     '- Example months (example_months table)\n' +
-                    '- Settings (settings table)\n\n' +
+                    '- Settings (settings table)\n' +
+                    '- Other users\' data\n' +
+                    '- Database tables themselves\n\n' +
                     'This action CANNOT be undone. Are you absolutely sure?';
                 
                 if (!confirm(confirmMessage)) {

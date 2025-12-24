@@ -1897,8 +1897,9 @@ const DatabaseService = {
     
     /**
      * Clear all user data from database tables
-     * Deletes all data from user_months and pots tables
-     * Does NOT delete example_months or settings
+     * Deletes all data from user_months and pots tables for the current user only
+     * Does NOT delete example_months, settings, or other users' data
+     * Does NOT delete tables themselves
      * @returns {Promise<Object>} Result object with success status and counts
      */
     async clearAllUserTables() {
@@ -1910,6 +1911,13 @@ const DatabaseService = {
                 await this.initialize();
             }
             
+            // Get current user ID - required to filter deletions to only current user's data
+            const currentUserId = this._getCurrentUserId();
+            if (!currentUserId) {
+                throw new Error('User not authenticated - cannot delete user data without authentication');
+            }
+            console.log(`[DatabaseService] Clearing data for user_id: ${currentUserId}`);
+            
             const result = {
                 userMonthsDeleted: 0,
                 potsDeleted: 0,
@@ -1917,21 +1925,11 @@ const DatabaseService = {
                 errors: []
             };
             
-            // Delete all user months using centralized query interface
-            console.log('[DatabaseService] Deleting all user_months...');
+            // Delete all user months for current user only using centralized query interface
+            console.log(`[DatabaseService] Deleting user_months for user_id: ${currentUserId}...`);
             try {
-                // Delete all rows - use a filter that matches all (id >= 1)
-                // Note: queryDelete uses eq filters, so we need to use direct fetch for gte
-                const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/user_months`);
-                deleteUrl.searchParams.append('id', 'gte.1');
-                deleteUrl.searchParams.append('select', '*');
-                
-                const deleteResponse = await fetch(deleteUrl.toString(), {
-                    method: 'DELETE',
-                    headers: this._getAuthHeaders()
-                });
-                
-                const deleteResult = await this._handleResponse(deleteResponse);
+                // Use queryDelete with user_id filter to only delete current user's data
+                const deleteResult = await this.queryDelete('user_months', { user_id: currentUserId });
                 
                 if (deleteResult.error) {
                     throw deleteResult.error;
@@ -1939,26 +1937,17 @@ const DatabaseService = {
                 
                 const deletedMonths = deleteResult.data;
                 result.userMonthsDeleted = deletedMonths ? (Array.isArray(deletedMonths) ? deletedMonths.length : 1) : 0;
-                console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months`);
+                console.log(`[DatabaseService] Deleted ${result.userMonthsDeleted} user months for current user`);
             } catch (monthsError) {
                 console.error('[DatabaseService] Exception deleting user_months:', monthsError);
                 result.errors.push(`user_months: ${monthsError.message}`);
             }
             
-            // Delete all pots using centralized query interface
-            console.log('[DatabaseService] Deleting all pots...');
+            // Delete all pots for current user only using centralized query interface
+            console.log(`[DatabaseService] Deleting pots for user_id: ${currentUserId}...`);
             try {
-                // Delete all rows - use a filter that matches all (id >= 1)
-                const deleteUrl = new URL(`${this.client.supabaseUrl}/rest/v1/pots`);
-                deleteUrl.searchParams.append('id', 'gte.1');
-                deleteUrl.searchParams.append('select', '*');
-                
-                const deleteResponse = await fetch(deleteUrl.toString(), {
-                    method: 'DELETE',
-                    headers: this._getAuthHeaders()
-                });
-                
-                const deleteResult = await this._handleResponse(deleteResponse);
+                // Use queryDelete with user_id filter to only delete current user's data
+                const deleteResult = await this.queryDelete('pots', { user_id: currentUserId });
                 
                 if (deleteResult.error) {
                     throw deleteResult.error;
@@ -1966,7 +1955,7 @@ const DatabaseService = {
                 
                 const deletedPots = deleteResult.data;
                 result.potsDeleted = deletedPots ? (Array.isArray(deletedPots) ? deletedPots.length : 1) : 0;
-                console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots`);
+                console.log(`[DatabaseService] Deleted ${result.potsDeleted} pots for current user`);
             } catch (potsError) {
                 console.error('[DatabaseService] Exception deleting pots:', potsError);
                 result.errors.push(`pots: ${potsError.message}`);
