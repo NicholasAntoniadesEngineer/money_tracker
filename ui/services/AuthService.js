@@ -1260,8 +1260,19 @@ const AuthService = {
             
             console.log('[AuthService] Sign out complete - redirecting to sign-in');
             
-            // Redirect to sign-in page
-            this._redirectToSignIn();
+            // Redirect directly to sign-in page (no return URL)
+            const currentPath = window.location.pathname;
+            let authPath;
+            if (currentPath.includes('/views/')) {
+                authPath = 'auth.html';
+            } else if (currentPath.includes('/ui/')) {
+                authPath = 'views/auth.html';
+            } else {
+                authPath = 'views/auth.html';
+            }
+            
+            console.log('[AuthService] Redirecting directly to:', authPath);
+            window.location.href = authPath;
             
             return { success: true, error: null };
         } catch (error) {
@@ -1270,7 +1281,21 @@ const AuthService = {
             this.currentUser = null;
             this.session = null;
             this.stopPeriodicSessionValidation();
-            this._redirectToSignIn();
+            
+            // Redirect directly to sign-in page (no return URL)
+            const currentPath = window.location.pathname;
+            let authPath;
+            if (currentPath.includes('/views/')) {
+                authPath = 'auth.html';
+            } else if (currentPath.includes('/ui/')) {
+                authPath = 'views/auth.html';
+            } else {
+                authPath = 'views/auth.html';
+            }
+            
+            console.log('[AuthService] Exception during sign out - redirecting to:', authPath);
+            window.location.href = authPath;
+            
             return { success: true, error: null };
         }
     },
@@ -1278,23 +1303,38 @@ const AuthService = {
     /**
      * Redirect to sign-in page
      * Private helper method
+     * Always redirects directly to auth.html
      * @private
      */
     _redirectToSignIn() {
+        console.log('[AuthService] ========== REDIRECT TO SIGN IN ==========');
         const currentPath = window.location.pathname;
-        const authPath = 'views/auth.html';
+        console.log('[AuthService] Current path:', currentPath);
         
         // Don't redirect if already on auth page
         if (currentPath.includes('auth.html')) {
+            console.log('[AuthService] Already on auth page, skipping redirect');
             return;
         }
         
-        // Use AuthGuard if available, otherwise direct redirect
-        if (window.AuthGuard) {
-            window.AuthGuard.redirectToAuth();
+        // Determine the correct path to auth.html
+        let authPath;
+        if (currentPath.includes('/views/')) {
+            // We're in views folder, auth.html is in same folder
+            authPath = 'auth.html';
+        } else if (currentPath.includes('/ui/')) {
+            // We're in ui folder, auth.html is in views subfolder
+            authPath = 'views/auth.html';
         } else {
-            window.location.href = authPath;
+            // Default fallback
+            authPath = 'views/auth.html';
         }
+        
+        console.log('[AuthService] Redirecting to:', authPath);
+        console.log('[AuthService] Executing redirect now...');
+        
+        // Direct redirect - no delays, no AuthGuard logic
+        window.location.href = authPath;
     },
 
     /**
