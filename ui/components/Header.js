@@ -39,6 +39,24 @@ class Header {
     }
 
     /**
+     * Get user initials from email
+     */
+    static getUserInitials(email) {
+        if (!email || typeof email !== 'string') {
+            return 'U';
+        }
+        const emailParts = email.trim().split('@');
+        const namePart = emailParts[0] || '';
+        if (namePart.length === 0) {
+            return 'U';
+        }
+        if (namePart.length === 1) {
+            return namePart.toUpperCase();
+        }
+        return namePart.substring(0, 2).toUpperCase();
+    }
+
+    /**
      * Render the header HTML
      */
     static render() {
@@ -49,8 +67,7 @@ class Header {
         const navItems = [
             { name: 'Home', href: isInViews ? '../index.html' : 'index.html', page: 'Home' },
             { name: 'Monthly Budget', href: basePath + 'monthly-budget.html', page: 'Monthly Budget' },
-            { name: 'Pots & Investments', href: basePath + 'pots.html', page: 'Pots & Investments' },
-            { name: 'Settings', href: basePath + 'settings.html', page: 'Settings' }
+            { name: 'Pots & Investments', href: basePath + 'pots.html', page: 'Pots & Investments' }
         ];
 
         const navLinks = navItems.map(item => {
@@ -65,10 +82,18 @@ class Header {
         if (window.AuthService && window.AuthService.isAuthenticated()) {
             const user = window.AuthService.getCurrentUser();
             const userEmail = user?.email || 'User';
+            const userInitials = this.getUserInitials(userEmail);
+            const settingsHref = basePath + 'settings.html';
             userInfoHtml = `
-            <div class="header-user-info">
-                <span class="user-email">${userEmail}</span>
-                <button class="btn-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+            <div class="header-user-menu">
+                <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
+                    <span class="user-initials">${userInitials}</span>
+                </button>
+                <div class="user-dropdown-menu" id="user-dropdown-menu">
+                    <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
+                    <div class="user-dropdown-username">${userEmail}</div>
+                    <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                </div>
             </div>`;
         }
 
@@ -122,6 +147,9 @@ class Header {
         // Initialize hamburger menu functionality
         this.initHamburgerMenu();
         
+        // Initialize user menu dropdown
+        this.initUserMenu();
+        
         // Initialize sign out button
         this.initSignOutButton();
         
@@ -162,12 +190,47 @@ class Header {
     }
 
     /**
+     * Initialize user menu dropdown
+     */
+    static initUserMenu() {
+        const avatarButton = document.getElementById('user-avatar-button');
+        const dropdownMenu = document.getElementById('user-dropdown-menu');
+
+        if (!avatarButton || !dropdownMenu) return;
+
+        avatarButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isExpanded = avatarButton.getAttribute('aria-expanded') === 'true';
+            avatarButton.setAttribute('aria-expanded', !isExpanded);
+            dropdownMenu.classList.toggle('user-dropdown-open');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!avatarButton.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                avatarButton.setAttribute('aria-expanded', 'false');
+                dropdownMenu.classList.remove('user-dropdown-open');
+            }
+        });
+
+        // Close menu when clicking on a dropdown item
+        dropdownMenu.addEventListener('click', (e) => {
+            if (e.target.classList.contains('user-dropdown-item') || e.target.closest('.user-dropdown-item')) {
+                avatarButton.setAttribute('aria-expanded', 'false');
+                dropdownMenu.classList.remove('user-dropdown-open');
+            }
+        });
+    }
+
+    /**
      * Initialize sign out button
      */
     static initSignOutButton() {
         const signOutButton = document.getElementById('header-signout-button');
         if (signOutButton) {
-            signOutButton.addEventListener('click', async () => {
+            signOutButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (window.AuthService) {
                     const result = await window.AuthService.signOut();
                     if (result.success) {
@@ -205,21 +268,31 @@ class Header {
         if (header) {
             const nav = header.querySelector('.main-navigation');
             if (nav) {
-                const oldUserInfo = nav.querySelector('.header-user-info');
-                if (oldUserInfo) {
-                    oldUserInfo.remove();
+                const oldUserMenu = nav.querySelector('.header-user-menu');
+                if (oldUserMenu) {
+                    oldUserMenu.remove();
                 }
                 
-                // Add user info if authenticated
+                // Add user menu if authenticated
                 if (window.AuthService && window.AuthService.isAuthenticated()) {
                     const user = window.AuthService.getCurrentUser();
                     const userEmail = user?.email || 'User';
+                    const userInitials = this.getUserInitials(userEmail);
+                    const basePath = this.getBasePath();
+                    const settingsHref = basePath + 'settings.html';
                     const userInfoHtml = `
-                    <div class="header-user-info">
-                        <span class="user-email">${userEmail}</span>
-                        <button class="btn-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                    <div class="header-user-menu">
+                        <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
+                            <span class="user-initials">${userInitials}</span>
+                        </button>
+                        <div class="user-dropdown-menu" id="user-dropdown-menu">
+                            <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">Settings</a>
+                            <div class="user-dropdown-username">${userEmail}</div>
+                            <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">Sign Out</button>
+                        </div>
                     </div>`;
                     nav.insertAdjacentHTML('beforeend', userInfoHtml);
+                    this.initUserMenu();
                     this.initSignOutButton();
                 }
             }

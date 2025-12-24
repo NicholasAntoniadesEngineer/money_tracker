@@ -1562,12 +1562,19 @@ const DatabaseService = {
                 }
             }
             
+            // Get current user ID for filtering
+            const currentUserId = this._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[DatabaseService] No authenticated user - cannot fetch settings');
+                return null;
+            }
+            
             // Use centralized query interface for settings
-            console.log('[DatabaseService] Querying settings...');
+            console.log('[DatabaseService] Querying settings for user_id:', currentUserId);
             const queryResult = await Promise.race([
                 this.querySelect('settings', {
                     select: '*',
-                    filter: { id: 1 },
+                    filter: { user_id: currentUserId },
                     limit: 1
                 }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 5000))
@@ -1665,15 +1672,22 @@ const DatabaseService = {
                 await this.initialize();
             }
             
+            // Get current user ID
+            const currentUserId = this._getCurrentUserId();
+            if (!currentUserId) {
+                throw new Error('User must be authenticated to save settings');
+            }
+            
             const settingsRecord = this.transformSettingsToDatabase(settings);
+            settingsRecord.user_id = currentUserId;
             console.log('[DatabaseService] Transformed settings record:', settingsRecord);
             
-            console.log('[DatabaseService] Upserting to settings table...');
+            console.log('[DatabaseService] Upserting to settings table for user_id:', currentUserId);
             
-            // Use centralized upsert method
+            // Use centralized upsert method with user_id as identifier
             const upsertResult = await this.queryUpsert('settings', settingsRecord, {
-                identifier: 'id',
-                identifierValue: 1
+                identifier: 'user_id',
+                identifierValue: currentUserId
             });
             
             if (upsertResult.error) {

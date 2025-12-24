@@ -55,16 +55,18 @@ CREATE TABLE IF NOT EXISTS pots (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Settings table
+-- Settings table (one row per user)
 CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY DEFAULT 1,
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
     currency TEXT DEFAULT '£',
     font_size TEXT DEFAULT '16',
     default_fixed_costs JSONB DEFAULT '[]',
     default_variable_categories JSONB DEFAULT '["Food", "Travel/Transport", "Activities"]',
     default_pots JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id)
 );
 
 -- Indexes for performance
@@ -73,6 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_user_months_created_at ON user_months(created_at)
 CREATE INDEX IF NOT EXISTS idx_example_months_year_month ON example_months(year, month);
 CREATE INDEX IF NOT EXISTS idx_example_months_created_at ON example_months(created_at);
 CREATE INDEX IF NOT EXISTS idx_pots_created_at ON pots(created_at);
+CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
