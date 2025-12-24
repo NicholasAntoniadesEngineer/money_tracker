@@ -177,7 +177,24 @@
                 // Check authentication
                 if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                     console.log('[PaymentPage] User not authenticated, redirecting to auth...');
-                    window.location.href = '../../ui/views/auth.html';
+                    // Use absolute URL to avoid path resolution issues
+                    const baseUrl = window.location.origin;
+                    const currentPath = window.location.pathname;
+                    const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                    
+                    // Find the base path (everything before 'ui' or 'payments')
+                    let basePathParts = [];
+                    for (let i = 0; i < pathParts.length; i++) {
+                        if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                            break;
+                        }
+                        basePathParts.push(pathParts[i]);
+                    }
+                    
+                    const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                    const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                    console.log('[PaymentPage] Redirecting to auth:', authUrl);
+                    window.location.href = authUrl;
                     return;
                 }
                 

@@ -63,13 +63,70 @@ const SubscriptionChecker = {
             if (!subscription) {
                 console.log('[SubscriptionChecker] ⚠️ checkAccess - NO SUBSCRIPTION FOUND');
                 console.log('[SubscriptionChecker] checkAccess - User has no subscription record in database');
+                console.log('[SubscriptionChecker] checkAccess - Attempting to create trial subscription for existing user...');
+                
+                // Try to create a trial subscription for this user
+                if (window.SubscriptionService && window.DatabaseService) {
+                    try {
+                        const userId = await window.DatabaseService._getCurrentUserId();
+                        if (userId) {
+                            console.log('[SubscriptionChecker] checkAccess - Creating trial subscription for user:', userId);
+                            const createTrialResult = await window.SubscriptionService.createTrialSubscription(userId);
+                            
+                            if (createTrialResult.success && createTrialResult.subscription) {
+                                console.log('[SubscriptionChecker] ✅ Trial subscription created successfully');
+                                console.log('[SubscriptionChecker] checkAccess - New subscription:', {
+                                    status: createTrialResult.subscription.status,
+                                    trialStartDate: createTrialResult.subscription.trial_start_date,
+                                    trialEndDate: createTrialResult.subscription.trial_end_date
+                                });
+                                
+                                // Now check access again with the newly created subscription
+                                const newSubscription = createTrialResult.subscription;
+                                const isActive = window.SubscriptionService.isSubscriptionActive(newSubscription);
+                                
+                                if (isActive && newSubscription.status === 'trial') {
+                                    const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(newSubscription);
+                                    console.log('[SubscriptionChecker] ✅ User now has ACTIVE TRIAL');
+                                    console.log('[SubscriptionChecker] checkAccess - daysRemaining:', daysRemaining);
+                                    const result = {
+                                        hasAccess: true,
+                                        status: 'trial',
+                                        details: {
+                                            subscription: newSubscription,
+                                            daysRemaining: daysRemaining
+                                        },
+                                        error: null
+                                    };
+                                    console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                                    return result;
+                                }
+                            } else {
+                                console.warn('[SubscriptionChecker] ⚠️ Failed to create trial subscription:', createTrialResult.error);
+                            }
+                        } else {
+                            console.warn('[SubscriptionChecker] ⚠️ Could not get user ID to create trial subscription');
+                        }
+                    } catch (createTrialError) {
+                        console.error('[SubscriptionChecker] ❌ Exception creating trial subscription:', createTrialError);
+                        console.error('[SubscriptionChecker] createTrialError details:', {
+                            message: createTrialError.message,
+                            name: createTrialError.name,
+                            stack: createTrialError.stack
+                        });
+                    }
+                } else {
+                    console.warn('[SubscriptionChecker] ⚠️ SubscriptionService or DatabaseService not available - cannot create trial subscription');
+                }
+                
+                // If we get here, trial creation failed or services unavailable
                 const result = {
                     hasAccess: false,
                     status: 'no_subscription',
                     details: null,
                     error: null
                 };
-                console.log('[SubscriptionChecker] checkAccess - returning:', result);
+                console.log('[SubscriptionChecker] checkAccess - returning (no subscription, trial creation failed or unavailable):', result);
                 return result;
             }
             

@@ -97,14 +97,7 @@ const AuthGuard = {
                             alert(`Subscription required: ${statusMessage}\n\nYou will be redirected to the subscription page.`);
                         }
                         
-                        const currentPath = window.location.pathname;
-                        console.log('[AuthGuard] Current path:', currentPath);
-                        if (!currentPath.includes('payment.html')) {
-                            console.log('[AuthGuard] Redirecting to payment page...');
-                            window.location.href = '../../payments/views/payment.html';
-                        } else {
-                            console.log('[AuthGuard] Already on payment page, not redirecting');
-                        }
+                        this.redirectToPayment();
                         return false;
                     }
                     console.log('[AuthGuard] ✅ User has active subscription:', accessCheck.status);
@@ -140,22 +133,102 @@ const AuthGuard = {
     redirectToAuth() {
         // Prevent multiple redirects
         if (this.redirecting) {
+            console.log('[AuthGuard] Already redirecting, skipping duplicate redirectToAuth call.');
             return;
         }
         
         const currentPath = window.location.pathname;
-        const authPath = 'views/auth.html';
+        console.log('[AuthGuard] redirectToAuth - Current path:', currentPath);
+        console.log('[AuthGuard] redirectToAuth - Current origin:', window.location.origin);
         
         // Don't redirect if already on auth page
         if (currentPath.includes('auth.html')) {
+            console.log('[AuthGuard] Already on auth page, skipping redirect');
             return;
         }
         
         this.redirecting = true;
         
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
+        }
+        
+        // Construct the auth URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        
+        console.log('[AuthGuard] Redirecting to auth page:', authUrl);
+        console.log('[AuthGuard] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            authUrl: authUrl
+        });
+        
         // Store the intended destination for redirect after login
         const returnUrl = encodeURIComponent(window.location.href);
-        window.location.href = `${authPath}?return=${returnUrl}`;
+        window.location.href = `${authUrl}?return=${returnUrl}`;
+    },
+
+    /**
+     * Redirect to payment/subscription page
+     * @returns {void}
+     */
+    redirectToPayment() {
+        if (this.redirecting) {
+            console.log('[AuthGuard] Already redirecting, skipping duplicate redirectToPayment call.');
+            return;
+        }
+        
+        const currentPath = window.location.pathname;
+        console.log('[AuthGuard] redirectToPayment - Current path:', currentPath);
+        console.log('[AuthGuard] redirectToPayment - Current origin:', window.location.origin);
+        
+        // Don't redirect if already on payment page
+        if (currentPath.includes('payment.html')) {
+            console.log('[AuthGuard] Already on payment page, skipping redirect');
+            return;
+        }
+        
+        this.redirecting = true;
+        
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
+        }
+        
+        // Construct the payment URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const paymentUrl = `${baseUrl}/${basePath}payments/views/payment.html`;
+        
+        console.log('[AuthGuard] Redirecting to payment page:', paymentUrl);
+        console.log('[AuthGuard] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            paymentUrl: paymentUrl
+        });
+        
+        window.location.href = paymentUrl;
     },
 
     /**

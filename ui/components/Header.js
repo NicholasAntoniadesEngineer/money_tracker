@@ -331,15 +331,43 @@ class Header {
                     window.AuthService.signOut().catch(error => {
                         // If signOut fails, force redirect anyway
                         console.error('[Header] Sign out error, forcing redirect:', error);
+                        // Use absolute URL to avoid path resolution issues
+                        const baseUrl = window.location.origin;
                         const currentPath = window.location.pathname;
-                        const authPath = currentPath.includes('/views/') 
-                            ? currentPath.replace(/[^/]+$/, 'auth.html')
-                            : 'views/auth.html';
-                        window.location.href = authPath;
+                        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                        
+                        // Find the base path (everything before 'ui' or 'payments')
+                        let basePathParts = [];
+                        for (let i = 0; i < pathParts.length; i++) {
+                            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                                break;
+                            }
+                            basePathParts.push(pathParts[i]);
+                        }
+                        
+                        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                        console.log('[Header] Redirecting to auth:', authUrl);
+                        window.location.href = authUrl;
                     });
                 } else {
-                    // Fallback if AuthService not available
-                    window.location.href = 'views/auth.html';
+                    // Fallback if AuthService not available - use absolute URL
+                    const baseUrl = window.location.origin;
+                    const currentPath = window.location.pathname;
+                    const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                    
+                    let basePathParts = [];
+                    for (let i = 0; i < pathParts.length; i++) {
+                        if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                            break;
+                        }
+                        basePathParts.push(pathParts[i]);
+                    }
+                    
+                    const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                    const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                    console.log('[Header] Fallback redirect to auth:', authUrl);
+                    window.location.href = authUrl;
                 }
             });
         }
