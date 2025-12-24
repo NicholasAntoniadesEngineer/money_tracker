@@ -1149,19 +1149,16 @@ const SettingsController = {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Days Remaining:</strong><span>${daysText}</span></div>`);
                 }
                 
-                // Trial Start (show if available)
-                if (subscription.trial_start_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial Start:</strong><span>${this.formatDate(subscription.trial_start_date)}</span></div>`);
+                // Subscription Start (show if available - prefer subscription_start_date, fallback to trial_start_date)
+                const subscriptionStartDate = subscription.subscription_start_date || subscription.trial_start_date;
+                if (subscriptionStartDate) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription Start:</strong><span>${this.formatDate(subscriptionStartDate)}</span></div>`);
                 }
                 
-                // Trial End (show if available)
-                if (subscription.trial_end_date) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Trial End:</strong><span>${this.formatDate(subscription.trial_end_date)}</span></div>`);
-                }
-                
-                // Created (always show if available)
-                if (subscription.created_at) {
-                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;"><strong>Created:</strong><span>${this.formatDate(subscription.created_at)}</span></div>`);
+                // Subscription End (show if available - prefer subscription_end_date, fallback to trial_end_date)
+                const subscriptionEndDate = subscription.subscription_end_date || subscription.trial_end_date;
+                if (subscriptionEndDate) {
+                    detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscriptionEndDate)}</span></div>`);
                 }
                 
                 // Always show the details box if we have a subscription
@@ -1170,6 +1167,28 @@ const SettingsController = {
                     subscriptionDetailsContainer.style.display = 'block';
                 } else {
                     subscriptionDetailsContainer.style.display = 'none';
+                }
+            }
+            
+            // Display Account Created date in separate section outside the details box
+            // Get account created date from user object (not subscription) - this is the actual account creation date
+            const accountCreatedContainer = document.getElementById('account-created-container');
+            const accountCreatedDate = document.getElementById('account-created-date');
+            if (accountCreatedContainer && accountCreatedDate) {
+                // Get user account created date from AuthService (Supabase auth.users table)
+                const currentUser = window.AuthService ? window.AuthService.getCurrentUser() : null;
+                if (currentUser && currentUser.created_at) {
+                    accountCreatedDate.textContent = this.formatDate(currentUser.created_at);
+                    accountCreatedContainer.style.display = 'block';
+                } else {
+                    // Fallback: try to get from session if currentUser doesn't have it
+                    const session = window.AuthService ? window.AuthService.getSession() : null;
+                    if (session && session.user && session.user.created_at) {
+                        accountCreatedDate.textContent = this.formatDate(session.user.created_at);
+                        accountCreatedContainer.style.display = 'block';
+                    } else {
+                        accountCreatedContainer.style.display = 'none';
+                    }
                 }
             }
         } catch (error) {
