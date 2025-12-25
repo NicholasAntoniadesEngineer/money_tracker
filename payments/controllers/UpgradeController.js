@@ -474,12 +474,6 @@ const UpgradeController = {
                 throw new Error('User email not available');
             }
             
-            if (!window.StripeService) {
-                throw new Error('StripeService not available');
-            }
-            
-            await window.StripeService.initialize();
-            
             // Determine if this is an upgrade or downgrade
             const currentPlan = this.currentPlan;
             const currentPlanPrice = currentPlan ? (currentPlan.price_amount * 100) : 0; // Convert to cents
@@ -589,6 +583,27 @@ const UpgradeController = {
                 }
                 
                 return;
+            }
+            
+            // For paid plans (priceAmount > 0): need StripeService for checkout
+            if (priceAmount > 0) {
+                console.log('[UpgradeController] Processing paid plan, checking StripeService...');
+                
+                // Brief wait for StripeService to be available
+                const maxWaitTime = 250;
+                const startWaitTime = Date.now();
+                
+                if (!window.StripeService) {
+                    await new Promise(resolve => setTimeout(resolve, maxWaitTime));
+                }
+                
+                if (!window.StripeService) {
+                    console.error('[UpgradeController] ❌ StripeService not available for paid plan upgrade');
+                    throw new Error('Payment service is not available. Please refresh the page and try again.');
+                }
+                
+                console.log('[UpgradeController] ✅ StripeService available, initializing...');
+                await window.StripeService.initialize();
             }
             
             // For downgrades (to paid plans): use update-subscription Edge Function (scheduled)
