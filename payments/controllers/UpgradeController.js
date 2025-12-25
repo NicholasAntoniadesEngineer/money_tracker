@@ -585,7 +585,8 @@ const UpgradeController = {
                 return;
             }
             
-            // For paid plans (priceAmount > 0): need StripeService for checkout
+            // For paid plans (priceAmount > 0): need StripeService for checkout (or use fallback)
+            let useStripeService = false;
             if (priceAmount > 0) {
                 console.log('[UpgradeController] Processing paid plan, checking StripeService...');
                 
@@ -597,13 +598,14 @@ const UpgradeController = {
                     await new Promise(resolve => setTimeout(resolve, maxWaitTime));
                 }
                 
-                if (!window.StripeService) {
-                    console.error('[UpgradeController] ❌ StripeService not available for paid plan upgrade');
-                    throw new Error('Payment service is not available. Please refresh the page and try again.');
+                if (window.StripeService) {
+                    console.log('[UpgradeController] ✅ StripeService available, initializing...');
+                    await window.StripeService.initialize();
+                    useStripeService = true;
+                } else {
+                    console.log('[UpgradeController] ⚠️ StripeService not available, will use direct Edge Function call as fallback');
+                    useStripeService = false;
                 }
-                
-                console.log('[UpgradeController] ✅ StripeService available, initializing...');
-                await window.StripeService.initialize();
             }
             
             // For downgrades (to paid plans): use update-subscription Edge Function (scheduled)
@@ -685,18 +687,86 @@ const UpgradeController = {
             
             console.log('[UpgradeController] Creating checkout session for upgrade...');
             
-            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-checkout-session`;
             
-            const result = await window.StripeService.createCheckoutSession(
-                currentUser.email,
-                currentUser.id,
-                successUrl,
-                cancelUrl,
-                backendEndpoint,
-                planId,
-                priceAmount
-            );
+            let result;
+            
+            if (useStripeService && window.StripeService && typeof window.StripeService.createCheckoutSession === 'function') {
+                console.log('[UpgradeController] Using StripeService to create checkout session...');
+                result = await window.StripeService.createCheckoutSession(
+                    currentUser.email,
+                    currentUser.id,
+                    successUrl,
+                    cancelUrl,
+                    backendEndpoint,
+                    planId,
+                    priceAmount
+                );
+            } else {
+                console.log('[UpgradeController] Using direct Edge Function call to create checkout session...');
+                
+                // Get access token from AuthService
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                            console.log('[UpgradeController] ✅ Access token obtained');
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] ⚠️ Error getting session:', sessionError);
+                    }
+                }
+                
+                console.log('[UpgradeController] Calling create-checkout-session Edge Function:', {
+                    endpoint: backendEndpoint,
+                    email: currentUser.email,
+                    userId: currentUser.id,
+                    planId: planId,
+                    priceAmount: priceAmount,
+                    hasAccessToken: !!accessToken
+                });
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerEmail: currentUser.email,
+                        userId: currentUser.id,
+                        successUrl: successUrl,
+                        cancelUrl: cancelUrl,
+                        planId: planId,
+                        priceAmount: priceAmount
+                    })
+                });
+                
+                console.log('[UpgradeController] Edge Function response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[UpgradeController] Edge Function response data:', data);
+                
+                result = {
+                    success: data.url ? true : false,
+                    sessionId: data.sessionId || null,
+                    customerId: data.customerId || null,
+                    url: data.url || null,
+                    error: data.error || null
+                };
+            }
             
             if (!result.success) {
                 throw new Error(result.error || 'Failed to create checkout session');
