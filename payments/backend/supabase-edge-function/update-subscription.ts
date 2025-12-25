@@ -10,8 +10,7 @@
  * 4. Copy the code from this file into the function
  * 5. Set environment variables:
  *    - STRIPE_RESTRICTED_KEY = your Stripe restricted/secret key
- *    - DATABASE_URL = your Supabase project URL
- *    - DATABASE_SERVICE_KEY = your Supabase service role key
+ *    Note: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are available by default in Edge Functions
  * 6. Deploy the function
  * 
  * USAGE:
@@ -46,11 +45,12 @@ try {
   console.error("[update-subscription] ❌ Stripe initialization error:", initError)
 }
 
-const supabaseUrl = Deno.env.get("DATABASE_URL")
-const supabaseServiceKey = Deno.env.get("DATABASE_SERVICE_KEY")
+// Use default Supabase secrets available in Edge Functions
+const supabaseUrl = Deno.env.get("SUPABASE_URL")
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn("[update-subscription] ⚠️ DATABASE_URL or DATABASE_SERVICE_KEY not set")
+  console.warn("[update-subscription] ⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not available")
 }
 
 serve(async (req) => {

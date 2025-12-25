@@ -97,8 +97,7 @@ WHERE is_active = true;
 3. **Copy code from**: `payments/backend/supabase-edge-function/update-subscription.ts`
 4. **Set environment variables**:
    - `STRIPE_RESTRICTED_KEY` = Your Stripe restricted key (or secret key)
-   - `DATABASE_URL` = Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
-   - `DATABASE_SERVICE_KEY` = Your Supabase service role key
+   - Note: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are available by default in Edge Functions
 5. **Deploy**
 
 ### 3.3 Deploy stripe-webhook
@@ -109,15 +108,17 @@ WHERE is_active = true;
 4. **Set environment variables**:
    - `STRIPE_RESTRICTED_KEY` = Your Stripe restricted key (or secret key)
    - `STRIPE_WEBHOOK_SECRET` = Your webhook signing secret (from Step 4.2)
-   - `DATABASE_URL` = Your Supabase project URL
-   - `DATABASE_SERVICE_KEY` = Your Supabase service role key
+   - Note: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are available by default in Edge Functions
 5. **Deploy**
 
-### 3.4 Get Supabase Service Role Key
+### 3.4 Supabase Secrets (Available by Default)
 
-1. Go to **Supabase Dashboard** → **Settings** → **API**
-2. Copy the **service_role** key (not the anon key)
-3. Use this for `SUPABASE_SERVICE_KEY` in Edge Functions
+Edge Functions automatically have access to:
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Your service role key (bypasses RLS)
+- `SUPABASE_ANON_KEY` - Your anon key (for client-side use)
+
+No need to set these manually - they're available automatically!
 
 ## Step 4: Configure Stripe Webhooks
 
@@ -230,12 +231,12 @@ Here's a complete list of all environment variables needed:
 |----------|----------|-------------|
 | `create-checkout-session` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
 | `update-subscription` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
-| `update-subscription` | `DATABASE_URL` | Supabase project URL |
-| `update-subscription` | `DATABASE_SERVICE_KEY` | Supabase service role key |
+| `update-subscription` | `SUPABASE_URL` | Available by default (no setup needed) |
+| `update-subscription` | `SUPABASE_SERVICE_ROLE_KEY` | Available by default (no setup needed) |
 | `stripe-webhook` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
 | `stripe-webhook` | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (whsec_...) |
-| `stripe-webhook` | `DATABASE_URL` | Supabase project URL |
-| `stripe-webhook` | `DATABASE_SERVICE_KEY` | Supabase service role key |
+| `stripe-webhook` | `SUPABASE_URL` | Available by default (no setup needed) |
+| `stripe-webhook` | `SUPABASE_SERVICE_ROLE_KEY` | Available by default (no setup needed) |
 
 ## Troubleshooting
 
