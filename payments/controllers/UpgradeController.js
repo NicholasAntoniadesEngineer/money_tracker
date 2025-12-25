@@ -1167,23 +1167,19 @@ const UpgradeController = {
                 windowKeys: Object.keys(window).filter(key => key.toLowerCase().includes('stripe'))
             });
             
-            // Wait for StripeService to be available (with timeout)
-            const maxWaitTime = 5000; // 5 seconds
+            // Brief wait for StripeService to be available
+            const maxWaitTime = 250; 
             const startWaitTime = Date.now();
-            let waitIterations = 0;
             
-            console.log('[UpgradeController] Starting wait loop for StripeService...');
-            while (!window.StripeService && (Date.now() - startWaitTime) < maxWaitTime) {
-                waitIterations++;
-                if (waitIterations % 10 === 0) {
-                    console.log(`[UpgradeController] Waiting for StripeService... iteration ${waitIterations}, elapsed: ${Date.now() - startWaitTime}ms`);
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
+            console.log('[UpgradeController] Brief check for StripeService availability...');
+            if (!window.StripeService) {
+                // Wait up to 30ms for StripeService to load
+                await new Promise(resolve => setTimeout(resolve, maxWaitTime));
             }
             
-            console.log('[UpgradeController] Wait completed:', {
-                iterations: waitIterations,
-                elapsed: Date.now() - startWaitTime,
+            const elapsed = Date.now() - startWaitTime;
+            console.log('[UpgradeController] StripeService check completed:', {
+                elapsed: elapsed,
                 hasStripeService: !!window.StripeService,
                 stripeServiceType: typeof window.StripeService
             });
