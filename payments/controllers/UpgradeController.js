@@ -288,8 +288,31 @@ const UpgradeController = {
             planCard.className = `plan-card ${isCurrentPlan ? 'current' : ''} ${isRecommended ? 'recommended' : ''}`;
             
             const priceInCents = Math.round(plan.price_amount * 100);
-            const priceFormatted = plan.price_amount.toFixed(2);
+            const priceFormatted = plan.price_amount === 0 ? '0' : plan.price_amount.toFixed(2);
             const currency = plan.price_currency.toUpperCase();
+            
+            // Determine button text based on upgrade/downgrade direction
+            let buttonText = 'Subscribe';
+            if (currentPlanId && this.currentPlan) {
+                const currentPrice = this.currentPlan.price_amount || 0;
+                const newPrice = plan.price_amount || 0;
+                if (newPrice > currentPrice) {
+                    buttonText = 'Upgrade';
+                } else if (newPrice < currentPrice) {
+                    buttonText = 'Downgrade';
+                } else {
+                    buttonText = 'Current Plan';
+                }
+            } else if (currentPlanId && !this.currentPlan) {
+                // If we have a current plan ID but no plan details, check subscription
+                const currentPrice = this.currentSubscription?.plan?.price_amount || 0;
+                const newPrice = plan.price_amount || 0;
+                if (newPrice > currentPrice) {
+                    buttonText = 'Upgrade';
+                } else if (newPrice < currentPrice) {
+                    buttonText = 'Downgrade';
+                }
+            }
             
             planCard.innerHTML = `
                 <div class="plan-header">
@@ -298,8 +321,8 @@ const UpgradeController = {
                         ${isCurrentPlan ? '<span class="current-plan-badge">Current</span>' : ''}
                     </div>
                     <div class="plan-price">
-                        €${priceFormatted}
-                        <span class="plan-price-period">/${plan.billing_interval}</span>
+                        ${plan.price_amount === 0 ? 'Free' : `€${priceFormatted}`}
+                        ${plan.price_amount > 0 ? `<span class="plan-price-period">/${plan.billing_interval}</span>` : ''}
                     </div>
                 </div>
                 <div class="plan-description">
@@ -309,15 +332,13 @@ const UpgradeController = {
                     <li>Full access to all features</li>
                     <li>Monthly budget tracking</li>
                     <li>Savings pots management</li>
-                    ${plan.price_amount >= 10 ? '<li>Priority support</li><li>Advanced analytics</li>' : ''}
+                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : ''}
                 </ul>
                 <div class="plan-actions">
                     ${isCurrentPlan ? 
                         `<div class="plan-status current">You are currently on this plan</div>` :
                         `<button class="btn btn-action upgrade-btn" data-plan-id="${plan.id}" data-plan-name="${plan.plan_name}" data-price-amount="${priceInCents}">
-                            ${currentPlanId && plan.price_amount > (this.currentPlan?.price_amount || 0) ? 'Upgrade' : 
-                              currentPlanId && plan.price_amount < (this.currentPlan?.price_amount || 0) ? 'Downgrade' : 
-                              'Subscribe'}
+                            ${buttonText}
                         </button>`
                     }
                 </div>
@@ -459,6 +480,35 @@ const UpgradeController = {
                 return;
             }
             
+            // For Free plan (€0): update directly without Stripe checkout
+            if (priceAmount === 0) {
+                console.log('[UpgradeController] Processing Free plan selection (no payment required)...');
+                
+                if (!window.SubscriptionService) {
+                    throw new Error('SubscriptionService not available');
+                }
+                
+                // Update subscription directly to Free plan
+                const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
+                    plan_id: planId,
+                    subscription_type: 'trial', // Free plan is trial type
+                    status: 'active'
+                });
+                
+                if (updateResult.success) {
+                    alert(`Successfully switched to ${planName}!`);
+                    
+                    // Reload subscription and plans to refresh the display
+                    await this.loadCurrentSubscription();
+                    await this.loadAvailablePlans();
+                    await this.renderPlans();
+                } else {
+                    throw new Error(updateResult.error || 'Failed to switch to Free plan');
+                }
+                
+                return;
+            }
+            
             // For upgrades or new subscriptions: use checkout (immediate)
             console.log('[UpgradeController] Processing upgrade/new subscription (immediate)...');
             
@@ -486,13 +536,18 @@ const UpgradeController = {
             }
             
             if (result.sessionId) {
-                // Store customer ID if returned
+                // Store customer ID if returned (non-blocking - webhook will also update this)
+                // Use a timeout to ensure redirect happens even if update is slow
                 if (result.customerId && window.SubscriptionService) {
-                    window.SubscriptionService.updateSubscription(currentUser.id, {
+                    const customerIdUpdatePromise = window.SubscriptionService.updateSubscription(currentUser.id, {
                         stripe_customer_id: result.customerId
                     }).catch(err => {
-                        console.warn('[UpgradeController] Failed to store customer ID:', err);
+                        console.warn('[UpgradeController] Failed to store customer ID (non-critical - webhook will handle):', err.message || err);
                     });
+                    
+                    // Don't wait for customer ID update - redirect immediately
+                    // The webhook will update the customer ID when checkout completes
+                    console.log('[UpgradeController] Customer ID update initiated (non-blocking)');
                 }
                 
                 console.log('[UpgradeController] Redirecting to Stripe Checkout...');

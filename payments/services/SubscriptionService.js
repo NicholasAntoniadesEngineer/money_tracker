@@ -12,12 +12,13 @@ const SubscriptionService = {
     TIER_MAPPING: {
         // Trial tier (no payment required)
         'trial': 'trial',
-        // Basic tier plans
+        // Basic tier plans (free tier)
+        'Free': 'basic',
         'Monthly Subscription': 'basic',
         'Basic Subscription': 'basic',
         // Premium tier plans
-        'Premium Subscription': 'premium',
-        'Premium': 'premium'
+        'Premium': 'premium',
+        'Premium Subscription': 'premium'
     },
     
     /**
@@ -363,9 +364,9 @@ const SubscriptionService = {
                 });
                 
                 console.log('[SubscriptionService] Plan query result:', {
-                    hasData: planResult.hasData,
+                    hasData: planResult.data !== null && planResult.data !== undefined,
                     dataLength: Array.isArray(planResult.data) ? planResult.data.length : 'N/A',
-                    hasError: planResult.hasError,
+                    hasError: planResult.error !== null,
                     planId: subscription.plan_id,
                     dataType: typeof planResult.data,
                     isArray: Array.isArray(planResult.data)
@@ -401,8 +402,8 @@ const SubscriptionService = {
                     }
                 } else {
                     console.warn('[SubscriptionService] Plan not found for plan_id:', subscription.plan_id, {
-                        hasData: planResult.hasData,
-                        hasError: planResult.hasError,
+                        hasData: planResult.data !== null && planResult.data !== undefined,
+                        hasError: planResult.error !== null,
                         error: planResult.error,
                         hasValidData: hasValidData,
                         dataExists: !!planResult.data,
