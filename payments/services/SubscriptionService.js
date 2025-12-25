@@ -371,8 +371,13 @@ const SubscriptionService = {
                     isArray: Array.isArray(planResult.data)
                 });
                 
-                // querySelect returns {hasData, data, hasError} not {success, data}
-                if (planResult.hasData && planResult.data) {
+                // querySelect returns {data, error} - hasData is not part of the return value
+                // Check if we have valid data (data exists and is not empty)
+                const hasValidData = planResult.data && 
+                                    ((Array.isArray(planResult.data) && planResult.data.length > 0) || 
+                                     (typeof planResult.data === 'object' && !Array.isArray(planResult.data) && planResult.data !== null));
+                
+                if (hasValidData && planResult.data) {
                     // Handle both array and single object responses
                     if (Array.isArray(planResult.data)) {
                         if (planResult.data.length > 0) {
@@ -385,7 +390,7 @@ const SubscriptionService = {
                         } else {
                             console.warn('[SubscriptionService] Plan array is empty for plan_id:', subscription.plan_id);
                         }
-                    } else if (typeof planResult.data === 'object') {
+                    } else if (typeof planResult.data === 'object' && planResult.data !== null) {
                         // Single object response
                         plan = planResult.data;
                         console.log('[SubscriptionService] Plan found (single object):', {
@@ -398,7 +403,12 @@ const SubscriptionService = {
                     console.warn('[SubscriptionService] Plan not found for plan_id:', subscription.plan_id, {
                         hasData: planResult.hasData,
                         hasError: planResult.hasError,
-                        error: planResult.error
+                        error: planResult.error,
+                        hasValidData: hasValidData,
+                        dataExists: !!planResult.data,
+                        dataType: typeof planResult.data,
+                        isArray: Array.isArray(planResult.data),
+                        dataLength: Array.isArray(planResult.data) ? planResult.data.length : 'N/A'
                     });
                 }
             }
