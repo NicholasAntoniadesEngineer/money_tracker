@@ -115,8 +115,8 @@ const StripeService = {
                     let response;
                     try {
                         response = await fetch(backendEndpoint, {
-                            method: 'POST',
-                            headers: headers,
+                        method: 'POST',
+                        headers: headers,
                             body: JSON.stringify(requestBody),
                             // Add credentials to help with CORS
                             credentials: 'omit'

@@ -375,7 +375,7 @@ const UpgradeController = {
                     <li>Full access to all features</li>
                     <li>Monthly budget tracking</li>
                     <li>Savings pots management</li>
-                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : '<li></li><li></li>'}
+                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : ''}
                 </ul>
                 <div class="plan-actions">
                     ${isCurrentPlan ? 

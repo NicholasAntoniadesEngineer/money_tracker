@@ -382,7 +382,7 @@ const SubscriptionService = {
                     // Handle both array and single object responses
                     if (Array.isArray(planResult.data)) {
                         if (planResult.data.length > 0) {
-                            plan = planResult.data[0];
+                    plan = planResult.data[0];
                             console.log('[SubscriptionService] Plan found (from array):', {
                                 id: plan.id,
                                 plan_name: plan.plan_name,
