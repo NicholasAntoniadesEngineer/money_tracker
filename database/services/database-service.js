@@ -463,14 +463,18 @@ const DatabaseService = {
             
             return result;
         } else if (identifierValue !== undefined) {
-            // For settings table - use user_id as identifier
+            // For settings/subscriptions table - use user_id as identifier
             const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
             patchUrl.searchParams.append(identifier, `eq.${identifierValue}`);
             patchUrl.searchParams.append('select', '*');
             
+            // Add Prefer header to return updated data (required for subscriptions table)
+            const patchHeaders = this._getAuthHeaders();
+            patchHeaders['Prefer'] = 'return=representation';
+            
             let response = await fetch(patchUrl.toString(), {
                 method: 'PATCH',
-                headers: this._getAuthHeaders(),
+                headers: patchHeaders,
                 body: JSON.stringify(data)
             });
             

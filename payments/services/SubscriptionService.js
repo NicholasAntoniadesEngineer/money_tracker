@@ -1,9 +1,74 @@
 /**
  * Subscription Service
  * Manages subscription lifecycle, trials, and status
+ * Supports subscription tiers: trial, basic, premium
  */
 
 const SubscriptionService = {
+    /**
+     * Subscription tier mapping
+     * Maps plan names to subscription tiers
+     */
+    TIER_MAPPING: {
+        // Trial tier (no payment required)
+        'trial': 'trial',
+        // Basic tier plans
+        'Monthly Subscription': 'basic',
+        'Basic Subscription': 'basic',
+        // Premium tier plans
+        'Premium Subscription': 'premium',
+        'Premium': 'premium'
+    },
+    
+    /**
+     * Get subscription tier from plan name
+     * @param {string|null|undefined} planName - Plan name from database
+     * @param {string} subscriptionType - 'trial' or 'paid'
+     * @returns {string} Tier: 'trial', 'basic', or 'premium'
+     */
+    getSubscriptionTier(planName, subscriptionType = 'trial') {
+        // If subscription_type is 'trial', always return 'trial' tier
+        if (subscriptionType === 'trial') {
+            return 'trial';
+        }
+        
+        // For paid subscriptions, map plan name to tier
+        if (!planName) {
+            // Default to basic if no plan name
+            return 'basic';
+        }
+        
+        // Check tier mapping (case-insensitive)
+        const planNameLower = planName.toLowerCase();
+        for (const [key, tier] of Object.entries(this.TIER_MAPPING)) {
+            if (planNameLower === key.toLowerCase()) {
+                return tier;
+            }
+        }
+        
+        // Default to basic if plan not found in mapping
+        console.warn('[SubscriptionService] Plan name not in tier mapping, defaulting to basic:', planName);
+        return 'basic';
+    },
+    
+    /**
+     * Check if user has access to a specific tier
+     * @param {string} requiredTier - Required tier: 'trial', 'basic', or 'premium'
+     * @param {string} userTier - User's current tier
+     * @returns {boolean} True if user has access
+     */
+    hasTierAccess(requiredTier, userTier) {
+        const tierHierarchy = {
+            'trial': 0,
+            'basic': 1,
+            'premium': 2
+        };
+        
+        const requiredLevel = tierHierarchy[requiredTier] ?? 0;
+        const userLevel = tierHierarchy[userTier] ?? 0;
+        
+        return userLevel >= requiredLevel;
+    },
     /**
      * Get default subscription plan from database
      * @returns {Promise<{success: boolean, plan: Object|null, error: string|null}>}
@@ -302,6 +367,17 @@ const SubscriptionService = {
                 }
             }
             
+            // Calculate subscription tier
+            const planName = plan?.plan_name || null;
+            const subscriptionType = subscription?.subscription_type || 'trial';
+            const tier = this.getSubscriptionTier(planName, subscriptionType);
+            
+            console.log('[SubscriptionService] Subscription tier calculated:', {
+                tier: tier,
+                planName: planName,
+                subscriptionType: subscriptionType
+            });
+            
             const methodElapsed = Date.now() - methodStartTime;
             console.log(`[SubscriptionService] ✅ getCurrentUserSubscription completed successfully in ${methodElapsed}ms`);
             console.log('[SubscriptionService] ========== getCurrentUserSubscription() COMPLETE ==========');
@@ -310,6 +386,7 @@ const SubscriptionService = {
                 success: true,
                 subscription: subscription,
                 plan: plan,
+                tier: tier, // Added tier: 'trial', 'basic', or 'premium'
                 error: null
             };
         } catch (error) {

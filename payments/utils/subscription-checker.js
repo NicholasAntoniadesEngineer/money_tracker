@@ -138,6 +138,10 @@ const SubscriptionChecker = {
             console.log('[SubscriptionChecker] checkAccess - isActive:', isActive);
             
             if (isActive) {
+                // Get tier from subscription result
+                const tier = subscriptionResult.tier || 'trial';
+                console.log('[SubscriptionChecker] checkAccess - subscription tier:', tier);
+                
                 if (subscription.status === 'trial') {
                     const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
                     console.log('[SubscriptionChecker] ✅ checkAccess - User has ACTIVE TRIAL');
@@ -145,8 +149,10 @@ const SubscriptionChecker = {
                     const result = {
                         hasAccess: true,
                         status: 'trial',
+                        tier: tier, // Added tier information
                         details: {
                             subscription: subscription,
+                            plan: subscriptionResult.plan,
                             daysRemaining: daysRemaining
                         },
                         error: null
@@ -158,8 +164,10 @@ const SubscriptionChecker = {
                     const result = {
                         hasAccess: true,
                         status: 'active',
+                        tier: tier, // Added tier information
                         details: {
-                            subscription: subscription
+                            subscription: subscription,
+                            plan: subscriptionResult.plan
                         },
                         error: null
                     };
@@ -185,11 +193,14 @@ const SubscriptionChecker = {
             
             console.log('[SubscriptionChecker] ⚠️ checkAccess - Subscription exists but NOT ACTIVE');
             console.log('[SubscriptionChecker] checkAccess - subscription status:', subscription.status);
+            const tier = subscriptionResult.tier || 'trial';
             const result = {
                 hasAccess: false,
                 status: subscription.status || 'expired',
+                tier: tier, // Added tier information even for inactive subscriptions
                 details: {
-                    subscription: subscription
+                    subscription: subscription,
+                    plan: subscriptionResult.plan
                 },
                 error: null
             };
@@ -216,6 +227,69 @@ const SubscriptionChecker = {
             console.log('[SubscriptionChecker] ========== checkAccess() FAILED ==========');
             return result;
         }
+    },
+    
+    /**
+     * Check if user has access to a specific tier
+     * @param {string} requiredTier - Required tier: 'trial', 'basic', or 'premium'
+     * @returns {Promise<{hasAccess: boolean, currentTier: string, requiredTier: string, details: Object|null}>}
+     */
+    async checkTierAccess(requiredTier) {
+        console.log('[SubscriptionChecker] ========== checkTierAccess() CALLED ==========');
+        console.log('[SubscriptionChecker] Required tier:', requiredTier);
+        
+        try {
+            const accessResult = await this.checkAccess();
+            
+            if (!accessResult.hasAccess) {
+                console.log('[SubscriptionChecker] ⚠️ User does not have active subscription, cannot check tier');
+                return {
+                    hasAccess: false,
+                    currentTier: 'none',
+                    requiredTier: requiredTier,
+                    details: accessResult
+                };
+            }
+            
+            const currentTier = accessResult.tier || 'trial';
+            const hasAccess = window.SubscriptionService.hasTierAccess(requiredTier, currentTier);
+            
+            console.log('[SubscriptionChecker] Tier access check:', {
+                currentTier: currentTier,
+                requiredTier: requiredTier,
+                hasAccess: hasAccess
+            });
+            
+            return {
+                hasAccess: hasAccess,
+                currentTier: currentTier,
+                requiredTier: requiredTier,
+                details: accessResult
+            };
+        } catch (error) {
+            console.error('[SubscriptionChecker] Error checking tier access:', error);
+            return {
+                hasAccess: false,
+                currentTier: 'unknown',
+                requiredTier: requiredTier,
+                details: null,
+                error: error.message
+            };
+        }
+    },
+    
+    /**
+     * Get subscription tier name for display
+     * @param {string} tier - Tier: 'trial', 'basic', or 'premium'
+     * @returns {string} Human-readable tier name
+     */
+    getTierName(tier) {
+        const tierNames = {
+            'trial': 'Trial',
+            'basic': 'Basic',
+            'premium': 'Premium'
+        };
+        return tierNames[tier] || 'Unknown';
     },
     
     /**
