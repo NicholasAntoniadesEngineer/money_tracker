@@ -4,6 +4,10 @@
  */
 
 class Header {
+    static updateInProgress = false;
+    static lastUpdateState = null;
+    static initialized = false;
+    
     /**
      * Check if we're on the auth page
      * @returns {boolean} True if on auth page
@@ -40,12 +44,29 @@ class Header {
      */
     static getBasePath() {
         const path = window.location.pathname;
-        // If we're in the views folder, we're already in ui/views/
-        if (path.includes('/views/')) {
+        
+        // If we're in payments/views/, we need to go up to ui/views/
+        if (path.includes('/payments/views/')) {
+            return '../../ui/views/';
+        }
+        
+        // If we're in ui/views/, we're already in the right place
+        if (path.includes('/ui/views/')) {
             return '';
         }
-        // If we're at root index.html, paths go to views/
+        
+        // If we're in payments/ but not in views/, go to ui/views/
+        if (path.includes('/payments/')) {
+            return '../ui/views/';
+        }
+        
+        // If we're at root or in ui/ but not in views/, paths go to views/
+        if (path.includes('/ui/')) {
         return 'views/';
+        }
+        
+        // Default: assume we're at root level
+        return 'ui/views/';
     }
 
     /**
@@ -77,10 +98,27 @@ class Header {
         
         const currentPage = this.getCurrentPage();
         const basePath = this.getBasePath();
-        const isInViews = window.location.pathname.includes('/views/');
+        const path = window.location.pathname;
+        const isInPaymentsViews = path.includes('/payments/views/');
+        const isInUiViews = path.includes('/ui/views/');
+        const isInViews = isInPaymentsViews || isInUiViews;
+        
+        // Determine Home link based on current location
+        let homeHref;
+        if (isInPaymentsViews) {
+            homeHref = '../../ui/index.html';
+        } else if (isInUiViews) {
+            homeHref = '../index.html';
+        } else if (path.includes('/payments/')) {
+            homeHref = '../ui/index.html';
+        } else if (path.includes('/ui/')) {
+            homeHref = 'index.html';
+        } else {
+            homeHref = 'ui/index.html';
+        }
         
         const navItems = [
-            { name: 'Home', href: isInViews ? '../index.html' : 'index.html', page: 'Home' },
+            { name: 'Home', href: homeHref, page: 'Home' },
             { name: 'Monthly Budget', href: basePath + 'monthly-budget.html', page: 'Monthly Budget' },
             { name: 'Pots & Investments', href: basePath + 'pots.html', page: 'Pots & Investments' }
         ];
@@ -112,25 +150,15 @@ class Header {
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
                         <div class="user-dropdown-item user-dropdown-username">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
-                                <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
-                            </svg>
+                            <i class="fa-regular fa-user user-dropdown-icon"></i>
                             <span>${userEmail}</span>
                         </div>
                         <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
-                                <path d="M8 0.5L9.5 1.5L11.5 1L12.5 2.5L14.5 2.5L15.5 4.5L14.5 6.5L12.5 6.5L11.5 8L9.5 7.5L8 9L6.5 7.5L4.5 8L3.5 6.5L1.5 6.5L0.5 4.5L1.5 2.5L3.5 2.5L4.5 1L6.5 1.5L8 0.5Z" fill="currentColor"/>
-                            </svg>
+                            <i class="fa-regular fa-gear user-dropdown-icon"></i>
                             <span>Settings</span>
                         </a>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                            <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
+                            <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                             <span>Sign Out</span>
                         </button>
                     </div>
@@ -142,7 +170,7 @@ class Header {
     <header class="main-header">
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
             <div class="header-title-group">
-                <h1 class="site-title">Money Tracker</h1>
+                <h1 class="site-title" id="header-app-title" role="button" tabindex="0" aria-label="Go to home page">Money Tracker</h1>
                 <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
                     <span class="hamburger-line"></span>
                     <span class="hamburger-line"></span>
@@ -164,25 +192,46 @@ class Header {
         console.log('[Header] ========== HEADER INIT STARTED ==========');
         console.log('[Header] init() called');
         
+        // Prevent multiple initializations
+        if (this.initialized) {
+            console.log('[Header] Already initialized, skipping duplicate init');
+            return;
+        }
+        
         // Don't initialize header on auth page
         if (this.isAuthPage()) {
             console.log('[Header] On auth page, skipping header initialization');
             return;
         }
         
-        // Wait for AuthService to be available if it exists
+        // Wait for SupabaseConfig to be available before initializing AuthService
         if (window.AuthService && !window.AuthService.client) {
-            console.log('[Header] AuthService available but client not initialized, initializing...');
+            console.log('[Header] AuthService available but client not initialized, waiting for SupabaseConfig...');
+            
+            // Wait for SupabaseConfig to be available (with timeout)
+            let waitCount = 0;
+            const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+            while (!window.SupabaseConfig && waitCount < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            
+            if (!window.SupabaseConfig) {
+                console.warn('[Header] SupabaseConfig not available after waiting, skipping AuthService initialization');
+            } else {
+                console.log('[Header] SupabaseConfig available, initializing AuthService...');
             try {
                 await window.AuthService.initialize();
                 console.log('[Header] AuthService initialized');
             } catch (error) {
                 console.warn('[Header] AuthService initialization failed:', error);
+                }
             }
         } else {
             console.log('[Header] AuthService status:', {
                 hasAuthService: !!window.AuthService,
-                hasClient: !!window.AuthService?.client
+                hasClient: !!window.AuthService?.client,
+                hasSupabaseConfig: !!window.SupabaseConfig
             });
         }
         
@@ -219,6 +268,9 @@ class Header {
         // Initialize hamburger menu functionality
         this.initHamburgerMenu();
         
+        // Initialize app title click handler
+        this.initAppTitleClick();
+        
         // Initialize user menu dropdown
         this.initUserMenu();
         
@@ -232,6 +284,7 @@ class Header {
         console.log('[Header] Updating header with current auth state...');
         this.updateHeader();
         
+        this.initialized = true;
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
     }
 
@@ -263,6 +316,54 @@ class Header {
             if (e.target.classList.contains('nav-link')) {
                 hamburgerBtn.setAttribute('aria-expanded', 'false');
                 navList.classList.remove('nav-open');
+            }
+        });
+    }
+
+    /**
+     * Initialize app title click handler
+     * Redirects to landing page if authenticated, sign-in page if not
+     */
+    static initAppTitleClick() {
+        const appTitle = document.getElementById('header-app-title');
+        if (!appTitle) return;
+
+        const handleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
+            const basePath = this.getBasePath();
+            const path = window.location.pathname;
+            const isInPaymentsViews = path.includes('/payments/views/');
+            const isInUiViews = path.includes('/ui/views/');
+            
+            if (isAuthenticated) {
+                // Determine landing page URL based on current location (same logic as render method)
+                let landingPageUrl;
+                if (isInPaymentsViews) {
+                    landingPageUrl = '../../ui/index.html';
+                } else if (isInUiViews) {
+                    landingPageUrl = '../index.html';
+                } else if (path.includes('/payments/')) {
+                    landingPageUrl = '../ui/index.html';
+                } else if (path.includes('/ui/')) {
+                    landingPageUrl = 'index.html';
+                } else {
+                    landingPageUrl = 'ui/index.html';
+                }
+                window.location.href = landingPageUrl;
+            } else {
+                const authPageUrl = basePath + 'auth.html';
+                window.location.href = authPageUrl;
+            }
+        };
+
+        appTitle.addEventListener('click', handleClick);
+        appTitle.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick(e);
             }
         });
     }
@@ -320,15 +421,43 @@ class Header {
                     window.AuthService.signOut().catch(error => {
                         // If signOut fails, force redirect anyway
                         console.error('[Header] Sign out error, forcing redirect:', error);
+                        // Use absolute URL to avoid path resolution issues
+                        const baseUrl = window.location.origin;
                         const currentPath = window.location.pathname;
-                        const authPath = currentPath.includes('/views/') 
-                            ? currentPath.replace(/[^/]+$/, 'auth.html')
-                            : 'views/auth.html';
-                        window.location.href = authPath;
+                        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                        
+                        // Find the base path (everything before 'ui' or 'payments')
+                        let basePathParts = [];
+                        for (let i = 0; i < pathParts.length; i++) {
+                            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                                break;
+                            }
+                            basePathParts.push(pathParts[i]);
+                        }
+                        
+                        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                        console.log('[Header] Redirecting to auth:', authUrl);
+                        window.location.href = authUrl;
                     });
                 } else {
-                    // Fallback if AuthService not available
-                    window.location.href = 'views/auth.html';
+                    // Fallback if AuthService not available - use absolute URL
+                    const baseUrl = window.location.origin;
+                    const currentPath = window.location.pathname;
+                    const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                    
+                    let basePathParts = [];
+                    for (let i = 0; i < pathParts.length; i++) {
+                        if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                            break;
+                        }
+                        basePathParts.push(pathParts[i]);
+                    }
+                    
+                    const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                    const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                    console.log('[Header] Fallback redirect to auth:', authUrl);
+                    window.location.href = authUrl;
                 }
             });
         }
@@ -340,19 +469,49 @@ class Header {
     static setupAuthStateListener() {
         console.log('[Header] Setting up auth state listener...');
         
-        // Listen for auth state changes
-        window.addEventListener('auth:signin', () => {
+        // Remove existing listeners to prevent duplicates
+        if (this._authSignInHandler) {
+            window.removeEventListener('auth:signin', this._authSignInHandler);
+        }
+        if (this._authSignOutHandler) {
+            window.removeEventListener('auth:signout', this._authSignOutHandler);
+        }
+        if (this._authInitialSessionHandler) {
+            window.removeEventListener('auth:initial_session', this._authInitialSessionHandler);
+        }
+        
+        // Create handler functions
+        this._authSignInHandler = () => {
             console.log('[Header] auth:signin event received, updating header...');
             // Small delay to ensure AuthService state is updated
             setTimeout(() => {
                 this.updateHeader();
             }, 100);
-        });
+        };
         
-        window.addEventListener('auth:signout', () => {
+        this._authSignOutHandler = () => {
             console.log('[Header] auth:signout event received, updating header...');
             this.updateHeader();
-        });
+        };
+        
+        // Listen for initial session event (only once, with debounce)
+        this._authInitialSessionHandler = () => {
+            console.log('[Header] auth:initial_session event received');
+            // Only update if we haven't updated recently (debounce)
+            if (!this.updateInProgress) {
+                setTimeout(() => {
+                    if (!this.updateInProgress) {
+                        console.log('[Header] Executing header update after initial_session event (200ms delay)...');
+                        this.updateHeader();
+                    }
+                }, 200);
+            }
+        };
+        
+        // Listen for auth state changes
+        window.addEventListener('auth:signin', this._authSignInHandler);
+        window.addEventListener('auth:signout', this._authSignOutHandler);
+        window.addEventListener('auth:initial_session', this._authInitialSessionHandler);
         
         console.log('[Header] Auth state listener set up successfully');
     }
@@ -362,102 +521,120 @@ class Header {
      */
     static updateHeader() {
         console.log('[Header] ========== UPDATE HEADER CALLED ==========');
+        
+        if (this.updateInProgress) {
+            console.log('[Header] Update already in progress, skipping duplicate call');
+            return;
+        }
+        
+        this.updateInProgress = true;
         console.log('[Header] updateHeader() called');
         
-        const header = document.querySelector('.main-header');
-        console.log('[Header] Header element found:', !!header);
-        
-        if (!header) {
-            console.warn('[Header] Header element not found in DOM');
-            return;
-        }
-        
-        const nav = header.querySelector('.main-navigation');
-        console.log('[Header] Navigation element found:', !!nav);
-        
-        if (!nav) {
-            console.warn('[Header] Navigation element not found in header');
-            return;
-        }
-        
-        const oldUserMenu = nav.querySelector('.header-user-menu');
-        if (oldUserMenu) {
-            console.log('[Header] Removing existing user menu');
-            oldUserMenu.remove();
-        }
-        
-        // Check authentication status
-        // Be more resilient - check both isAuthenticated() and direct session/user state
-        let isAuthenticated = false;
-        if (window.AuthService) {
-            // Check both the method and direct state to handle timeout scenarios
-            const methodCheck = window.AuthService.isAuthenticated();
-            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
-            isAuthenticated = methodCheck || directCheck;
-        }
-        
-        console.log('[Header] Authentication status:', {
-            hasAuthService: !!window.AuthService,
-            isAuthenticated: isAuthenticated,
-            methodCheck: window.AuthService?.isAuthenticated(),
-            directCheck: window.AuthService?.currentUser !== null && window.AuthService?.session !== null,
-            hasCurrentUser: !!window.AuthService?.getCurrentUser(),
-            userEmail: window.AuthService?.getCurrentUser()?.email
-        });
-        
-        // Add user menu if authenticated
-        if (isAuthenticated) {
-            const user = window.AuthService.getCurrentUser();
-            const userEmail = user?.email || 'User';
-            const userInitials = this.getUserInitials(userEmail);
-            const basePath = this.getBasePath();
-            const settingsHref = basePath + 'settings.html';
+        try {
+            const header = document.querySelector('.main-header');
+            console.log('[Header] Header element found:', !!header);
             
-            console.log('[Header] Adding user menu:', {
-                userEmail: userEmail,
-                userInitials: userInitials,
-                settingsHref: settingsHref
+            if (!header) {
+                console.warn('[Header] Header element not found in DOM');
+                return;
+            }
+            
+            const nav = header.querySelector('.main-navigation');
+            console.log('[Header] Navigation element found:', !!nav);
+            
+            if (!nav) {
+                console.warn('[Header] Navigation element not found in header');
+                return;
+            }
+            
+            // Check authentication status
+            // Be more resilient - check both isAuthenticated() and direct session/user state
+            let isAuthenticated = false;
+            let currentUserEmail = null;
+            if (window.AuthService) {
+                // Check both the method and direct state to handle timeout scenarios
+                const methodCheck = window.AuthService.isAuthenticated();
+                const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+                isAuthenticated = methodCheck || directCheck;
+                const user = window.AuthService.getCurrentUser();
+                currentUserEmail = user?.email || null;
+            }
+            
+            const currentState = {
+                isAuthenticated: isAuthenticated,
+                userEmail: currentUserEmail
+            };
+            
+            // Check if state has actually changed
+            if (this.lastUpdateState && 
+                this.lastUpdateState.isAuthenticated === currentState.isAuthenticated &&
+                this.lastUpdateState.userEmail === currentState.userEmail) {
+                console.log('[Header] Auth state unchanged, skipping update');
+                return;
+            }
+            
+            console.log('[Header] Authentication status:', {
+                hasAuthService: !!window.AuthService,
+                isAuthenticated: isAuthenticated,
+                methodCheck: window.AuthService?.isAuthenticated(),
+                directCheck: window.AuthService?.currentUser !== null && window.AuthService?.session !== null,
+                hasCurrentUser: !!window.AuthService?.getCurrentUser(),
+                userEmail: currentUserEmail
             });
             
-            const userInfoHtml = `
+            const oldUserMenu = nav.querySelector('.header-user-menu');
+            if (oldUserMenu) {
+                console.log('[Header] Removing existing user menu');
+                oldUserMenu.remove();
+            }
+            
+            // Add user menu if authenticated
+            if (isAuthenticated) {
+                const user = window.AuthService.getCurrentUser();
+                const userEmail = user?.email || 'User';
+                const userInitials = this.getUserInitials(userEmail);
+                const basePath = this.getBasePath();
+                const settingsHref = basePath + 'settings.html';
+                
+                console.log('[Header] Adding user menu:', {
+                    userEmail: userEmail,
+                    userInitials: userInitials,
+                    settingsHref: settingsHref
+                });
+                
+                const userInfoHtml = `
                     <div class="header-user-menu">
                         <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                             <span class="user-initials">${userInitials}</span>
                         </button>
                         <div class="user-dropdown-menu" id="user-dropdown-menu">
                             <div class="user-dropdown-item user-dropdown-username">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="currentColor"/>
-                                    <path d="M8 10C4.68629 10 2 11.7909 2 14V16H14V14C14 11.7909 11.3137 10 8 10Z" fill="currentColor"/>
-                                </svg>
+                                <i class="fa-regular fa-user user-dropdown-icon"></i>
                                 <span>${userEmail}</span>
                             </div>
                             <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" fill="currentColor"/>
-                                    <path d="M8 0.5L9.5 1.5L11 0.5L12 2L13.5 2L14.5 3.5L13.5 5L12 5L11 6.5L9.5 5.5L8 7L6.5 5.5L5 6.5L4 5L2.5 5L1.5 3.5L2.5 2L4 2L5 0.5L6.5 1.5L8 0.5Z" fill="currentColor"/>
-                                </svg>
+                                <i class="fa-regular fa-gear user-dropdown-icon"></i>
                                 <span>Settings</span>
                             </a>
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                                <svg class="user-dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                    <path d="M10 11L13 8L10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                </svg>
+                                <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                                 <span>Sign Out</span>
                             </button>
                         </div>
                     </div>`;
-            nav.insertAdjacentHTML('beforeend', userInfoHtml);
-            this.initUserMenu();
-            this.initSignOutButton();
-            console.log('[Header] User menu added successfully');
-        } else {
-            console.log('[Header] User not authenticated, not adding user menu');
+                nav.insertAdjacentHTML('beforeend', userInfoHtml);
+                this.initUserMenu();
+                this.initSignOutButton();
+                console.log('[Header] User menu added successfully');
+            } else {
+                console.log('[Header] User not authenticated, not adding user menu');
+            }
+            
+            this.lastUpdateState = currentState;
+            console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
+        } finally {
+            this.updateInProgress = false;
         }
-        
-        console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
     }
 }
 

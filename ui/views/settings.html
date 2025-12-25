@@ -4,8 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Money Tracker</title>
+    <link rel="stylesheet" href="../vendor/font-awesome/css/all.min.css">
     <link rel="stylesheet" href="../styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
+        (function() {
+            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
+            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            
+            // Sync with database once services are available
+            async function syncFontSizeFromDatabase() {
+                try {
+                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
+                        const settings = await window.DatabaseService.getSettings();
+                        if (settings && settings.fontSize) {
+                            const fontSize = settings.fontSize;
+                            document.documentElement.style.fontSize = fontSize + 'px';
+                            localStorage.setItem('money_tracker_fontSize', fontSize);
+                        }
+                    } else if (document.readyState !== 'complete') {
+                        setTimeout(syncFontSizeFromDatabase, 100);
+                    }
+                } catch (error) {
+                    // Silently fail - use cached value
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
+            } else {
+                syncFontSizeFromDatabase();
+            }
+        })();
+    </script>
 </head>
 <body>
     <!-- Header will be injected by Header.js -->
@@ -96,6 +128,40 @@
             </div>
         </section>
 
+        <section class="settings-section form-section">
+            <h2 class="section-title">Subscription</h2>
+            
+            <div id="subscription-status-container" class="subscription-status-container">
+                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
+                    Loading subscription status...
+                </div>
+                
+                <div id="subscription-details" class="subscription-details" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+                    <div id="subscription-details-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
+                        <!-- Details will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div id="account-created-container" class="account-created-container" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); font-size: 0.95rem;">
+                    <strong>Account Created:</strong> <span id="account-created-date"></span>
+                </div>
+            </div>
+            
+            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm);">
+                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
+                    Start Subscription (€5/month)
+                </button>
+                <button id="refresh-subscription-button" class="btn btn-action">
+                    Refresh Status
+                </button>
+                <a href="../../payments/views/upgrade.html" class="btn btn-action">
+                    Subscription Management
+                </a>
+            </div>
+            
+            <div id="subscription-status" class="settings-status"></div>
+        </section>
+
         <div id="file-operations-status" class="settings-status"></div>
     </main>
 
@@ -106,8 +172,14 @@
     <!-- Database Layer -->
     <script src="../../database/config/supabase-config.js"></script>
     <script src="../services/AuthService.js"></script>
-    <script src="../utils/auth-guard.js"></script>
     <script src="../../database/services/database-service.js"></script>
+    <script src="../../payments/config/stripe-config.js"></script>
+    <script src="../../payments/services/StripeService.js"></script>
+    <script src="../../payments/services/SubscriptionService.js"></script>
+    <script src="../../payments/services/PaymentService.js"></script>
+    <script src="../../payments/utils/subscription-checker.js"></script>
+    <script src="../utils/subscription-guard.js"></script>
+    <script src="../utils/auth-guard.js"></script>
     <script src="../../database/models/data-manager.js"></script>
     <script src="../../database/models/month-factory.js"></script>
     
@@ -158,6 +230,29 @@
                 }).catch(err => {
                     console.warn('[SettingsPage] Settings loading error:', err);
                 });
+                
+                // Handle payment return from Stripe
+                const urlParams = new URLSearchParams(window.location.search);
+                const paymentStatus = urlParams.get('payment');
+                if (paymentStatus === 'success') {
+                    const statusDiv = document.getElementById('subscription-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<p style="color: var(--success-color);">Payment successful! Your subscription is now active.</p>';
+                    }
+                    // Refresh subscription status
+                    if (window.SettingsController) {
+                        await window.SettingsController.loadSubscriptionStatus();
+                    }
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (paymentStatus === 'cancelled') {
+                    const statusDiv = document.getElementById('subscription-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<p style="color: var(--warning-color);">Payment was cancelled. You can try again when ready.</p>';
+                    }
+                    // Remove query parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
                 
             } catch (error) {
                 console.error('[SettingsPage] Error initializing application:', error);

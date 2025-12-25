@@ -42,3 +42,19 @@ h3.section-title {
     max-width: 600px;
     margin: 0 auto;
 }
+
+/* Consistent font weight for non-header interactive elements */
+a:not(.btn):not(.nav-link):not(.user-dropdown-item) {
+    font-weight: 500;
+}
+
+/* Ensure all form elements have consistent font weight */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    font-weight: 500;
+}
+
+select option {
+    font-weight: 500;
+}

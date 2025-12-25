@@ -67,45 +67,302 @@ const AuthService = {
             
             // Check for existing session with timeout to prevent hanging
             // Make this non-blocking - if it hangs, we'll continue without session
+            const sessionCheckStartTime = Date.now();
+            const sessionCheckState = { completed: false }; // Use object to ensure proper closure access
+            console.log('[AuthService] ========== SESSION CHECK STARTED ==========');
             console.log('[AuthService] Checking for existing session (non-blocking)...');
+            console.log('[AuthService] Session check start time:', new Date().toISOString());
+            console.log('[AuthService] Current state before check:', {
+                hasClient: !!this.client,
+                hasAuth: !!this.client?.auth,
+                hasCurrentSession: !!this.session,
+                hasCurrentUser: !!this.currentUser,
+                currentUserEmail: this.currentUser?.email
+            });
             
             // Start session check but don't wait for it - set up listeners first
+            const SESSION_CHECK_TIMEOUT_MS = 10000; // 10 seconds - reasonable timeout for network requests
+            console.log('[AuthService] Session check timeout configured:', SESSION_CHECK_TIMEOUT_MS, 'ms');
+            console.log('[AuthService] Starting Promise.race with getSession() and timeout...');
+            
+            console.log('[AuthService] ========== CREATING GETSESSION PROMISE ==========');
+            console.log('[AuthService] Variable state before getSession():', {
+                hasClient: !!this.client,
+                hasAuth: !!this.client?.auth,
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed,
+                SESSION_CHECK_TIMEOUT_MS: SESSION_CHECK_TIMEOUT_MS
+            });
+            
+            const getSessionPromise = this.client.auth.getSession();
+            console.log('[AuthService] getSession() promise created');
+            console.log('[AuthService] getSessionPromise type:', typeof getSessionPromise);
+            console.log('[AuthService] getSessionPromise is Promise:', getSessionPromise instanceof Promise);
+            
+            console.log('[AuthService] ========== CREATING TIMEOUT PROMISE ==========');
+            console.log('[AuthService] Variable state before timeoutPromise creation:', {
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed,
+                SESSION_CHECK_TIMEOUT_MS: SESSION_CHECK_TIMEOUT_MS,
+                SESSION_CHECK_TIMEOUT_MS_type: typeof SESSION_CHECK_TIMEOUT_MS
+            });
+            
+            // Store timeout ID in a variable that can be accessed from outside the Promise
+            let timeoutIdRef = null;
+            console.log('[AuthService] timeoutIdRef initialized to:', timeoutIdRef);
+            
+            console.log('[AuthService] About to create Promise constructor...');
+            let timeoutPromise;
+            try {
+                console.log('[AuthService] ========== ENTERING PROMISE CONSTRUCTOR ==========');
+                timeoutPromise = new Promise((_, reject) => {
+                    console.log('[AuthService] ========== INSIDE PROMISE CONSTRUCTOR ==========');
+                    console.log('[AuthService] Promise constructor executing - checking variable access...');
+                    console.log('[AuthService] SESSION_CHECK_TIMEOUT_MS accessible:', typeof SESSION_CHECK_TIMEOUT_MS !== 'undefined' ? SESSION_CHECK_TIMEOUT_MS : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckStartTime accessible:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckState accessible:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckState.completed accessible:', typeof sessionCheckState !== 'undefined' && typeof sessionCheckState.completed !== 'undefined' ? sessionCheckState.completed : 'UNDEFINED');
+                    console.log('[AuthService] reject function accessible:', typeof reject !== 'undefined' ? 'YES' : 'NO');
+                    console.log('[AuthService] timeoutIdRef accessible:', typeof timeoutIdRef !== 'undefined' ? timeoutIdRef : 'UNDEFINED');
+                    
+                console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
+                    console.log('[AuthService] About to call setTimeout...');
+                    
+                    try {
+                        timeoutIdRef = setTimeout(() => {
+                            console.log('[AuthService] ========== INSIDE SETTIMEOUT CALLBACK ==========');
+                            console.log('[AuthService] setTimeout callback executing...');
+                            console.log('[AuthService] Variable access check in setTimeout callback:');
+                            console.log('[AuthService] - sessionCheckStartTime:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                            console.log('[AuthService] - sessionCheckState:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                            console.log('[AuthService] - sessionCheckState.completed:', typeof sessionCheckState !== 'undefined' && typeof sessionCheckState.completed !== 'undefined' ? sessionCheckState.completed : 'UNDEFINED');
+                            console.log('[AuthService] - SESSION_CHECK_TIMEOUT_MS:', typeof SESSION_CHECK_TIMEOUT_MS !== 'undefined' ? SESSION_CHECK_TIMEOUT_MS : 'UNDEFINED');
+                            
+                    const elapsed = Date.now() - sessionCheckStartTime;
+                            console.log('[AuthService] Elapsed time calculated:', elapsed, 'ms');
+                            
+                            if (sessionCheckState.completed) {
+                        console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
+                        console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
+                        return; // Don't reject if already completed
+                    }
+                    console.log('[AuthService] ========== TIMEOUT TRIGGERED ==========');
+                    console.log('[AuthService] Timeout triggered after', elapsed, 'ms');
+                    console.log('[AuthService] Timeout time:', new Date().toISOString());
+                    console.log('[AuthService] getSession() did not resolve within timeout period');
+                    reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
+                }, SESSION_CHECK_TIMEOUT_MS);
+                        console.log('[AuthService] setTimeout called successfully, timeoutIdRef set to:', timeoutIdRef);
+                    } catch (setTimeoutError) {
+                        console.error('[AuthService] ERROR in setTimeout call:', setTimeoutError);
+                        console.error('[AuthService] setTimeout error details:', {
+                            message: setTimeoutError.message,
+                            name: setTimeoutError.name,
+                            stack: setTimeoutError.stack
+                        });
+                        throw setTimeoutError;
+                    }
+                });
+                console.log('[AuthService] Promise created successfully');
+                console.log('[AuthService] timeoutIdRef after Promise creation:', timeoutIdRef);
+                console.log('[AuthService] timeoutPromise type:', typeof timeoutPromise);
+                console.log('[AuthService] timeoutPromise is Promise:', timeoutPromise instanceof Promise);
+            } catch (promiseCreationError) {
+                console.error('[AuthService] ========== ERROR CREATING TIMEOUT PROMISE ==========');
+                console.error('[AuthService] Error creating timeoutPromise:', promiseCreationError);
+                console.error('[AuthService] Error details:', {
+                    message: promiseCreationError.message,
+                    name: promiseCreationError.name,
+                    stack: promiseCreationError.stack
+                });
+                throw promiseCreationError;
+            }
+            
+            // Store timeout ID on the promise after it's created
+            console.log('[AuthService] About to set timeoutPromise._timeoutId...');
+            console.log('[AuthService] timeoutPromise exists:', typeof timeoutPromise !== 'undefined');
+            console.log('[AuthService] timeoutIdRef value:', timeoutIdRef);
+            timeoutPromise._timeoutId = timeoutIdRef;
+            console.log('[AuthService] timeoutPromise._timeoutId set to:', timeoutPromise._timeoutId);
+            
+            console.log('[AuthService] ========== CREATING PROMISE.RACE ==========');
+            console.log('[AuthService] Variable state before Promise.race:', {
+                hasGetSessionPromise: typeof getSessionPromise !== 'undefined',
+                getSessionPromiseType: typeof getSessionPromise,
+                hasTimeoutPromise: typeof timeoutPromise !== 'undefined',
+                timeoutPromiseType: typeof timeoutPromise,
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed
+            });
+            
+            console.log('[AuthService] About to call Promise.race...');
             const sessionCheckPromise = Promise.race([
-                this.client.auth.getSession(),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Session check timeout after 3 seconds')), 3000)
-                )
+                getSessionPromise.then(result => {
+                    const elapsed = Date.now() - sessionCheckStartTime;
+                    sessionCheckState.completed = true; // Mark as completed
+                    console.log('[AuthService] ========== GETSESSION RESOLVED ==========');
+                    console.log('[AuthService] getSession() resolved after', elapsed, 'ms');
+                    console.log('[AuthService] Resolution time:', new Date().toISOString());
+                    console.log('[AuthService] Session check marked as completed - timeout will be ignored if it fires');
+                    console.log('[AuthService] getSession() result structure:', {
+                        hasData: !!result,
+                        hasDataData: !!result?.data,
+                        hasSession: !!result?.data?.session,
+                        hasError: !!result?.error,
+                        errorMessage: result?.error?.message,
+                        keys: result ? Object.keys(result) : []
+                    });
+                    return result;
+                }).catch(error => {
+                    const elapsed = Date.now() - sessionCheckStartTime;
+                    sessionCheckState.completed = true; // Mark as completed even on error
+                    console.error('[AuthService] ========== GETSESSION REJECTED ==========');
+                    console.error('[AuthService] getSession() rejected after', elapsed, 'ms');
+                    console.error('[AuthService] Rejection time:', new Date().toISOString());
+                    console.error('[AuthService] Session check marked as completed - timeout will be ignored if it fires');
+                    console.error('[AuthService] getSession() error:', {
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack
+                    });
+                    throw error;
+                }),
+                timeoutPromise
             ]).then(result => {
+                sessionCheckState.completed = true; // Mark as completed when race resolves
+                const elapsed = Date.now() - sessionCheckStartTime;
+                console.log('[AuthService] ========== PROMISE.RACE RESOLVED ==========');
+                console.log('[AuthService] Promise.race resolved after', elapsed, 'ms');
+                console.log('[AuthService] Resolution time:', new Date().toISOString());
+                console.log('[AuthService] Result type:', typeof result);
+                console.log('[AuthService] Result structure:', {
+                    hasData: !!result,
+                    hasDataData: !!result?.data,
+                    hasSession: !!result?.data?.session,
+                    hasError: !!result?.error,
+                    keys: result ? Object.keys(result) : []
+                });
+                
                 const { data: { session }, error: sessionError } = result;
                 
+                console.log('[AuthService] Extracted from result:', {
+                    hasSession: !!session,
+                    hasSessionError: !!sessionError,
+                    sessionErrorMessage: sessionError?.message,
+                    sessionUserId: session?.user?.id,
+                    sessionUserEmail: session?.user?.email
+                });
+                
                 if (sessionError) {
+                    console.warn('[AuthService] ========== SESSION CHECK ERROR ==========');
                     console.warn('[AuthService] Session check error (non-blocking):', sessionError.message);
+                    console.warn('[AuthService] Error details:', {
+                        message: sessionError.message,
+                        code: sessionError.code,
+                        status: sessionError.status,
+                        name: sessionError.name
+                    });
+                    console.warn('[AuthService] Preserving existing session state (might be network issue)');
+                    console.warn('[AuthService] Current state preserved:', {
+                        hasSession: !!this.session,
+                        hasCurrentUser: !!this.currentUser
+                    });
                     // Don't clear existing session state on error - might be network issue
                     return;
                 }
                 
                 if (session) {
+                    console.log('[AuthService] ========== SESSION FOUND ==========');
                     this.session = session;
                     this.currentUser = session.user;
+                    console.log('[AuthService] Session and user state updated');
                     console.log('[AuthService] Existing session found for user:', {
                         email: this.currentUser.email,
                         userId: this.currentUser.id,
-                        emailConfirmed: this.currentUser.email_confirmed_at
+                        emailConfirmed: this.currentUser.email_confirmed_at,
+                        sessionExpiresAt: session.expires_at,
+                        sessionExpiresIn: session.expires_in,
+                        hasAccessToken: !!session.access_token,
+                        hasRefreshToken: !!session.refresh_token
                     });
+                    const totalElapsed = Date.now() - sessionCheckStartTime;
+                    console.log('[AuthService] Session check completed successfully in', totalElapsed, 'ms');
+                    console.log('[AuthService] Timeout would have fired in', SESSION_CHECK_TIMEOUT_MS - totalElapsed, 'ms (but check completed first)');
                 } else {
+                    console.log('[AuthService] ========== NO SESSION FOUND ==========');
                     console.log('[AuthService] No existing session found');
+                    console.log('[AuthService] Clearing session and user state');
                     // Only clear session if we actually got a response saying no session
                     // Don't clear on timeout - might still be valid
                     this.session = null;
                     this.currentUser = null;
+                    console.log('[AuthService] Session and user state cleared');
+                    const totalElapsed = Date.now() - sessionCheckStartTime;
+                    console.log('[AuthService] Session check completed - no session in', totalElapsed, 'ms');
+                    console.log('[AuthService] Timeout would have fired in', SESSION_CHECK_TIMEOUT_MS - totalElapsed, 'ms (but check completed first)');
                 }
-            }).catch(error => {
-                console.warn('[AuthService] Session check timed out or failed (non-blocking):', error.message);
+                const finalElapsed = Date.now() - sessionCheckStartTime;
+                console.log('[AuthService] ========== SESSION CHECK COMPLETE ==========');
+                console.log('[AuthService] Total session check duration:', finalElapsed, 'ms');
+                console.log('[AuthService] Session check completed', finalElapsed < SESSION_CHECK_TIMEOUT_MS ? 'before' : 'after', 'timeout');
+            });
+            console.log('[AuthService] Promise.race created successfully');
+            console.log('[AuthService] sessionCheckPromise type:', typeof sessionCheckPromise);
+            console.log('[AuthService] sessionCheckPromise is Promise:', sessionCheckPromise instanceof Promise);
+            
+            console.log('[AuthService] About to attach catch handler to sessionCheckPromise...');
+            sessionCheckPromise.catch(error => {
+                console.log('[AuthService] ========== SESSION CHECK CATCH HANDLER EXECUTED ==========');
+                console.log('[AuthService] Catch handler executing - checking variable access...');
+                console.log('[AuthService] sessionCheckStartTime accessible:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                console.log('[AuthService] sessionCheckState accessible:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                
+                const elapsed = Date.now() - sessionCheckStartTime;
+                sessionCheckState.completed = true; // Mark as completed when catch is called
+                console.log('[AuthService] ========== SESSION CHECK CATCH ==========');
+                console.log('[AuthService] Promise.race caught error after', elapsed, 'ms');
+                console.log('[AuthService] Catch time:', new Date().toISOString());
+                console.log('[AuthService] Session check marked as completed');
+                console.log('[AuthService] Error details:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack,
+                    isTimeout: error.message && error.message.includes('timeout')
+                });
+                
+                // Timeout during initialization is expected behavior - not an error condition
+                // The auth state listener will handle session detection when ready
+                if (error.message && error.message.includes('timeout')) {
+                    console.log('[AuthService] ========== TIMEOUT HANDLED ==========');
+                    console.log('[AuthService] Session check timeout during initialization (non-blocking):', error.message);
+                    console.log('[AuthService] Timeout occurred after', elapsed, 'ms (timeout configured for', SESSION_CHECK_TIMEOUT_MS, 'ms)');
+                    console.log('[AuthService] Timeout is expected behavior during initialization');
+                    console.log('[AuthService] Preserving existing session state:', {
+                        hasSession: !!this.session,
+                        hasCurrentUser: !!this.currentUser,
+                        currentUserEmail: this.currentUser?.email
+                    });
+                    console.log('[AuthService] Auth state listener will handle session detection when ready');
+                    console.log('[AuthService] No action needed - initialization continues');
+                } else {
+                    console.warn('[AuthService] ========== UNEXPECTED ERROR ==========');
+                    console.warn('[AuthService] Session check failed (non-blocking):', error.message);
+                    console.warn('[AuthService] Error occurred after', elapsed, 'ms');
+                    console.warn('[AuthService] Error is not a timeout - unexpected failure');
+                    console.warn('[AuthService] Preserving existing session state');
+                }
                 // On timeout, don't clear existing session state - might still be valid
                 // The auth state listener will handle actual session changes
                 // Only clear if we're certain there's no session
-                console.log('[AuthService] Session check timeout - preserving existing state if any');
+                console.log('[AuthService] ========== SESSION CHECK CATCH COMPLETE ==========');
+                console.log('[AuthService] Total session check duration:', elapsed, 'ms');
             });
+            
+            console.log('[AuthService] Session check promise created, running in background');
+            console.log('[AuthService] Continuing with initialization (not waiting for session check)');
             
             // Don't await - let it run in background, continue with initialization
             // The auth state listener will pick up the session when it's ready
@@ -1021,6 +1278,24 @@ const AuthService = {
                         email: data.user.email,
                         userId: data.user.id
                     });
+                    
+                    // Create trial subscription for new user
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    } else {
+                        console.warn('[AuthService] SubscriptionService not available - trial subscription not created');
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (IMMEDIATE SIGN IN) ==========');
                     return { success: true, error: null, user: data.user, requiresEmailVerification: false };
                 } else if (requiresEmailVerification) {
@@ -1029,6 +1304,22 @@ const AuthService = {
                         email: data.user.email,
                         userId: data.user.id
                     });
+                    
+                    // Create trial subscription for new user (even if email verification required)
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user (email verification pending)...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (EMAIL VERIFICATION REQUIRED) ==========');
                     return { 
                         success: true, 
@@ -1044,6 +1335,22 @@ const AuthService = {
                         userId: data.user.id,
                         emailConfirmed: data.user.email_confirmed_at
                     });
+                    
+                    // Create trial subscription for new user
+                    if (window.SubscriptionService) {
+                        try {
+                            console.log('[AuthService] Creating trial subscription for new user (no session)...');
+                            const trialResult = await window.SubscriptionService.createTrialSubscription(data.user.id);
+                            if (trialResult.success) {
+                                console.log('[AuthService] Trial subscription created successfully');
+                            } else {
+                                console.warn('[AuthService] Failed to create trial subscription:', trialResult.error);
+                            }
+                        } catch (trialError) {
+                            console.warn('[AuthService] Exception creating trial subscription:', trialError);
+                        }
+                    }
+                    
                     console.log('[AuthService] ========== SIGNUP SUCCESS (NO SESSION) ==========');
                     return { 
                         success: true, 
@@ -1298,20 +1605,22 @@ const AuthService = {
             });
         }
         
-        // Determine redirect path
+        // Determine redirect path using absolute URL (works with file:// protocol)
+        const baseUrl = window.location.origin;
         const currentPath = window.location.pathname;
-        let authPath;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
         
-        if (currentPath.includes('/views/')) {
-            // We're in views folder, auth.html is in same folder
-            authPath = currentPath.replace(/[^/]+$/, 'auth.html');
-        } else if (currentPath.includes('/ui/')) {
-            // We're in ui folder, go to views/auth.html
-            authPath = currentPath.replace(/\/[^/]+$/, '/views/auth.html');
-        } else {
-            // Fallback: try relative path
-            authPath = 'views/auth.html';
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
         }
+        
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const authPath = `${baseUrl}/${basePath}ui/views/auth.html`;
         
         console.log('[AuthService] Force redirecting to:', authPath);
         console.log('[AuthService] ========== FORCE SIGN OUT COMPLETE ==========');
@@ -1326,7 +1635,7 @@ const AuthService = {
     /**
      * Redirect to sign-in page
      * Private helper method
-     * Always redirects directly to auth.html
+     * Always redirects directly to auth.html using absolute URL
      * @private
      */
     _redirectToSignIn() {
@@ -1340,24 +1649,35 @@ const AuthService = {
             return;
         }
         
-        // Determine the correct path to auth.html
-        let authPath;
-        if (currentPath.includes('/views/')) {
-            // We're in views folder, auth.html is in same folder
-            authPath = 'auth.html';
-        } else if (currentPath.includes('/ui/')) {
-            // We're in ui folder, auth.html is in views subfolder
-            authPath = 'views/auth.html';
-        } else {
-            // Default fallback
-            authPath = 'views/auth.html';
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
         }
         
-        console.log('[AuthService] Redirecting to:', authPath);
+        // Construct the auth URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        
+        console.log('[AuthService] Redirecting to:', authUrl);
+        console.log('[AuthService] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            authUrl: authUrl
+        });
         console.log('[AuthService] Executing redirect now...');
         
         // Direct redirect - no delays, no AuthGuard logic
-        window.location.href = authPath;
+        window.location.href = authUrl;
     },
 
     /**

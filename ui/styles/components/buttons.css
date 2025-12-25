@@ -18,8 +18,60 @@
     min-height: 1.9rem;
     height: 1.9rem;
     box-sizing: border-box;
-    line-height: 1;
+    line-height: 1.2;
     white-space: nowrap;
+    vertical-align: middle;
+    max-width: 100%;
+    min-width: 0;
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Buttons on mobile - shrink to fit or wrap to next line, never wrap text */
+@media (max-width: 480px) {
+    .btn {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 1.9rem;
+        min-height: 1.9rem;
+        max-width: 100%;
+        min-width: 0;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Ensure anchor tags styled as buttons match button styling exactly */
+a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-white);
+}
+
+a.btn:hover {
+    text-decoration: none;
+    color: var(--text-white);
+}
+
+/* Ensure anchor buttons with specific classes use white text */
+a.btn-primary,
+a.btn-secondary,
+a.btn-danger,
+a.btn-success,
+a.btn-action {
+    color: var(--text-white);
+}
+
+a.btn-primary:hover,
+a.btn-secondary:hover,
+a.btn-danger:hover,
+a.btn-success:hover,
+a.btn-action:hover {
+    color: var(--text-white);
 }
 
 .btn-primary {
@@ -33,12 +85,12 @@
 
 .btn-secondary {
     background-color: rgba(210, 210, 210, 0.85);
-    color: var(--text-black);
+    color: var(--text-white);
 }
 
 .btn-secondary:hover {
     background-color: rgba(200, 200, 200, 0.85);
-    color: var(--text-black);
+    color: var(--text-white);
 }
 
 .btn-danger {

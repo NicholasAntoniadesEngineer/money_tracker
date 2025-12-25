@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade Subscription - Money Tracker</title>
+    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../ui/styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
+        (function() {
+            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
+            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            
+            // Sync with database once services are available
+            async function syncFontSizeFromDatabase() {
+                try {
+                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
+                        const settings = await window.DatabaseService.getSettings();
+                        if (settings && settings.fontSize) {
+                            const fontSize = settings.fontSize;
+                            document.documentElement.style.fontSize = fontSize + 'px';
+                            localStorage.setItem('money_tracker_fontSize', fontSize);
+                        }
+                    } else if (document.readyState !== 'complete') {
+                        setTimeout(syncFontSizeFromDatabase, 100);
+                    }
+                } catch (error) {
+                    // Silently fail - use cached value
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
+            } else {
+                syncFontSizeFromDatabase();
+            }
+        })();
+    </script>
+    
+    <style>
+        .upgrade-main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            padding-top: calc(2rem + 70px);
+            padding-bottom: 2rem;
+        }
+        
+        .upgrade-section {
+            background-color: rgba(213, 213, 213, 0.85);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            border: var(--border-width-thin) solid var(--border-color-black);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+            align-items: stretch; /* Ensure all cards have same height */
+        }
+        
+        .plan-card {
+            background: var(--background-secondary, #fff);
+            border: var(--border-width-standard) solid var(--border-color, rgba(0,0,0,0.1));
+            border-radius: var(--border-radius-standard);
+            padding: var(--spacing-lg);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s, box-shadow 0.2s;
+            min-height: 400px; /* Ensure minimum height for alignment */
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .plan-card.current {
+            border-color: var(--primary-color, #007bff);
+            border-width: 2px;
+        }
+        
+        .plan-card.recommended {
+            border-color: var(--success-color, #28a745);
+            border-width: 2px;
+            position: relative;
+        }
+        
+        .plan-card.recommended::before {
+            content: "Recommended";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success-color, #28a745);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .plan-header {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-primary);
+        }
+        
+        .plan-price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color, #007bff);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .plan-price-period {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        
+        .plan-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+            min-height: 3rem;
+        }
+        
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: var(--spacing-md) 0;
+            flex-grow: 1;
+            min-height: 120px; /* Ensure consistent height for features list */
+        }
+        
+        .plan-features li {
+            padding: var(--spacing-xs) 0;
+            color: var(--text-primary);
+        }
+        
+        .plan-features li::before {
+            content: "✓ ";
+            color: var(--success-color, #28a745);
+            font-weight: 600;
+            margin-right: var(--spacing-xs);
+        }
+        
+        .plan-actions {
+            margin-top: auto;
+            padding-top: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .plan-actions .btn {
+            width: 100%;
+            min-width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .plan-status {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .subscription-details-box {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        @media (max-width: 768px) {
+            .header-with-subscription {
+                grid-template-columns: 1fr !important;
+            }
+            
+            /* Reduce spacing in plan cards for mobile */
+            .plan-card {
+                padding: var(--spacing-md);
+                min-height: auto;
+            }
+            
+            .plan-header {
+                margin-bottom: var(--spacing-sm);
+            }
+            
+            .plan-name {
+                font-size: 1.25rem;
+                margin-bottom: 0.25rem;
+            }
+            
+            .plan-price {
+                font-size: 1.75rem;
+                margin-bottom: 0.25rem;
+            }
+            
+            .plan-description {
+                margin-bottom: var(--spacing-sm);
+                min-height: 2rem;
+                font-size: 0.9rem;
+            }
+            
+            .plan-features {
+                margin: var(--spacing-sm) 0;
+                min-height: auto;
+            }
+            
+            .plan-features li {
+                padding: 0.25rem 0;
+                font-size: 0.9rem;
+                line-height: 1.4;
+            }
+            
+            .plan-actions {
+                padding-top: var(--spacing-sm);
+            }
+        }
+        
+        .subscription-details-box #current-subscription-content {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .subscription-details-box #current-subscription-content > div {
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .plan-status {
+            padding: 0.3rem 0.5rem;
+            background: var(--background-tertiary, #f5f5f5);
+            border-radius: 0px;
+            text-align: center;
+            margin-bottom: 0;
+            font-weight: 500;
+            color: var(--text-secondary);
+            min-height: 1.9rem;
+            height: 1.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: var(--border-width-standard) solid var(--border-color-black);
+            box-sizing: border-box;
+        }
+        
+        .plan-status.current {
+            background: var(--primary-color, #007bff);
+            color: white;
+        }
+        
+        .current-plan-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--primary-color, #007bff);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: var(--spacing-xs);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+    
+    <main class="upgrade-main" role="main">
+        <section class="upgrade-section">
+            <div class="header-with-subscription" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); align-items: start; margin-bottom: var(--spacing-lg);">
+                <div class="header-content">
+                    <h1 class="section-title">Subscription Management</h1>
+                    <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md);">
+                Choose the plan that's right for you. Upgrade or downgrade at any time.
+            </p>
+                    
+                    <div class="settings-row" style="gap: 0.5rem;">
+                        <button id="update-payment-button" class="btn btn-action">
+                            Update Payment Method
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="current-subscription-details" class="subscription-details-box" style="display: none; padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
+                    <h2 style="margin-top: 0; margin-bottom: var(--spacing-md); font-size: 1.25rem;">Current Subscription</h2>
+                    <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem; max-width: 100%; box-sizing: border-box;">
+                        <!-- Subscription details will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="plans-container" class="plans-grid">
+                <!-- Plans will be loaded here -->
+            </div>
+            
+            <div id="loading-message" style="text-align: center; padding: var(--spacing-xl); color: var(--text-secondary);">
+                Loading subscription plans...
+            </div>
+            
+            <div id="error-message" style="display: none; text-align: center; padding: var(--spacing-xl); color: var(--danger-color);">
+                Failed to load subscription plans. Please try again later.
+            </div>
+        </section>
+    </main>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../../ui/services/AuthService.js"></script>
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../../payments/services/SubscriptionService.js"></script>
+    <script src="../../payments/services/StripeService.js"></script>
+    <script src="../../payments/config/stripe-config.js"></script>
+    <script src="../../ui/components/Header.js"></script>
+    <script src="../../payments/controllers/UpgradeController.js?v=2.0.0-session-wait-20251225"></script>
+    
+    <script>
+        // Initialize header
+        if (window.Header) {
+            window.Header.init();
+        }
+        
+        // Initialize upgrade page
+        if (window.UpgradeController) {
+            window.UpgradeController.init();
+        }
+    </script>
+</body>
+</html>
+

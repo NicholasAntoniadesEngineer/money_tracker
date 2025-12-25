@@ -20,8 +20,22 @@ const AuthGuard = {
                 return false;
             }
             
-            // Initialize if needed
+            // Wait for SupabaseConfig to be available before initializing AuthService
             if (!window.AuthService.client) {
+                // Wait for SupabaseConfig to be available (with timeout)
+                let waitCount = 0;
+                const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+                while (!window.SupabaseConfig && waitCount < maxWait) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitCount++;
+                }
+                
+                if (!window.SupabaseConfig) {
+                    console.warn('[AuthGuard] SupabaseConfig not available after waiting, cannot initialize AuthService');
+                    return false;
+                }
+                
+                // Initialize if needed
                 await window.AuthService.initialize();
             }
             
@@ -65,6 +79,59 @@ const AuthGuard = {
             }
             
             console.log('[AuthGuard] User authenticated:', window.AuthService.getCurrentUser()?.email);
+            
+            // Check subscription status
+            console.log('[AuthGuard] ========== CHECKING SUBSCRIPTION STATUS ==========');
+            if (window.SubscriptionChecker) {
+                try {
+                    console.log('[AuthGuard] SubscriptionChecker available, calling checkAccess()...');
+                    const accessCheck = await window.SubscriptionChecker.checkAccess();
+                    console.log('[AuthGuard] Subscription check result:', {
+                        hasAccess: accessCheck.hasAccess,
+                        status: accessCheck.status,
+                        error: accessCheck.error,
+                        hasDetails: !!accessCheck.details
+                    });
+                    
+                    if (!accessCheck.hasAccess) {
+                        console.log('[AuthGuard] ⚠️ User does NOT have active subscription');
+                        console.log('[AuthGuard] Subscription status:', accessCheck.status);
+                        console.log('[AuthGuard] Error (if any):', accessCheck.error);
+                        
+                        // Show user-friendly notification
+                        const statusMessage = window.SubscriptionChecker.getStatusMessage(accessCheck);
+                        console.log('[AuthGuard] Status message for user:', statusMessage);
+                        
+                        // Show alert to user before redirecting
+                        if (accessCheck.status === 'no_subscription') {
+                            alert('Welcome! You need to subscribe to access the application.\n\nYou will be redirected to the subscription page.');
+                        } else if (accessCheck.status === 'trial_expired') {
+                            alert('Your trial has expired. Please subscribe to continue using the application.\n\nYou will be redirected to the subscription page.');
+                        } else {
+                            alert(`Subscription required: ${statusMessage}\n\nYou will be redirected to the subscription page.`);
+                        }
+                        
+                        this.redirectToPayment();
+                        return false;
+                    }
+                    console.log('[AuthGuard] ✅ User has active subscription:', accessCheck.status);
+                    if (accessCheck.details?.daysRemaining !== null && accessCheck.details?.daysRemaining !== undefined) {
+                        console.log('[AuthGuard] Trial days remaining:', accessCheck.details.daysRemaining);
+                    }
+                } catch (subscriptionError) {
+                    console.error('[AuthGuard] ❌ Error checking subscription:', subscriptionError);
+                    console.error('[AuthGuard] Subscription error details:', {
+                        message: subscriptionError.message,
+                        name: subscriptionError.name,
+                        stack: subscriptionError.stack
+                    });
+                    console.warn('[AuthGuard] Error checking subscription, allowing access (fail-open):', subscriptionError);
+                }
+            } else {
+                console.warn('[AuthGuard] SubscriptionChecker not available, skipping subscription check');
+            }
+            console.log('[AuthGuard] ========== SUBSCRIPTION CHECK COMPLETE ==========');
+            
             return true;
         } catch (error) {
             console.error('[AuthGuard] Error checking authentication:', error);
@@ -80,22 +147,127 @@ const AuthGuard = {
     redirectToAuth() {
         // Prevent multiple redirects
         if (this.redirecting) {
+            console.log('[AuthGuard] Already redirecting, skipping duplicate redirectToAuth call.');
             return;
         }
         
         const currentPath = window.location.pathname;
-        const authPath = 'views/auth.html';
+        console.log('[AuthGuard] redirectToAuth - Current path:', currentPath);
+        console.log('[AuthGuard] redirectToAuth - Current origin:', window.location.origin);
         
         // Don't redirect if already on auth page
         if (currentPath.includes('auth.html')) {
+            console.log('[AuthGuard] Already on auth page, skipping redirect');
             return;
         }
         
         this.redirecting = true;
         
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
+        }
+        
+        // Construct the auth URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        
+        console.log('[AuthGuard] Redirecting to auth page:', authUrl);
+        console.log('[AuthGuard] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            authUrl: authUrl
+        });
+        
         // Store the intended destination for redirect after login
         const returnUrl = encodeURIComponent(window.location.href);
-        window.location.href = `${authPath}?return=${returnUrl}`;
+        window.location.href = `${authUrl}?return=${returnUrl}`;
+    },
+
+    /**
+     * Redirect to payment/subscription page
+     * @returns {void}
+     */
+    redirectToPayment() {
+        if (this.redirecting) {
+            console.log('[AuthGuard] Already redirecting, skipping duplicate redirectToPayment call.');
+            return;
+        }
+        
+        const currentPath = window.location.pathname;
+        console.log('[AuthGuard] redirectToPayment - Current path:', currentPath);
+        console.log('[AuthGuard] redirectToPayment - Current origin:', window.location.origin);
+        
+        // Don't redirect if already on settings page
+        if (currentPath.includes('settings.html')) {
+            console.log('[AuthGuard] Already on settings page, skipping redirect');
+            return;
+        }
+        
+        this.redirecting = true;
+        
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
+        }
+        
+        // Construct the settings URL (subscription section)
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const settingsUrl = `${baseUrl}/${basePath}ui/views/settings.html`;
+        
+        console.log('[AuthGuard] Redirecting to settings page:', settingsUrl);
+        console.log('[AuthGuard] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            settingsUrl: settingsUrl,
+            origin: baseUrl,
+            fullUrl: settingsUrl
+        });
+        
+        // Verify the URL is valid before redirecting
+        try {
+            const testUrl = new URL(settingsUrl);
+            console.log('[AuthGuard] Settings URL is valid:', {
+                href: testUrl.href,
+                origin: testUrl.origin,
+                pathname: testUrl.pathname,
+                search: testUrl.search
+            });
+        } catch (urlError) {
+            console.error('[AuthGuard] ❌ Invalid settings URL:', urlError);
+            console.error('[AuthGuard] Settings URL that failed:', settingsUrl);
+            // Fallback to relative path
+            const fallbackPath = currentPath.includes('/ui/views/') 
+                ? 'settings.html'
+                : currentPath.includes('/ui/')
+                ? 'views/settings.html'
+                : 'ui/views/settings.html';
+            console.log('[AuthGuard] Using fallback path:', fallbackPath);
+            window.location.href = fallbackPath;
+            return;
+        }
+        
+        window.location.href = settingsUrl;
     },
 
     /**

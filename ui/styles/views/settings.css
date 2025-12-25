@@ -18,8 +18,18 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     margin-bottom: var(--spacing-sm);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Ensure all buttons in settings rows align properly */
+.settings-row .btn,
+.settings-row a.btn,
+.settings-row button.btn {
+    align-self: center;
 }
 
 .settings-row .form-label {
@@ -37,8 +47,38 @@
 }
 
 .settings-row .btn {
-    flex-shrink: 0;
+    flex-shrink: 1;
+    flex-grow: 0;
     white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure buttons and links styled as buttons align properly */
+.settings-row .btn,
+.settings-row a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.9rem;
+    min-height: 1.9rem;
+    padding: 0.3rem 0.5rem;
+    box-sizing: border-box;
+    vertical-align: middle;
+    max-width: 100%;
+    min-width: 0;
+    width: auto;
+}
+
+/* Specific rule for manage payment link to ensure it never exceeds container */
+#manage-payment-link {
+    max-width: 100%;
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .settings-row-full {
@@ -80,12 +120,20 @@
 /* Export row layout */
 .settings-export-row {
     justify-content: flex-start;
+    align-items: center;
+}
+
+.settings-export-row .btn,
+.settings-export-row select {
+    align-self: center;
+    height: 1.9rem;
+    min-height: 1.9rem;
 }
 
 @media (max-width: 480px) {
     /* Currency row - keep label and dropdown on same line */
     .settings-row {
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap;
         gap: var(--spacing-sm);
     }
     
@@ -100,6 +148,35 @@
         flex: 1;
         min-width: 0;
         max-width: none;
+    }
+    
+    /* Buttons on mobile - shrink or wrap to next line, never wrap text */
+    .settings-row .btn {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
+        width: auto;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0.3rem 0.4rem;
+    }
+    
+    .settings-row .btn,
+    .settings-row a.btn {
+        white-space: nowrap;
+        text-align: center;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure manage payment link respects container width on mobile */
+    #manage-payment-link {
+        max-width: 100%;
+        width: auto;
+        flex-shrink: 1;
+        min-width: 0;
     }
     
     .settings-inline-group {
