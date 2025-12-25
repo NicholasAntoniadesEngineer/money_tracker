@@ -1085,21 +1085,66 @@ const UpgradeController = {
             console.log('[UpgradeController] Step 4: Opening invoice modal...');
             this.openInvoiceModal();
             
-            console.log('[UpgradeController] Step 5: Fetching invoices from Stripe...');
+            console.log('[UpgradeController] Step 5: Checking StripeService availability...');
+            console.log('[UpgradeController] StripeService check:', {
+                hasWindow: typeof window !== 'undefined',
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService,
+                hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
+            });
+            
+            // Wait for StripeService to be available (with timeout)
+            const maxWaitTime = 5000; // 5 seconds
+            const startWaitTime = Date.now();
+            let waitIterations = 0;
+            
+            while (!window.StripeService && (Date.now() - startWaitTime) < maxWaitTime) {
+                waitIterations++;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            console.log('[UpgradeController] Wait completed:', {
+                iterations: waitIterations,
+                elapsed: Date.now() - startWaitTime,
+                hasStripeService: !!window.StripeService
+            });
+            
+            if (!window.StripeService) {
+                console.error('[UpgradeController] ❌ StripeService not available after waiting');
+                throw new Error('StripeService not available. Please refresh the page and try again.');
+            }
+            
+            if (typeof window.StripeService.listInvoices !== 'function') {
+                console.error('[UpgradeController] ❌ StripeService.listInvoices is not a function');
+                console.error('[UpgradeController] StripeService methods:', Object.keys(window.StripeService));
+                throw new Error('StripeService.listInvoices method not available. The service may not be fully loaded.');
+            }
+            
+            console.log('[UpgradeController] ✅ StripeService available with listInvoices method');
+            console.log('[UpgradeController] Step 6: Fetching invoices from Stripe...');
             const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
             
-            if (!window.StripeService) {
-                throw new Error('StripeService not available');
-            }
+            console.log('[UpgradeController] Calling StripeService.listInvoices with:', {
+                customerId: customerId,
+                limit: 20,
+                backendEndpoint: backendEndpoint
+            });
             
             const result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
+            
+            console.log('[UpgradeController] StripeService.listInvoices result:', {
+                success: result.success,
+                hasInvoices: !!(result.invoices && result.invoices.length > 0),
+                invoiceCount: result.invoices ? result.invoices.length : 0,
+                error: result.error || null
+            });
             
             if (!result.success) {
                 throw new Error(result.error || 'Failed to fetch invoices');
             }
             
-            console.log('[UpgradeController] Step 6: Displaying invoices...');
+            console.log('[UpgradeController] Step 7: Displaying invoices...');
             this.displayInvoices(result.invoices || []);
             
             const totalElapsed = Date.now() - startTime;
