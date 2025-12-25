@@ -5,9 +5,14 @@
  */
 
 const StripeConfig = {
-    PUBLISHABLE_KEY: 'pk_test_51QAQyCClUqvgxZvpgpfE0qWj3sOl3FbVBEhGS1uLOWdl8zyMK2z3LWGijvw0y4cn04EvydDqdK26VD7tcy1Qx1q40073PZrcmn',
-    SECRET_KEY: 'sk_test_51QAQyCClUqvgxZvphuCsjTtAzcbKOlmJJ1SuMbad31PmSQ2F7cWwYicOiNSJGhekET1EzezJihiIiL0zN4x19bUd00pDHFalh2',
-    RESTRICTED_KEY: 'rk_test_51QAQyCClUqvgxZvpKaTgchHG8wvTU069VUU1yrF7slV03H9htAgNJOCjgbS3DpLZAN4r9eLseB8njvy1xUVCoBlE003Y4K4ytP',
+    // SECURITY WARNING:
+    // - Publishable keys (pk_*) are safe to expose in client-side code
+    // - Secret keys (sk_*) and Restricted keys (rk_*) MUST NEVER be in client-side code
+    // - Replace this with your actual publishable key from Stripe Dashboard
+    // - For production, consider loading from environment variables or a config service
+    PUBLISHABLE_KEY: '', // TODO: Set your Stripe publishable key here (pk_test_... or pk_live_...)
+    // SECRET_KEY and RESTRICTED_KEY removed - these should NEVER be in client-side code
+    // Use Edge Functions with environment variables for server-side operations
     SUBSCRIPTION_PRICE_AMOUNT: 500, // 5 EUR in cents
     SUBSCRIPTION_PRICE_CURRENCY: 'eur',
     TRIAL_PERIOD_DAYS: 30,
@@ -47,23 +52,15 @@ const StripeConfig = {
     },
     
     /**
-     * Get restricted key (for server-side use only)
-     * Note: This key should NEVER be exposed in client-side code
-     * Use this in your backend/Edge Function to create checkout sessions
-     * @returns {string} Stripe restricted key
+     * SECURITY WARNING: Secret and restricted keys have been removed
+     * These should NEVER be in client-side code or version control
+     * Use Edge Functions with environment variables for server-side operations
+     * 
+     * To use Stripe server-side:
+     * 1. Set STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY in Edge Function environment variables
+     * 2. Call Edge Functions from client-side code
+     * 3. Never expose secret keys in client-side JavaScript
      */
-    getRestrictedKey() {
-        return this.RESTRICTED_KEY;
-    },
-    
-    /**
-     * Get secret key (for server-side use only)
-     * Note: This key should NEVER be exposed in client-side code
-     * @returns {string} Stripe secret key
-     */
-    getSecretKey() {
-        return this.SECRET_KEY;
-    }
 };
 
 if (typeof window !== 'undefined') {

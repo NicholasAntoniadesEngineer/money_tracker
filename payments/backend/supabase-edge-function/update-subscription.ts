@@ -51,6 +51,11 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.warn("[update-subscription] ⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not available")
+  console.warn("[update-subscription] Available env vars:", {
+    hasSupabaseUrl: !!Deno.env.get("SUPABASE_URL"),
+    hasSupabaseServiceRoleKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    allEnvKeys: Object.keys(Deno.env.toObject()).filter(k => k.includes("SUPABASE"))
+  })
 }
 
 serve(async (req) => {
@@ -97,8 +102,17 @@ serve(async (req) => {
   }
 
   if (!supabaseUrl || !supabaseServiceKey) {
+    console.error("[update-subscription] Missing Supabase credentials:", {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey,
+      urlValue: supabaseUrl ? "***" : "missing",
+      serviceKeyValue: supabaseServiceKey ? "***" : "missing"
+    })
     return new Response(
-      JSON.stringify({ error: "Server configuration error: Supabase credentials not set" }),
+      JSON.stringify({ 
+        error: "Server configuration error: Supabase credentials not available",
+        details: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY should be available by default in Edge Functions. Please check Edge Function logs."
+      }),
       { 
         status: 500,
         headers: { 
@@ -132,6 +146,7 @@ serve(async (req) => {
     }
 
     // Get current subscription from database
+    console.log(`[update-subscription] Fetching subscription for user: ${userId}`)
     const subscriptionResponse = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}&select=*`, {
       method: "GET",
       headers: {
@@ -142,15 +157,19 @@ serve(async (req) => {
     })
 
     if (!subscriptionResponse.ok) {
-      throw new Error(`Failed to fetch subscription: ${await subscriptionResponse.text()}`)
+      const errorText = await subscriptionResponse.text()
+      console.error(`[update-subscription] Failed to fetch subscription: ${errorText}`)
+      throw new Error(`Failed to fetch subscription: ${errorText}`)
     }
 
     const subscriptions = await subscriptionResponse.json()
+    console.log(`[update-subscription] Found ${subscriptions?.length || 0} subscription(s)`)
     const currentSubscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null
 
-    if (!currentSubscription || !currentSubscription.stripe_subscription_id) {
+    if (!currentSubscription) {
+      console.error(`[update-subscription] No subscription found for user ${userId}`)
       return new Response(
-        JSON.stringify({ error: "No active subscription found for user" }),
+        JSON.stringify({ error: "No subscription found for user" }),
         { 
           status: 400,
           headers: { 
@@ -159,6 +178,109 @@ serve(async (req) => {
           } 
         }
       )
+    }
+
+    console.log(`[update-subscription] Current subscription:`, {
+      id: currentSubscription.id,
+      plan_id: currentSubscription.plan_id,
+      subscription_type: currentSubscription.subscription_type,
+      status: currentSubscription.status,
+      has_stripe_subscription_id: !!currentSubscription.stripe_subscription_id,
+      has_stripe_customer_id: !!currentSubscription.stripe_customer_id,
+      recurring_billing_enabled: currentSubscription.recurring_billing_enabled
+    })
+
+    // For recurring billing toggle, we need a Stripe subscription
+    if (recurringBillingEnabled !== undefined && recurringBillingEnabled !== null) {
+      if (!currentSubscription.stripe_subscription_id) {
+        // If subscription_type is "paid" but no stripe_subscription_id, try to find it in Stripe
+        if (currentSubscription.subscription_type === "paid" && currentSubscription.stripe_customer_id) {
+          console.log(`[update-subscription] Paid subscription without Stripe subscription ID - attempting to find in Stripe...`)
+          
+          try {
+            // Look up active subscriptions for this customer in Stripe
+            const stripeSubscriptions = await stripe.subscriptions.list({
+              customer: currentSubscription.stripe_customer_id,
+              status: 'active',
+              limit: 1
+            })
+            
+            if (stripeSubscriptions.data.length > 0) {
+              const foundSubscription = stripeSubscriptions.data[0]
+              console.log(`[update-subscription] Found Stripe subscription: ${foundSubscription.id}`)
+              
+              // Update database with the found subscription ID
+              await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}`, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  "apikey": supabaseServiceKey,
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                  "Prefer": "return=representation"
+                },
+                body: JSON.stringify({
+                  stripe_subscription_id: foundSubscription.id,
+                  updated_at: new Date().toISOString()
+                })
+              })
+              
+              console.log(`[update-subscription] ✅ Synced Stripe subscription ID to database`)
+              // Update currentSubscription object for use below
+              currentSubscription.stripe_subscription_id = foundSubscription.id
+            } else {
+              console.error(`[update-subscription] No active Stripe subscription found for customer ${currentSubscription.stripe_customer_id}`)
+              return new Response(
+                JSON.stringify({ 
+                  error: "Data integrity issue: Subscription marked as 'paid' but no active Stripe subscription found. Please contact support.",
+                  subscription_type: currentSubscription.subscription_type,
+                  status: currentSubscription.status,
+                  stripe_customer_id: currentSubscription.stripe_customer_id
+                }),
+                { 
+                  status: 400,
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                  } 
+                }
+              )
+            }
+          } catch (stripeError) {
+            console.error(`[update-subscription] Error looking up Stripe subscription:`, stripeError)
+            return new Response(
+              JSON.stringify({ 
+                error: "Failed to look up Stripe subscription. Please contact support.",
+                details: stripeError.message
+              }),
+              { 
+                status: 500,
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                } 
+              }
+            )
+          }
+        } else {
+          // Not a paid subscription or no customer ID
+          console.error(`[update-subscription] Cannot toggle recurring billing: no Stripe subscription ID`)
+          return new Response(
+            JSON.stringify({ 
+              error: "No active Stripe subscription found. Recurring billing can only be toggled for paid subscriptions with an active Stripe subscription.",
+              subscription_type: currentSubscription.subscription_type,
+              status: currentSubscription.status,
+              has_customer_id: !!currentSubscription.stripe_customer_id
+            }),
+            { 
+              status: 400,
+              headers: { 
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              } 
+            }
+          )
+        }
+      }
     }
 
     const stripeSubscriptionId = currentSubscription.stripe_subscription_id

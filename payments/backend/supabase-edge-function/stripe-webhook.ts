@@ -13,8 +13,10 @@
  * 3. Name it: stripe-webhook
  * 4. Copy the code from this file into the function
  * 5. Set environment variables:
- *    - STRIPE_RESTRICTED_KEY = rk_test_51QAQyCClUqvgxZvpKaTgchHG8wvTU069VUU1yrF7slV03H9htAgNJOCjgbS3DpLZAN4r9eLseB8njvy1xUVCoBlE003Y4K4ytP
- *    - STRIPE_WEBHOOK_SECRET = whsec_Mf6471Fw5xGEIQt0lPi3YlYYxcemrcgS (your webhook signing secret)
+ *    - STRIPE_RESTRICTED_KEY = your_stripe_restricted_key_here
+ *      (Get this from Stripe Dashboard → Developers → API keys)
+ *    - STRIPE_WEBHOOK_SECRET = your_webhook_signing_secret_here
+ *      (Get this from Stripe Dashboard → Developers → Webhooks → Your endpoint → Signing secret)
  *    Note: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are available by default in Edge Functions
  * 6. Deploy the function
  * 
