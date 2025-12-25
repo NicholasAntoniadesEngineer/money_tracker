@@ -466,7 +466,6 @@ const SettingsController = {
         // Subscription buttons
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         const refreshSubscriptionBtn = document.getElementById('refresh-subscription-button');
-        const updatePaymentBtn = document.getElementById('update-payment-button');
         
         if (startSubscriptionBtn) {
             startSubscriptionBtn.addEventListener('click', () => this.handleStartSubscription());
@@ -474,10 +473,6 @@ const SettingsController = {
         
         if (refreshSubscriptionBtn) {
             refreshSubscriptionBtn.addEventListener('click', () => this.loadSubscriptionStatus());
-        }
-        
-        if (updatePaymentBtn) {
-            updatePaymentBtn.addEventListener('click', () => this.handleUpdatePayment());
         }
     },
 

@@ -366,6 +366,12 @@ const UpgradeController = {
                 this.handleUpgrade(planId, planName, priceAmount);
             });
         });
+        
+        // Update Payment Method button
+        const updatePaymentBtn = document.getElementById('update-payment-button');
+        if (updatePaymentBtn) {
+            updatePaymentBtn.addEventListener('click', () => this.handleUpdatePayment());
+        }
     },
     
     /**
@@ -775,6 +781,191 @@ const UpgradeController = {
         if (errorMessage) {
             errorMessage.style.display = 'block';
             errorMessage.textContent = message;
+        }
+    },
+    
+    /**
+     * Handle update payment button click
+     * Opens Stripe Customer Portal for updating payment method
+     * For trial users without customer ID, creates a customer first
+     */
+    async handleUpdatePayment() {
+        console.log('[UpgradeController] ========== handleUpdatePayment() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[UpgradeController] Step 1: Getting button element...');
+            const button = document.getElementById('update-payment-button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Loading...';
+                console.log('[UpgradeController] ✅ Button found and disabled');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Button element not found');
+            }
+            
+            console.log('[UpgradeController] Step 2: Checking authentication...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.error('[UpgradeController] ❌ User not authenticated');
+                throw new Error('User not authenticated');
+            }
+            console.log('[UpgradeController] ✅ User authenticated');
+            
+            console.log('[UpgradeController] Step 3: Getting current user...');
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.email) {
+                console.error('[UpgradeController] ❌ User email not available:', { hasUser: !!currentUser, hasEmail: !!currentUser?.email });
+                throw new Error('User email not available');
+            }
+            console.log('[UpgradeController] ✅ Current user:', { userId: currentUser.id, email: currentUser.email });
+            
+            console.log('[UpgradeController] Step 4: Loading subscription state...');
+            let subscription = null;
+            if (window.SubscriptionService) {
+                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+                if (subscriptionResult.success && subscriptionResult.subscription) {
+                    subscription = subscriptionResult.subscription;
+                }
+            }
+            const existingCustomerId = subscription?.stripe_customer_id;
+            console.log('[UpgradeController] Subscription state:', {
+                hasSubscription: !!subscription,
+                subscriptionType: subscription?.subscription_type,
+                subscriptionStatus: subscription?.status,
+                hasCustomerId: !!existingCustomerId,
+                customerId: existingCustomerId || 'none'
+            });
+            
+            console.log('[UpgradeController] Step 5: Checking StripeService availability...');
+            if (!window.StripeService) {
+                console.error('[UpgradeController] ❌ StripeService not available');
+                throw new Error('StripeService not available');
+            }
+            console.log('[UpgradeController] ✅ StripeService available');
+            
+            console.log('[UpgradeController] Step 6: Initializing Stripe...');
+            await window.StripeService.initialize();
+            console.log('[UpgradeController] ✅ Stripe initialized');
+            
+            let customerId = existingCustomerId;
+            
+            // If no customer ID, create one first (for trial users)
+            if (!customerId) {
+                console.log('[UpgradeController] Step 7: No customer ID found, creating customer...');
+                console.log('[UpgradeController] Customer creation details:', {
+                    email: currentUser.email,
+                    userId: currentUser.id
+                });
+                
+                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                const createCustomerEndpoint = `${supabaseProjectUrl}/functions/v1/create-customer`;
+                console.log('[UpgradeController] Customer creation endpoint:', createCustomerEndpoint);
+                
+                const customerStartTime = Date.now();
+                const customerResult = await window.StripeService.createCustomer(
+                    currentUser.email,
+                    currentUser.id,
+                    createCustomerEndpoint
+                );
+                const customerElapsed = Date.now() - customerStartTime;
+                
+                console.log('[UpgradeController] Customer creation result:', {
+                    success: customerResult.success,
+                    hasCustomerId: !!customerResult.customerId,
+                    customerId: customerResult.customerId || 'none',
+                    error: customerResult.error || 'none',
+                    elapsed: `${customerElapsed}ms`
+                });
+                
+                if (!customerResult.success || !customerResult.customerId) {
+                    console.error('[UpgradeController] ❌ Customer creation failed:', customerResult.error);
+                    throw new Error(customerResult.error || 'Failed to create customer');
+                }
+                
+                customerId = customerResult.customerId;
+                console.log('[UpgradeController] ✅ Customer created successfully:', customerId);
+                
+                // Store customer ID in database (non-blocking)
+                if (window.SubscriptionService && subscription) {
+                    console.log('[UpgradeController] Step 8: Storing customer ID in database...');
+                    window.SubscriptionService.updateSubscription(currentUser.id, {
+                        stripe_customer_id: customerId
+                    }).then(() => {
+                        console.log('[UpgradeController] ✅ Customer ID stored in database');
+                    }).catch(err => {
+                        console.warn('[UpgradeController] ⚠️ Failed to store customer ID in database:', err);
+                    });
+                } else {
+                    console.log('[UpgradeController] Step 8: Skipping database update (no subscription or SubscriptionService)');
+                }
+            } else {
+                console.log('[UpgradeController] Step 7: Using existing customer ID:', customerId);
+            }
+            
+            console.log('[UpgradeController] Step 9: Preparing portal session...');
+            const currentUrl = window.location.href.split('?')[0];
+            const returnUrl = currentUrl;
+            console.log('[UpgradeController] Portal session details:', {
+                customerId: customerId,
+                returnUrl: returnUrl
+            });
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-portal-session`;
+            console.log('[UpgradeController] Portal session endpoint:', backendEndpoint);
+            
+            console.log('[UpgradeController] Step 10: Creating portal session...');
+            const portalStartTime = Date.now();
+            const result = await window.StripeService.createPortalSession(
+                customerId,
+                returnUrl,
+                backendEndpoint
+            );
+            const portalElapsed = Date.now() - portalStartTime;
+            
+            console.log('[UpgradeController] Portal session result:', {
+                success: result.success,
+                hasUrl: !!result.url,
+                url: result.url || 'none',
+                error: result.error || 'none',
+                elapsed: `${portalElapsed}ms`
+            });
+            
+            if (!result.success) {
+                console.error('[UpgradeController] ❌ Portal session creation failed:', result.error);
+                throw new Error(result.error || 'Failed to create portal session');
+            }
+            
+            if (result.url) {
+                console.log('[UpgradeController] Step 11: Redirecting to Stripe Customer Portal...');
+                console.log('[UpgradeController] Portal URL:', result.url);
+                const totalElapsed = Date.now() - startTime;
+                console.log('[UpgradeController] ========== handleUpdatePayment() SUCCESS ==========');
+                console.log('[UpgradeController] Total time:', `${totalElapsed}ms`);
+                // Redirect to Stripe Customer Portal
+                window.location.href = result.url;
+            } else {
+                console.error('[UpgradeController] ❌ No portal URL returned');
+                throw new Error('No portal URL returned');
+            }
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[UpgradeController] ========== handleUpdatePayment() ERROR ==========');
+            console.error('[UpgradeController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                elapsed: `${totalElapsed}ms`
+            });
+            console.error('[UpgradeController] Error opening payment portal:', error);
+            
+            alert(`Error: ${error.message || 'Failed to open payment portal. Please try again.'}`);
+            
+            const button = document.getElementById('update-payment-button');
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Update Payment Method';
+                console.log('[UpgradeController] Button re-enabled');
+            }
         }
     }
 };
