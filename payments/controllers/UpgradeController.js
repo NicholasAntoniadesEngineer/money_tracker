@@ -10,13 +10,8 @@ const BUILD_ID = Date.now();
 const FILE_LOAD_TIME = new Date().toISOString();
 console.log('═══════════════════════════════════════════════════════════════');
 console.log('[UpgradeController] ═════ FILE LOADED ═════');
-console.log('[UpgradeController] VERSION: 2.0.0-with-session-wait');
-console.log('[UpgradeController] LAST_UPDATED: 2025-12-25T18:53:00Z');
 console.log('[UpgradeController] BUILD_ID:', BUILD_ID);
 console.log('[UpgradeController] File loaded at:', FILE_LOAD_TIME);
-console.log('[UpgradeController] ✅✅✅ NEW CODE WITH SESSION POLLING LOADED ✅✅✅');
-console.log('[UpgradeController] If you see this message, the latest code is running!');
-console.log('[UpgradeController] Look for "SESSION WAIT STARTED (NEW CODE PATH)" in logs');
 console.log('═══════════════════════════════════════════════════════════════');
 
 const UpgradeController = {
@@ -37,15 +32,16 @@ const UpgradeController = {
         console.log('[UpgradeController] File location:', window.location.href);
         
         try {
-            // Check for success/cancel redirects
+            // Check for success/cancel redirects (store for later processing after auth)
             const urlParams = new URLSearchParams(window.location.search);
             const upgradeStatus = urlParams.get('upgrade');
             const planId = urlParams.get('plan');
+            let shouldHandleUpgradeSuccess = false;
             
             if (upgradeStatus === 'success') {
                 console.log('[UpgradeController] Upgrade successful, plan:', planId);
-                // Update subscription in database with new plan
-                await this.handleUpgradeSuccess(planId);
+                shouldHandleUpgradeSuccess = true;
+                // Will handle after authentication is confirmed
             } else if (upgradeStatus === 'cancelled') {
                 console.log('[UpgradeController] Upgrade cancelled');
                 alert('Subscription upgrade was cancelled.');
@@ -167,6 +163,12 @@ const UpgradeController = {
             
             console.log('[UpgradeController] ✅ User authenticated successfully, proceeding with upgrade page initialization...');
             console.log('[UpgradeController] Authenticated user:', window.AuthService.currentUser?.email);
+            
+            // Handle upgrade success if needed (after authentication is confirmed)
+            if (shouldHandleUpgradeSuccess && planId) {
+                console.log('[UpgradeController] Authentication confirmed, now handling upgrade success...');
+                await this.handleUpgradeSuccess(planId);
+            }
             
             // Load current subscription and available plans
             await Promise.all([
@@ -423,26 +425,42 @@ const UpgradeController = {
         console.log('[UpgradeController] New plan ID:', planId);
         
         try {
-            // Wait for services to be available
-            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
-                console.warn('[UpgradeController] User not authenticated, cannot update subscription');
+            // Ensure authentication is ready
+            if (!window.AuthService) {
+                console.warn('[UpgradeController] AuthService not available, waiting...');
+                let authWaitCount = 0;
+                const maxAuthWait = 50;
+                while (!window.AuthService && authWaitCount < maxAuthWait) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    authWaitCount++;
+                }
+            }
+            
+            // Wait for authentication to be confirmed
+            let authCheckCount = 0;
+            const maxAuthCheck = 50;
+            while (authCheckCount < maxAuthCheck) {
+                if (window.AuthService && window.AuthService.isAuthenticated() && window.AuthService.currentUser) {
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+                authCheckCount++;
+            }
+            
+            if (!window.AuthService || !window.AuthService.isAuthenticated() || !window.AuthService.currentUser) {
+                console.warn('[UpgradeController] User not authenticated after waiting, cannot update subscription');
                 alert('Subscription upgrade successful! Please refresh the page to see your updated plan.');
                 window.history.replaceState({}, document.title, window.location.pathname);
                 return;
             }
             
             const currentUser = window.AuthService.currentUser;
-            if (!currentUser || !currentUser.id) {
-                console.warn('[UpgradeController] No current user, cannot update subscription');
-                alert('Subscription upgrade successful! Please refresh the page to see your updated plan.');
-                window.history.replaceState({}, document.title, window.location.pathname);
-                return;
-            }
+            console.log('[UpgradeController] User authenticated, proceeding with subscription update:', currentUser.id);
             
-            // Wait for SubscriptionService to be available
+            // Wait for SubscriptionService and DatabaseService to be available
             let serviceWaitCount = 0;
             const maxServiceWait = 30;
-            while (!window.SubscriptionService && serviceWaitCount < maxServiceWait) {
+            while ((!window.SubscriptionService || !window.DatabaseService) && serviceWaitCount < maxServiceWait) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 serviceWaitCount++;
             }
@@ -454,21 +472,36 @@ const UpgradeController = {
                 return;
             }
             
+            if (!window.DatabaseService) {
+                console.warn('[UpgradeController] DatabaseService not available');
+                alert('Subscription upgrade successful! Please refresh the page to see your updated plan.');
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+            }
+            
+            // Ensure DatabaseService is initialized
+            if (!window.DatabaseService.client) {
+                console.log('[UpgradeController] DatabaseService not initialized, initializing...');
+                await window.DatabaseService.initialize();
+            }
+            
             // Get plan details to determine tier
+            console.log('[UpgradeController] Fetching plan details for plan ID:', planId);
             let planName = null;
-            if (window.DatabaseService) {
-                const planResult = await window.DatabaseService.querySelect('subscription_plans', {
-                    filter: { id: parseInt(planId) },
-                    limit: 1
-                });
-                if (planResult.data && planResult.data.length > 0) {
-                    planName = planResult.data[0].plan_name;
-                    console.log('[UpgradeController] Plan name for tier calculation:', planName);
-                }
+            const planResult = await window.DatabaseService.querySelect('subscription_plans', {
+                filter: { id: parseInt(planId) },
+                limit: 1
+            });
+            
+            if (planResult.data && planResult.data.length > 0) {
+                planName = planResult.data[0].plan_name;
+                console.log('[UpgradeController] Plan name for tier calculation:', planName);
+            } else {
+                console.warn('[UpgradeController] Plan not found in database for plan ID:', planId);
             }
             
             // Update subscription with new plan ID
-            console.log('[UpgradeController] Updating subscription with plan ID:', planId);
+            console.log('[UpgradeController] Updating subscription with plan ID:', planId, 'plan name:', planName);
             const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
                 plan_id: parseInt(planId),
                 status: 'active',
@@ -476,15 +509,27 @@ const UpgradeController = {
                 updated_at: new Date().toISOString()
             });
             
+            console.log('[UpgradeController] Update result:', {
+                success: updateResult.success,
+                hasSubscription: !!updateResult.subscription,
+                error: updateResult.error
+            });
+            
             // Log tier information
             if (updateResult.success && updateResult.subscription) {
                 const tier = window.SubscriptionService.getSubscriptionTier(planName, 'paid');
-                console.log('[UpgradeController] Subscription updated with tier:', tier);
+                console.log('[UpgradeController] ✅ Subscription updated with tier:', tier);
+                console.log('[UpgradeController] Updated subscription:', {
+                    planId: updateResult.subscription.plan_id,
+                    planName: planName,
+                    tier: tier,
+                    status: updateResult.subscription.status
+                });
             }
             
             if (updateResult.success) {
                 console.log('[UpgradeController] ✅ Subscription updated successfully:', updateResult.subscription);
-                alert(`Subscription upgrade successful! You are now on the new plan.`);
+                alert(`Subscription upgrade successful! You are now on the ${planName || 'new'} plan.`);
                 
                 // Reload subscription and plans to refresh the display
                 await this.loadCurrentSubscription();
@@ -492,6 +537,10 @@ const UpgradeController = {
                 await this.renderPlans();
             } else {
                 console.error('[UpgradeController] ❌ Failed to update subscription:', updateResult.error);
+                console.error('[UpgradeController] Error details:', {
+                    error: updateResult.error,
+                    hasSubscription: !!updateResult.subscription
+                });
                 // Still show success message - webhook will update it eventually
                 alert(`Subscription upgrade successful! Your new plan will be active shortly. If you don't see the update, please refresh the page.`);
             }
@@ -500,6 +549,7 @@ const UpgradeController = {
             window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
             console.error('[UpgradeController] Error handling upgrade success:', error);
+            console.error('[UpgradeController] Error stack:', error.stack);
             // Still show success message - webhook will update it eventually
             alert(`Subscription upgrade successful! Your new plan will be active shortly. If you don't see the update, please refresh the page.`);
             window.history.replaceState({}, document.title, window.location.pathname);

@@ -437,6 +437,13 @@ const SubscriptionService = {
                 }
             }
             
+            console.log('[SubscriptionService] updateSubscription - calling queryUpsert with:', {
+                userId: userId,
+                updateData: updateData,
+                identifier: 'user_id',
+                identifierValue: userId
+            });
+            
             const result = await window.DatabaseService.queryUpsert('subscriptions', {
                 user_id: userId,
                 ...updateData
@@ -445,8 +452,21 @@ const SubscriptionService = {
                 identifierValue: userId
             });
             
+            console.log('[SubscriptionService] updateSubscription - queryUpsert result:', {
+                hasData: !!result.data,
+                dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
+                hasError: !!result.error,
+                errorMessage: result.error?.message
+            });
+            
             if (result.error) {
                 console.error('[SubscriptionService] Error updating subscription:', result.error);
+                console.error('[SubscriptionService] Error details:', {
+                    message: result.error.message,
+                    code: result.error.code,
+                    hint: result.error.hint,
+                    details: result.error.details
+                });
                 return {
                     success: false,
                     subscription: null,
@@ -455,6 +475,37 @@ const SubscriptionService = {
             }
             
             const subscription = result.data && result.data.length > 0 ? result.data[0] : null;
+            
+            if (!subscription) {
+                console.warn('[SubscriptionService] updateSubscription - No subscription returned from queryUpsert');
+                // Try to fetch the subscription to verify it was updated
+                const fetchResult = await window.DatabaseService.querySelect('subscriptions', {
+                    filter: { user_id: userId },
+                    limit: 1
+                });
+                
+                if (fetchResult.data && fetchResult.data.length > 0) {
+                    console.log('[SubscriptionService] updateSubscription - Subscription found via fetch:', fetchResult.data[0]);
+                    return {
+                        success: true,
+                        subscription: fetchResult.data[0],
+                        error: null
+                    };
+                } else {
+                    console.error('[SubscriptionService] updateSubscription - Subscription not found after update');
+                    return {
+                        success: false,
+                        subscription: null,
+                        error: 'Subscription not found after update'
+                    };
+                }
+            }
+            
+            console.log('[SubscriptionService] ✅ Subscription updated successfully:', {
+                planId: subscription.plan_id,
+                status: subscription.status,
+                subscriptionType: subscription.subscription_type
+            });
             
             return {
                 success: true,
