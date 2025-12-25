@@ -88,9 +88,11 @@ const AuthService = {
             const getSessionPromise = this.client.auth.getSession();
             console.log('[AuthService] getSession() promise created');
             
+            // Store timeout ID in a variable that can be accessed from outside the Promise
+            let timeoutIdRef = null;
             const timeoutPromise = new Promise((_, reject) => {
                 console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
-                const timeoutId = setTimeout(() => {
+                timeoutIdRef = setTimeout(() => {
                     const elapsed = Date.now() - sessionCheckStartTime;
                     if (sessionCheckState.completed) {
                         console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
@@ -103,10 +105,10 @@ const AuthService = {
                     console.log('[AuthService] getSession() did not resolve within timeout period');
                     reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
                 }, SESSION_CHECK_TIMEOUT_MS);
-                
-                // Store timeout ID so we can clear it if session check completes early
-                timeoutPromise._timeoutId = timeoutId;
             });
+            
+            // Store timeout ID on the promise after it's created
+            timeoutPromise._timeoutId = timeoutIdRef;
             
             const sessionCheckPromise = Promise.race([
                 getSessionPromise.then(result => {
