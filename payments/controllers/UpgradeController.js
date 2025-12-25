@@ -370,6 +370,98 @@ const UpgradeController = {
             
             await window.StripeService.initialize();
             
+            // Determine if this is an upgrade or downgrade
+            const currentPlan = this.currentPlan;
+            const currentPlanPrice = currentPlan ? (currentPlan.price_amount * 100) : 0; // Convert to cents
+            const isUpgrade = !currentPlan || priceAmount > currentPlanPrice;
+            const isDowngrade = currentPlan && priceAmount < currentPlanPrice;
+            const isSamePlan = currentPlan && priceAmount === currentPlanPrice;
+            
+            console.log('[UpgradeController] Plan change analysis:', {
+                currentPlanId: currentPlan?.id,
+                newPlanId: planId,
+                currentPrice: currentPlanPrice,
+                newPrice: priceAmount,
+                isUpgrade: isUpgrade,
+                isDowngrade: isDowngrade,
+                isSamePlan: isSamePlan
+            });
+            
+            // If same plan, do nothing
+            if (isSamePlan) {
+                alert('You are already on this plan.');
+                return;
+            }
+            
+            // For downgrades: use update-subscription Edge Function (scheduled)
+            if (isDowngrade) {
+                console.log('[UpgradeController] Processing downgrade (scheduled)...');
+                
+                if (!window.SubscriptionService) {
+                    throw new Error('SubscriptionService not available');
+                }
+                
+                // Check if user has an active paid subscription
+                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+                if (!subscriptionResult.success || !subscriptionResult.subscription || 
+                    subscriptionResult.subscription.subscription_type !== 'paid' ||
+                    !subscriptionResult.subscription.stripe_subscription_id) {
+                    throw new Error('No active paid subscription found. Please subscribe first.');
+                }
+                
+                // Call update-subscription Edge Function for scheduled downgrade
+                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                
+                // Get auth token
+                let authToken = null;
+                if (window.AuthService && window.AuthService.isAuthenticated()) {
+                    authToken = window.AuthService.getAccessToken();
+                }
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                const response = await fetch(updateEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        planId: planId,
+                        changeType: 'downgrade'
+                    }),
+                    credentials: 'omit'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to schedule downgrade');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Downgrade scheduled! You will be moved to ${planName} at the end of your current billing period (${new Date(result.changeDate).toLocaleDateString()}). You will continue to have access to your current plan features until then.`);
+                    
+                    // Reload subscription and plans to refresh the display
+                    await this.loadCurrentSubscription();
+                    await this.loadAvailablePlans();
+                    await this.renderPlans();
+                } else {
+                    throw new Error(result.error || 'Failed to schedule downgrade');
+                }
+                
+                return;
+            }
+            
+            // For upgrades or new subscriptions: use checkout (immediate)
+            console.log('[UpgradeController] Processing upgrade/new subscription (immediate)...');
+            
             const currentUrl = window.location.href.split('?')[0];
             const successUrl = `${currentUrl}?upgrade=success&plan=${planId}`;
             const cancelUrl = `${currentUrl}?upgrade=cancelled`;

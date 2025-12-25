@@ -952,6 +952,128 @@ const SettingsController = {
     },
     
     /**
+     * Handle recurring billing toggle
+     */
+    async handleRecurringBillingToggle(enabled) {
+        console.log('[SettingsController] ========== handleRecurringBillingToggle() STARTED ==========');
+        console.log('[SettingsController] Recurring billing enabled:', enabled);
+        
+        try {
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                throw new Error('User not authenticated');
+            }
+            
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.id) {
+                throw new Error('User ID not available');
+            }
+            
+            if (!window.SubscriptionService) {
+                throw new Error('SubscriptionService not available');
+            }
+            
+            // Show loading state
+            const toggle = document.getElementById('recurring-billing-toggle');
+            if (toggle) {
+                toggle.disabled = true;
+            }
+            
+            let result;
+            if (enabled) {
+                result = await window.SubscriptionService.enableRecurringBilling(currentUser.id);
+            } else {
+                result = await window.SubscriptionService.disableRecurringBilling(currentUser.id);
+            }
+            
+            if (result.success) {
+                // Reload subscription status to show updated state
+                await this.loadSubscriptionStatus();
+                
+                const message = enabled 
+                    ? 'Auto-renewal enabled. Your subscription will automatically renew at the end of each billing period.'
+                    : 'Auto-renewal disabled. Your subscription will cancel at the end of the current billing period, but you will continue to have access until then.';
+                
+                alert(message);
+            } else {
+                throw new Error(result.error || 'Failed to update recurring billing');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error toggling recurring billing:', error);
+            alert(`Error: ${error.message || 'Failed to update recurring billing. Please try again.'}`);
+            
+            // Reload subscription status to reset toggle state
+            await this.loadSubscriptionStatus();
+        } finally {
+            // Re-enable toggle
+            const toggle = document.getElementById('recurring-billing-toggle');
+            if (toggle) {
+                toggle.disabled = false;
+            }
+        }
+    },
+    
+    /**
+     * Handle recurring billing toggle
+     */
+    async handleRecurringBillingToggle(enabled) {
+        console.log('[SettingsController] ========== handleRecurringBillingToggle() STARTED ==========');
+        console.log('[SettingsController] Recurring billing enabled:', enabled);
+        
+        try {
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                throw new Error('User not authenticated');
+            }
+            
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.id) {
+                throw new Error('User ID not available');
+            }
+            
+            if (!window.SubscriptionService) {
+                throw new Error('SubscriptionService not available');
+            }
+            
+            // Show loading state
+            const toggle = document.getElementById('recurring-billing-toggle');
+            if (toggle) {
+                toggle.disabled = true;
+            }
+            
+            let result;
+            if (enabled) {
+                result = await window.SubscriptionService.enableRecurringBilling(currentUser.id);
+            } else {
+                result = await window.SubscriptionService.disableRecurringBilling(currentUser.id);
+            }
+            
+            if (result.success) {
+                // Reload subscription status to show updated state
+                await this.loadSubscriptionStatus();
+                
+                const message = enabled 
+                    ? 'Auto-renewal enabled. Your subscription will automatically renew at the end of each billing period.'
+                    : 'Auto-renewal disabled. Your subscription will cancel at the end of the current billing period, but you will continue to have access until then.';
+                
+                alert(message);
+            } else {
+                throw new Error(result.error || 'Failed to update recurring billing');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error toggling recurring billing:', error);
+            alert(`Error: ${error.message || 'Failed to update recurring billing. Please try again.'}`);
+            
+            // Reload subscription status to reset toggle state
+            await this.loadSubscriptionStatus();
+        } finally {
+            // Re-enable toggle
+            const toggle = document.getElementById('recurring-billing-toggle');
+            if (toggle) {
+                toggle.disabled = false;
+            }
+        }
+    },
+    
+    /**
      * Format date for display
      */
     formatDate(dateString) {
@@ -1146,10 +1268,33 @@ const SettingsController = {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscriptionEndDate)}</span></div>`);
                 }
                 
+                // Recurring Billing Toggle (only for paid subscriptions)
+                if (subscription.subscription_type === 'paid' && subscription.stripe_subscription_id) {
+                    const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
+                    const toggleId = 'recurring-billing-toggle';
+                    detailsHtml.push(`
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));">
+                            <strong>Auto-Renewal:</strong>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="${toggleId}" ${recurringBillingEnabled ? 'checked' : ''} style="cursor: pointer;">
+                                <span>${recurringBillingEnabled ? 'Enabled' : 'Disabled'}</span>
+                            </label>
+                        </div>
+                    `);
+                }
+                
                 // Always show the details box if we have a subscription
                 if (detailsHtml.length > 0) {
                     subscriptionDetailsContent.innerHTML = detailsHtml.join('');
                     subscriptionDetailsContainer.style.display = 'block';
+                    
+                    // Set up recurring billing toggle event listener
+                    const toggle = document.getElementById('recurring-billing-toggle');
+                    if (toggle) {
+                        toggle.addEventListener('change', async (e) => {
+                            await this.handleRecurringBillingToggle(e.target.checked);
+                        });
+                    }
                 } else {
                     subscriptionDetailsContainer.style.display = 'none';
                 }
@@ -1159,6 +1304,18 @@ const SettingsController = {
             // Get account created date from user object (not subscription) - this is the actual account creation date
             const accountCreatedContainer = document.getElementById('account-created-container');
             const accountCreatedDate = document.getElementById('account-created-date');
+            
+            // Set up recurring billing toggle event listener (if toggle exists)
+            const toggle = document.getElementById('recurring-billing-toggle');
+            if (toggle) {
+                // Remove existing listeners to prevent duplicates
+                const newToggle = toggle.cloneNode(true);
+                toggle.parentNode.replaceChild(newToggle, toggle);
+                newToggle.addEventListener('change', async (e) => {
+                    await this.handleRecurringBillingToggle(e.target.checked);
+                });
+            }
+            
             if (accountCreatedContainer && accountCreatedDate) {
                 // Get user account created date from AuthService (Supabase auth.users table)
                 const currentUser = window.AuthService ? window.AuthService.getCurrentUser() : null;

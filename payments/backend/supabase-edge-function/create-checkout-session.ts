@@ -99,8 +99,8 @@ serve(async (req) => {
     
     // Parse request body
     console.log("[create-checkout-session] Step 1: Parsing request body...")
-    const { customerEmail, userId, successUrl, cancelUrl } = await req.json()
-    console.log("[create-checkout-session] Request data:", { customerEmail, userId, successUrl, cancelUrl })
+    const { customerEmail, userId, successUrl, cancelUrl, planId, priceAmount } = await req.json()
+    console.log("[create-checkout-session] Request data:", { customerEmail, userId, successUrl, cancelUrl, planId, priceAmount })
 
     // Validate required fields
     console.log("[create-checkout-session] Step 2: Validating input...")
@@ -182,8 +182,47 @@ serve(async (req) => {
       })
     }
 
+    // Check for existing active subscriptions and cancel them
+    // This ensures only one active subscription per user
+    console.log("[create-checkout-session] Step 3.5: Checking for existing subscriptions...")
+    const existingSubscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 10
+    })
+    
+    if (existingSubscriptions.data.length > 0) {
+      console.log(`[create-checkout-session] Found ${existingSubscriptions.data.length} active subscription(s), cancelling...`)
+      for (const subscription of existingSubscriptions.data) {
+        try {
+          await stripe.subscriptions.update(subscription.id, {
+            cancel_at_period_end: false  // Cancel immediately
+          })
+          console.log(`[create-checkout-session] ✅ Cancelled existing subscription: ${subscription.id}`)
+        } catch (cancelError) {
+          console.error(`[create-checkout-session] ⚠️ Error cancelling subscription ${subscription.id}:`, cancelError.message)
+          // Continue - try to cancel others even if one fails
+        }
+      }
+    } else {
+      console.log("[create-checkout-session] No existing active subscriptions found")
+    }
+
     // Create Stripe Checkout session
     console.log("[create-checkout-session] Step 4: Creating Stripe Checkout session...")
+    
+    // Determine price and plan details
+    const finalPriceAmount = priceAmount || SUBSCRIPTION_PRICE_AMOUNT
+    const priceInEuros = (finalPriceAmount / 100).toFixed(2)
+    console.log("[create-checkout-session] Using price:", { 
+      priceAmount: finalPriceAmount, 
+      priceInEuros: `${priceInEuros} EUR`,
+      planId: planId || 'default'
+    })
+    
+    // Determine change type (upgrade if existing subscription, new if none)
+    const changeType = existingSubscriptions.data.length > 0 ? 'upgrade' : null
+    
     const checkoutStartTime = Date.now()
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,  // Use customer ID instead of customer_email
@@ -193,10 +232,10 @@ serve(async (req) => {
           price_data: {
             currency: SUBSCRIPTION_CURRENCY,
             product_data: {
-              name: "Money Tracker Monthly Subscription",
-              description: "Monthly access to Money Tracker application",
+              name: planId ? `Money Tracker Subscription (Plan ${planId})` : "Money Tracker Monthly Subscription",
+              description: `Monthly access to Money Tracker application - €${priceInEuros}/month`,
             },
-            unit_amount: SUBSCRIPTION_PRICE_AMOUNT,
+            unit_amount: finalPriceAmount,
             recurring: {
               interval: SUBSCRIPTION_INTERVAL,
             },
@@ -211,6 +250,17 @@ serve(async (req) => {
         userId: userId,
         customerEmail: customerEmail,
         customerId: customer.id,  // Include customer ID in metadata
+        planId: planId || '',  // Include plan ID if provided
+        changeType: changeType || '',  // Include change type if upgrade
+      },
+      subscription_data: {
+        metadata: {
+          userId: userId,
+          planId: planId || '',
+          changeType: changeType || ''
+        },
+        // Enable proration for upgrades (Stripe will handle this automatically)
+        proration_behavior: changeType === 'upgrade' ? 'create_prorations' : undefined
       },
       // Allow promotion codes
       allow_promotion_codes: true,

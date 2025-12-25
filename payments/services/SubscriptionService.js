@@ -362,20 +362,74 @@ const SubscriptionService = {
                     limit: 1
                 });
                 
-                if (planResult.success && planResult.data && planResult.data.length > 0) {
-                    plan = planResult.data[0];
+                console.log('[SubscriptionService] Plan query result:', {
+                    hasData: planResult.hasData,
+                    dataLength: Array.isArray(planResult.data) ? planResult.data.length : 'N/A',
+                    hasError: planResult.hasError,
+                    planId: subscription.plan_id,
+                    dataType: typeof planResult.data,
+                    isArray: Array.isArray(planResult.data)
+                });
+                
+                // querySelect returns {hasData, data, hasError} not {success, data}
+                if (planResult.hasData && planResult.data) {
+                    // Handle both array and single object responses
+                    if (Array.isArray(planResult.data)) {
+                        if (planResult.data.length > 0) {
+                            plan = planResult.data[0];
+                            console.log('[SubscriptionService] Plan found (from array):', {
+                                id: plan.id,
+                                plan_name: plan.plan_name,
+                                price_amount: plan.price_amount
+                            });
+                        } else {
+                            console.warn('[SubscriptionService] Plan array is empty for plan_id:', subscription.plan_id);
+                        }
+                    } else if (typeof planResult.data === 'object') {
+                        // Single object response
+                        plan = planResult.data;
+                        console.log('[SubscriptionService] Plan found (single object):', {
+                            id: plan.id,
+                            plan_name: plan.plan_name,
+                            price_amount: plan.price_amount
+                        });
+                    }
+                } else {
+                    console.warn('[SubscriptionService] Plan not found for plan_id:', subscription.plan_id, {
+                        hasData: planResult.hasData,
+                        hasError: planResult.hasError,
+                        error: planResult.error
+                    });
                 }
             }
             
             // Calculate subscription tier
+            // If downgrade is pending but not yet effective, use current plan tier (user keeps premium access)
             const planName = plan?.plan_name || null;
             const subscriptionType = subscription?.subscription_type || 'trial';
-            const tier = this.getSubscriptionTier(planName, subscriptionType);
+            
+            // Check for pending downgrade
+            const hasPendingDowngrade = subscription?.pending_plan_id && 
+                                       subscription?.pending_change_date && 
+                                       subscription?.change_type === 'downgrade' &&
+                                       new Date() < new Date(subscription.pending_change_date);
+            
+            let tier;
+            if (hasPendingDowngrade) {
+                // User has pending downgrade but hasn't taken effect yet - use current plan tier
+                console.log('[SubscriptionService] Pending downgrade detected, using current plan tier until change date');
+                tier = this.getSubscriptionTier(planName, subscriptionType);
+            } else {
+                // Normal tier calculation
+                tier = this.getSubscriptionTier(planName, subscriptionType);
+            }
             
             console.log('[SubscriptionService] Subscription tier calculated:', {
                 tier: tier,
                 planName: planName,
-                subscriptionType: subscriptionType
+                subscriptionType: subscriptionType,
+                hasPendingDowngrade: hasPendingDowngrade,
+                pendingChangeDate: subscription?.pending_change_date
             });
             
             const methodElapsed = Date.now() - methodStartTime;
@@ -594,6 +648,95 @@ const SubscriptionService = {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         return diffDays;
+    },
+    
+    /**
+     * Enable recurring billing for user's subscription
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async enableRecurringBilling(userId) {
+        console.log('[SubscriptionService] ========== enableRecurringBilling() STARTED ==========');
+        
+        try {
+            if (!window.StripeService) {
+                throw new Error('StripeService not available');
+            }
+            
+            await window.StripeService.initialize();
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+            
+            const result = await window.StripeService.updateSubscription(
+                userId,
+                null, // planId
+                null, // changeType
+                true, // recurringBillingEnabled = true
+                updateEndpoint
+            );
+            
+            if (result.success) {
+                console.log('[SubscriptionService] ✅ Recurring billing enabled');
+                return {
+                    success: true,
+                    error: null
+                };
+            } else {
+                throw new Error(result.error || 'Failed to enable recurring billing');
+            }
+        } catch (error) {
+            console.error('[SubscriptionService] Error enabling recurring billing:', error);
+            return {
+                success: false,
+                error: error.message || 'Failed to enable recurring billing'
+            };
+        }
+    },
+    
+    /**
+     * Disable recurring billing for user's subscription
+     * Subscription will cancel at the end of the current billing period
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async disableRecurringBilling(userId) {
+        console.log('[SubscriptionService] ========== disableRecurringBilling() STARTED ==========');
+        
+        try {
+            if (!window.StripeService) {
+                throw new Error('StripeService not available');
+            }
+            
+            await window.StripeService.initialize();
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+            
+            const result = await window.StripeService.updateSubscription(
+                userId,
+                null, // planId
+                null, // changeType
+                false, // recurringBillingEnabled = false
+                updateEndpoint
+            );
+            
+            if (result.success) {
+                console.log('[SubscriptionService] ✅ Recurring billing disabled');
+                return {
+                    success: true,
+                    error: null
+                };
+            } else {
+                throw new Error(result.error || 'Failed to disable recurring billing');
+            }
+        } catch (error) {
+            console.error('[SubscriptionService] Error disabling recurring billing:', error);
+            return {
+                success: false,
+                error: error.message || 'Failed to disable recurring billing'
+            };
+        }
     },
     
     /**

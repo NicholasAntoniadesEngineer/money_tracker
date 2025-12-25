@@ -264,6 +264,31 @@ async function handleCheckoutSessionCompleted(session: any) {
       planId
     })
 
+    // Ensure no other active subscriptions exist for this customer
+    // This prevents multiple subscriptions from being active simultaneously
+    console.log("[stripe-webhook] Checking for existing active subscriptions...")
+    const existingSubs = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 10
+    })
+    
+    // Cancel all existing subscriptions except the new one
+    for (const sub of existingSubs.data) {
+      if (sub.id !== subscriptionId) {
+        try {
+          console.log(`[stripe-webhook] Cancelling duplicate subscription: ${sub.id}`)
+          await stripe.subscriptions.update(sub.id, {
+            cancel_at_period_end: false  // Cancel immediately
+          })
+          console.log(`[stripe-webhook] ✅ Cancelled subscription: ${sub.id}`)
+        } catch (cancelError) {
+          console.error(`[stripe-webhook] ⚠️ Error cancelling subscription ${sub.id}:`, cancelError.message)
+          // Continue - try to cancel others even if one fails
+        }
+      }
+    }
+
     // Get subscription details from Stripe
     let subscription: any = null
     if (subscriptionId) {
@@ -369,6 +394,16 @@ async function handleSubscriptionUpdated(subscription: any) {
       return { success: false, error: "No userId in customer metadata" }
     }
 
+    // Check if this is a scheduled cancellation (downgrade)
+    const pendingPlanId = subscription.metadata?.pendingPlanId
+    const isScheduledCancellation = subscription.cancel_at_period_end && pendingPlanId
+
+    console.log("[stripe-webhook] Subscription update details:", {
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      pendingPlanId: pendingPlanId,
+      isScheduledCancellation: isScheduledCancellation
+    })
+
     const updateData: any = {
       status: subscription.status === "active" ? "active" : 
               subscription.status === "past_due" ? "past_due" :
@@ -380,8 +415,19 @@ async function handleSubscriptionUpdated(subscription: any) {
       updated_at: new Date().toISOString()
     }
 
+    // Update recurring billing status based on cancel_at_period_end
+    updateData.recurring_billing_enabled = !subscription.cancel_at_period_end
+
     if (subscription.canceled_at) {
       updateData.cancellation_date = new Date(subscription.canceled_at * 1000).toISOString()
+    }
+
+    // If this is a scheduled downgrade, update pending plan info
+    if (isScheduledCancellation) {
+      updateData.pending_plan_id = parseInt(pendingPlanId)
+      updateData.pending_change_date = new Date(subscription.current_period_end * 1000).toISOString()
+      updateData.change_type = 'downgrade'
+      console.log("[stripe-webhook] Scheduled downgrade detected, will take effect at period end")
     }
 
     const response = await fetch(`${supabaseClient.url}/rest/v1/subscriptions?user_id=eq.${userId}`, {
@@ -423,9 +469,92 @@ async function handleSubscriptionDeleted(subscription: any) {
       return { success: false, error: "No userId in customer metadata" }
     }
 
+    // Check if this was a scheduled downgrade
+    const pendingPlanId = subscription.metadata?.pendingPlanId
+    const isScheduledDowngrade = pendingPlanId && subscription.metadata?.changeType === 'downgrade'
+
+    console.log("[stripe-webhook] Subscription deletion details:", {
+      pendingPlanId: pendingPlanId,
+      isScheduledDowngrade: isScheduledDowngrade
+    })
+
+    if (isScheduledDowngrade) {
+      // This was a scheduled downgrade - create new subscription with lower tier
+      console.log("[stripe-webhook] Processing scheduled downgrade...")
+      
+      // Get plan details from database
+      const planResponse = await fetch(`${supabaseClient.url}/rest/v1/subscription_plans?id=eq.${pendingPlanId}&select=*`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseClient.key,
+          "Authorization": `Bearer ${supabaseClient.key}`,
+        },
+      })
+
+      if (planResponse.ok) {
+        const plans = await planResponse.json()
+        const newPlan = plans && plans.length > 0 ? plans[0] : null
+
+        if (newPlan && newPlan.stripe_price_id) {
+          // Create new subscription with downgraded plan
+          const newSubscription = await stripe.subscriptions.create({
+            customer: customerId,
+            items: [{ price: newPlan.stripe_price_id }],
+            metadata: {
+              userId: userId,
+              planId: pendingPlanId,
+              changeType: 'downgrade_completed'
+            }
+          })
+
+          console.log("[stripe-webhook] ✅ New subscription created for downgrade:", newSubscription.id)
+
+          // Update database with new subscription
+          const updateData = {
+            status: "active",
+            plan_id: parseInt(pendingPlanId),
+            stripe_subscription_id: newSubscription.id,
+            stripe_price_id: newPlan.stripe_price_id,
+            subscription_start_date: new Date(newSubscription.current_period_start * 1000).toISOString(),
+            subscription_end_date: new Date(newSubscription.current_period_end * 1000).toISOString(),
+            next_billing_date: new Date(newSubscription.current_period_end * 1000).toISOString(),
+            pending_plan_id: null,
+            pending_change_date: null,
+            change_type: null,
+            updated_at: new Date().toISOString()
+          }
+
+          const response = await fetch(`${supabaseClient.url}/rest/v1/subscriptions?user_id=eq.${userId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseClient.key,
+              "Authorization": `Bearer ${supabaseClient.key}`,
+              "Prefer": "return=representation"
+            },
+            body: JSON.stringify(updateData)
+          })
+
+          if (!response.ok) {
+            throw new Error(`Failed to update subscription: ${await response.text()}`)
+          }
+
+          console.log("[stripe-webhook] ✅ Downgrade completed, new subscription active")
+          return { success: true, message: "Scheduled downgrade completed" }
+        } else {
+          console.warn("[stripe-webhook] ⚠️ Plan not found or missing Stripe Price ID, marking as cancelled")
+        }
+      }
+    }
+
+    // Regular cancellation (not a scheduled downgrade)
     const updateData = {
       status: "cancelled",
       cancellation_date: new Date().toISOString(),
+      pending_plan_id: null,
+      pending_change_date: null,
+      change_type: null,
       updated_at: new Date().toISOString()
     }
 

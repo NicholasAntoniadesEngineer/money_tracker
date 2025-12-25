@@ -544,6 +544,151 @@ const StripeService = {
     },
     
     /**
+     * Update subscription (upgrade, downgrade, or toggle recurring billing)
+     * @param {string} userId - User ID from Supabase
+     * @param {number|null} planId - Optional: New plan ID for upgrade/downgrade
+     * @param {string|null} changeType - Optional: 'upgrade' or 'downgrade'
+     * @param {boolean|null} recurringBillingEnabled - Optional: Toggle recurring billing on/off
+     * @param {string} backendEndpoint - Backend endpoint URL for update-subscription Edge Function
+     * @returns {Promise<{success: boolean, message: string|null, error: string|null}>}
+     */
+    async updateSubscription(userId, planId = null, changeType = null, recurringBillingEnabled = null, backendEndpoint = null) {
+        console.log('[StripeService] ========== updateSubscription() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[StripeService] Step 1: Validating input...');
+            if (!userId) {
+                throw new Error('User ID is required');
+            }
+            
+            if (planId === null && recurringBillingEnabled === null) {
+                throw new Error('Either planId or recurringBillingEnabled must be provided');
+            }
+            
+            // Get auth token for Supabase Edge Function
+            let authToken = null;
+            if (window.AuthService && window.AuthService.isAuthenticated()) {
+                authToken = window.AuthService.getAccessToken();
+            }
+            
+            // Use default endpoint if not provided
+            if (!backendEndpoint) {
+                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                backendEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+            }
+            
+            console.log('[StripeService] Step 2: Calling update-subscription Edge Function...');
+            console.log('[StripeService] Endpoint:', backendEndpoint);
+            console.log('[StripeService] Request payload:', {
+                userId: userId,
+                planId: planId,
+                changeType: changeType,
+                recurringBillingEnabled: recurringBillingEnabled
+            });
+            
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+                console.log('[StripeService] Adding Authorization header with access token');
+            } else {
+                console.warn('[StripeService] ⚠️ No auth token available - request may fail');
+            }
+            
+            const requestBody = {
+                userId: userId
+            };
+            
+            if (planId !== null) {
+                requestBody.planId = planId;
+            }
+            if (changeType !== null) {
+                requestBody.changeType = changeType;
+            }
+            if (recurringBillingEnabled !== null) {
+                requestBody.recurringBillingEnabled = recurringBillingEnabled;
+            }
+            
+            console.log('[StripeService] Request body:', requestBody);
+            
+            const fetchStartTime = Date.now();
+            let response;
+            try {
+                response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody),
+                    credentials: 'omit'
+                });
+            } catch (fetchError) {
+                if (fetchError.message.includes('CORS') || fetchError.message.includes('preflight') || fetchError.message.includes('Load failed')) {
+                    console.error('[StripeService] ❌ CORS/Preflight error:', fetchError.message);
+                    throw new Error(`CORS error: The update-subscription Edge Function may not be properly configured. Original error: ${fetchError.message}`);
+                }
+                throw fetchError;
+            }
+            const fetchElapsed = Date.now() - fetchStartTime;
+            
+            console.log('[StripeService] Fetch response received:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                elapsed: `${fetchElapsed}ms`
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { error: errorText };
+                }
+                
+                console.error('[StripeService] ❌ Update subscription failed:', errorData);
+                return {
+                    success: false,
+                    message: null,
+                    error: errorData.error || `HTTP ${response.status}: ${errorText}`
+                };
+            }
+            
+            console.log('[StripeService] Step 3: Parsing response...');
+            const result = await response.json();
+            const totalElapsed = Date.now() - startTime;
+            
+            console.log('[StripeService] Response data:', result);
+            console.log('[StripeService] ========== updateSubscription() SUCCESS ==========');
+            console.log('[StripeService] Total time:', `${totalElapsed}ms`);
+            
+            return {
+                success: result.success || true,
+                message: result.message || 'Subscription updated successfully',
+                error: null,
+                data: result
+            };
+            
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[StripeService] ========== updateSubscription() EXCEPTION ==========');
+            console.error('[StripeService] Exception details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+                elapsed: `${totalElapsed}ms`
+            });
+            return {
+                success: false,
+                message: null,
+                error: error.message || 'Failed to update subscription'
+            };
+        }
+    },
+    
+    /**
      * Get Stripe instance
      * @returns {Object|null} Stripe instance
      */

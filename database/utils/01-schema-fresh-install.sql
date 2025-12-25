@@ -111,6 +111,12 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     last_payment_date TIMESTAMPTZ,
     cancellation_date TIMESTAMPTZ,
     cancellation_reason TEXT,
+    -- Pending plan changes (for scheduled downgrades)
+    pending_plan_id BIGINT REFERENCES subscription_plans(id),
+    pending_change_date TIMESTAMPTZ,
+    change_type TEXT CHECK (change_type IN ('upgrade', 'downgrade')),
+    -- Recurring billing toggle
+    recurring_billing_enabled BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
