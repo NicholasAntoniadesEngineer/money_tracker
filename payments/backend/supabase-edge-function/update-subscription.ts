@@ -10,8 +10,8 @@
  * 4. Copy the code from this file into the function
  * 5. Set environment variables:
  *    - STRIPE_RESTRICTED_KEY = your Stripe restricted/secret key
- *    - SUPABASE_URL = your Supabase project URL
- *    - SUPABASE_SERVICE_KEY = your Supabase service role key
+ *    - DATABASE_URL = your Supabase project URL
+ *    - DATABASE_SERVICE_KEY = your Supabase service role key
  * 6. Deploy the function
  * 
  * USAGE:
@@ -46,11 +46,11 @@ try {
   console.error("[update-subscription] ❌ Stripe initialization error:", initError)
 }
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_KEY")
+const supabaseUrl = Deno.env.get("DATABASE_URL")
+const supabaseServiceKey = Deno.env.get("DATABASE_SERVICE_KEY")
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn("[update-subscription] ⚠️ SUPABASE_URL or SUPABASE_SERVICE_KEY not set")
+  console.warn("[update-subscription] ⚠️ DATABASE_URL or DATABASE_SERVICE_KEY not set")
 }
 
 serve(async (req) => {

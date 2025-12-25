@@ -97,8 +97,8 @@ WHERE is_active = true;
 3. **Copy code from**: `payments/backend/supabase-edge-function/update-subscription.ts`
 4. **Set environment variables**:
    - `STRIPE_RESTRICTED_KEY` = Your Stripe restricted key (or secret key)
-   - `SUPABASE_URL` = Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
-   - `SUPABASE_SERVICE_KEY` = Your Supabase service role key
+   - `DATABASE_URL` = Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
+   - `DATABASE_SERVICE_KEY` = Your Supabase service role key
 5. **Deploy**
 
 ### 3.3 Deploy stripe-webhook
@@ -109,8 +109,8 @@ WHERE is_active = true;
 4. **Set environment variables**:
    - `STRIPE_RESTRICTED_KEY` = Your Stripe restricted key (or secret key)
    - `STRIPE_WEBHOOK_SECRET` = Your webhook signing secret (from Step 4.2)
-   - `SUPABASE_URL` = Your Supabase project URL
-   - `SUPABASE_SERVICE_KEY` = Your Supabase service role key
+   - `DATABASE_URL` = Your Supabase project URL
+   - `DATABASE_SERVICE_KEY` = Your Supabase service role key
 5. **Deploy**
 
 ### 3.4 Get Supabase Service Role Key
@@ -230,12 +230,12 @@ Here's a complete list of all environment variables needed:
 |----------|----------|-------------|
 | `create-checkout-session` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
 | `update-subscription` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
-| `update-subscription` | `SUPABASE_URL` | Supabase project URL |
-| `update-subscription` | `SUPABASE_SERVICE_KEY` | Supabase service role key |
+| `update-subscription` | `DATABASE_URL` | Supabase project URL |
+| `update-subscription` | `DATABASE_SERVICE_KEY` | Supabase service role key |
 | `stripe-webhook` | `STRIPE_RESTRICTED_KEY` | Stripe restricted/secret key |
 | `stripe-webhook` | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (whsec_...) |
-| `stripe-webhook` | `SUPABASE_URL` | Supabase project URL |
-| `stripe-webhook` | `SUPABASE_SERVICE_KEY` | Supabase service role key |
+| `stripe-webhook` | `DATABASE_URL` | Supabase project URL |
+| `stripe-webhook` | `DATABASE_SERVICE_KEY` | Supabase service role key |
 
 ## Troubleshooting
 

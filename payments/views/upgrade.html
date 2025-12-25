@@ -176,8 +176,14 @@
         }
         
         .subscription-details-box {
-            max-width: 600px;
+            max-width: 100%;
             box-sizing: border-box;
+        }
+        
+        @media (max-width: 768px) {
+            .header-with-subscription {
+                grid-template-columns: 1fr !important;
+            }
         }
         
         .subscription-details-box #current-subscription-content {
@@ -231,21 +237,25 @@
     
     <main class="upgrade-main" role="main">
         <section class="upgrade-section">
-            <h1 class="section-title">Subscription Management</h1>
-            <p style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
-                Choose the plan that's right for you. Upgrade or downgrade at any time.
-            </p>
-            
-            <div class="settings-row" style="gap: 0.5rem; margin-bottom: var(--spacing-lg);">
-                <button id="update-payment-button" class="btn btn-action">
-                    Update Payment Method
-                </button>
-            </div>
-            
-            <div id="current-subscription-details" class="subscription-details-box" style="display: none; margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); max-width: 600px; box-sizing: border-box;">
-                <h2 style="margin-top: 0; margin-bottom: var(--spacing-md); font-size: 1.25rem;">Current Subscription</h2>
-                <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem; max-width: 100%; box-sizing: border-box;">
-                    <!-- Subscription details will be populated by JavaScript -->
+            <div class="header-with-subscription" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); align-items: start; margin-bottom: var(--spacing-lg);">
+                <div class="header-content">
+                    <h1 class="section-title">Subscription Management</h1>
+                    <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md);">
+                        Choose the plan that's right for you. Upgrade or downgrade at any time.
+                    </p>
+                    
+                    <div class="settings-row" style="gap: 0.5rem;">
+                        <button id="update-payment-button" class="btn btn-action">
+                            Update Payment Method
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="current-subscription-details" class="subscription-details-box" style="display: none; padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
+                    <h2 style="margin-top: 0; margin-bottom: var(--spacing-md); font-size: 1.25rem;">Current Subscription</h2>
+                    <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem; max-width: 100%; box-sizing: border-box;">
+                        <!-- Subscription details will be populated by JavaScript -->
+                    </div>
                 </div>
             </div>
             

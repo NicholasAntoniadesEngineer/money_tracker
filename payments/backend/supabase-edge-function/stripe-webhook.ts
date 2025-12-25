@@ -15,8 +15,8 @@
  * 5. Set environment variables:
  *    - STRIPE_RESTRICTED_KEY = rk_test_51QAQyCClUqvgxZvpKaTgchHG8wvTU069VUU1yrF7slV03H9htAgNJOCjgbS3DpLZAN4r9eLseB8njvy1xUVCoBlE003Y4K4ytP
  *    - STRIPE_WEBHOOK_SECRET = whsec_Mf6471Fw5xGEIQt0lPi3YlYYxcemrcgS (your webhook signing secret)
- *    - SUPABASE_URL = https://ofutzrxfbrgtbkyafndv.supabase.co
- *    - SUPABASE_SERVICE_KEY = your-service-role-key (for direct database access)
+ *    - DATABASE_URL = https://ofutzrxfbrgtbkyafndv.supabase.co
+ *    - DATABASE_SERVICE_KEY = your-service-role-key (for direct database access)
  * 6. Deploy the function
  * 
  * STRIPE WEBHOOK SETUP:
@@ -42,8 +42,8 @@ import Stripe from "https://esm.sh/stripe@14.21.0?target=deno"
 
 const stripeKey = Deno.env.get("STRIPE_RESTRICTED_KEY") || Deno.env.get("STRIPE_SECRET_KEY")
 const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")
-const supabaseUrl = Deno.env.get("SUPABASE_URL")
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_KEY")
+const supabaseUrl = Deno.env.get("DATABASE_URL")
+const supabaseServiceKey = Deno.env.get("DATABASE_SERVICE_KEY")
 
 if (!stripeKey) {
   throw new Error("STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY environment variable is required")
@@ -54,7 +54,7 @@ if (!webhookSecret) {
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables are required")
+  throw new Error("DATABASE_URL and DATABASE_SERVICE_KEY environment variables are required")
 }
 
 const stripe = new Stripe(stripeKey, {
