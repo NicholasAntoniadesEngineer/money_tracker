@@ -1133,11 +1133,32 @@ const UpgradeController = {
             console.log('[UpgradeController] Modal open result:', modalOpenResult);
             
             console.log('[UpgradeController] Step 5: Checking StripeService availability...');
-            console.log('[UpgradeController] StripeService check:', {
+            console.log('[UpgradeController] Window object check:', {
                 hasWindow: typeof window !== 'undefined',
+                windowType: typeof window
+            });
+            console.log('[UpgradeController] StripeService check:', {
                 hasStripeService: !!window.StripeService,
                 stripeServiceType: typeof window.StripeService,
+                stripeServiceValue: window.StripeService,
                 hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
+            });
+            
+            // Check for script loading issues
+            console.log('[UpgradeController] Checking for StripeService script tag...');
+            const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
+            console.log('[UpgradeController] StripeService script tag:', {
+                found: !!stripeServiceScript,
+                src: stripeServiceScript?.src,
+                loaded: stripeServiceScript?.getAttribute('data-loaded') || 'unknown'
+            });
+            
+            // Check all window properties that might be related
+            console.log('[UpgradeController] Window properties check:', {
+                hasStripe: !!window.Stripe,
+                hasStripeConfig: !!window.StripeConfig,
+                hasStripeService: !!window.StripeService,
+                windowKeys: Object.keys(window).filter(key => key.toLowerCase().includes('stripe'))
             });
             
             // Wait for StripeService to be available (with timeout)
@@ -1145,20 +1166,32 @@ const UpgradeController = {
             const startWaitTime = Date.now();
             let waitIterations = 0;
             
+            console.log('[UpgradeController] Starting wait loop for StripeService...');
             while (!window.StripeService && (Date.now() - startWaitTime) < maxWaitTime) {
                 waitIterations++;
+                if (waitIterations % 10 === 0) {
+                    console.log(`[UpgradeController] Waiting for StripeService... iteration ${waitIterations}, elapsed: ${Date.now() - startWaitTime}ms`);
+                }
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
             
             console.log('[UpgradeController] Wait completed:', {
                 iterations: waitIterations,
                 elapsed: Date.now() - startWaitTime,
-                hasStripeService: !!window.StripeService
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService
             });
             
             if (!window.StripeService) {
                 console.error('[UpgradeController] ❌ StripeService not available after waiting');
-                throw new Error('StripeService not available. Please refresh the page and try again.');
+                console.error('[UpgradeController] Diagnostic information:', {
+                    windowType: typeof window,
+                    hasWindow: typeof window !== 'undefined',
+                    allWindowKeys: Object.keys(window).slice(0, 50), // First 50 keys
+                    scripts: Array.from(document.querySelectorAll('script[src]')).map(s => s.src),
+                    stripeServiceScriptExists: !!document.querySelector('script[src*="StripeService"]')
+                });
+                throw new Error('StripeService not available. The script may not have loaded. Please check the browser console for script loading errors and refresh the page.');
             }
             
             if (typeof window.StripeService.listInvoices !== 'function') {

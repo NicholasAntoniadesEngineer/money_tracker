@@ -515,15 +515,54 @@
     <script src="../../payments/controllers/UpgradeController.js?v=2.0.0-session-wait-20251225"></script>
     
     <script>
+        // Verify all required services are loaded
+        console.log('[upgrade.html] Checking required services after script load...');
+        console.log('[upgrade.html] Services check:', {
+            hasSupabaseConfig: !!window.SupabaseConfig,
+            hasAuthService: !!window.AuthService,
+            hasDatabaseService: !!window.DatabaseService,
+            hasSubscriptionService: !!window.SubscriptionService,
+            hasStripeService: !!window.StripeService,
+            hasStripeConfig: !!window.StripeConfig,
+            hasHeader: !!window.Header,
+            hasUpgradeController: !!window.UpgradeController
+        });
+        
+        // Check for script loading errors
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('StripeService')) {
+                console.error('[upgrade.html] Script loading error detected:', {
+                    message: e.message,
+                    filename: e.filename,
+                    lineno: e.lineno,
+                    colno: e.colno,
+                    error: e.error
+                });
+            }
+        }, true);
+        
         // Initialize header
         if (window.Header) {
             window.Header.init();
+        } else {
+            console.warn('[upgrade.html] Header not available');
         }
         
         // Initialize upgrade page
         if (window.UpgradeController) {
             window.UpgradeController.init();
+        } else {
+            console.warn('[upgrade.html] UpgradeController not available');
         }
+        
+        // Final check after a short delay
+        setTimeout(function() {
+            console.log('[upgrade.html] Final services check after delay:', {
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService,
+                hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
+            });
+        }, 1000);
     </script>
 </body>
 </html>

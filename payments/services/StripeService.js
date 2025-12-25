@@ -4,6 +4,10 @@
  * Uses Stripe.js for client-side operations
  */
 
+console.log('[StripeService] ========== STRIPE SERVICE SCRIPT LOADING ==========');
+console.log('[StripeService] Script execution started at:', new Date().toISOString());
+console.log('[StripeService] Window object available:', typeof window !== 'undefined');
+
 const StripeService = {
     stripeInstance: null,
     
@@ -807,10 +811,22 @@ const StripeService = {
 };
 
 if (typeof window !== 'undefined') {
+    console.log('[StripeService] Exposing StripeService to window object...');
     window.StripeService = StripeService;
+    console.log('[StripeService] ✅ StripeService exposed to window');
+    console.log('[StripeService] Verification:', {
+        hasWindowStripeService: !!window.StripeService,
+        hasListInvoices: typeof window.StripeService.listInvoices === 'function',
+        serviceKeys: Object.keys(window.StripeService).slice(0, 10)
+    });
+} else {
+    console.warn('[StripeService] ⚠️ Window object not available, cannot expose StripeService');
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = StripeService;
+    console.log('[StripeService] ✅ StripeService exported as module');
 }
+
+console.log('[StripeService] ========== STRIPE SERVICE SCRIPT LOADED ==========');
 
