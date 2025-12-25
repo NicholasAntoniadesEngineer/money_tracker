@@ -698,9 +698,8 @@ const StripeService = {
      */
     getStripeInstance() {
         return this.stripeInstance;
-    }
-};
-
+    },
+    
     /**
      * List invoices for a customer
      * @param {string} customerId - Stripe customer ID
