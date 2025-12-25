@@ -283,7 +283,21 @@
                         return;
                     }
                     
-                    console.log('[AuthPage] Calling AuthService.initialize()...');
+                    // Wait for SupabaseConfig to be available before initializing AuthService
+                    console.log('[AuthPage] Waiting for SupabaseConfig to be available...');
+                    let waitCount = 0;
+                    const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+                    while (!window.SupabaseConfig && waitCount < maxWait) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        waitCount++;
+                    }
+                    
+                    if (!window.SupabaseConfig) {
+                        console.error('[AuthPage] SupabaseConfig not available after waiting, cannot initialize AuthService');
+                        return;
+                    }
+                    
+                    console.log('[AuthPage] SupabaseConfig available, calling AuthService.initialize()...');
                     const initStartTime = Date.now();
                     await window.AuthService.initialize();
                     const initDuration = Date.now() - initStartTime;
@@ -454,7 +468,23 @@
             }
             
             if (!window.AuthService.client) {
-                console.log('[AuthPage] Client not available, attempting to initialize...');
+                console.log('[AuthPage] Client not available, waiting for SupabaseConfig...');
+                
+                // Wait for SupabaseConfig to be available (with timeout)
+                let waitCount = 0;
+                const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+                while (!window.SupabaseConfig && waitCount < maxWait) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitCount++;
+                }
+                
+                if (!window.SupabaseConfig) {
+                    console.error('[AuthPage] SupabaseConfig not available after waiting, cannot initialize client');
+                    showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
+                    return;
+                }
+                
+                console.log('[AuthPage] SupabaseConfig available, attempting to initialize...');
                 try {
                     await window.AuthService.initialize();
                 } catch (clientInitError) {

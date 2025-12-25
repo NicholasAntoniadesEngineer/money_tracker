@@ -204,19 +204,34 @@ class Header {
             return;
         }
         
-        // Wait for AuthService to be available if it exists
+        // Wait for SupabaseConfig to be available before initializing AuthService
         if (window.AuthService && !window.AuthService.client) {
-            console.log('[Header] AuthService available but client not initialized, initializing...');
-            try {
-                await window.AuthService.initialize();
-                console.log('[Header] AuthService initialized');
-            } catch (error) {
-                console.warn('[Header] AuthService initialization failed:', error);
+            console.log('[Header] AuthService available but client not initialized, waiting for SupabaseConfig...');
+            
+            // Wait for SupabaseConfig to be available (with timeout)
+            let waitCount = 0;
+            const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+            while (!window.SupabaseConfig && waitCount < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            
+            if (!window.SupabaseConfig) {
+                console.warn('[Header] SupabaseConfig not available after waiting, skipping AuthService initialization');
+            } else {
+                console.log('[Header] SupabaseConfig available, initializing AuthService...');
+                try {
+                    await window.AuthService.initialize();
+                    console.log('[Header] AuthService initialized');
+                } catch (error) {
+                    console.warn('[Header] AuthService initialization failed:', error);
+                }
             }
         } else {
             console.log('[Header] AuthService status:', {
                 hasAuthService: !!window.AuthService,
-                hasClient: !!window.AuthService?.client
+                hasClient: !!window.AuthService?.client,
+                hasSupabaseConfig: !!window.SupabaseConfig
             });
         }
         

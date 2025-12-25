@@ -20,8 +20,22 @@ const AuthGuard = {
                 return false;
             }
             
-            // Initialize if needed
+            // Wait for SupabaseConfig to be available before initializing AuthService
             if (!window.AuthService.client) {
+                // Wait for SupabaseConfig to be available (with timeout)
+                let waitCount = 0;
+                const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+                while (!window.SupabaseConfig && waitCount < maxWait) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitCount++;
+                }
+                
+                if (!window.SupabaseConfig) {
+                    console.warn('[AuthGuard] SupabaseConfig not available after waiting, cannot initialize AuthService');
+                    return false;
+                }
+                
+                // Initialize if needed
                 await window.AuthService.initialize();
             }
             
