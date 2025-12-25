@@ -375,7 +375,7 @@ const UpgradeController = {
                     <li>Full access to all features</li>
                     <li>Monthly budget tracking</li>
                     <li>Savings pots management</li>
-                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : ''}
+                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : '<li></li><li></li>'}
                 </ul>
                 <div class="plan-actions">
                     ${isCurrentPlan ? 
@@ -1165,7 +1165,7 @@ const UpgradeController = {
             console.log('[UpgradeController] ⏭️ Skipping Ends (subscription_end_date:', subscription.subscription_end_date, ')');
         }
         
-        // Recurring Billing Status (Auto-Renewal) - show for paid subscriptions
+        // Recurring Billing Toggle (Auto-Renewal) - show for paid subscriptions
         console.log('[UpgradeController] Checking recurring billing status...', {
             subscriptionType: subscription.subscription_type,
             isPaid: subscription.subscription_type === 'paid',
@@ -1175,11 +1175,18 @@ const UpgradeController = {
         });
         if (subscription.subscription_type === 'paid') {
             const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
-            const statusText = recurringBillingEnabled ? 'Enabled' : 'Disabled';
-            const statusColor = recurringBillingEnabled ? 'var(--success-color, #28a745)' : 'var(--text-secondary)';
-            const recurringHtml = `<div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Auto-Renewal (Recurring):</strong><span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></div>`;
+            const toggleId = 'recurring-billing-toggle-upgrade';
+            const recurringHtml = `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));">
+                    <strong>Auto-Renewal (Recurring):</strong>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="${toggleId}" ${recurringBillingEnabled ? 'checked' : ''} style="cursor: pointer;">
+                        <span>${recurringBillingEnabled ? 'Enabled' : 'Disabled'}</span>
+                    </label>
+                </div>
+            `;
             detailsHtml.push(recurringHtml);
-            console.log('[UpgradeController] ✅ Added Auto-Renewal (Recurring):', statusText, 'with color:', statusColor);
+            console.log('[UpgradeController] ✅ Added Auto-Renewal (Recurring) toggle:', recurringBillingEnabled ? 'Enabled' : 'Disabled', 'with toggle ID:', toggleId);
         } else {
             console.log('[UpgradeController] ⏭️ Skipping Auto-Renewal (subscription_type:', subscription.subscription_type, 'is not "paid")');
         }
@@ -1228,6 +1235,30 @@ const UpgradeController = {
                 }))
             });
             
+            // Set up recurring billing toggle event listener
+            console.log('[UpgradeController] Step 7: Setting up recurring billing toggle event listener...');
+            const toggle = document.getElementById('recurring-billing-toggle-upgrade');
+            console.log('[UpgradeController] Toggle element:', {
+                found: !!toggle,
+                id: toggle?.id || 'NOT FOUND',
+                checked: toggle?.checked,
+                disabled: toggle?.disabled
+            });
+            
+            if (toggle) {
+                // Remove existing listeners to prevent duplicates
+                const newToggle = toggle.cloneNode(true);
+                toggle.parentNode.replaceChild(newToggle, toggle);
+                
+                newToggle.addEventListener('change', async (e) => {
+                    console.log('[UpgradeController] Recurring billing toggle changed:', e.target.checked);
+                    await this.handleRecurringBillingToggle(e.target.checked);
+                });
+                console.log('[UpgradeController] ✅ Recurring billing toggle event listener attached');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Recurring billing toggle not found, cannot attach event listener');
+            }
+            
             const totalElapsed = Date.now() - startTime;
             console.log('[UpgradeController] ✅ Subscription details displayed successfully in', totalElapsed, 'ms');
         } else {
@@ -1266,6 +1297,112 @@ const UpgradeController = {
         }
         
         console.log('[UpgradeController] ========== hideCurrentSubscription() COMPLETE ==========');
+    },
+    
+    /**
+     * Handle recurring billing toggle
+     * Updates the recurring_billing_enabled field in the database (linked to user_id)
+     */
+    async handleRecurringBillingToggle(enabled) {
+        console.log('[UpgradeController] ========== handleRecurringBillingToggle() STARTED ==========');
+        console.log('[UpgradeController] Recurring billing enabled:', enabled);
+        const startTime = Date.now();
+        
+        try {
+            console.log('[UpgradeController] Step 1: Checking authentication...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.error('[UpgradeController] ❌ User not authenticated');
+                throw new Error('User not authenticated');
+            }
+            console.log('[UpgradeController] ✅ User authenticated');
+            
+            const currentUser = window.AuthService.getCurrentUser();
+            console.log('[UpgradeController] Step 2: Getting current user...', {
+                hasUser: !!currentUser,
+                userId: currentUser?.id || 'NOT FOUND'
+            });
+            
+            if (!currentUser || !currentUser.id) {
+                console.error('[UpgradeController] ❌ User ID not available');
+                throw new Error('User ID not available');
+            }
+            console.log('[UpgradeController] ✅ User ID:', currentUser.id);
+            
+            console.log('[UpgradeController] Step 3: Checking SubscriptionService...');
+            if (!window.SubscriptionService) {
+                console.error('[UpgradeController] ❌ SubscriptionService not available');
+                throw new Error('SubscriptionService not available');
+            }
+            console.log('[UpgradeController] ✅ SubscriptionService available');
+            
+            // Show loading state
+            console.log('[UpgradeController] Step 4: Updating toggle UI state...');
+            const toggle = document.getElementById('recurring-billing-toggle-upgrade');
+            if (toggle) {
+                toggle.disabled = true;
+                console.log('[UpgradeController] ✅ Toggle disabled for loading state');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Toggle element not found');
+            }
+            
+            console.log('[UpgradeController] Step 5: Calling SubscriptionService to', enabled ? 'enable' : 'disable', 'recurring billing...');
+            let result;
+            if (enabled) {
+                result = await window.SubscriptionService.enableRecurringBilling(currentUser.id);
+            } else {
+                result = await window.SubscriptionService.disableRecurringBilling(currentUser.id);
+            }
+            
+            console.log('[UpgradeController] SubscriptionService result:', {
+                success: result?.success,
+                error: result?.error || null
+            });
+            
+            if (result.success) {
+                console.log('[UpgradeController] ✅ Recurring billing updated successfully');
+                console.log('[UpgradeController] Step 6: Reloading subscription to refresh display...');
+                
+                // Reload subscription and refresh display
+                await this.loadCurrentSubscription();
+                
+                const message = enabled 
+                    ? 'Auto-renewal enabled. Your subscription will automatically renew at the end of each billing period.'
+                    : 'Auto-renewal disabled. Your subscription will cancel at the end of the current billing period, but you will continue to have access until then.';
+                
+                console.log('[UpgradeController] Step 7: Showing success message...');
+                alert(message);
+                
+                const totalElapsed = Date.now() - startTime;
+                console.log('[UpgradeController] ========== handleRecurringBillingToggle() SUCCESS in', totalElapsed, 'ms ==========');
+            } else {
+                console.error('[UpgradeController] ❌ Failed to update recurring billing:', result.error);
+                throw new Error(result.error || 'Failed to update recurring billing');
+            }
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[UpgradeController] ========== handleRecurringBillingToggle() ERROR after', totalElapsed, 'ms ==========');
+            console.error('[UpgradeController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            console.error('[UpgradeController] Error toggling recurring billing:', error);
+            alert(`Error: ${error.message || 'Failed to update recurring billing. Please try again.'}`);
+            
+            // Reload subscription to reset toggle state
+            console.log('[UpgradeController] Reloading subscription to reset toggle state...');
+            await this.loadCurrentSubscription();
+        } finally {
+            // Re-enable toggle
+            console.log('[UpgradeController] Step 8: Re-enabling toggle...');
+            const toggle = document.getElementById('recurring-billing-toggle-upgrade');
+            if (toggle) {
+                toggle.disabled = false;
+                console.log('[UpgradeController] ✅ Toggle re-enabled');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Toggle element not found for re-enabling');
+            }
+        }
     }
 };
 

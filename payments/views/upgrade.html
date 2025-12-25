@@ -61,6 +61,7 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: var(--spacing-lg);
             margin-top: var(--spacing-lg);
+            align-items: stretch; /* Ensure all cards have same height */
         }
         
         .plan-card {
@@ -71,6 +72,7 @@
             display: flex;
             flex-direction: column;
             transition: transform 0.2s, box-shadow 0.2s;
+            min-height: 400px; /* Ensure minimum height for alignment */
         }
         
         .plan-card:hover {
@@ -138,6 +140,7 @@
             padding: 0;
             margin: var(--spacing-md) 0;
             flex-grow: 1;
+            min-height: 120px; /* Ensure consistent height for features list */
         }
         
         .plan-features li {
@@ -155,16 +158,55 @@
         .plan-actions {
             margin-top: auto;
             padding-top: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .plan-actions .btn {
+            width: 100%;
+            min-width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         
         .plan-status {
-            padding: var(--spacing-sm);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .subscription-details-box {
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+        
+        .subscription-details-box #current-subscription-content {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .subscription-details-box #current-subscription-content > div {
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .plan-status {
+            padding: 0.3rem 0.5rem;
             background: var(--background-tertiary, #f5f5f5);
-            border-radius: var(--border-radius-standard);
+            border-radius: 0px;
             text-align: center;
-            margin-bottom: var(--spacing-sm);
+            margin-bottom: 0;
             font-weight: 500;
             color: var(--text-secondary);
+            min-height: 1.9rem;
+            height: 1.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: var(--border-width-standard) solid var(--border-color-black);
+            box-sizing: border-box;
         }
         
         .plan-status.current {
@@ -200,9 +242,9 @@
                 </button>
             </div>
             
-            <div id="current-subscription-details" class="subscription-details-box" style="display: none; margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+            <div id="current-subscription-details" class="subscription-details-box" style="display: none; margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); max-width: 600px; box-sizing: border-box;">
                 <h2 style="margin-top: 0; margin-bottom: var(--spacing-md); font-size: 1.25rem;">Current Subscription</h2>
-                <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
+                <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem; max-width: 100%; box-sizing: border-box;">
                     <!-- Subscription details will be populated by JavaScript -->
                 </div>
             </div>
