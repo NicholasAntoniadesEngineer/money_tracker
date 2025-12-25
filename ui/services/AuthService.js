@@ -85,31 +85,120 @@ const AuthService = {
             console.log('[AuthService] Session check timeout configured:', SESSION_CHECK_TIMEOUT_MS, 'ms');
             console.log('[AuthService] Starting Promise.race with getSession() and timeout...');
             
+            console.log('[AuthService] ========== CREATING GETSESSION PROMISE ==========');
+            console.log('[AuthService] Variable state before getSession():', {
+                hasClient: !!this.client,
+                hasAuth: !!this.client?.auth,
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed,
+                SESSION_CHECK_TIMEOUT_MS: SESSION_CHECK_TIMEOUT_MS
+            });
+            
             const getSessionPromise = this.client.auth.getSession();
             console.log('[AuthService] getSession() promise created');
+            console.log('[AuthService] getSessionPromise type:', typeof getSessionPromise);
+            console.log('[AuthService] getSessionPromise is Promise:', getSessionPromise instanceof Promise);
+            
+            console.log('[AuthService] ========== CREATING TIMEOUT PROMISE ==========');
+            console.log('[AuthService] Variable state before timeoutPromise creation:', {
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed,
+                SESSION_CHECK_TIMEOUT_MS: SESSION_CHECK_TIMEOUT_MS,
+                SESSION_CHECK_TIMEOUT_MS_type: typeof SESSION_CHECK_TIMEOUT_MS
+            });
             
             // Store timeout ID in a variable that can be accessed from outside the Promise
             let timeoutIdRef = null;
-            const timeoutPromise = new Promise((_, reject) => {
-                console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
-                timeoutIdRef = setTimeout(() => {
-                    const elapsed = Date.now() - sessionCheckStartTime;
-                    if (sessionCheckState.completed) {
-                        console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
-                        console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
-                        return; // Don't reject if already completed
+            console.log('[AuthService] timeoutIdRef initialized to:', timeoutIdRef);
+            
+            console.log('[AuthService] About to create Promise constructor...');
+            let timeoutPromise;
+            try {
+                console.log('[AuthService] ========== ENTERING PROMISE CONSTRUCTOR ==========');
+                timeoutPromise = new Promise((_, reject) => {
+                    console.log('[AuthService] ========== INSIDE PROMISE CONSTRUCTOR ==========');
+                    console.log('[AuthService] Promise constructor executing - checking variable access...');
+                    console.log('[AuthService] SESSION_CHECK_TIMEOUT_MS accessible:', typeof SESSION_CHECK_TIMEOUT_MS !== 'undefined' ? SESSION_CHECK_TIMEOUT_MS : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckStartTime accessible:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckState accessible:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                    console.log('[AuthService] sessionCheckState.completed accessible:', typeof sessionCheckState !== 'undefined' && typeof sessionCheckState.completed !== 'undefined' ? sessionCheckState.completed : 'UNDEFINED');
+                    console.log('[AuthService] reject function accessible:', typeof reject !== 'undefined' ? 'YES' : 'NO');
+                    console.log('[AuthService] timeoutIdRef accessible:', typeof timeoutIdRef !== 'undefined' ? timeoutIdRef : 'UNDEFINED');
+                    
+                    console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
+                    console.log('[AuthService] About to call setTimeout...');
+                    
+                    try {
+                        timeoutIdRef = setTimeout(() => {
+                            console.log('[AuthService] ========== INSIDE SETTIMEOUT CALLBACK ==========');
+                            console.log('[AuthService] setTimeout callback executing...');
+                            console.log('[AuthService] Variable access check in setTimeout callback:');
+                            console.log('[AuthService] - sessionCheckStartTime:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                            console.log('[AuthService] - sessionCheckState:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                            console.log('[AuthService] - sessionCheckState.completed:', typeof sessionCheckState !== 'undefined' && typeof sessionCheckState.completed !== 'undefined' ? sessionCheckState.completed : 'UNDEFINED');
+                            console.log('[AuthService] - SESSION_CHECK_TIMEOUT_MS:', typeof SESSION_CHECK_TIMEOUT_MS !== 'undefined' ? SESSION_CHECK_TIMEOUT_MS : 'UNDEFINED');
+                            
+                            const elapsed = Date.now() - sessionCheckStartTime;
+                            console.log('[AuthService] Elapsed time calculated:', elapsed, 'ms');
+                            
+                            if (sessionCheckState.completed) {
+                                console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
+                                console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
+                                return; // Don't reject if already completed
+                            }
+                            console.log('[AuthService] ========== TIMEOUT TRIGGERED ==========');
+                            console.log('[AuthService] Timeout triggered after', elapsed, 'ms');
+                            console.log('[AuthService] Timeout time:', new Date().toISOString());
+                            console.log('[AuthService] getSession() did not resolve within timeout period');
+                            reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
+                        }, SESSION_CHECK_TIMEOUT_MS);
+                        console.log('[AuthService] setTimeout called successfully, timeoutIdRef set to:', timeoutIdRef);
+                    } catch (setTimeoutError) {
+                        console.error('[AuthService] ERROR in setTimeout call:', setTimeoutError);
+                        console.error('[AuthService] setTimeout error details:', {
+                            message: setTimeoutError.message,
+                            name: setTimeoutError.name,
+                            stack: setTimeoutError.stack
+                        });
+                        throw setTimeoutError;
                     }
-                    console.log('[AuthService] ========== TIMEOUT TRIGGERED ==========');
-                    console.log('[AuthService] Timeout triggered after', elapsed, 'ms');
-                    console.log('[AuthService] Timeout time:', new Date().toISOString());
-                    console.log('[AuthService] getSession() did not resolve within timeout period');
-                    reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
-                }, SESSION_CHECK_TIMEOUT_MS);
-            });
+                });
+                console.log('[AuthService] Promise created successfully');
+                console.log('[AuthService] timeoutIdRef after Promise creation:', timeoutIdRef);
+                console.log('[AuthService] timeoutPromise type:', typeof timeoutPromise);
+                console.log('[AuthService] timeoutPromise is Promise:', timeoutPromise instanceof Promise);
+            } catch (promiseCreationError) {
+                console.error('[AuthService] ========== ERROR CREATING TIMEOUT PROMISE ==========');
+                console.error('[AuthService] Error creating timeoutPromise:', promiseCreationError);
+                console.error('[AuthService] Error details:', {
+                    message: promiseCreationError.message,
+                    name: promiseCreationError.name,
+                    stack: promiseCreationError.stack
+                });
+                throw promiseCreationError;
+            }
             
             // Store timeout ID on the promise after it's created
+            console.log('[AuthService] About to set timeoutPromise._timeoutId...');
+            console.log('[AuthService] timeoutPromise exists:', typeof timeoutPromise !== 'undefined');
+            console.log('[AuthService] timeoutIdRef value:', timeoutIdRef);
             timeoutPromise._timeoutId = timeoutIdRef;
+            console.log('[AuthService] timeoutPromise._timeoutId set to:', timeoutPromise._timeoutId);
             
+            console.log('[AuthService] ========== CREATING PROMISE.RACE ==========');
+            console.log('[AuthService] Variable state before Promise.race:', {
+                hasGetSessionPromise: typeof getSessionPromise !== 'undefined',
+                getSessionPromiseType: typeof getSessionPromise,
+                hasTimeoutPromise: typeof timeoutPromise !== 'undefined',
+                timeoutPromiseType: typeof timeoutPromise,
+                sessionCheckStartTime: sessionCheckStartTime,
+                sessionCheckState: sessionCheckState,
+                sessionCheckStateCompleted: sessionCheckState.completed
+            });
+            
+            console.log('[AuthService] About to call Promise.race...');
             const sessionCheckPromise = Promise.race([
                 getSessionPromise.then(result => {
                     const elapsed = Date.now() - sessionCheckStartTime;
@@ -219,7 +308,18 @@ const AuthService = {
                 console.log('[AuthService] ========== SESSION CHECK COMPLETE ==========');
                 console.log('[AuthService] Total session check duration:', finalElapsed, 'ms');
                 console.log('[AuthService] Session check completed', finalElapsed < SESSION_CHECK_TIMEOUT_MS ? 'before' : 'after', 'timeout');
-            }).catch(error => {
+            });
+            console.log('[AuthService] Promise.race created successfully');
+            console.log('[AuthService] sessionCheckPromise type:', typeof sessionCheckPromise);
+            console.log('[AuthService] sessionCheckPromise is Promise:', sessionCheckPromise instanceof Promise);
+            
+            console.log('[AuthService] About to attach catch handler to sessionCheckPromise...');
+            sessionCheckPromise.catch(error => {
+                console.log('[AuthService] ========== SESSION CHECK CATCH HANDLER EXECUTED ==========');
+                console.log('[AuthService] Catch handler executing - checking variable access...');
+                console.log('[AuthService] sessionCheckStartTime accessible:', typeof sessionCheckStartTime !== 'undefined' ? sessionCheckStartTime : 'UNDEFINED');
+                console.log('[AuthService] sessionCheckState accessible:', typeof sessionCheckState !== 'undefined' ? sessionCheckState : 'UNDEFINED');
+                
                 const elapsed = Date.now() - sessionCheckStartTime;
                 sessionCheckState.completed = true; // Mark as completed when catch is called
                 console.log('[AuthService] ========== SESSION CHECK CATCH ==========');
