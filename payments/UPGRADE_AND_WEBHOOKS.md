@@ -22,8 +22,7 @@ This implementation provides:
 ### Updated Files:
 - `payments/services/StripeService.js` - Added planId/priceAmount support
 - `payments/backend/supabase-edge-function/index.ts` - Dynamic pricing support
-- `payments/views/payment.html` - Added "Upgrade Plan" button
-- `ui/views/settings.html` - Added "Upgrade Plan" button
+- `ui/views/settings.html` - Added "Upgrade Plan" button and "Update Payment" button
 
 ## Setup Instructions
 

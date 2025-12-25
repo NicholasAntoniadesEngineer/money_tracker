@@ -466,6 +466,7 @@ const SettingsController = {
         // Subscription buttons
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
         const refreshSubscriptionBtn = document.getElementById('refresh-subscription-button');
+        const updatePaymentBtn = document.getElementById('update-payment-button');
         
         if (startSubscriptionBtn) {
             startSubscriptionBtn.addEventListener('click', () => this.handleStartSubscription());
@@ -475,26 +476,8 @@ const SettingsController = {
             refreshSubscriptionBtn.addEventListener('click', () => this.loadSubscriptionStatus());
         }
         
-        // Set up payment page link
-        const managePaymentLink = document.getElementById('manage-payment-link');
-        if (managePaymentLink) {
-            // Calculate correct path to payment page based on current location
-            const path = window.location.pathname;
-            let paymentHref;
-            
-            if (path.includes('/ui/views/')) {
-                // From ui/views/settings.html, go to payments/views/payment.html
-                paymentHref = '../../payments/views/payment.html';
-            } else if (path.includes('/ui/')) {
-                // From ui/settings.html (if exists), go to payments/views/payment.html
-                paymentHref = '../payments/views/payment.html';
-            } else {
-                // Default fallback
-                paymentHref = 'payments/views/payment.html';
-            }
-            
-            managePaymentLink.href = paymentHref;
-            console.log('[SettingsController] Payment link set to:', paymentHref);
+        if (updatePaymentBtn) {
+            updatePaymentBtn.addEventListener('click', () => this.handleUpdatePayment());
         }
     },
 
@@ -1271,6 +1254,194 @@ const SettingsController = {
             if (button) {
                 button.disabled = false;
                 button.textContent = 'Start Subscription (€5/month)';
+            }
+        }
+    },
+    
+    /**
+     * Handle update payment button click
+     * Opens Stripe Customer Portal for updating payment method
+     * For trial users without customer ID, creates a customer first
+     */
+    async handleUpdatePayment() {
+        console.log('[SettingsController] ========== handleUpdatePayment() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[SettingsController] Step 1: Getting button element...');
+            const button = document.getElementById('update-payment-button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Loading...';
+                console.log('[SettingsController] ✅ Button found and disabled');
+            } else {
+                console.warn('[SettingsController] ⚠️ Button element not found');
+            }
+            
+            console.log('[SettingsController] Step 2: Checking authentication...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.error('[SettingsController] ❌ User not authenticated');
+                throw new Error('User not authenticated');
+            }
+            console.log('[SettingsController] ✅ User authenticated');
+            
+            console.log('[SettingsController] Step 3: Getting current user...');
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.email) {
+                console.error('[SettingsController] ❌ User email not available:', { hasUser: !!currentUser, hasEmail: !!currentUser?.email });
+                throw new Error('User email not available');
+            }
+            console.log('[SettingsController] ✅ Current user:', { userId: currentUser.id, email: currentUser.email });
+            
+            console.log('[SettingsController] Step 4: Loading subscription state...');
+            let subscription = null;
+            if (window.SubscriptionService) {
+                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+                if (subscriptionResult.success && subscriptionResult.subscription) {
+                    subscription = subscriptionResult.subscription;
+                }
+            }
+            const existingCustomerId = subscription?.stripe_customer_id;
+            console.log('[SettingsController] Subscription state:', {
+                hasSubscription: !!subscription,
+                subscriptionType: subscription?.subscription_type,
+                subscriptionStatus: subscription?.status,
+                hasCustomerId: !!existingCustomerId,
+                customerId: existingCustomerId || 'none'
+            });
+            
+            console.log('[SettingsController] Step 5: Checking StripeService availability...');
+            if (!window.StripeService) {
+                console.error('[SettingsController] ❌ StripeService not available');
+                throw new Error('StripeService not available');
+            }
+            console.log('[SettingsController] ✅ StripeService available');
+            
+            console.log('[SettingsController] Step 6: Initializing Stripe...');
+            await window.StripeService.initialize();
+            console.log('[SettingsController] ✅ Stripe initialized');
+            
+            let customerId = existingCustomerId;
+            
+            // If no customer ID, create one first (for trial users)
+            if (!customerId) {
+                console.log('[SettingsController] Step 7: No customer ID found, creating customer...');
+                console.log('[SettingsController] Customer creation details:', {
+                    email: currentUser.email,
+                    userId: currentUser.id
+                });
+                
+                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                const createCustomerEndpoint = `${supabaseProjectUrl}/functions/v1/create-customer`;
+                console.log('[SettingsController] Customer creation endpoint:', createCustomerEndpoint);
+                
+                const customerStartTime = Date.now();
+                const customerResult = await window.StripeService.createCustomer(
+                    currentUser.email,
+                    currentUser.id,
+                    createCustomerEndpoint
+                );
+                const customerElapsed = Date.now() - customerStartTime;
+                
+                console.log('[SettingsController] Customer creation result:', {
+                    success: customerResult.success,
+                    hasCustomerId: !!customerResult.customerId,
+                    customerId: customerResult.customerId || 'none',
+                    error: customerResult.error || 'none',
+                    elapsed: `${customerElapsed}ms`
+                });
+                
+                if (!customerResult.success || !customerResult.customerId) {
+                    console.error('[SettingsController] ❌ Customer creation failed:', customerResult.error);
+                    throw new Error(customerResult.error || 'Failed to create customer');
+                }
+                
+                customerId = customerResult.customerId;
+                console.log('[SettingsController] ✅ Customer created successfully:', customerId);
+                
+                // Store customer ID in database (non-blocking)
+                if (window.SubscriptionService && subscription) {
+                    console.log('[SettingsController] Step 8: Storing customer ID in database...');
+                    window.SubscriptionService.updateSubscription(currentUser.id, {
+                        stripe_customer_id: customerId
+                    }).then(() => {
+                        console.log('[SettingsController] ✅ Customer ID stored in database');
+                    }).catch(err => {
+                        console.warn('[SettingsController] ⚠️ Failed to store customer ID in database:', err);
+                    });
+                } else {
+                    console.log('[SettingsController] Step 8: Skipping database update (no subscription or SubscriptionService)');
+                }
+            } else {
+                console.log('[SettingsController] Step 7: Using existing customer ID:', customerId);
+            }
+            
+            console.log('[SettingsController] Step 9: Preparing portal session...');
+            const currentUrl = window.location.href.split('?')[0];
+            const returnUrl = currentUrl;
+            console.log('[SettingsController] Portal session details:', {
+                customerId: customerId,
+                returnUrl: returnUrl
+            });
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-portal-session`;
+            console.log('[SettingsController] Portal session endpoint:', backendEndpoint);
+            
+            console.log('[SettingsController] Step 10: Creating portal session...');
+            const portalStartTime = Date.now();
+            const result = await window.StripeService.createPortalSession(
+                customerId,
+                returnUrl,
+                backendEndpoint
+            );
+            const portalElapsed = Date.now() - portalStartTime;
+            
+            console.log('[SettingsController] Portal session result:', {
+                success: result.success,
+                hasUrl: !!result.url,
+                url: result.url || 'none',
+                error: result.error || 'none',
+                elapsed: `${portalElapsed}ms`
+            });
+            
+            if (!result.success) {
+                console.error('[SettingsController] ❌ Portal session creation failed:', result.error);
+                throw new Error(result.error || 'Failed to create portal session');
+            }
+            
+            if (result.url) {
+                console.log('[SettingsController] Step 11: Redirecting to Stripe Customer Portal...');
+                console.log('[SettingsController] Portal URL:', result.url);
+                const totalElapsed = Date.now() - startTime;
+                console.log('[SettingsController] ========== handleUpdatePayment() SUCCESS ==========');
+                console.log('[SettingsController] Total time:', `${totalElapsed}ms`);
+                // Redirect to Stripe Customer Portal
+                window.location.href = result.url;
+            } else {
+                console.error('[SettingsController] ❌ No portal URL returned');
+                throw new Error('No portal URL returned');
+            }
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[SettingsController] ========== handleUpdatePayment() ERROR ==========');
+            console.error('[SettingsController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                elapsed: `${totalElapsed}ms`
+            });
+            console.error('[SettingsController] Error opening payment portal:', error);
+            
+            const statusDiv = document.getElementById('subscription-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = `<p style="color: var(--danger-color);">Error: ${error.message || 'Failed to open payment portal. Please try again.'}</p>`;
+            }
+            
+            const button = document.getElementById('update-payment-button');
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Update Payment';
+                console.log('[SettingsController] Button re-enabled');
             }
         }
     }

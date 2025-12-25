@@ -194,9 +194,9 @@ const AuthGuard = {
         console.log('[AuthGuard] redirectToPayment - Current path:', currentPath);
         console.log('[AuthGuard] redirectToPayment - Current origin:', window.location.origin);
         
-        // Don't redirect if already on payment page
-        if (currentPath.includes('payment.html')) {
-            console.log('[AuthGuard] Already on payment page, skipping redirect');
+        // Don't redirect if already on settings page
+        if (currentPath.includes('settings.html')) {
+            console.log('[AuthGuard] Already on settings page, skipping redirect');
             return;
         }
         
@@ -215,45 +215,45 @@ const AuthGuard = {
             basePathParts.push(pathParts[i]);
         }
         
-        // Construct the payment URL
+        // Construct the settings URL (subscription section)
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const paymentUrl = `${baseUrl}/${basePath}payments/views/payment.html`;
+        const settingsUrl = `${baseUrl}/${basePath}ui/views/settings.html`;
         
-        console.log('[AuthGuard] Redirecting to payment page:', paymentUrl);
+        console.log('[AuthGuard] Redirecting to settings page:', settingsUrl);
         console.log('[AuthGuard] Path calculation:', {
             currentPath: currentPath,
             pathParts: pathParts,
             basePathParts: basePathParts,
             basePath: basePath,
-            paymentUrl: paymentUrl,
+            settingsUrl: settingsUrl,
             origin: baseUrl,
-            fullUrl: paymentUrl
+            fullUrl: settingsUrl
         });
         
         // Verify the URL is valid before redirecting
         try {
-            const testUrl = new URL(paymentUrl);
-            console.log('[AuthGuard] Payment URL is valid:', {
+            const testUrl = new URL(settingsUrl);
+            console.log('[AuthGuard] Settings URL is valid:', {
                 href: testUrl.href,
                 origin: testUrl.origin,
                 pathname: testUrl.pathname,
                 search: testUrl.search
             });
         } catch (urlError) {
-            console.error('[AuthGuard] ❌ Invalid payment URL:', urlError);
-            console.error('[AuthGuard] Payment URL that failed:', paymentUrl);
+            console.error('[AuthGuard] ❌ Invalid settings URL:', urlError);
+            console.error('[AuthGuard] Settings URL that failed:', settingsUrl);
             // Fallback to relative path
             const fallbackPath = currentPath.includes('/ui/views/') 
-                ? '../../payments/views/payment.html'
+                ? 'settings.html'
                 : currentPath.includes('/ui/')
-                ? '../payments/views/payment.html'
-                : 'payments/views/payment.html';
+                ? 'views/settings.html'
+                : 'ui/views/settings.html';
             console.log('[AuthGuard] Using fallback path:', fallbackPath);
             window.location.href = fallbackPath;
             return;
         }
         
-        window.location.href = paymentUrl;
+        window.location.href = settingsUrl;
     },
 
     /**
