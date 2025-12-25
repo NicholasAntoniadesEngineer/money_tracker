@@ -1056,34 +1056,81 @@ const UpgradeController = {
     async handleViewInvoices() {
         console.log('[UpgradeController] ========== handleViewInvoices() STARTED ==========');
         const startTime = Date.now();
+        console.log('[UpgradeController] Start time:', new Date().toISOString());
         
         try {
             console.log('[UpgradeController] Step 1: Getting button element...');
             const button = document.getElementById('view-invoices-button');
+            console.log('[UpgradeController] Button element check:', {
+                found: !!button,
+                id: button?.id,
+                currentText: button?.textContent,
+                currentDisabled: button?.disabled
+            });
             if (button) {
                 button.disabled = true;
                 button.textContent = 'Loading...';
                 console.log('[UpgradeController] ✅ Button found and disabled');
+                console.log('[UpgradeController] Button state after update:', {
+                    disabled: button.disabled,
+                    textContent: button.textContent
+                });
+            } else {
+                console.warn('[UpgradeController] ⚠️ Button element not found');
             }
             
             console.log('[UpgradeController] Step 2: Checking authentication...');
+            console.log('[UpgradeController] AuthService check:', {
+                hasAuthService: !!window.AuthService,
+                authServiceType: typeof window.AuthService,
+                hasIsAuthenticated: !!(window.AuthService && typeof window.AuthService.isAuthenticated === 'function')
+            });
             if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                 console.error('[UpgradeController] ❌ User not authenticated');
+                console.error('[UpgradeController] AuthService state:', {
+                    hasAuthService: !!window.AuthService,
+                    isAuthenticated: window.AuthService ? window.AuthService.isAuthenticated() : 'N/A'
+                });
                 throw new Error('User not authenticated');
             }
+            const currentUser = window.AuthService.getCurrentUser();
             console.log('[UpgradeController] ✅ User authenticated');
+            console.log('[UpgradeController] Current user:', {
+                hasUser: !!currentUser,
+                userId: currentUser?.id,
+                userEmail: currentUser?.email
+            });
             
             console.log('[UpgradeController] Step 3: Getting subscription data...');
+            console.log('[UpgradeController] Current subscription state:', {
+                hasCurrentSubscription: !!this.currentSubscription,
+                subscriptionKeys: this.currentSubscription ? Object.keys(this.currentSubscription) : [],
+                hasStripeCustomerId: !!(this.currentSubscription?.stripe_customer_id),
+                stripeCustomerId: this.currentSubscription?.stripe_customer_id || null,
+                subscriptionType: this.currentSubscription?.subscription_type || null,
+                status: this.currentSubscription?.status || null
+            });
             if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
                 console.error('[UpgradeController] ❌ No Stripe customer ID found');
+                console.error('[UpgradeController] Subscription data available:', {
+                    hasSubscription: !!this.currentSubscription,
+                    subscriptionData: this.currentSubscription ? JSON.stringify(this.currentSubscription, null, 2) : 'null'
+                });
                 throw new Error('No active subscription found. Invoices are only available for paid subscriptions.');
             }
             
             const customerId = this.currentSubscription.stripe_customer_id;
             console.log('[UpgradeController] ✅ Customer ID:', customerId);
+            console.log('[UpgradeController] Customer ID details:', {
+                customerId: customerId,
+                length: customerId?.length,
+                startsWithCus: customerId?.startsWith('cus_'),
+                type: typeof customerId
+            });
             
             console.log('[UpgradeController] Step 4: Opening invoice modal...');
-            this.openInvoiceModal();
+            const modalOpenResult = this.openInvoiceModal();
+            console.log('[UpgradeController] Modal open result:', modalOpenResult);
             
             console.log('[UpgradeController] Step 5: Checking StripeService availability...');
             console.log('[UpgradeController] StripeService check:', {
@@ -1122,14 +1169,30 @@ const UpgradeController = {
             
             console.log('[UpgradeController] ✅ StripeService available with listInvoices method');
             console.log('[UpgradeController] Step 6: Fetching invoices from Stripe...');
+            console.log('[UpgradeController] SupabaseConfig check:', {
+                hasSupabaseConfig: !!window.SupabaseConfig,
+                supabaseConfigType: typeof window.SupabaseConfig,
+                hasProjectUrl: !!(window.SupabaseConfig?.PROJECT_URL),
+                projectUrl: window.SupabaseConfig?.PROJECT_URL || 'not found'
+            });
             const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
+            console.log('[UpgradeController] Backend endpoint constructed:', {
+                supabaseProjectUrl: supabaseProjectUrl,
+                backendEndpoint: backendEndpoint,
+                endpointLength: backendEndpoint.length
+            });
             
             console.log('[UpgradeController] Calling StripeService.listInvoices with:', {
                 customerId: customerId,
+                customerIdType: typeof customerId,
+                customerIdLength: customerId?.length,
                 limit: 20,
-                backendEndpoint: backendEndpoint
+                limitType: typeof 20,
+                backendEndpoint: backendEndpoint,
+                backendEndpointType: typeof backendEndpoint
             });
+            console.log('[UpgradeController] About to call StripeService.listInvoices...');
             
             const result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
             
@@ -1145,27 +1208,63 @@ const UpgradeController = {
             }
             
             console.log('[UpgradeController] Step 7: Displaying invoices...');
+            console.log('[UpgradeController] Invoices to display:', {
+                invoiceCount: result.invoices ? result.invoices.length : 0,
+                hasInvoices: !!(result.invoices && result.invoices.length > 0),
+                invoiceData: result.invoices ? result.invoices.map(inv => ({
+                    id: inv.id,
+                    number: inv.number,
+                    amount: inv.amount_paid,
+                    status: inv.status
+                })) : []
+            });
             this.displayInvoices(result.invoices || []);
             
             const totalElapsed = Date.now() - startTime;
             console.log('[UpgradeController] ========== handleViewInvoices() SUCCESS ==========');
             console.log('[UpgradeController] Total time:', `${totalElapsed}ms`);
+            console.log('[UpgradeController] End time:', new Date().toISOString());
         } catch (error) {
             const totalElapsed = Date.now() - startTime;
             console.error('[UpgradeController] ========== handleViewInvoices() ERROR ==========');
+            console.error('[UpgradeController] Error occurred after:', `${totalElapsed}ms`);
+            console.error('[UpgradeController] Error time:', new Date().toISOString());
             console.error('[UpgradeController] Error details:', {
                 message: error.message,
+                name: error.name,
                 stack: error.stack,
-                elapsed: `${totalElapsed}ms`
+                elapsed: `${totalElapsed}ms`,
+                errorType: typeof error,
+                errorConstructor: error.constructor?.name
             });
+            console.error('[UpgradeController] Full error object:', error);
             
-            this.displayInvoiceError(error.message || 'Failed to load invoices. Please try again.');
+            console.log('[UpgradeController] Step 8: Displaying error in modal...');
+            const errorMessage = error.message || 'Failed to load invoices. Please try again.';
+            console.log('[UpgradeController] Error message to display:', errorMessage);
+            this.displayInvoiceError(errorMessage);
             
+            console.log('[UpgradeController] Step 9: Re-enabling button...');
             const button = document.getElementById('view-invoices-button');
+            console.log('[UpgradeController] Button element check for re-enable:', {
+                found: !!button,
+                id: button?.id,
+                currentDisabled: button?.disabled,
+                currentText: button?.textContent
+            });
             if (button) {
                 button.disabled = false;
                 button.textContent = 'View Invoices';
+                console.log('[UpgradeController] ✅ Button re-enabled');
+                console.log('[UpgradeController] Button state after re-enable:', {
+                    disabled: button.disabled,
+                    textContent: button.textContent
+                });
+            } else {
+                console.warn('[UpgradeController] ⚠️ Button element not found for re-enable');
             }
+            
+            console.error('[UpgradeController] ========== handleViewInvoices() ERROR HANDLING COMPLETE ==========');
         }
     },
     
@@ -1173,13 +1272,35 @@ const UpgradeController = {
      * Open invoice modal
      */
     openInvoiceModal() {
+        console.log('[UpgradeController] ========== openInvoiceModal() CALLED ==========');
         const modal = document.getElementById('invoice-modal');
+        console.log('[UpgradeController] Modal element check:', {
+            found: !!modal,
+            id: modal?.id,
+            currentClasses: modal?.className,
+            currentDisplay: modal ? window.getComputedStyle(modal).display : 'N/A'
+        });
+        
         if (modal) {
             modal.classList.add('active');
+            console.log('[UpgradeController] Modal classes after adding active:', modal.className);
             const body = document.getElementById('invoice-modal-body');
+            console.log('[UpgradeController] Modal body check:', {
+                found: !!body,
+                id: body?.id,
+                currentInnerHTML: body ? body.innerHTML.substring(0, 100) : 'N/A'
+            });
             if (body) {
                 body.innerHTML = '<div class="invoice-loading">Loading invoices...</div>';
+                console.log('[UpgradeController] ✅ Modal body updated with loading message');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Modal body element not found');
             }
+            console.log('[UpgradeController] Modal display after update:', window.getComputedStyle(modal).display);
+            return { success: true, modalFound: true, bodyFound: !!body };
+        } else {
+            console.error('[UpgradeController] ❌ Modal element not found');
+            return { success: false, modalFound: false, bodyFound: false };
         }
     },
     
@@ -1187,15 +1308,41 @@ const UpgradeController = {
      * Close invoice modal
      */
     closeInvoiceModal() {
+        console.log('[UpgradeController] ========== closeInvoiceModal() CALLED ==========');
         const modal = document.getElementById('invoice-modal');
+        console.log('[UpgradeController] Modal element check:', {
+            found: !!modal,
+            id: modal?.id,
+            currentClasses: modal?.className,
+            hasActiveClass: modal?.classList.contains('active')
+        });
+        
         if (modal) {
             modal.classList.remove('active');
+            console.log('[UpgradeController] ✅ Modal active class removed');
+            console.log('[UpgradeController] Modal classes after removal:', modal.className);
+            console.log('[UpgradeController] Modal display after update:', window.getComputedStyle(modal).display);
+        } else {
+            console.warn('[UpgradeController] ⚠️ Modal element not found');
         }
         
         const button = document.getElementById('view-invoices-button');
+        console.log('[UpgradeController] Button element check:', {
+            found: !!button,
+            id: button?.id,
+            currentDisabled: button?.disabled,
+            currentText: button?.textContent
+        });
         if (button) {
             button.disabled = false;
             button.textContent = 'View Invoices';
+            console.log('[UpgradeController] ✅ Button re-enabled');
+            console.log('[UpgradeController] Button state after update:', {
+                disabled: button.disabled,
+                textContent: button.textContent
+            });
+        } else {
+            console.warn('[UpgradeController] ⚠️ Button element not found');
         }
     },
     
@@ -1203,32 +1350,78 @@ const UpgradeController = {
      * Display invoices in modal
      */
     displayInvoices(invoices) {
-        const body = document.getElementById('invoice-modal-body');
-        if (!body) return;
+        console.log('[UpgradeController] ========== displayInvoices() CALLED ==========');
+        console.log('[UpgradeController] Input invoices:', {
+            invoiceCount: invoices ? invoices.length : 0,
+            isArray: Array.isArray(invoices),
+            invoices: invoices ? invoices.map(inv => ({
+                id: inv.id,
+                number: inv.number,
+                amount: inv.amount_paid,
+                status: inv.status,
+                hasHostedUrl: !!inv.hosted_invoice_url,
+                hasPdf: !!inv.invoice_pdf
+            })) : []
+        });
         
-        if (invoices.length === 0) {
-            body.innerHTML = '<div class="invoice-empty">No invoices found.</div>';
+        const body = document.getElementById('invoice-modal-body');
+        console.log('[UpgradeController] Modal body element check:', {
+            found: !!body,
+            id: body?.id,
+            currentInnerHTML: body ? body.innerHTML.substring(0, 200) : 'N/A'
+        });
+        if (!body) {
+            console.error('[UpgradeController] ❌ Modal body element not found');
             return;
         }
         
+        if (invoices.length === 0) {
+            console.log('[UpgradeController] No invoices to display, showing empty message');
+            body.innerHTML = '<div class="invoice-empty">No invoices found.</div>';
+            console.log('[UpgradeController] ✅ Empty message displayed');
+            return;
+        }
+        
+        console.log('[UpgradeController] Processing', invoices.length, 'invoices for display...');
+        
         const formatDate = (dateString) => {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-GB', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric' 
-            });
+            console.log('[UpgradeController] formatDate called with:', dateString);
+            if (!dateString) {
+                console.log('[UpgradeController] No date string provided, returning N/A');
+                return 'N/A';
+            }
+            try {
+                const date = new Date(dateString);
+                const formatted = date.toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric' 
+                });
+                console.log('[UpgradeController] Date formatted:', { input: dateString, output: formatted });
+                return formatted;
+            } catch (error) {
+                console.error('[UpgradeController] Error formatting date:', error);
+                return 'Invalid Date';
+            }
         };
         
         const formatCurrency = (amount, currency) => {
-            return new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: currency || 'EUR'
-            }).format(amount);
+            console.log('[UpgradeController] formatCurrency called with:', { amount, currency });
+            try {
+                const formatted = new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: currency || 'EUR'
+                }).format(amount);
+                console.log('[UpgradeController] Currency formatted:', { input: { amount, currency }, output: formatted });
+                return formatted;
+            } catch (error) {
+                console.error('[UpgradeController] Error formatting currency:', error);
+                return `${amount} ${currency || 'EUR'}`;
+            }
         };
         
         const getStatusClass = (status) => {
+            console.log('[UpgradeController] getStatusClass called with:', status);
             const statusMap = {
                 'paid': 'paid',
                 'open': 'open',
@@ -1236,20 +1429,36 @@ const UpgradeController = {
                 'void': 'draft',
                 'uncollectible': 'draft'
             };
-            return statusMap[status.toLowerCase()] || 'draft';
+            const statusLower = status ? status.toLowerCase() : '';
+            const mappedClass = statusMap[statusLower] || 'draft';
+            console.log('[UpgradeController] Status class mapped:', { input: status, output: mappedClass });
+            return mappedClass;
         };
         
-        const invoicesHTML = `
-            <ul class="invoice-list">
-                ${invoices.map(invoice => `
+        console.log('[UpgradeController] Generating HTML for invoices...');
+        const invoiceHTMLParts = invoices.map((invoice, index) => {
+            console.log(`[UpgradeController] Processing invoice ${index + 1}/${invoices.length}:`, {
+                id: invoice.id,
+                number: invoice.number,
+                amount: invoice.amount_paid,
+                status: invoice.status,
+                hasHostedUrl: !!invoice.hosted_invoice_url,
+                hasPdf: !!invoice.invoice_pdf
+            });
+            
+            const formattedDate = formatDate(invoice.created);
+            const formattedAmount = formatCurrency(invoice.amount_paid, invoice.currency);
+            const statusClass = getStatusClass(invoice.status);
+            
+            return `
                     <li class="invoice-item">
                         <div class="invoice-item-info">
                             <div class="invoice-item-number">Invoice ${invoice.number || invoice.id}</div>
-                            <div class="invoice-item-date">${formatDate(invoice.created)}</div>
-                            <div class="invoice-item-amount">${formatCurrency(invoice.amount_paid, invoice.currency)}</div>
+                            <div class="invoice-item-date">${formattedDate}</div>
+                            <div class="invoice-item-amount">${formattedAmount}</div>
                         </div>
                         <div>
-                            <span class="invoice-item-status ${getStatusClass(invoice.status)}">${invoice.status}</span>
+                            <span class="invoice-item-status ${statusClass}">${invoice.status}</span>
                         </div>
                         <div class="invoice-item-actions">
                             ${invoice.hosted_invoice_url ? `
@@ -1264,20 +1473,48 @@ const UpgradeController = {
                             ` : ''}
                         </div>
                     </li>
-                `).join('')}
+                `;
+        });
+        
+        const invoicesHTML = `
+            <ul class="invoice-list">
+                ${invoiceHTMLParts.join('')}
             </ul>
         `;
         
+        console.log('[UpgradeController] HTML generated, length:', invoicesHTML.length);
+        console.log('[UpgradeController] HTML preview (first 500 chars):', invoicesHTML.substring(0, 500));
+        
         body.innerHTML = invoicesHTML;
+        console.log('[UpgradeController] ✅ Invoices HTML inserted into modal body');
+        console.log('[UpgradeController] Modal body after update:', {
+            innerHTMLLength: body.innerHTML.length,
+            childElementCount: body.children.length,
+            firstChildTag: body.firstElementChild?.tagName
+        });
     },
     
     /**
      * Display invoice error in modal
      */
     displayInvoiceError(errorMessage) {
+        console.log('[UpgradeController] ========== displayInvoiceError() CALLED ==========');
+        console.log('[UpgradeController] Error message:', errorMessage);
         const body = document.getElementById('invoice-modal-body');
+        console.log('[UpgradeController] Modal body element check:', {
+            found: !!body,
+            id: body?.id,
+            currentInnerHTML: body ? body.innerHTML.substring(0, 200) : 'N/A'
+        });
         if (body) {
             body.innerHTML = `<div class="invoice-error">${errorMessage}</div>`;
+            console.log('[UpgradeController] ✅ Error message displayed in modal');
+            console.log('[UpgradeController] Modal body after error update:', {
+                innerHTMLLength: body.innerHTML.length,
+                innerHTML: body.innerHTML
+            });
+        } else {
+            console.error('[UpgradeController] ❌ Modal body element not found');
         }
     },
     
