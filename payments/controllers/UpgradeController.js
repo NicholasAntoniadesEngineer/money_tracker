@@ -208,10 +208,14 @@ const UpgradeController = {
                     subscriptionType: this.currentSubscription.subscription_type,
                     status: this.currentSubscription.status
                 });
+                
+                // Display subscription details
+                this.displayCurrentSubscription();
             } else {
                 console.warn('[UpgradeController] No subscription found');
                 this.currentSubscription = null;
                 this.currentPlan = null;
+                this.hideCurrentSubscription();
             }
         } catch (error) {
             console.error('[UpgradeController] Error loading subscription:', error);
@@ -500,6 +504,7 @@ const UpgradeController = {
                     await this.loadCurrentSubscription();
                     await this.loadAvailablePlans();
                     await this.renderPlans();
+                    this.displayCurrentSubscription();
                 } else {
                     throw new Error(updateResult.error || 'Failed to switch to Free plan');
                 }
@@ -569,6 +574,7 @@ const UpgradeController = {
                     await this.loadCurrentSubscription();
                     await this.loadAvailablePlans();
                     await this.renderPlans();
+                    this.displayCurrentSubscription();
                 } else {
                     throw new Error(result.error || 'Failed to schedule downgrade');
                 }
@@ -749,6 +755,7 @@ const UpgradeController = {
                 await this.loadCurrentSubscription();
                 await this.loadAvailablePlans();
                 await this.renderPlans();
+                this.displayCurrentSubscription();
             } else {
                 console.error('[UpgradeController] ❌ Failed to update subscription:', updateResult.error);
                 console.error('[UpgradeController] Error details:', {
@@ -966,6 +973,75 @@ const UpgradeController = {
                 button.textContent = 'Update Payment Method';
                 console.log('[UpgradeController] Button re-enabled');
             }
+        }
+    },
+    
+    /**
+     * Display current subscription details including recurring billing status
+     */
+    displayCurrentSubscription() {
+        const container = document.getElementById('current-subscription-details');
+        const content = document.getElementById('current-subscription-content');
+        
+        if (!container || !content || !this.currentSubscription) {
+            return;
+        }
+        
+        const subscription = this.currentSubscription;
+        const plan = this.currentPlan;
+        const detailsHtml = [];
+        
+        // Plan Name
+        if (plan && plan.plan_name) {
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Plan:</strong><span>${plan.plan_name}</span></div>`);
+        }
+        
+        // Subscription Status
+        if (subscription.status) {
+            const statusColor = subscription.status === 'active' ? 'var(--success-color, #28a745)' : 'var(--text-secondary)';
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span style="color: ${statusColor};">${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}</span></div>`);
+        }
+        
+        // Subscription Type
+        if (subscription.subscription_type) {
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1)}</span></div>`);
+        }
+        
+        // Next Billing Date (if available)
+        if (subscription.next_billing_date) {
+            const nextBilling = new Date(subscription.next_billing_date);
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing:</strong><span>${nextBilling.toLocaleDateString()}</span></div>`);
+        }
+        
+        // Subscription End Date (if available)
+        if (subscription.subscription_end_date) {
+            const endDate = new Date(subscription.subscription_end_date);
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Ends:</strong><span>${endDate.toLocaleDateString()}</span></div>`);
+        }
+        
+        // Recurring Billing Status (Auto-Renewal) - only for paid subscriptions
+        if (subscription.subscription_type === 'paid' && subscription.stripe_subscription_id) {
+            const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
+            const statusText = recurringBillingEnabled ? 'Enabled' : 'Disabled';
+            const statusColor = recurringBillingEnabled ? 'var(--success-color, #28a745)' : 'var(--text-secondary)';
+            detailsHtml.push(`<div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Auto-Renewal (Recurring):</strong><span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></div>`);
+        }
+        
+        if (detailsHtml.length > 0) {
+            content.innerHTML = detailsHtml.join('');
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    },
+    
+    /**
+     * Hide current subscription details
+     */
+    hideCurrentSubscription() {
+        const container = document.getElementById('current-subscription-details');
+        if (container) {
+            container.style.display = 'none';
         }
     }
 };
