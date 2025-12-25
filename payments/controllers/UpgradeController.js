@@ -190,37 +190,76 @@ const UpgradeController = {
      * Load current user subscription
      */
     async loadCurrentSubscription() {
-        console.log('[UpgradeController] Loading current subscription...');
+        console.log('[UpgradeController] ========== loadCurrentSubscription() STARTED ==========');
+        const startTime = Date.now();
         
         try {
+            console.log('[UpgradeController] Step 1: Checking SubscriptionService availability...');
             if (!window.SubscriptionService) {
+                console.error('[UpgradeController] ❌ SubscriptionService not available');
                 throw new Error('SubscriptionService not available');
             }
+            console.log('[UpgradeController] ✅ SubscriptionService available');
             
+            console.log('[UpgradeController] Step 2: Calling getCurrentUserSubscription()...');
             const result = await window.SubscriptionService.getCurrentUserSubscription();
+            const elapsed = Date.now() - startTime;
+            console.log('[UpgradeController] getCurrentUserSubscription() completed in', elapsed, 'ms');
+            console.log('[UpgradeController] Result structure:', {
+                hasResult: !!result,
+                success: result?.success,
+                hasSubscription: !!result?.subscription,
+                hasPlan: !!result?.plan,
+                error: result?.error || null
+            });
             
             if (result.success && result.subscription) {
+                console.log('[UpgradeController] Step 3: Processing successful subscription result...');
                 this.currentSubscription = result.subscription;
                 this.currentPlan = result.plan;
-                console.log('[UpgradeController] Current subscription loaded:', {
-                    planId: this.currentSubscription.plan_id,
+                
+                console.log('[UpgradeController] ✅ Subscription data assigned:', {
+                    subscriptionKeys: Object.keys(this.currentSubscription || {}),
+                    planKeys: Object.keys(this.currentPlan || {}),
+                    planId: this.currentSubscription?.plan_id,
                     planName: this.currentPlan?.plan_name,
-                    subscriptionType: this.currentSubscription.subscription_type,
-                    status: this.currentSubscription.status
+                    subscriptionType: this.currentSubscription?.subscription_type,
+                    status: this.currentSubscription?.status,
+                    hasStripeSubscriptionId: !!this.currentSubscription?.stripe_subscription_id,
+                    recurringBillingEnabled: this.currentSubscription?.recurring_billing_enabled,
+                    nextBillingDate: this.currentSubscription?.next_billing_date,
+                    subscriptionEndDate: this.currentSubscription?.subscription_end_date
                 });
                 
-                // Display subscription details
+                console.log('[UpgradeController] Step 4: Calling displayCurrentSubscription()...');
                 this.displayCurrentSubscription();
+                console.log('[UpgradeController] displayCurrentSubscription() call completed');
             } else {
-                console.warn('[UpgradeController] No subscription found');
+                console.warn('[UpgradeController] ⚠️ No subscription found or result unsuccessful:', {
+                    success: result?.success,
+                    hasSubscription: !!result?.subscription,
+                    error: result?.error || null
+                });
                 this.currentSubscription = null;
                 this.currentPlan = null;
+                console.log('[UpgradeController] Step 4: Calling hideCurrentSubscription()...');
                 this.hideCurrentSubscription();
             }
+            
+            const totalElapsed = Date.now() - startTime;
+            console.log('[UpgradeController] ========== loadCurrentSubscription() COMPLETE in', totalElapsed, 'ms ==========');
         } catch (error) {
-            console.error('[UpgradeController] Error loading subscription:', error);
+            const totalElapsed = Date.now() - startTime;
+            console.error('[UpgradeController] ========== loadCurrentSubscription() ERROR after', totalElapsed, 'ms ==========');
+            console.error('[UpgradeController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             this.currentSubscription = null;
             this.currentPlan = null;
+            console.log('[UpgradeController] Calling hideCurrentSubscription() due to error...');
+            this.hideCurrentSubscription();
         }
     },
     
@@ -980,69 +1019,253 @@ const UpgradeController = {
      * Display current subscription details including recurring billing status
      */
     displayCurrentSubscription() {
+        console.log('[UpgradeController] ========== displayCurrentSubscription() CALLED ==========');
+        const startTime = Date.now();
+        console.log('[UpgradeController] Call stack:', new Error().stack);
+        
+        console.log('[UpgradeController] Step 1: Checking DOM elements...');
+        console.log('[UpgradeController] Document ready state:', document.readyState);
+        console.log('[UpgradeController] Document body exists:', !!document.body);
+        
         const container = document.getElementById('current-subscription-details');
         const content = document.getElementById('current-subscription-content');
         
-        if (!container || !content || !this.currentSubscription) {
+        console.log('[UpgradeController] Step 1 results - DOM elements:', {
+            hasContainer: !!container,
+            containerId: container?.id || 'NOT FOUND',
+            containerTagName: container?.tagName || 'N/A',
+            containerDisplay: container?.style?.display || 'N/A',
+            containerComputedDisplay: container ? window.getComputedStyle(container).display : 'N/A',
+            hasContent: !!content,
+            contentId: content?.id || 'NOT FOUND',
+            contentTagName: content?.tagName || 'N/A',
+            hasSubscription: !!this.currentSubscription,
+            hasPlan: !!this.currentPlan,
+            subscriptionType: typeof this.currentSubscription,
+            planType: typeof this.currentPlan
+        });
+        
+        // Check if elements exist in DOM
+        if (!container) {
+            console.error('[UpgradeController] ❌ Container element NOT FOUND: current-subscription-details');
+            console.error('[UpgradeController] Searching for all elements with "subscription" in id...');
+            const allElements = document.querySelectorAll('[id*="subscription"]');
+            console.log('[UpgradeController] Found elements with "subscription" in id:', Array.from(allElements).map(el => el.id));
+            console.error('[UpgradeController] Aborting displayCurrentSubscription() - container missing');
             return;
         }
         
+        if (!content) {
+            console.error('[UpgradeController] ❌ Content element NOT FOUND: current-subscription-content');
+            console.error('[UpgradeController] Container children:', Array.from(container.children).map(child => ({
+                tagName: child.tagName,
+                id: child.id,
+                className: child.className
+            })));
+            console.error('[UpgradeController] Aborting displayCurrentSubscription() - content missing');
+            return;
+        }
+        
+        console.log('[UpgradeController] ✅ Both DOM elements found');
+        console.log('[UpgradeController] Step 2: Checking subscription data...');
+        
+        if (!this.currentSubscription) {
+            console.warn('[UpgradeController] ⚠️ No subscription data available');
+            console.warn('[UpgradeController] this.currentSubscription value:', this.currentSubscription);
+            console.warn('[UpgradeController] Hiding container...');
+            container.style.display = 'none';
+            console.log('[UpgradeController] Container display set to "none"');
+            return;
+        }
+        
+        console.log('[UpgradeController] ✅ Subscription data available');
         const subscription = this.currentSubscription;
         const plan = this.currentPlan;
         const detailsHtml = [];
         
+        console.log('[UpgradeController] Step 3: Analyzing subscription data...');
+        console.log('[UpgradeController] Full subscription object:', JSON.stringify(subscription, null, 2));
+        console.log('[UpgradeController] Full plan object:', JSON.stringify(plan, null, 2));
+        console.log('[UpgradeController] Subscription keys:', Object.keys(subscription));
+        console.log('[UpgradeController] Plan keys:', plan ? Object.keys(plan) : 'plan is null/undefined');
+        
+        console.log('[UpgradeController] Step 4: Building details HTML...');
+        
         // Plan Name
+        console.log('[UpgradeController] Checking plan name...', {
+            hasPlan: !!plan,
+            planName: plan?.plan_name,
+            planNameType: typeof plan?.plan_name,
+            willAdd: !!(plan && plan.plan_name)
+        });
         if (plan && plan.plan_name) {
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Plan:</strong><span>${plan.plan_name}</span></div>`);
+            const planHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Plan:</strong><span>${plan.plan_name}</span></div>`;
+            detailsHtml.push(planHtml);
+            console.log('[UpgradeController] ✅ Added Plan name:', plan.plan_name);
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Plan name (plan:', plan, ', plan_name:', plan?.plan_name, ')');
         }
         
         // Subscription Status
+        console.log('[UpgradeController] Checking subscription status...', {
+            hasStatus: !!subscription.status,
+            status: subscription.status,
+            statusType: typeof subscription.status
+        });
         if (subscription.status) {
             const statusColor = subscription.status === 'active' ? 'var(--success-color, #28a745)' : 'var(--text-secondary)';
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span style="color: ${statusColor};">${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}</span></div>`);
+            const statusHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Status:</strong><span style="color: ${statusColor};">${subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}</span></div>`;
+            detailsHtml.push(statusHtml);
+            console.log('[UpgradeController] ✅ Added Status:', subscription.status, 'with color:', statusColor);
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Status (status:', subscription.status, ')');
         }
         
         // Subscription Type
+        console.log('[UpgradeController] Checking subscription type...', {
+            hasSubscriptionType: !!subscription.subscription_type,
+            subscriptionType: subscription.subscription_type,
+            subscriptionTypeType: typeof subscription.subscription_type
+        });
         if (subscription.subscription_type) {
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1)}</span></div>`);
+            const typeHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1)}</span></div>`;
+            detailsHtml.push(typeHtml);
+            console.log('[UpgradeController] ✅ Added Type:', subscription.subscription_type);
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Type (subscription_type:', subscription.subscription_type, ')');
         }
         
         // Next Billing Date (if available)
+        console.log('[UpgradeController] Checking next billing date...', {
+            hasNextBillingDate: !!subscription.next_billing_date,
+            nextBillingDate: subscription.next_billing_date,
+            nextBillingDateType: typeof subscription.next_billing_date
+        });
         if (subscription.next_billing_date) {
             const nextBilling = new Date(subscription.next_billing_date);
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing:</strong><span>${nextBilling.toLocaleDateString()}</span></div>`);
+            const nextBillingHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing:</strong><span>${nextBilling.toLocaleDateString()}</span></div>`;
+            detailsHtml.push(nextBillingHtml);
+            console.log('[UpgradeController] ✅ Added Next Billing:', nextBilling.toLocaleDateString());
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Next Billing (next_billing_date:', subscription.next_billing_date, ')');
         }
         
         // Subscription End Date (if available)
+        console.log('[UpgradeController] Checking subscription end date...', {
+            hasSubscriptionEndDate: !!subscription.subscription_end_date,
+            subscriptionEndDate: subscription.subscription_end_date,
+            subscriptionEndDateType: typeof subscription.subscription_end_date
+        });
         if (subscription.subscription_end_date) {
             const endDate = new Date(subscription.subscription_end_date);
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Ends:</strong><span>${endDate.toLocaleDateString()}</span></div>`);
+            const endDateHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Ends:</strong><span>${endDate.toLocaleDateString()}</span></div>`;
+            detailsHtml.push(endDateHtml);
+            console.log('[UpgradeController] ✅ Added Ends:', endDate.toLocaleDateString());
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Ends (subscription_end_date:', subscription.subscription_end_date, ')');
         }
         
-        // Recurring Billing Status (Auto-Renewal) - only for paid subscriptions
-        if (subscription.subscription_type === 'paid' && subscription.stripe_subscription_id) {
+        // Recurring Billing Status (Auto-Renewal) - show for paid subscriptions
+        console.log('[UpgradeController] Checking recurring billing status...', {
+            subscriptionType: subscription.subscription_type,
+            isPaid: subscription.subscription_type === 'paid',
+            hasStripeSubscriptionId: !!subscription.stripe_subscription_id,
+            recurringBillingEnabled: subscription.recurring_billing_enabled,
+            recurringBillingEnabledType: typeof subscription.recurring_billing_enabled
+        });
+        if (subscription.subscription_type === 'paid') {
             const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
             const statusText = recurringBillingEnabled ? 'Enabled' : 'Disabled';
             const statusColor = recurringBillingEnabled ? 'var(--success-color, #28a745)' : 'var(--text-secondary)';
-            detailsHtml.push(`<div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Auto-Renewal (Recurring):</strong><span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></div>`);
+            const recurringHtml = `<div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Auto-Renewal (Recurring):</strong><span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></div>`;
+            detailsHtml.push(recurringHtml);
+            console.log('[UpgradeController] ✅ Added Auto-Renewal (Recurring):', statusText, 'with color:', statusColor);
+        } else {
+            console.log('[UpgradeController] ⏭️ Skipping Auto-Renewal (subscription_type:', subscription.subscription_type, 'is not "paid")');
         }
         
+        console.log('[UpgradeController] Step 5: Finalizing HTML generation...');
+        console.log('[UpgradeController] Total details HTML items generated:', detailsHtml.length);
+        console.log('[UpgradeController] Details HTML preview (first 200 chars):', detailsHtml.join('').substring(0, 200));
+        
         if (detailsHtml.length > 0) {
+            console.log('[UpgradeController] Step 6: Updating DOM with subscription details...');
+            console.log('[UpgradeController] Content element before update:', {
+                innerHTML: content.innerHTML.substring(0, 100),
+                innerHTMLLength: content.innerHTML.length,
+                childElementCount: content.childElementCount
+            });
+            
             content.innerHTML = detailsHtml.join('');
+            console.log('[UpgradeController] Content innerHTML set, new length:', content.innerHTML.length);
+            
+            console.log('[UpgradeController] Container before display change:', {
+                display: container.style.display,
+                computedDisplay: window.getComputedStyle(container).display,
+                visibility: window.getComputedStyle(container).visibility,
+                opacity: window.getComputedStyle(container).opacity
+            });
+            
             container.style.display = 'block';
+            console.log('[UpgradeController] Container display set to "block"');
+            
+            console.log('[UpgradeController] Container after display change:', {
+                display: container.style.display,
+                computedDisplay: window.getComputedStyle(container).display,
+                visibility: window.getComputedStyle(container).visibility,
+                opacity: window.getComputedStyle(container).opacity,
+                offsetHeight: container.offsetHeight,
+                offsetWidth: container.offsetWidth
+            });
+            
+            console.log('[UpgradeController] Content element after update:', {
+                innerHTML: content.innerHTML.substring(0, 200),
+                innerHTMLLength: content.innerHTML.length,
+                childElementCount: content.childElementCount,
+                children: Array.from(content.children).map(child => ({
+                    tagName: child.tagName,
+                    textContent: child.textContent?.substring(0, 50)
+                }))
+            });
+            
+            const totalElapsed = Date.now() - startTime;
+            console.log('[UpgradeController] ✅ Subscription details displayed successfully in', totalElapsed, 'ms');
         } else {
+            console.warn('[UpgradeController] ⚠️ No details to display, hiding container');
+            console.warn('[UpgradeController] This means no fields matched the conditions to be displayed');
             container.style.display = 'none';
+            console.log('[UpgradeController] Container display set to "none"');
         }
+        
+        const totalElapsed = Date.now() - startTime;
+        console.log('[UpgradeController] ========== displayCurrentSubscription() COMPLETE in', totalElapsed, 'ms ==========');
     },
     
     /**
      * Hide current subscription details
      */
     hideCurrentSubscription() {
+        console.log('[UpgradeController] ========== hideCurrentSubscription() CALLED ==========');
         const container = document.getElementById('current-subscription-details');
+        console.log('[UpgradeController] Container element:', {
+            found: !!container,
+            id: container?.id || 'NOT FOUND',
+            currentDisplay: container?.style?.display || 'N/A',
+            computedDisplay: container ? window.getComputedStyle(container).display : 'N/A'
+        });
+        
         if (container) {
             container.style.display = 'none';
+            console.log('[UpgradeController] ✅ Container display set to "none"');
+            console.log('[UpgradeController] Container after hide:', {
+                display: container.style.display,
+                computedDisplay: window.getComputedStyle(container).display
+            });
+        } else {
+            console.warn('[UpgradeController] ⚠️ Container element not found, cannot hide');
         }
+        
+        console.log('[UpgradeController] ========== hideCurrentSubscription() COMPLETE ==========');
     }
 };
 
