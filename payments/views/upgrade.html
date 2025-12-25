@@ -428,6 +428,102 @@
             color: var(--text-secondary);
         }
         
+        /* Recent Invoices Section Styles */
+        #recent-invoices-section {
+            max-width: 100%;
+        }
+        
+        #recent-invoices-content {
+            display: grid;
+            gap: 0.5rem;
+        }
+        
+        .recent-invoice-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0.5rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            border: 1px solid var(--border-color, rgba(0,0,0,0.1));
+            font-size: 0.85rem;
+        }
+        
+        .recent-invoice-item-left {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .recent-invoice-item-number {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.15rem;
+            font-size: 0.9rem;
+        }
+        
+        .recent-invoice-item-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .recent-invoice-item-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-left: var(--spacing-xs);
+        }
+        
+        .recent-invoice-item-amount {
+            font-weight: 600;
+            color: var(--primary-color, #007bff);
+            font-size: 0.9rem;
+        }
+        
+        .recent-invoice-item-status {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            margin-top: 0.2rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .recent-invoice-item-status.paid {
+            background: var(--success-color, #28a745);
+            color: white;
+        }
+        
+        .recent-invoice-item-status.open {
+            background: var(--warning-color, #ffc107);
+            color: #000;
+        }
+        
+        .recent-invoice-item-status.draft {
+            background: var(--text-secondary, #6c757d);
+            color: white;
+        }
+        
+        .invoice-loading-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .invoice-error-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--danger-color, #dc3545);
+            font-size: 0.85rem;
+        }
+        
+        .invoice-empty-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
         @media (max-width: 768px) {
             .invoice-modal-content {
                 padding: var(--spacing-md);
@@ -465,6 +561,13 @@
                         <button id="view-invoices-button" class="btn btn-action">
                             View Invoices
                         </button>
+                    </div>
+                    
+                    <div id="recent-invoices-section" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
+                        <h3 style="margin: 0 0 var(--spacing-xs) 0; font-size: 1rem; font-weight: 600;">Recent Invoices</h3>
+                        <div id="recent-invoices-content" style="font-size: 0.85rem;">
+                            <div class="invoice-loading-small">Loading...</div>
+                        </div>
                     </div>
                 </div>
                 

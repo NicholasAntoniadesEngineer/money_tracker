@@ -234,6 +234,12 @@ const UpgradeController = {
                 console.log('[UpgradeController] Step 4: Calling displayCurrentSubscription()...');
                 this.displayCurrentSubscription();
                 console.log('[UpgradeController] displayCurrentSubscription() call completed');
+                
+                // Load recent invoices if user has a paid subscription
+                if (this.currentSubscription && this.currentSubscription.stripe_customer_id) {
+                    console.log('[UpgradeController] Step 5: Loading recent invoices...');
+                    this.loadRecentInvoices();
+                }
             } else {
                 console.warn('[UpgradeController] ⚠️ No subscription found or result unsuccessful:', {
                     success: result?.success,
@@ -1863,6 +1869,184 @@ const UpgradeController = {
         
         const totalElapsed = Date.now() - startTime;
         console.log('[UpgradeController] ========== displayCurrentSubscription() COMPLETE in', totalElapsed, 'ms ==========');
+    },
+    
+    /**
+     * Load and display recent invoices (last 3)
+     */
+    async loadRecentInvoices() {
+        console.log('[UpgradeController] ========== loadRecentInvoices() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            const section = document.getElementById('recent-invoices-section');
+            const content = document.getElementById('recent-invoices-content');
+            
+            if (!section || !content) {
+                console.warn('[UpgradeController] Recent invoices section not found');
+                return;
+            }
+            
+            if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
+                console.log('[UpgradeController] No customer ID, hiding recent invoices section');
+                section.style.display = 'none';
+                return;
+            }
+            
+            const customerId = this.currentSubscription.stripe_customer_id;
+            console.log('[UpgradeController] Fetching recent invoices for customer:', customerId);
+            
+            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
+            
+            // Show loading state
+            section.style.display = 'block';
+            content.innerHTML = '<div class="invoice-loading-small">Loading invoices...</div>';
+            
+            let result;
+            
+            // Try to use StripeService if available, otherwise use direct call
+            if (window.StripeService && typeof window.StripeService.listInvoices === 'function') {
+                console.log('[UpgradeController] Using StripeService to fetch invoices');
+                result = await window.StripeService.listInvoices(customerId, 3, backendEndpoint);
+            } else {
+                console.log('[UpgradeController] Using direct Edge Function call');
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] Error getting session:', sessionError);
+                    }
+                }
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        limit: 3
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                result = {
+                    success: data.success || false,
+                    invoices: data.invoices || [],
+                    count: data.count || (data.invoices ? data.invoices.length : 0),
+                    error: data.error || null
+                };
+            }
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to fetch invoices');
+            }
+            
+            const invoices = result.invoices || [];
+            console.log('[UpgradeController] Recent invoices fetched:', invoices.length);
+            
+            this.displayRecentInvoices(invoices);
+            
+            const totalElapsed = Date.now() - startTime;
+            console.log('[UpgradeController] ========== loadRecentInvoices() COMPLETE in', totalElapsed, 'ms ==========');
+        } catch (error) {
+            console.error('[UpgradeController] Error loading recent invoices:', error);
+            const section = document.getElementById('recent-invoices-section');
+            const content = document.getElementById('recent-invoices-content');
+            if (section && content) {
+                section.style.display = 'block';
+                content.innerHTML = '<div class="invoice-error-small">Unable to load invoices</div>';
+            }
+        }
+    },
+    
+    /**
+     * Display recent invoices in the compact section
+     */
+    displayRecentInvoices(invoices) {
+        console.log('[UpgradeController] ========== displayRecentInvoices() CALLED ==========');
+        console.log('[UpgradeController] Invoices to display:', invoices.length);
+        
+        const content = document.getElementById('recent-invoices-content');
+        if (!content) {
+            console.error('[UpgradeController] Recent invoices content element not found');
+            return;
+        }
+        
+        if (invoices.length === 0) {
+            content.innerHTML = '<div class="invoice-empty-small">No invoices found</div>';
+            return;
+        }
+        
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric' 
+                });
+            } catch (error) {
+                return 'Invalid Date';
+            }
+        };
+        
+        const formatCurrency = (amount, currency) => {
+            try {
+                return new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: currency || 'EUR'
+                }).format(amount);
+            } catch (error) {
+                return `${amount} ${currency || 'EUR'}`;
+            }
+        };
+        
+        const getStatusClass = (status) => {
+            const statusMap = {
+                'paid': 'paid',
+                'open': 'open',
+                'draft': 'draft',
+                'void': 'draft',
+                'uncollectible': 'draft'
+            };
+            return statusMap[status ? status.toLowerCase() : ''] || 'draft';
+        };
+        
+        const invoicesHTML = invoices.map(invoice => {
+            const formattedDate = formatDate(invoice.created);
+            const formattedAmount = formatCurrency(invoice.amount_paid, invoice.currency);
+            const statusClass = getStatusClass(invoice.status);
+            const invoiceNumber = invoice.number || invoice.id.substring(invoice.id.lastIndexOf('_') + 1);
+            
+            return `
+                <div class="recent-invoice-item">
+                    <div class="recent-invoice-item-left">
+                        <div class="recent-invoice-item-number">Invoice ${invoiceNumber}</div>
+                        <div class="recent-invoice-item-date">${formattedDate}</div>
+                    </div>
+                    <div class="recent-invoice-item-right">
+                        <div class="recent-invoice-item-amount">${formattedAmount}</div>
+                        <span class="recent-invoice-item-status ${statusClass}">${invoice.status}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        content.innerHTML = invoicesHTML;
+        console.log('[UpgradeController] ✅ Recent invoices displayed');
     },
     
     /**
