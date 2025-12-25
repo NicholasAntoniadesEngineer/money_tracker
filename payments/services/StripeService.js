@@ -40,9 +40,11 @@ const StripeService = {
      * @param {string} successUrl - URL to redirect after successful payment
      * @param {string} cancelUrl - URL to redirect after cancelled payment
      * @param {string} backendEndpoint - Optional backend endpoint URL for creating checkout session
-     * @returns {Promise<{success: boolean, sessionId: string|null, error: string|null}>}
+     * @param {number} planId - Optional plan ID for upgrade/downgrade
+     * @param {number} priceAmount - Optional price amount in cents (overrides plan price)
+     * @returns {Promise<{success: boolean, sessionId: string|null, customerId: string|null, error: string|null}>}
      */
-    async createCheckoutSession(customerEmail, userId, successUrl, cancelUrl, backendEndpoint = null) {
+    async createCheckoutSession(customerEmail, userId, successUrl, cancelUrl, backendEndpoint = null, planId = null, priceAmount = null) {
         console.log('[StripeService] ========== createCheckoutSession() STARTED ==========');
         const startTime = Date.now();
         
@@ -92,16 +94,28 @@ const StripeService = {
                         console.warn('[StripeService] ⚠️ No auth token available - request may fail');
                     }
                     
+                    const requestBody = {
+                        customerEmail: customerEmail,
+                        userId: userId,
+                        successUrl: successUrl,
+                        cancelUrl: cancelUrl
+                    };
+                    
+                    // Add plan ID and price if provided (for upgrades)
+                    if (planId !== null) {
+                        requestBody.planId = planId;
+                    }
+                    if (priceAmount !== null) {
+                        requestBody.priceAmount = priceAmount;
+                    }
+                    
+                    console.log('[StripeService] Request body:', requestBody);
+                    
                     const fetchStartTime = Date.now();
                     const response = await fetch(backendEndpoint, {
                         method: 'POST',
                         headers: headers,
-                        body: JSON.stringify({
-                            customerEmail: customerEmail,
-                            userId: userId,
-                            successUrl: successUrl,
-                            cancelUrl: cancelUrl
-                        })
+                        body: JSON.stringify(requestBody)
                     });
                     const fetchElapsed = Date.now() - fetchStartTime;
                     

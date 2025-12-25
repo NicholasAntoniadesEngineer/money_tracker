@@ -36,8 +36,8 @@ const stripe = new Stripe(stripeKey, {
   apiVersion: "2023-10-16",
 })
 
-// Subscription configuration
-const SUBSCRIPTION_PRICE_AMOUNT = 500 // 5 EUR in cents
+// Default subscription configuration (can be overridden by request)
+const DEFAULT_SUBSCRIPTION_PRICE_AMOUNT = 500 // 5 EUR in cents
 const SUBSCRIPTION_CURRENCY = "eur"
 const SUBSCRIPTION_INTERVAL = "month"
 
@@ -73,8 +73,8 @@ serve(async (req) => {
     
     // Parse request body
     console.log("[create-checkout-session] Step 1: Parsing request body...")
-    const { customerEmail, userId, successUrl, cancelUrl } = await req.json()
-    console.log("[create-checkout-session] Request data:", { customerEmail, userId, successUrl, cancelUrl })
+    const { customerEmail, userId, successUrl, cancelUrl, planId, priceAmount } = await req.json()
+    console.log("[create-checkout-session] Request data:", { customerEmail, userId, successUrl, cancelUrl, planId, priceAmount })
 
     // Validate required fields
     console.log("[create-checkout-session] Step 2: Validating input...")
@@ -156,6 +156,15 @@ serve(async (req) => {
       })
     }
 
+    // Determine price amount (use provided priceAmount, or default)
+    const finalPriceAmount = priceAmount || DEFAULT_SUBSCRIPTION_PRICE_AMOUNT
+    const priceInEuros = (finalPriceAmount / 100).toFixed(2)
+    console.log("[create-checkout-session] Using price:", { 
+      priceAmount: finalPriceAmount, 
+      priceInEuros: `${priceInEuros} EUR`,
+      planId: planId || 'default'
+    })
+
     // Create Stripe Checkout session
     console.log("[create-checkout-session] Step 4: Creating Stripe Checkout session...")
     const checkoutStartTime = Date.now()
@@ -167,10 +176,10 @@ serve(async (req) => {
           price_data: {
             currency: SUBSCRIPTION_CURRENCY,
             product_data: {
-              name: "Money Tracker Monthly Subscription",
-              description: "Monthly access to Money Tracker application",
+              name: planId ? `Money Tracker Subscription (Plan ${planId})` : "Money Tracker Monthly Subscription",
+              description: `Monthly access to Money Tracker application - €${priceInEuros}/month`,
             },
-            unit_amount: SUBSCRIPTION_PRICE_AMOUNT,
+            unit_amount: finalPriceAmount,
             recurring: {
               interval: SUBSCRIPTION_INTERVAL,
             },
@@ -185,6 +194,7 @@ serve(async (req) => {
         userId: userId,
         customerEmail: customerEmail,
         customerId: customer.id,  // Include customer ID in metadata
+        planId: planId || '',  // Include plan ID if provided
       },
       // Allow promotion codes
       allow_promotion_codes: true,
