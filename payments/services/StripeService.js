@@ -697,6 +697,115 @@ const StripeService = {
     }
 };
 
+    /**
+     * List invoices for a customer
+     * @param {string} customerId - Stripe customer ID
+     * @param {number} limit - Maximum number of invoices to return (default: 10)
+     * @param {string} backendEndpoint - Backend endpoint URL for listing invoices
+     * @returns {Promise<{success: boolean, invoices: Array|null, error: string|null}>}
+     */
+    async listInvoices(customerId, limit = 10, backendEndpoint = null) {
+        console.log('[StripeService] ========== listInvoices() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[StripeService] Step 1: Validating input...');
+            if (!customerId) {
+                console.error('[StripeService] ❌ Customer ID is required');
+                throw new Error('Customer ID is required');
+            }
+            console.log('[StripeService] ✅ Input validated:', {
+                customerId: customerId,
+                limit: limit,
+                hasBackendEndpoint: !!backendEndpoint
+            });
+            
+            // If backend endpoint is provided, use it
+            if (backendEndpoint) {
+                console.log('[StripeService] Step 2: Calling backend endpoint...');
+                console.log('[StripeService] Endpoint:', backendEndpoint);
+                console.log('[StripeService] Request payload:', {
+                    customerId: customerId,
+                    limit: limit
+                });
+                
+                // Get access token from AuthService
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getCurrentUser) {
+                    const session = await window.AuthService.getSession();
+                    if (session && session.access_token) {
+                        accessToken = session.access_token;
+                        console.log('[StripeService] Adding Authorization header with access token');
+                    }
+                }
+                
+                const requestBody = {
+                    customerId: customerId,
+                    limit: limit
+                };
+                
+                console.log('[StripeService] Request body:', requestBody);
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const elapsed = Date.now() - startTime;
+                console.log('[StripeService] Fetch response received:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    elapsed: `${elapsed}ms`
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    console.error('[StripeService] ❌ List invoices failed:', errorData);
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[StripeService] Step 3: Parsing response...');
+                console.log('[StripeService] Response data:', data);
+                
+                if (data.success && data.invoices) {
+                    console.log('[StripeService] ========== listInvoices() SUCCESS ==========');
+                    console.log('[StripeService] Total time:', `${Date.now() - startTime}ms`);
+                    return {
+                        success: true,
+                        invoices: data.invoices,
+                        count: data.count || data.invoices.length,
+                        error: null
+                    };
+                } else {
+                    throw new Error(data.error || 'Failed to list invoices');
+                }
+            }
+            
+            // No backend endpoint provided - return error with instructions
+            return {
+                success: false,
+                invoices: null,
+                count: 0,
+                error: 'Invoice listing requires a backend endpoint. Please set up a server endpoint (Supabase Edge Function) that uses your Stripe restricted key to list invoices.'
+            };
+        } catch (error) {
+            console.error('[StripeService] Error listing invoices:', error);
+            return {
+                success: false,
+                invoices: null,
+                count: 0,
+                error: error.message || 'Failed to list invoices'
+            };
+        }
+    }
+};
+
 if (typeof window !== 'undefined') {
     window.StripeService = StripeService;
 }

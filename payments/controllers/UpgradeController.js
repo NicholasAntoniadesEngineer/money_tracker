@@ -427,6 +427,28 @@ const UpgradeController = {
         if (updatePaymentBtn) {
             updatePaymentBtn.addEventListener('click', () => this.handleUpdatePayment());
         }
+        
+        // View Invoices button
+        const viewInvoicesBtn = document.getElementById('view-invoices-button');
+        if (viewInvoicesBtn) {
+            viewInvoicesBtn.addEventListener('click', () => this.handleViewInvoices());
+        }
+        
+        // Invoice modal close button
+        const invoiceModalClose = document.getElementById('invoice-modal-close');
+        if (invoiceModalClose) {
+            invoiceModalClose.addEventListener('click', () => this.closeInvoiceModal());
+        }
+        
+        // Close invoice modal when clicking outside
+        const invoiceModal = document.getElementById('invoice-modal');
+        if (invoiceModal) {
+            invoiceModal.addEventListener('click', (e) => {
+                if (e.target === invoiceModal) {
+                    this.closeInvoiceModal();
+                }
+            });
+        }
     },
     
     /**
@@ -1024,6 +1046,193 @@ const UpgradeController = {
                 button.textContent = 'Update Payment Method';
                 console.log('[UpgradeController] Button re-enabled');
             }
+        }
+    },
+    
+    /**
+     * Handle view invoices button click
+     * Fetches and displays invoices for the current user
+     */
+    async handleViewInvoices() {
+        console.log('[UpgradeController] ========== handleViewInvoices() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[UpgradeController] Step 1: Getting button element...');
+            const button = document.getElementById('view-invoices-button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Loading...';
+                console.log('[UpgradeController] ✅ Button found and disabled');
+            }
+            
+            console.log('[UpgradeController] Step 2: Checking authentication...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.error('[UpgradeController] ❌ User not authenticated');
+                throw new Error('User not authenticated');
+            }
+            console.log('[UpgradeController] ✅ User authenticated');
+            
+            console.log('[UpgradeController] Step 3: Getting subscription data...');
+            if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
+                console.error('[UpgradeController] ❌ No Stripe customer ID found');
+                throw new Error('No active subscription found. Invoices are only available for paid subscriptions.');
+            }
+            
+            const customerId = this.currentSubscription.stripe_customer_id;
+            console.log('[UpgradeController] ✅ Customer ID:', customerId);
+            
+            console.log('[UpgradeController] Step 4: Opening invoice modal...');
+            this.openInvoiceModal();
+            
+            console.log('[UpgradeController] Step 5: Fetching invoices from Stripe...');
+            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
+            
+            if (!window.StripeService) {
+                throw new Error('StripeService not available');
+            }
+            
+            const result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to fetch invoices');
+            }
+            
+            console.log('[UpgradeController] Step 6: Displaying invoices...');
+            this.displayInvoices(result.invoices || []);
+            
+            const totalElapsed = Date.now() - startTime;
+            console.log('[UpgradeController] ========== handleViewInvoices() SUCCESS ==========');
+            console.log('[UpgradeController] Total time:', `${totalElapsed}ms`);
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[UpgradeController] ========== handleViewInvoices() ERROR ==========');
+            console.error('[UpgradeController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                elapsed: `${totalElapsed}ms`
+            });
+            
+            this.displayInvoiceError(error.message || 'Failed to load invoices. Please try again.');
+            
+            const button = document.getElementById('view-invoices-button');
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'View Invoices';
+            }
+        }
+    },
+    
+    /**
+     * Open invoice modal
+     */
+    openInvoiceModal() {
+        const modal = document.getElementById('invoice-modal');
+        if (modal) {
+            modal.classList.add('active');
+            const body = document.getElementById('invoice-modal-body');
+            if (body) {
+                body.innerHTML = '<div class="invoice-loading">Loading invoices...</div>';
+            }
+        }
+    },
+    
+    /**
+     * Close invoice modal
+     */
+    closeInvoiceModal() {
+        const modal = document.getElementById('invoice-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+        
+        const button = document.getElementById('view-invoices-button');
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'View Invoices';
+        }
+    },
+    
+    /**
+     * Display invoices in modal
+     */
+    displayInvoices(invoices) {
+        const body = document.getElementById('invoice-modal-body');
+        if (!body) return;
+        
+        if (invoices.length === 0) {
+            body.innerHTML = '<div class="invoice-empty">No invoices found.</div>';
+            return;
+        }
+        
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+        };
+        
+        const formatCurrency = (amount, currency) => {
+            return new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: currency || 'EUR'
+            }).format(amount);
+        };
+        
+        const getStatusClass = (status) => {
+            const statusMap = {
+                'paid': 'paid',
+                'open': 'open',
+                'draft': 'draft',
+                'void': 'draft',
+                'uncollectible': 'draft'
+            };
+            return statusMap[status.toLowerCase()] || 'draft';
+        };
+        
+        const invoicesHTML = `
+            <ul class="invoice-list">
+                ${invoices.map(invoice => `
+                    <li class="invoice-item">
+                        <div class="invoice-item-info">
+                            <div class="invoice-item-number">Invoice ${invoice.number || invoice.id}</div>
+                            <div class="invoice-item-date">${formatDate(invoice.created)}</div>
+                            <div class="invoice-item-amount">${formatCurrency(invoice.amount_paid, invoice.currency)}</div>
+                        </div>
+                        <div>
+                            <span class="invoice-item-status ${getStatusClass(invoice.status)}">${invoice.status}</span>
+                        </div>
+                        <div class="invoice-item-actions">
+                            ${invoice.hosted_invoice_url ? `
+                                <a href="${invoice.hosted_invoice_url}" target="_blank" class="btn btn-action" style="text-decoration: none;">
+                                    View Invoice
+                                </a>
+                            ` : ''}
+                            ${invoice.invoice_pdf ? `
+                                <a href="${invoice.invoice_pdf}" target="_blank" class="btn btn-action" style="text-decoration: none;">
+                                    Download PDF
+                                </a>
+                            ` : ''}
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+        
+        body.innerHTML = invoicesHTML;
+    },
+    
+    /**
+     * Display invoice error in modal
+     */
+    displayInvoiceError(errorMessage) {
+        const body = document.getElementById('invoice-modal-body');
+        if (body) {
+            body.innerHTML = `<div class="invoice-error">${errorMessage}</div>`;
         }
     },
     
