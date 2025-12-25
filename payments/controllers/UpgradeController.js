@@ -323,9 +323,21 @@ const UpgradeController = {
         
         const currentPlanId = this.currentSubscription?.plan_id;
         
-        this.availablePlans.forEach((plan, index) => {
+        // Sort plans for mobile: paid plans first, then free plans
+        // This ensures Premium appears before Free on mobile
+        const sortedPlans = [...this.availablePlans].sort((a, b) => {
+            // Paid plans (price > 0) come first, sorted by price descending
+            // Free plans (price === 0) come last
+            if (a.price_amount === 0 && b.price_amount > 0) return 1;
+            if (a.price_amount > 0 && b.price_amount === 0) return -1;
+            // Both paid or both free: sort by price descending
+            return b.price_amount - a.price_amount;
+        });
+        
+        sortedPlans.forEach((plan, index) => {
             const isCurrentPlan = currentPlanId === plan.id;
-            const isRecommended = index === this.availablePlans.length - 1; // Last plan (highest tier) is recommended
+            // Recommended is the first paid plan (highest tier) - which is now index 0 after sorting
+            const isRecommended = index === 0 && plan.price_amount > 0;
             
             const planCard = document.createElement('div');
             planCard.className = `plan-card ${isCurrentPlan ? 'current' : ''} ${isRecommended ? 'recommended' : ''}`;

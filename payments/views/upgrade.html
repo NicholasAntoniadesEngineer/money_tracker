@@ -184,6 +184,47 @@
             .header-with-subscription {
                 grid-template-columns: 1fr !important;
             }
+            
+            /* Reduce spacing in plan cards for mobile */
+            .plan-card {
+                padding: var(--spacing-md);
+                min-height: auto;
+            }
+            
+            .plan-header {
+                margin-bottom: var(--spacing-sm);
+            }
+            
+            .plan-name {
+                font-size: 1.25rem;
+                margin-bottom: 0.25rem;
+            }
+            
+            .plan-price {
+                font-size: 1.75rem;
+                margin-bottom: 0.25rem;
+            }
+            
+            .plan-description {
+                margin-bottom: var(--spacing-sm);
+                min-height: 2rem;
+                font-size: 0.9rem;
+            }
+            
+            .plan-features {
+                margin: var(--spacing-sm) 0;
+                min-height: auto;
+            }
+            
+            .plan-features li {
+                padding: 0.25rem 0;
+                font-size: 0.9rem;
+                line-height: 1.4;
+            }
+            
+            .plan-actions {
+                padding-top: var(--spacing-sm);
+            }
         }
         
         .subscription-details-box #current-subscription-content {
