@@ -810,23 +810,40 @@ const StripeService = {
     }
 };
 
-if (typeof window !== 'undefined') {
-    console.log('[StripeService] Exposing StripeService to window object...');
-    window.StripeService = StripeService;
-    console.log('[StripeService] ✅ StripeService exposed to window');
-    console.log('[StripeService] Verification:', {
-        hasWindowStripeService: !!window.StripeService,
-        hasListInvoices: typeof window.StripeService.listInvoices === 'function',
-        serviceKeys: Object.keys(window.StripeService).slice(0, 10)
+try {
+    if (typeof window !== 'undefined') {
+        console.log('[StripeService] Exposing StripeService to window object...');
+        window.StripeService = StripeService;
+        console.log('[StripeService] ✅ StripeService exposed to window');
+        console.log('[StripeService] Verification:', {
+            hasWindowStripeService: !!window.StripeService,
+            hasListInvoices: typeof window.StripeService.listInvoices === 'function',
+            serviceKeys: Object.keys(window.StripeService).slice(0, 10)
+        });
+    } else {
+        console.warn('[StripeService] ⚠️ Window object not available, cannot expose StripeService');
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = StripeService;
+        console.log('[StripeService] ✅ StripeService exported as module');
+    }
+
+    console.log('[StripeService] ========== STRIPE SERVICE SCRIPT LOADED ==========');
+} catch (error) {
+    console.error('[StripeService] ❌ ERROR during StripeService initialization:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
     });
-} else {
-    console.warn('[StripeService] ⚠️ Window object not available, cannot expose StripeService');
+    // Still try to expose it even if there was an error
+    if (typeof window !== 'undefined') {
+        try {
+            window.StripeService = StripeService;
+            console.log('[StripeService] StripeService exposed despite error');
+        } catch (exposeError) {
+            console.error('[StripeService] Failed to expose StripeService:', exposeError);
+        }
+    }
 }
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = StripeService;
-    console.log('[StripeService] ✅ StripeService exported as module');
-}
-
-console.log('[StripeService] ========== STRIPE SERVICE SCRIPT LOADED ==========');
 
