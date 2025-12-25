@@ -32,12 +32,64 @@ const UpgradeController = {
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
             
-            // Check authentication
-            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
-                console.warn('[UpgradeController] User not authenticated, redirecting to auth...');
-                window.location.href = '../../../ui/views/auth.html';
+            // Wait for SupabaseConfig to be available
+            console.log('[UpgradeController] Waiting for SupabaseConfig...');
+            let waitCount = 0;
+            const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
+            while (!window.SupabaseConfig && waitCount < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            
+            if (!window.SupabaseConfig) {
+                console.error('[UpgradeController] SupabaseConfig not available after waiting');
+                this.showError('Configuration not available. Please refresh the page.');
                 return;
             }
+            
+            // Wait for AuthService to be available and initialized
+            console.log('[UpgradeController] Waiting for AuthService...');
+            waitCount = 0;
+            while (!window.AuthService && waitCount < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            
+            if (!window.AuthService) {
+                console.error('[UpgradeController] AuthService not available after waiting');
+                this.showError('Authentication service not available. Please refresh the page.');
+                return;
+            }
+            
+            // Initialize AuthService if needed
+            if (!window.AuthService.client) {
+                console.log('[UpgradeController] AuthService client not initialized, initializing...');
+                try {
+                    await window.AuthService.initialize();
+                    console.log('[UpgradeController] AuthService initialized');
+                } catch (initError) {
+                    console.error('[UpgradeController] Failed to initialize AuthService:', initError);
+                    this.showError('Failed to initialize authentication. Please refresh the page.');
+                    return;
+                }
+            }
+            
+            // Wait a bit for session check to complete (non-blocking, but give it time)
+            console.log('[UpgradeController] Waiting for session check to complete...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms for session check
+            
+            // Check authentication
+            if (!window.AuthService.isAuthenticated()) {
+                console.warn('[UpgradeController] User not authenticated, redirecting to auth...');
+                const baseUrl = window.location.origin;
+                const currentPath = window.location.pathname;
+                const basePath = currentPath.includes('/payments/') ? '../../../' : '';
+                const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                window.location.href = authUrl;
+                return;
+            }
+            
+            console.log('[UpgradeController] User authenticated, proceeding...');
             
             // Load current subscription and available plans
             await Promise.all([
