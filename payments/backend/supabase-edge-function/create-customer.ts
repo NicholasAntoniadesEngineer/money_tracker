@@ -10,7 +10,6 @@
  * 3. Name it: create-customer
  * 4. Copy the code from this file into the function
  * 5. Set environment variable: STRIPE_RESTRICTED_KEY = your_stripe_restricted_key_here
- *    (Get this from Stripe Dashboard → Developers → API keys)
  * 6. Deploy the function
  * 
  * USAGE:

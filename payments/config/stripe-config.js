@@ -5,14 +5,10 @@
  */
 
 const StripeConfig = {
-    // SECURITY WARNING:
-    // - Publishable keys (pk_*) are safe to expose in client-side code
-    // - Secret keys (sk_*) and Restricted keys (rk_*) MUST NEVER be in client-side code
-    // - Replace this with your actual publishable key from Stripe Dashboard
-    // - For production, consider loading from environment variables or a config service
-    PUBLISHABLE_KEY: '', // TODO: Set your Stripe publishable key here (pk_test_... or pk_live_...)
-    // SECRET_KEY and RESTRICTED_KEY removed - these should NEVER be in client-side code
-    // Use Edge Functions with environment variables for server-side operations
+    PUBLISHABLE_KEY: 'pk_test_51QAQyCClUqvgxZvpgpfE0qWj3sOl3FbVBEhGS1uLOWdl8zyMK2z3LWGijvw0y4cn04EvydDqdK26VD7tcy1Qx1q40073PZrcmn',
+    // SECRET_KEY and RESTRICTED_KEY removed for security
+    // These keys should ONLY be used in server-side Edge Functions via environment variables
+    // Never expose secret keys (sk_...) or restricted keys (rk_...) in client-side code
     SUBSCRIPTION_PRICE_AMOUNT: 500, // 5 EUR in cents
     SUBSCRIPTION_PRICE_CURRENCY: 'eur',
     TRIAL_PERIOD_DAYS: 30,
@@ -52,15 +48,26 @@ const StripeConfig = {
     },
     
     /**
-     * SECURITY WARNING: Secret and restricted keys have been removed
-     * These should NEVER be in client-side code or version control
-     * Use Edge Functions with environment variables for server-side operations
-     * 
-     * To use Stripe server-side:
-     * 1. Set STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY in Edge Function environment variables
-     * 2. Call Edge Functions from client-side code
-     * 3. Never expose secret keys in client-side JavaScript
+     * Get restricted key (for server-side use only)
+     * Note: Secret keys are no longer stored in this file for security.
+     * Use environment variables in Edge Functions instead.
+     * @returns {string} Empty string - keys must be set in Edge Function environment variables
      */
+    getRestrictedKey() {
+        console.warn('[StripeConfig] getRestrictedKey() called - secret keys should be in Edge Function environment variables, not client code');
+        return '';
+    },
+    
+    /**
+     * Get secret key (for server-side use only)
+     * Note: Secret keys are no longer stored in this file for security.
+     * Use environment variables in Edge Functions instead.
+     * @returns {string} Empty string - keys must be set in Edge Function environment variables
+     */
+    getSecretKey() {
+        console.warn('[StripeConfig] getSecretKey() called - secret keys should be in Edge Function environment variables, not client code');
+        return '';
+    }
 };
 
 if (typeof window !== 'undefined') {
