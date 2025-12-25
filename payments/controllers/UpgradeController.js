@@ -1182,52 +1182,109 @@ const UpgradeController = {
                 stripeServiceType: typeof window.StripeService
             });
             
-            if (!window.StripeService) {
-                console.error('[UpgradeController] ❌ StripeService not available after waiting');
-                console.error('[UpgradeController] Diagnostic information:', {
-                    windowType: typeof window,
-                    hasWindow: typeof window !== 'undefined',
-                    allWindowKeys: Object.keys(window).slice(0, 50), // First 50 keys
-                    scripts: Array.from(document.querySelectorAll('script[src]')).map(s => s.src),
-                    stripeServiceScriptExists: !!document.querySelector('script[src*="StripeService"]')
-                });
-                throw new Error('StripeService not available. The script may not have loaded. Please check the browser console for script loading errors and refresh the page.');
-            }
-            
-            if (typeof window.StripeService.listInvoices !== 'function') {
-                console.error('[UpgradeController] ❌ StripeService.listInvoices is not a function');
-                console.error('[UpgradeController] StripeService methods:', Object.keys(window.StripeService));
-                throw new Error('StripeService.listInvoices method not available. The service may not be fully loaded.');
-            }
-            
-            console.log('[UpgradeController] ✅ StripeService available with listInvoices method');
-            console.log('[UpgradeController] Step 6: Fetching invoices from Stripe...');
-            console.log('[UpgradeController] SupabaseConfig check:', {
-                hasSupabaseConfig: !!window.SupabaseConfig,
-                supabaseConfigType: typeof window.SupabaseConfig,
-                hasProjectUrl: !!(window.SupabaseConfig?.PROJECT_URL),
-                projectUrl: window.SupabaseConfig?.PROJECT_URL || 'not found'
-            });
+            // Fallback: Call Edge Function directly if StripeService is not available
             const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
-            console.log('[UpgradeController] Backend endpoint constructed:', {
-                supabaseProjectUrl: supabaseProjectUrl,
-                backendEndpoint: backendEndpoint,
-                endpointLength: backendEndpoint.length
-            });
             
-            console.log('[UpgradeController] Calling StripeService.listInvoices with:', {
-                customerId: customerId,
-                customerIdType: typeof customerId,
-                customerIdLength: customerId?.length,
-                limit: 20,
-                limitType: typeof 20,
-                backendEndpoint: backendEndpoint,
-                backendEndpointType: typeof backendEndpoint
-            });
-            console.log('[UpgradeController] About to call StripeService.listInvoices...');
+            let result;
             
-            const result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
+            if (!window.StripeService) {
+                console.warn('[UpgradeController] ⚠️ StripeService not available, using direct Edge Function call as fallback');
+                console.log('[UpgradeController] Calling Edge Function directly...');
+                
+                // Get access token from AuthService
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                            console.log('[UpgradeController] ✅ Access token obtained');
+                        } else {
+                            console.warn('[UpgradeController] ⚠️ No access token in session');
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] ⚠️ Error getting session:', sessionError);
+                    }
+                }
+                
+                console.log('[UpgradeController] Direct Edge Function call:', {
+                    endpoint: backendEndpoint,
+                    customerId: customerId,
+                    limit: 20,
+                    hasAccessToken: !!accessToken
+                });
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        limit: 20
+                    })
+                });
+                
+                console.log('[UpgradeController] Edge Function response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[UpgradeController] Edge Function response data:', {
+                    success: data.success,
+                    hasInvoices: !!(data.invoices && data.invoices.length > 0),
+                    invoiceCount: data.invoices ? data.invoices.length : 0
+                });
+                
+                result = {
+                    success: data.success || false,
+                    invoices: data.invoices || [],
+                    count: data.count || (data.invoices ? data.invoices.length : 0),
+                    error: data.error || null
+                };
+            } else {
+                if (typeof window.StripeService.listInvoices !== 'function') {
+                    console.error('[UpgradeController] ❌ StripeService.listInvoices is not a function');
+                    console.error('[UpgradeController] StripeService methods:', Object.keys(window.StripeService));
+                    throw new Error('StripeService.listInvoices method not available. The service may not be fully loaded.');
+                }
+                
+                console.log('[UpgradeController] ✅ StripeService available with listInvoices method');
+                console.log('[UpgradeController] Step 6: Fetching invoices from Stripe...');
+                console.log('[UpgradeController] SupabaseConfig check:', {
+                    hasSupabaseConfig: !!window.SupabaseConfig,
+                    supabaseConfigType: typeof window.SupabaseConfig,
+                    hasProjectUrl: !!(window.SupabaseConfig?.PROJECT_URL),
+                    projectUrl: window.SupabaseConfig?.PROJECT_URL || 'not found'
+                });
+                console.log('[UpgradeController] Backend endpoint constructed:', {
+                    supabaseProjectUrl: supabaseProjectUrl,
+                    backendEndpoint: backendEndpoint,
+                    endpointLength: backendEndpoint.length
+                });
+                
+                console.log('[UpgradeController] Calling StripeService.listInvoices with:', {
+                    customerId: customerId,
+                    customerIdType: typeof customerId,
+                    customerIdLength: customerId?.length,
+                    limit: 20,
+                    limitType: typeof 20,
+                    backendEndpoint: backendEndpoint,
+                    backendEndpointType: typeof backendEndpoint
+                });
+                console.log('[UpgradeController] About to call StripeService.listInvoices...');
+                
+                result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
+            }
             
             console.log('[UpgradeController] StripeService.listInvoices result:', {
                 success: result.success,
