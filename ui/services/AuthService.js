@@ -68,7 +68,7 @@ const AuthService = {
             // Check for existing session with timeout to prevent hanging
             // Make this non-blocking - if it hangs, we'll continue without session
             const sessionCheckStartTime = Date.now();
-            let sessionCheckCompleted = false; // Flag to track if session check already completed
+            const sessionCheckState = { completed: false }; // Use object to ensure proper closure access
             console.log('[AuthService] ========== SESSION CHECK STARTED ==========');
             console.log('[AuthService] Checking for existing session (non-blocking)...');
             console.log('[AuthService] Session check start time:', new Date().toISOString());
@@ -92,7 +92,7 @@ const AuthService = {
                 console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
                 const timeoutId = setTimeout(() => {
                     const elapsed = Date.now() - sessionCheckStartTime;
-                    if (sessionCheckCompleted) {
+                    if (sessionCheckState.completed) {
                         console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
                         console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
                         return; // Don't reject if already completed
@@ -111,7 +111,7 @@ const AuthService = {
             const sessionCheckPromise = Promise.race([
                 getSessionPromise.then(result => {
                     const elapsed = Date.now() - sessionCheckStartTime;
-                    sessionCheckCompleted = true; // Mark as completed
+                    sessionCheckState.completed = true; // Mark as completed
                     console.log('[AuthService] ========== GETSESSION RESOLVED ==========');
                     console.log('[AuthService] getSession() resolved after', elapsed, 'ms');
                     console.log('[AuthService] Resolution time:', new Date().toISOString());
@@ -127,7 +127,7 @@ const AuthService = {
                     return result;
                 }).catch(error => {
                     const elapsed = Date.now() - sessionCheckStartTime;
-                    sessionCheckCompleted = true; // Mark as completed even on error
+                    sessionCheckState.completed = true; // Mark as completed even on error
                     console.error('[AuthService] ========== GETSESSION REJECTED ==========');
                     console.error('[AuthService] getSession() rejected after', elapsed, 'ms');
                     console.error('[AuthService] Rejection time:', new Date().toISOString());
@@ -141,7 +141,7 @@ const AuthService = {
                 }),
                 timeoutPromise
             ]).then(result => {
-                sessionCheckCompleted = true; // Mark as completed when race resolves
+                sessionCheckState.completed = true; // Mark as completed when race resolves
                 const elapsed = Date.now() - sessionCheckStartTime;
                 console.log('[AuthService] ========== PROMISE.RACE RESOLVED ==========');
                 console.log('[AuthService] Promise.race resolved after', elapsed, 'ms');
@@ -219,7 +219,7 @@ const AuthService = {
                 console.log('[AuthService] Session check completed', finalElapsed < SESSION_CHECK_TIMEOUT_MS ? 'before' : 'after', 'timeout');
             }).catch(error => {
                 const elapsed = Date.now() - sessionCheckStartTime;
-                sessionCheckCompleted = true; // Mark as completed when catch is called
+                sessionCheckState.completed = true; // Mark as completed when catch is called
                 console.log('[AuthService] ========== SESSION CHECK CATCH ==========');
                 console.log('[AuthService] Promise.race caught error after', elapsed, 'ms');
                 console.log('[AuthService] Catch time:', new Date().toISOString());
@@ -1533,7 +1533,7 @@ const AuthService = {
     /**
      * Redirect to sign-in page
      * Private helper method
-     * Always redirects directly to auth.html
+     * Always redirects directly to auth.html using absolute URL
      * @private
      */
     _redirectToSignIn() {
@@ -1547,24 +1547,35 @@ const AuthService = {
             return;
         }
         
-        // Determine the correct path to auth.html
-        let authPath;
-        if (currentPath.includes('/views/')) {
-            // We're in views folder, auth.html is in same folder
-            authPath = 'auth.html';
-        } else if (currentPath.includes('/ui/')) {
-            // We're in ui folder, auth.html is in views subfolder
-            authPath = 'views/auth.html';
-        } else {
-            // Default fallback
-            authPath = 'views/auth.html';
+        // Construct absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+        
+        // Find the base path (everything before 'ui' or 'payments')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
         }
         
-        console.log('[AuthService] Redirecting to:', authPath);
+        // Construct the auth URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        
+        console.log('[AuthService] Redirecting to:', authUrl);
+        console.log('[AuthService] Path calculation:', {
+            currentPath: currentPath,
+            pathParts: pathParts,
+            basePathParts: basePathParts,
+            basePath: basePath,
+            authUrl: authUrl
+        });
         console.log('[AuthService] Executing redirect now...');
         
         // Direct redirect - no delays, no AuthGuard logic
-        window.location.href = authPath;
+        window.location.href = authUrl;
     },
 
     /**
