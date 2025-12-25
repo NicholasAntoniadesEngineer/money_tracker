@@ -414,7 +414,94 @@ const UpgradeController = {
                 return;
             }
             
-            // For downgrades: use update-subscription Edge Function (scheduled)
+            // For Free plan (€0): update directly without Stripe checkout
+            // This handles both new subscriptions to Free and downgrades to Free
+            if (priceAmount === 0) {
+                console.log('[UpgradeController] Processing Free plan selection (no payment required)...');
+                
+                if (!window.SubscriptionService) {
+                    throw new Error('SubscriptionService not available');
+                }
+                
+                // Check if user has an active paid subscription with Stripe
+                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
+                const hasStripeSubscription = subscriptionResult.success && 
+                    subscriptionResult.subscription && 
+                    subscriptionResult.subscription.subscription_type === 'paid' &&
+                    subscriptionResult.subscription.stripe_subscription_id;
+                
+                // If user has a Stripe subscription, cancel it via update-subscription Edge Function
+                if (hasStripeSubscription) {
+                    console.log('[UpgradeController] Cancelling Stripe subscription before switching to Free...');
+                    
+                    const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                    const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                    
+                    // Get auth token
+                    let authToken = null;
+                    if (window.AuthService && window.AuthService.isAuthenticated()) {
+                        authToken = window.AuthService.getAccessToken();
+                    }
+                    
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    if (authToken) {
+                        headers['Authorization'] = `Bearer ${authToken}`;
+                    }
+                    
+                    // Cancel Stripe subscription immediately and update to Free
+                    const response = await fetch(updateEndpoint, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            userId: currentUser.id,
+                            customerId: subscriptionResult.subscription.stripe_customer_id,
+                            currentSubscriptionId: subscriptionResult.subscription.stripe_subscription_id,
+                            newPlanId: planId,
+                            changeType: 'downgrade',
+                            recurringBillingEnabled: false // Disable recurring billing for Free plan
+                        }),
+                        credentials: 'omit'
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: 'Failed to cancel subscription' }));
+                        console.warn('[UpgradeController] Failed to cancel Stripe subscription, proceeding with direct update:', errorData.error);
+                        // Continue with direct update even if Stripe cancellation fails
+                    } else {
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('[UpgradeController] Stripe subscription cancelled successfully');
+                        }
+                    }
+                }
+                
+                // Update subscription directly to Free plan
+                const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
+                    plan_id: planId,
+                    subscription_type: 'trial', // Free plan is trial type
+                    status: 'active',
+                    stripe_subscription_id: null, // Clear Stripe subscription ID
+                    recurring_billing_enabled: false // Disable recurring billing for Free plan
+                });
+                
+                if (updateResult.success) {
+                    alert(`Successfully switched to ${planName}!`);
+                    
+                    // Reload subscription and plans to refresh the display
+                    await this.loadCurrentSubscription();
+                    await this.loadAvailablePlans();
+                    await this.renderPlans();
+                } else {
+                    throw new Error(updateResult.error || 'Failed to switch to Free plan');
+                }
+                
+                return;
+            }
+            
+            // For downgrades (to paid plans): use update-subscription Edge Function (scheduled)
             if (isDowngrade) {
                 console.log('[UpgradeController] Processing downgrade (scheduled)...');
                 
@@ -453,8 +540,11 @@ const UpgradeController = {
                     headers: headers,
                     body: JSON.stringify({
                         userId: currentUser.id,
-                        planId: planId,
-                        changeType: 'downgrade'
+                        customerId: subscriptionResult.subscription.stripe_customer_id,
+                        currentSubscriptionId: subscriptionResult.subscription.stripe_subscription_id,
+                        newPlanId: planId,
+                        changeType: 'downgrade',
+                        recurringBillingEnabled: subscriptionResult.subscription.recurring_billing_enabled !== false
                     }),
                     credentials: 'omit'
                 });
@@ -475,35 +565,6 @@ const UpgradeController = {
                     await this.renderPlans();
                 } else {
                     throw new Error(result.error || 'Failed to schedule downgrade');
-                }
-                
-                return;
-            }
-            
-            // For Free plan (€0): update directly without Stripe checkout
-            if (priceAmount === 0) {
-                console.log('[UpgradeController] Processing Free plan selection (no payment required)...');
-                
-                if (!window.SubscriptionService) {
-                    throw new Error('SubscriptionService not available');
-                }
-                
-                // Update subscription directly to Free plan
-                const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
-                    plan_id: planId,
-                    subscription_type: 'trial', // Free plan is trial type
-                    status: 'active'
-                });
-                
-                if (updateResult.success) {
-                    alert(`Successfully switched to ${planName}!`);
-                    
-                    // Reload subscription and plans to refresh the display
-                    await this.loadCurrentSubscription();
-                    await this.loadAvailablePlans();
-                    await this.renderPlans();
-                } else {
-                    throw new Error(updateResult.error || 'Failed to switch to Free plan');
                 }
                 
                 return;
