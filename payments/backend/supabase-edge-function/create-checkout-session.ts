@@ -26,15 +26,24 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno"
 
 // Initialize Stripe with restricted key (safer) or secret key (fallback)
-const stripeKey = Deno.env.get("STRIPE_RESTRICTED_KEY") || Deno.env.get("STRIPE_SECRET_KEY")
+// Note: This initialization happens at module load time, but errors won't affect OPTIONS requests
+let stripe: Stripe | null = null
 
-if (!stripeKey) {
-  throw new Error("STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY environment variable is required")
+try {
+  const stripeKey = Deno.env.get("STRIPE_RESTRICTED_KEY") || Deno.env.get("STRIPE_SECRET_KEY")
+  
+  if (!stripeKey) {
+    console.warn("[create-checkout-session] ⚠️ STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY not set - will fail on POST requests")
+  } else {
+    stripe = new Stripe(stripeKey, {
+      apiVersion: "2023-10-16",
+    })
+    console.log("[create-checkout-session] ✅ Stripe initialized successfully")
+  }
+} catch (initError) {
+  console.error("[create-checkout-session] ❌ Stripe initialization error:", initError)
+  // Don't throw - allow OPTIONS requests to work even if Stripe init fails
 }
-
-const stripe = new Stripe(stripeKey, {
-  apiVersion: "2023-10-16",
-})
 
 // Subscription configuration
 const SUBSCRIPTION_PRICE_AMOUNT = 500 // 5 EUR in cents
@@ -42,13 +51,15 @@ const SUBSCRIPTION_CURRENCY = "eur"
 const SUBSCRIPTION_INTERVAL = "month"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests - MUST return 200 status explicitly
   if (req.method === "OPTIONS") {
     return new Response(null, {
+      status: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
       },
     })
   }
@@ -59,6 +70,21 @@ serve(async (req) => {
       JSON.stringify({ error: "Method not allowed. Use POST." }),
       { 
         status: 405,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        } 
+      }
+    )
+  }
+
+  // Check if Stripe is initialized
+  if (!stripe) {
+    console.error("[create-checkout-session] ❌ Stripe not initialized - check environment variables")
+    return new Response(
+      JSON.stringify({ error: "Server configuration error: Stripe not initialized" }),
+      { 
+        status: 500,
         headers: { 
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",

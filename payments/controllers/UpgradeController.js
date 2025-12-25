@@ -7,13 +7,17 @@
 
 // Log immediately when file loads to verify latest code
 const BUILD_ID = Date.now();
-console.log('[UpgradeController] ========== FILE LOADED ==========');
+const FILE_LOAD_TIME = new Date().toISOString();
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('[UpgradeController] ═════ FILE LOADED ═════');
 console.log('[UpgradeController] VERSION: 2.0.0-with-session-wait');
 console.log('[UpgradeController] LAST_UPDATED: 2025-12-25T18:53:00Z');
 console.log('[UpgradeController] BUILD_ID:', BUILD_ID);
-console.log('[UpgradeController] File loaded at:', new Date().toISOString());
-console.log('[UpgradeController] ✅ This confirms the NEW code with session polling is loaded');
-console.log('[UpgradeController] Look for "SESSION WAIT STARTED (NEW CODE PATH)" in logs to verify new code execution');
+console.log('[UpgradeController] File loaded at:', FILE_LOAD_TIME);
+console.log('[UpgradeController] ✅✅✅ NEW CODE WITH SESSION POLLING LOADED ✅✅✅');
+console.log('[UpgradeController] If you see this message, the latest code is running!');
+console.log('[UpgradeController] Look for "SESSION WAIT STARTED (NEW CODE PATH)" in logs');
+console.log('═══════════════════════════════════════════════════════════════');
 
 const UpgradeController = {
     VERSION: '2.0.0-with-session-wait',

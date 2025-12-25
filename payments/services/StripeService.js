@@ -112,11 +112,27 @@ const StripeService = {
                     console.log('[StripeService] Request body:', requestBody);
                     
                     const fetchStartTime = Date.now();
-                    const response = await fetch(backendEndpoint, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(requestBody)
-                    });
+                    let response;
+                    try {
+                        response = await fetch(backendEndpoint, {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(requestBody),
+                            // Add credentials to help with CORS
+                            credentials: 'omit'
+                        });
+                    } catch (fetchError) {
+                        // Handle CORS/preflight errors specifically
+                        if (fetchError.message.includes('CORS') || fetchError.message.includes('preflight') || fetchError.message.includes('Load failed')) {
+                            console.error('[StripeService] ❌ CORS/Preflight error:', fetchError.message);
+                            console.error('[StripeService] This usually means:');
+                            console.error('[StripeService] 1. The Edge Function is not deployed or not accessible');
+                            console.error('[StripeService] 2. The Edge Function is not handling OPTIONS requests correctly');
+                            console.error('[StripeService] 3. There is a network/CORS configuration issue');
+                            throw new Error(`CORS error: The backend endpoint may not be properly configured. Please check that the Edge Function is deployed and handles OPTIONS requests. Original error: ${fetchError.message}`);
+                        }
+                        throw fetchError;
+                    }
                     const fetchElapsed = Date.now() - fetchStartTime;
                     
                     console.log('[StripeService] Fetch response received:', {
@@ -133,7 +149,17 @@ const StripeService = {
                             statusText: response.statusText,
                             errorText: errorText
                         });
-                        throw new Error(`Backend error: ${errorText}`);
+                        
+                        // Provide more helpful error messages
+                        if (response.status === 400) {
+                            throw new Error(`Bad request (400): ${errorText || 'Invalid request parameters. Please check the request data.'}`);
+                        } else if (response.status === 401) {
+                            throw new Error(`Unauthorized (401): ${errorText || 'Authentication failed. Please ensure you are logged in.'}`);
+                        } else if (response.status === 500) {
+                            throw new Error(`Server error (500): ${errorText || 'The backend encountered an error. Please try again later.'}`);
+                        } else {
+                            throw new Error(`Backend error (${response.status}): ${errorText || response.statusText}`);
+                        }
                     }
                     
                     console.log('[StripeService] Step 4: Parsing response...');

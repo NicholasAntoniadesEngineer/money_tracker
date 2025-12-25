@@ -220,11 +220,11 @@ class Header {
                 console.warn('[Header] SupabaseConfig not available after waiting, skipping AuthService initialization');
             } else {
                 console.log('[Header] SupabaseConfig available, initializing AuthService...');
-                try {
-                    await window.AuthService.initialize();
-                    console.log('[Header] AuthService initialized');
-                } catch (error) {
-                    console.warn('[Header] AuthService initialization failed:', error);
+            try {
+                await window.AuthService.initialize();
+                console.log('[Header] AuthService initialized');
+            } catch (error) {
+                console.warn('[Header] AuthService initialization failed:', error);
                 }
             }
         } else {

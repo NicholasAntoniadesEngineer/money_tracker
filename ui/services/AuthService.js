@@ -127,7 +127,7 @@ const AuthService = {
                     console.log('[AuthService] reject function accessible:', typeof reject !== 'undefined' ? 'YES' : 'NO');
                     console.log('[AuthService] timeoutIdRef accessible:', typeof timeoutIdRef !== 'undefined' ? timeoutIdRef : 'UNDEFINED');
                     
-                    console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
+                console.log('[AuthService] Timeout promise created, will reject after', SESSION_CHECK_TIMEOUT_MS, 'ms');
                     console.log('[AuthService] About to call setTimeout...');
                     
                     try {
@@ -140,20 +140,20 @@ const AuthService = {
                             console.log('[AuthService] - sessionCheckState.completed:', typeof sessionCheckState !== 'undefined' && typeof sessionCheckState.completed !== 'undefined' ? sessionCheckState.completed : 'UNDEFINED');
                             console.log('[AuthService] - SESSION_CHECK_TIMEOUT_MS:', typeof SESSION_CHECK_TIMEOUT_MS !== 'undefined' ? SESSION_CHECK_TIMEOUT_MS : 'UNDEFINED');
                             
-                            const elapsed = Date.now() - sessionCheckStartTime;
+                    const elapsed = Date.now() - sessionCheckStartTime;
                             console.log('[AuthService] Elapsed time calculated:', elapsed, 'ms');
                             
                             if (sessionCheckState.completed) {
-                                console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
-                                console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
-                                return; // Don't reject if already completed
-                            }
-                            console.log('[AuthService] ========== TIMEOUT TRIGGERED ==========');
-                            console.log('[AuthService] Timeout triggered after', elapsed, 'ms');
-                            console.log('[AuthService] Timeout time:', new Date().toISOString());
-                            console.log('[AuthService] getSession() did not resolve within timeout period');
-                            reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
-                        }, SESSION_CHECK_TIMEOUT_MS);
+                        console.log('[AuthService] Timeout triggered but session check already completed - ignoring timeout');
+                        console.log('[AuthService] Timeout occurred', elapsed, 'ms after start (session check completed earlier)');
+                        return; // Don't reject if already completed
+                    }
+                    console.log('[AuthService] ========== TIMEOUT TRIGGERED ==========');
+                    console.log('[AuthService] Timeout triggered after', elapsed, 'ms');
+                    console.log('[AuthService] Timeout time:', new Date().toISOString());
+                    console.log('[AuthService] getSession() did not resolve within timeout period');
+                    reject(new Error(`Session check timeout after ${SESSION_CHECK_TIMEOUT_MS / 1000} seconds`));
+                }, SESSION_CHECK_TIMEOUT_MS);
                         console.log('[AuthService] setTimeout called successfully, timeoutIdRef set to:', timeoutIdRef);
                     } catch (setTimeoutError) {
                         console.error('[AuthService] ERROR in setTimeout call:', setTimeoutError);
