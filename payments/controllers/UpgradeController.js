@@ -772,7 +772,7 @@ const UpgradeController = {
                 throw new Error(result.error || 'Failed to create checkout session');
             }
             
-            if (result.sessionId) {
+            if (result.sessionId || result.url) {
                 // Store customer ID if returned (non-blocking - webhook will also update this)
                 // Use a timeout to ensure redirect happens even if update is slow
                 if (result.customerId && window.SubscriptionService) {
@@ -788,9 +788,20 @@ const UpgradeController = {
                 }
                 
                 console.log('[UpgradeController] Redirecting to Stripe Checkout...');
-                const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
-                if (!redirectResult.success) {
-                    throw new Error(redirectResult.error || 'Failed to redirect to checkout');
+                
+                // If we have a direct URL (from fallback), use it
+                if (result.url) {
+                    console.log('[UpgradeController] Using direct checkout URL:', result.url);
+                    window.location.href = result.url;
+                } else if (result.sessionId && window.StripeService && typeof window.StripeService.redirectToCheckout === 'function') {
+                    // If we have StripeService, use its redirect method
+                    console.log('[UpgradeController] Using StripeService.redirectToCheckout()');
+                    const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
+                    if (!redirectResult.success) {
+                        throw new Error(redirectResult.error || 'Failed to redirect to checkout');
+                    }
+                } else {
+                    throw new Error('No checkout URL or session ID available for redirect');
                 }
             } else {
                 throw new Error('Checkout session requires backend implementation.');
