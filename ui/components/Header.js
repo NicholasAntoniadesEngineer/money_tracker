@@ -62,7 +62,7 @@ class Header {
         
         // If we're at root or in ui/ but not in views/, paths go to views/
         if (path.includes('/ui/')) {
-            return 'views/';
+        return 'views/';
         }
         
         // Default: assume we're at root level
@@ -319,10 +319,24 @@ class Header {
             
             const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
             const basePath = this.getBasePath();
-            const isInViews = window.location.pathname.includes('/views/');
+            const path = window.location.pathname;
+            const isInPaymentsViews = path.includes('/payments/views/');
+            const isInUiViews = path.includes('/ui/views/');
             
             if (isAuthenticated) {
-                const landingPageUrl = isInViews ? '../index.html' : 'index.html';
+                // Determine landing page URL based on current location (same logic as render method)
+                let landingPageUrl;
+                if (isInPaymentsViews) {
+                    landingPageUrl = '../../ui/index.html';
+                } else if (isInUiViews) {
+                    landingPageUrl = '../index.html';
+                } else if (path.includes('/payments/')) {
+                    landingPageUrl = '../ui/index.html';
+                } else if (path.includes('/ui/')) {
+                    landingPageUrl = 'index.html';
+                } else {
+                    landingPageUrl = 'ui/index.html';
+                }
                 window.location.href = landingPageUrl;
             } else {
                 const authPageUrl = basePath + 'auth.html';

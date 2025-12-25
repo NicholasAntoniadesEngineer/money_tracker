@@ -34,6 +34,11 @@ const PaymentController = {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.refreshSubscriptionData());
         }
+        
+        const managePaymentMethodBtn = document.getElementById('manage-payment-method-button');
+        if (managePaymentMethodBtn) {
+            managePaymentMethodBtn.addEventListener('click', () => this.handleManagePaymentMethod());
+        }
     },
     
     /**
@@ -144,21 +149,32 @@ const PaymentController = {
         const subscriptionSection = statusContainer ? statusContainer.closest('.subscription-section') : null;
         const subscriptionHeading = subscriptionSection ? subscriptionSection.querySelector('h2.section-title') : null;
         const startSubscriptionBtn = document.getElementById('start-subscription-button');
+        const managePaymentMethodBtn = document.getElementById('manage-payment-method-button');
         const statusDiv = document.getElementById('subscription-status');
         const subscriptionDetailsContainer = document.getElementById('subscription-details');
         const subscriptionDetailsContent = document.getElementById('subscription-details-content');
+        
+        console.log('[PaymentController] Button elements found:', {
+            hasStartBtn: !!startSubscriptionBtn,
+            hasManagePaymentBtn: !!managePaymentMethodBtn
+        });
         
         if (!statusContainer || !statusMessage) {
             return;
         }
         
-        if (!this.currentSubscription) {
+            if (!this.currentSubscription) {
             statusMessage.textContent = 'No subscription found. Please subscribe to access the application.';
             statusMessage.className = 'subscription-message subscription-message-error';
             statusMessage.style.backgroundColor = 'rgba(181, 138, 138, 0.2)';
             statusMessage.style.border = 'var(--border-width-standard) solid var(--danger-color)';
             if (startSubscriptionBtn) {
                 startSubscriptionBtn.style.display = 'block';
+            }
+            // Always show payment method button - users can add payment method even without subscription
+            if (managePaymentMethodBtn) {
+                managePaymentMethodBtn.style.display = 'block';
+                managePaymentMethodBtn.textContent = 'Add Payment Method';
             }
             if (subscriptionDetailsContainer) {
                 subscriptionDetailsContainer.style.display = 'none';
@@ -170,6 +186,15 @@ const PaymentController = {
         const plan = this.currentPlan;
         
         const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
+        
+        console.log('[PaymentController] Subscription data:', {
+            subscriptionType: subscription.subscription_type,
+            status: subscription.status,
+            hasStripeCustomerId: !!subscription.stripe_customer_id,
+            stripeCustomerId: subscription.stripe_customer_id,
+            hasStripeSubscriptionId: !!subscription.stripe_subscription_id,
+            stripeSubscriptionId: subscription.stripe_subscription_id
+        });
         
         if (subscriptionHeading) {
             subscriptionHeading.textContent = 'Subscription';
@@ -192,6 +217,11 @@ const PaymentController = {
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'block';
                 }
+                // Always show payment method button, even for expired trials
+                if (managePaymentMethodBtn) {
+                    managePaymentMethodBtn.style.display = 'block';
+                    managePaymentMethodBtn.textContent = subscription.stripe_customer_id ? 'Update Payment Method' : 'Add Payment Method';
+                }
             } else {
                 // Hide status message when subscription details are shown (details table has all info)
                 statusText = '';
@@ -200,6 +230,17 @@ const PaymentController = {
                 statusBorderColor = 'transparent';
                 if (startSubscriptionBtn) {
                     startSubscriptionBtn.style.display = 'none';
+                }
+                // Always show "Add Payment Method" button for trial users so they can convert to paid
+                // If they already have a customer ID, they can update; otherwise we'll create one
+                if (managePaymentMethodBtn) {
+                    managePaymentMethodBtn.style.display = 'block';
+                    // Change button text for trial users
+                    if (!subscription.stripe_customer_id) {
+                        managePaymentMethodBtn.textContent = 'Add Payment Method';
+                    } else {
+                        managePaymentMethodBtn.textContent = 'Update Payment Method';
+                    }
                 }
             }
         } else if (subscription.status === 'active') {
@@ -232,13 +273,28 @@ const PaymentController = {
             if (startSubscriptionBtn) {
                 startSubscriptionBtn.style.display = 'none';
             }
+            
+            // Always show payment method button for active subscriptions
+            if (managePaymentMethodBtn) {
+                const hasCustomerId = !!subscription.stripe_customer_id;
+                managePaymentMethodBtn.style.display = 'block';
+                managePaymentMethodBtn.textContent = hasCustomerId ? 'Update Payment Method' : 'Add Payment Method';
+                console.log('[PaymentController] Showing payment method button - active subscription');
+            }
         } else {
+            // For any other status (expired, cancelled, etc.), still show payment method button
             statusText = `Your subscription status: ${subscription.status}. Please subscribe to continue.`;
             statusClass = 'subscription-message-error';
             statusBgColor = 'rgba(181, 138, 138, 0.2)';
             statusBorderColor = 'var(--danger-color)';
             if (startSubscriptionBtn) {
                 startSubscriptionBtn.style.display = 'block';
+            }
+            // Always show payment method button - users can always add/update payment method
+            if (managePaymentMethodBtn) {
+                managePaymentMethodBtn.style.display = 'block';
+                const hasCustomerId = !!subscription.stripe_customer_id;
+                managePaymentMethodBtn.textContent = hasCustomerId ? 'Update Payment Method' : 'Add Payment Method';
             }
         }
         
@@ -430,6 +486,19 @@ const PaymentController = {
             }
             
             if (result.sessionId) {
+                // Store customer ID if returned (for future payment method updates)
+                if (result.customerId && window.SubscriptionService) {
+                    const currentUser = window.AuthService.getCurrentUser();
+                    if (currentUser && currentUser.id) {
+                        // Update subscription with customer ID (non-blocking)
+                        window.SubscriptionService.updateSubscription(currentUser.id, {
+                            stripe_customer_id: result.customerId
+                        }).catch(err => {
+                            console.warn('[PaymentController] Failed to store customer ID:', err);
+                        });
+                    }
+                }
+                
                 const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
                 if (!redirectResult.success) {
                     throw new Error(redirectResult.error || 'Failed to redirect to checkout');
@@ -457,6 +526,187 @@ const PaymentController = {
         await this.loadPaymentHistory();
         this.renderSubscriptionStatus();
         this.renderPaymentHistory();
+    },
+    
+    /**
+     * Handle manage payment method button click
+     * Opens Stripe Customer Portal for updating payment method
+     * For trial users without customer ID, creates a customer first
+     */
+    async handleManagePaymentMethod() {
+        console.log('[PaymentController] ========== handleManagePaymentMethod() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            console.log('[PaymentController] Step 1: Getting button element...');
+            const button = document.getElementById('manage-payment-method-button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Loading...';
+                console.log('[PaymentController] ✅ Button found and disabled');
+            } else {
+                console.warn('[PaymentController] ⚠️ Button element not found');
+            }
+            
+            console.log('[PaymentController] Step 2: Checking authentication...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.error('[PaymentController] ❌ User not authenticated');
+                throw new Error('User not authenticated');
+            }
+            console.log('[PaymentController] ✅ User authenticated');
+            
+            console.log('[PaymentController] Step 3: Getting current user...');
+            const currentUser = window.AuthService.getCurrentUser();
+            if (!currentUser || !currentUser.email) {
+                console.error('[PaymentController] ❌ User email not available:', { hasUser: !!currentUser, hasEmail: !!currentUser?.email });
+                throw new Error('User email not available');
+            }
+            console.log('[PaymentController] ✅ Current user:', { userId: currentUser.id, email: currentUser.email });
+            
+            console.log('[PaymentController] Step 4: Checking subscription state...');
+            const hasSubscription = !!this.currentSubscription;
+            const existingCustomerId = this.currentSubscription?.stripe_customer_id;
+            console.log('[PaymentController] Subscription state:', {
+                hasSubscription: hasSubscription,
+                subscriptionType: this.currentSubscription?.subscription_type,
+                subscriptionStatus: this.currentSubscription?.status,
+                hasCustomerId: !!existingCustomerId,
+                customerId: existingCustomerId || 'none'
+            });
+            
+            console.log('[PaymentController] Step 5: Checking StripeService availability...');
+            if (!window.StripeService) {
+                console.error('[PaymentController] ❌ StripeService not available');
+                throw new Error('StripeService not available');
+            }
+            console.log('[PaymentController] ✅ StripeService available');
+            
+            console.log('[PaymentController] Step 6: Initializing Stripe...');
+            await window.StripeService.initialize();
+            console.log('[PaymentController] ✅ Stripe initialized');
+            
+            let customerId = existingCustomerId;
+            
+            // If no customer ID, create one first (for trial users)
+            if (!customerId) {
+                console.log('[PaymentController] Step 7: No customer ID found, creating customer...');
+                console.log('[PaymentController] Customer creation details:', {
+                    email: currentUser.email,
+                    userId: currentUser.id
+                });
+                
+                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                const createCustomerEndpoint = `${supabaseProjectUrl}/functions/v1/create-customer`;
+                console.log('[PaymentController] Customer creation endpoint:', createCustomerEndpoint);
+                
+                const customerStartTime = Date.now();
+                const customerResult = await window.StripeService.createCustomer(
+                    currentUser.email,
+                    currentUser.id,
+                    createCustomerEndpoint
+                );
+                const customerElapsed = Date.now() - customerStartTime;
+                
+                console.log('[PaymentController] Customer creation result:', {
+                    success: customerResult.success,
+                    hasCustomerId: !!customerResult.customerId,
+                    customerId: customerResult.customerId || 'none',
+                    error: customerResult.error || 'none',
+                    elapsed: `${customerElapsed}ms`
+                });
+                
+                if (!customerResult.success || !customerResult.customerId) {
+                    console.error('[PaymentController] ❌ Customer creation failed:', customerResult.error);
+                    throw new Error(customerResult.error || 'Failed to create customer');
+                }
+                
+                customerId = customerResult.customerId;
+                console.log('[PaymentController] ✅ Customer created successfully:', customerId);
+                
+                // Store customer ID in database (non-blocking)
+                // If subscription exists, update it; otherwise it will be stored when subscription is created
+                if (window.SubscriptionService && this.currentSubscription) {
+                    console.log('[PaymentController] Step 8: Storing customer ID in database...');
+                    window.SubscriptionService.updateSubscription(currentUser.id, {
+                        stripe_customer_id: customerId
+                    }).then(() => {
+                        console.log('[PaymentController] ✅ Customer ID stored in database');
+                    }).catch(err => {
+                        console.warn('[PaymentController] ⚠️ Failed to store customer ID in database:', err);
+                    });
+                } else {
+                    console.log('[PaymentController] Step 8: Skipping database update (no subscription or SubscriptionService)');
+                }
+            } else {
+                console.log('[PaymentController] Step 7: Using existing customer ID:', customerId);
+            }
+            
+            console.log('[PaymentController] Step 9: Preparing portal session...');
+            const currentUrl = window.location.href.split('?')[0];
+            const returnUrl = currentUrl;
+            console.log('[PaymentController] Portal session details:', {
+                customerId: customerId,
+                returnUrl: returnUrl
+            });
+            
+            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-portal-session`;
+            console.log('[PaymentController] Portal session endpoint:', backendEndpoint);
+            
+            console.log('[PaymentController] Step 10: Creating portal session...');
+            const portalStartTime = Date.now();
+            const result = await window.StripeService.createPortalSession(
+                customerId,
+                returnUrl,
+                backendEndpoint
+            );
+            const portalElapsed = Date.now() - portalStartTime;
+            
+            console.log('[PaymentController] Portal session result:', {
+                success: result.success,
+                hasUrl: !!result.url,
+                url: result.url || 'none',
+                error: result.error || 'none',
+                elapsed: `${portalElapsed}ms`
+            });
+            
+            if (!result.success) {
+                console.error('[PaymentController] ❌ Portal session creation failed:', result.error);
+                throw new Error(result.error || 'Failed to create portal session');
+            }
+            
+            if (result.url) {
+                console.log('[PaymentController] Step 11: Redirecting to Stripe Customer Portal...');
+                console.log('[PaymentController] Portal URL:', result.url);
+                const totalElapsed = Date.now() - startTime;
+                console.log('[PaymentController] ========== handleManagePaymentMethod() SUCCESS ==========');
+                console.log('[PaymentController] Total time:', `${totalElapsed}ms`);
+                // Redirect to Stripe Customer Portal
+                window.location.href = result.url;
+            } else {
+                console.error('[PaymentController] ❌ No portal URL returned');
+                throw new Error('No portal URL returned');
+            }
+        } catch (error) {
+            const totalElapsed = Date.now() - startTime;
+            console.error('[PaymentController] ========== handleManagePaymentMethod() ERROR ==========');
+            console.error('[PaymentController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                elapsed: `${totalElapsed}ms`
+            });
+            console.error('[PaymentController] Error opening payment portal:', error);
+            alert(`Error: ${error.message || 'Failed to open payment portal. Please try again.'}`);
+            
+            const button = document.getElementById('manage-payment-method-button');
+            if (button) {
+                button.disabled = false;
+                // Restore original button text based on subscription
+                const hasCustomerId = !!this.currentSubscription?.stripe_customer_id;
+                button.textContent = hasCustomerId ? 'Update Payment Method' : 'Add Payment Method';
+                console.log('[PaymentController] Button re-enabled');
+            }
+        }
     }
 };
 
