@@ -202,18 +202,30 @@ const NotificationsController = {
             });
         }
 
-        // Block user button in conversation
-        const blockUserConversationBtn = document.getElementById('block-user-conversation-btn');
-        if (blockUserConversationBtn) {
-            blockUserConversationBtn.addEventListener('click', () => {
-                const userId = blockUserConversationBtn.dataset.userId;
-                const userEmail = blockUserConversationBtn.dataset.userEmail;
-                if (userId) {
-                    this.handleBlockUserFromConversation(userId, userEmail);
-                }
-            });
-        }
-    },
+            // Block user button in conversation
+            const blockUserConversationBtn = document.getElementById('block-user-conversation-btn');
+            if (blockUserConversationBtn) {
+                blockUserConversationBtn.addEventListener('click', () => {
+                    const userId = blockUserConversationBtn.dataset.userId;
+                    const userEmail = blockUserConversationBtn.dataset.userEmail;
+                    if (userId) {
+                        this.handleBlockUserFromConversation(userId, userEmail);
+                    }
+                });
+            }
+
+            // Add friend button in conversation
+            const addFriendConversationBtn = document.getElementById('add-friend-conversation-btn');
+            if (addFriendConversationBtn) {
+                addFriendConversationBtn.addEventListener('click', () => {
+                    const userId = addFriendConversationBtn.dataset.userId;
+                    const userEmail = addFriendConversationBtn.dataset.userEmail;
+                    if (userId) {
+                        this.handleAddFriendFromConversation(userId, userEmail, addFriendConversationBtn);
+                    }
+                });
+            }
+        },
 
     /**
      * Update filter dropdown value
@@ -604,6 +616,56 @@ const NotificationsController = {
     },
 
     /**
+     * Handle add/remove friend from conversation view
+     */
+    async handleAddFriendFromConversation(userId, userEmail, buttonElement) {
+        console.log('[NotificationsController] handleAddFriendFromConversation() called', { userId, userEmail });
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            // Check if already a friend
+            const isFriendResult = await window.DatabaseService.isFriend(userId);
+            if (!isFriendResult.success) {
+                throw new Error(isFriendResult.error || 'Failed to check friend status');
+            }
+
+            if (isFriendResult.isFriend) {
+                // Remove from friends
+                if (!confirm(`Remove ${userEmail || 'this user'} from your friends list?`)) {
+                    return;
+                }
+
+                const result = await window.DatabaseService.removeFriend(userId);
+                if (result.success) {
+                    buttonElement.textContent = 'Add to Friends';
+                    buttonElement.classList.remove('btn-secondary');
+                    buttonElement.classList.add('btn-action');
+                    alert('Removed from friends list');
+                } else {
+                    throw new Error(result.error || 'Failed to remove friend');
+                }
+            } else {
+                // Add to friends
+                const result = await window.DatabaseService.addFriend(userId);
+                if (result.success) {
+                    buttonElement.textContent = 'Remove from Friends';
+                    buttonElement.classList.remove('btn-action');
+                    buttonElement.classList.add('btn-secondary');
+                    alert('Added to friends list');
+                } else {
+                    throw new Error(result.error || 'Failed to add friend');
+                }
+            }
+        } catch (error) {
+            console.error('[NotificationsController] Error handling add friend from conversation:', error);
+            alert('Error: ' + error.message);
+        }
+    },
+
+    /**
      * Handle block user from conversation view
      */
     async handleBlockUserFromConversation(userId, userEmail) {
@@ -827,16 +889,40 @@ const NotificationsController = {
                 throw new Error('Conversation not found');
             }
 
-            // Set partner name and show block button
+            // Set partner name and show action buttons
             const partnerNameElement = document.getElementById('conversation-partner-name');
             const blockButton = document.getElementById('block-user-conversation-btn');
+            const addFriendButton = document.getElementById('add-friend-conversation-btn');
+            
             if (partnerNameElement) {
                 partnerNameElement.textContent = conversation.other_user_email || 'Unknown User';
             }
+            
             if (blockButton) {
                 blockButton.style.display = 'inline-block';
                 blockButton.dataset.userId = conversation.other_user_id;
                 blockButton.dataset.userEmail = conversation.other_user_email || 'Unknown User';
+            }
+            
+            // Check if user is already a friend and update button accordingly
+            if (addFriendButton && conversation.other_user_id) {
+                addFriendButton.style.display = 'inline-block';
+                addFriendButton.dataset.userId = conversation.other_user_id;
+                addFriendButton.dataset.userEmail = conversation.other_user_email || 'Unknown User';
+                
+                // Check if already a friend
+                if (window.DatabaseService) {
+                    const isFriendResult = await window.DatabaseService.isFriend(conversation.other_user_id);
+                    if (isFriendResult.success && isFriendResult.isFriend) {
+                        addFriendButton.textContent = 'Remove from Friends';
+                        addFriendButton.classList.remove('btn-action');
+                        addFriendButton.classList.add('btn-secondary');
+                    } else {
+                        addFriendButton.textContent = 'Add to Friends';
+                        addFriendButton.classList.remove('btn-secondary');
+                        addFriendButton.classList.add('btn-action');
+                    }
+                }
             }
 
             console.log('[NotificationsController] Fetching messages for conversation:', conversationId);

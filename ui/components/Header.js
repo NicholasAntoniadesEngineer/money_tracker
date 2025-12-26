@@ -300,7 +300,20 @@ class Header {
             this.setupNotificationSubscription().catch(err => {
                 console.warn('[Header] Failed to setup notification subscription:', err);
             });
+            this.setupMessageSubscription().catch(err => {
+                console.warn('[Header] Failed to setup message subscription:', err);
+            });
         }, 1000);
+
+        // Update notification count when page becomes visible (user switches back to tab)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && window.AuthService && window.AuthService.isAuthenticated()) {
+                console.log('[Header] Page became visible, updating notification count...');
+                this.updateNotificationCount().catch(err => {
+                    console.warn('[Header] Failed to update notification count on visibility change:', err);
+                });
+            }
+        });
         
         this.initialized = true;
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
@@ -455,42 +468,131 @@ class Header {
 
     /**
      * Update notification count in header
+     * Checks both notifications and unread messages
      */
     static async updateNotificationCount() {
+        console.log('[Header] ========== updateNotificationCount() CALLED ==========');
+        console.log('[Header] updateNotificationCount() - Start time:', new Date().toISOString());
+        
         try {
-            if (typeof window.NotificationService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
+            console.log('[Header] Checking authentication status...');
+            if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                console.log('[Header] User not authenticated, skipping notification count update');
                 return;
             }
+            console.log('[Header] User is authenticated');
 
+            console.log('[Header] Getting current user ID...');
             const currentUserId = await window.DatabaseService?._getCurrentUserId();
+            console.log('[Header] Current user ID:', currentUserId);
             if (!currentUserId) {
+                console.log('[Header] No user ID found, skipping notification count update');
                 return;
             }
 
-            const result = await window.NotificationService.getUnreadCount(currentUserId);
-            if (result.success) {
-                const count = result.count || 0;
-                const countBadge = document.getElementById('header-notification-count');
-                const avatarBadge = document.getElementById('avatar-notification-badge');
+            let totalUnreadCount = 0;
 
-                // Update badge in the user menu dropdown
-                if (countBadge) {
-                    if (count > 0) {
-                        countBadge.textContent = count > 99 ? '99+' : count.toString();
-                        countBadge.style.display = 'inline-block';
+            // Get unread notification count
+            console.log('[Header] Checking for NotificationService...');
+            if (typeof window.NotificationService !== 'undefined') {
+                console.log('[Header] NotificationService is available, calling getUnreadCount()...');
+                try {
+                    const notificationStartTime = Date.now();
+                    const notificationResult = await window.NotificationService.getUnreadCount(currentUserId);
+                    const notificationDuration = Date.now() - notificationStartTime;
+                    console.log('[Header] NotificationService.getUnreadCount() completed in', notificationDuration, 'ms');
+                    console.log('[Header] NotificationService.getUnreadCount() result:', {
+                        success: notificationResult.success,
+                        count: notificationResult.count,
+                        error: notificationResult.error
+                    });
+                    
+                    if (notificationResult.success) {
+                        totalUnreadCount += notificationResult.count || 0;
+                        console.log('[Header] Unread notifications:', notificationResult.count || 0);
                     } else {
-                        countBadge.style.display = 'none';
+                        console.warn('[Header] NotificationService.getUnreadCount() failed:', notificationResult.error);
                     }
+                } catch (notifError) {
+                    console.error('[Header] Exception getting notification count:', {
+                        error: notifError.message,
+                        stack: notifError.stack
+                    });
                 }
+            } else {
+                console.warn('[Header] NotificationService is not available');
+            }
 
-                // Update badge on avatar icon
-                if (avatarBadge) {
-                    if (count > 0) {
-                        avatarBadge.textContent = count > 99 ? '99+' : count.toString();
-                        avatarBadge.style.display = 'inline-block';
+            // Also check for unread messages (in case notifications weren't created)
+            console.log('[Header] Checking for MessagingService...');
+            if (typeof window.MessagingService !== 'undefined') {
+                console.log('[Header] MessagingService is available, calling getUnreadCount()...');
+                try {
+                    const messageStartTime = Date.now();
+                    const messageResult = await window.MessagingService.getUnreadCount(currentUserId);
+                    const messageDuration = Date.now() - messageStartTime;
+                    console.log('[Header] MessagingService.getUnreadCount() completed in', messageDuration, 'ms');
+                    console.log('[Header] MessagingService.getUnreadCount() result:', {
+                        success: messageResult.success,
+                        count: messageResult.count,
+                        error: messageResult.error
+                    });
+                    
+                    if (messageResult.success) {
+                        const unreadMessages = messageResult.count || 0;
+                        console.log('[Header] Unread messages count:', unreadMessages);
+                        console.log('[Header] Current total unread count before adding messages:', totalUnreadCount);
+                        
+                        // Only add message count if there's no notification for it
+                        // This prevents double counting, but ensures we catch messages even if notifications fail
+                        if (unreadMessages > 0) {
+                            console.log('[Header] Found unread messages:', unreadMessages);
+                            // Check if we already have notifications for these messages
+                            // If notification count is 0 but we have unread messages, add them
+                            if (totalUnreadCount === 0 && unreadMessages > 0) {
+                                console.log('[Header] Adding unread messages to total count (no notifications found)');
+                                totalUnreadCount += unreadMessages;
+                            } else {
+                                console.log('[Header] Not adding unread messages to total (already have notifications or no unread messages)');
+                            }
+                        } else {
+                            console.log('[Header] No unread messages found');
+                        }
                     } else {
-                        avatarBadge.style.display = 'none';
+                        console.warn('[Header] MessagingService.getUnreadCount() failed:', messageResult.error);
                     }
+                } catch (messageError) {
+                    console.error('[Header] Exception getting message count:', {
+                        error: messageError.message,
+                        stack: messageError.stack
+                    });
+                }
+            } else {
+                console.warn('[Header] MessagingService is not available');
+            }
+
+            console.log('[Header] Total unread count (notifications + messages):', totalUnreadCount);
+
+            const countBadge = document.getElementById('header-notification-count');
+            const avatarBadge = document.getElementById('avatar-notification-badge');
+
+            // Update badge in the user menu dropdown
+            if (countBadge) {
+                if (totalUnreadCount > 0) {
+                    countBadge.textContent = totalUnreadCount > 99 ? '99+' : totalUnreadCount.toString();
+                    countBadge.style.display = 'inline-block';
+                } else {
+                    countBadge.style.display = 'none';
+                }
+            }
+
+            // Update badge on avatar icon
+            if (avatarBadge) {
+                if (totalUnreadCount > 0) {
+                    avatarBadge.textContent = totalUnreadCount > 99 ? '99+' : totalUnreadCount.toString();
+                    avatarBadge.style.display = 'inline-block';
+                } else {
+                    avatarBadge.style.display = 'none';
                 }
             }
         } catch (error) {
@@ -526,6 +628,40 @@ class Header {
         } catch (error) {
             console.error('[Header] Error setting up notification subscription:', error);
             setInterval(() => this.updateNotificationCount(), 30000);
+        }
+    }
+
+    /**
+     * Setup real-time message subscription to update notification count when new messages arrive
+     */
+    static async setupMessageSubscription() {
+        try {
+            if (typeof window.MessagingService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
+                return;
+            }
+
+            const currentUserId = await window.DatabaseService?._getCurrentUserId();
+            if (!currentUserId) {
+                return;
+            }
+
+            console.log('[Header] Setting up message subscription for user:', currentUserId);
+            const result = await window.MessagingService.subscribeToMessages(currentUserId, (payload) => {
+                console.log('[Header] Message update received:', payload);
+                // When a new message arrives, update notification count
+                // This ensures the badge updates even if notification creation is delayed
+                setTimeout(() => {
+                    this.updateNotificationCount();
+                }, 500); // Small delay to allow notification to be created
+            });
+
+            if (result.success) {
+                console.log('[Header] Real-time message subscription established');
+            } else {
+                console.warn('[Header] Real-time message subscription not available');
+            }
+        } catch (error) {
+            console.error('[Header] Error setting up message subscription:', error);
         }
     }
 
@@ -792,14 +928,20 @@ class Header {
                 this.initNotificationBell(); // Initialize notifications button click handler
                 
                 try {
-                    // Notification bell removed - notifications are in user menu only
+                    // Update notification count and set up subscriptions
                     setTimeout(() => {
                         this.updateNotificationCount().catch(err => {
                             console.warn('[Header] Failed to update notification count in updateHeader:', err);
                         });
+                        this.setupNotificationSubscription().catch(err => {
+                            console.warn('[Header] Failed to setup notification subscription in updateHeader:', err);
+                        });
+                        this.setupMessageSubscription().catch(err => {
+                            console.warn('[Header] Failed to setup message subscription in updateHeader:', err);
+                        });
                     }, 500);
                 } catch (error) {
-                    console.error('[Header] Error initializing notification bell in updateHeader:', error);
+                    console.error('[Header] Error initializing notification features in updateHeader:', error);
                 }
                 
                 console.log('[Header] User menu added successfully');

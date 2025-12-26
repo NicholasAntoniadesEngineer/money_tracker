@@ -3638,6 +3638,224 @@ const DatabaseService = {
     },
 
     /**
+     * Add a user to friends list
+     * @param {string} friendUserId - User ID to add as friend
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async addFriend(friendUserId) {
+        console.log('[DatabaseService] addFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (friendUserId === currentUserId) {
+                return {
+                    success: false,
+                    error: 'Cannot add yourself as a friend'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            
+            // Check if already friends
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    friend_user_id: friendUserId
+                },
+                limit: 1
+            });
+
+            if (existingResult.error) {
+                console.error('[DatabaseService] Error checking existing friend:', existingResult.error);
+                return {
+                    success: false,
+                    error: existingResult.error.message || 'Failed to check existing friend'
+                };
+            }
+
+            if (existingResult.data && existingResult.data.length > 0) {
+                return {
+                    success: true,
+                    error: null // Already friends, return success
+                };
+            }
+
+            const insertResult = await this.queryInsert(tableName, {
+                user_id: currentUserId,
+                friend_user_id: friendUserId
+            });
+
+            if (insertResult.error) {
+                console.error('[DatabaseService] Error adding friend:', insertResult.error);
+                return {
+                    success: false,
+                    error: insertResult.error.message || 'Failed to add friend'
+                };
+            }
+
+            console.log('[DatabaseService] Friend added successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception adding friend:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Remove a user from friends list
+     * @param {string} friendUserId - User ID to remove from friends
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async removeFriend(friendUserId) {
+        console.log('[DatabaseService] removeFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const deleteResult = await this.queryDelete(tableName, {
+                user_id: currentUserId,
+                friend_user_id: friendUserId
+            });
+
+            if (deleteResult.error) {
+                console.error('[DatabaseService] Error removing friend:', deleteResult.error);
+                return {
+                    success: false,
+                    error: deleteResult.error.message || 'Failed to remove friend'
+                };
+            }
+
+            console.log('[DatabaseService] Friend removed successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception removing friend:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get list of friends
+     * @returns {Promise<{success: boolean, friends: Array, error: string|null}>}
+     */
+    async getFriends() {
+        console.log('[DatabaseService] getFriends() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    friends: [],
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error getting friends:', result.error);
+                return {
+                    success: false,
+                    friends: [],
+                    error: result.error.message || 'Failed to get friends'
+                };
+            }
+
+            return {
+                success: true,
+                friends: result.data || [],
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting friends:', error);
+            return {
+                success: false,
+                friends: [],
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Check if a user is in friends list
+     * @param {string} friendUserId - User ID to check
+     * @returns {Promise<{success: boolean, isFriend: boolean, error: string|null}>}
+     */
+    async isFriend(friendUserId) {
+        console.log('[DatabaseService] isFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    isFriend: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    friend_user_id: friendUserId
+                },
+                limit: 1
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error checking if friend:', result.error);
+                return {
+                    success: false,
+                    isFriend: false,
+                    error: result.error.message || 'Failed to check if friend'
+                };
+            }
+
+            return {
+                success: true,
+                isFriend: result.data && result.data.length > 0,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception checking if friend:', error);
+            return {
+                success: false,
+                isFriend: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
      * Get list of blocked users
      * @returns {Promise<{success: boolean, blockedUsers: Array, error: string|null}>}
      */

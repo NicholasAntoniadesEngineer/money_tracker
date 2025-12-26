@@ -39,7 +39,8 @@ const MoneyTrackerDatabaseConfig = DatabaseConfigBase.merge({
         notifications: 'notifications',
         blockedUsers: 'blocked_users',
         messages: 'messages',
-        conversations: 'conversations'
+        conversations: 'conversations',
+        friends: 'friends'
     },
     
     cache: {

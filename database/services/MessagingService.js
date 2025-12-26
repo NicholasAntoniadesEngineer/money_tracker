@@ -637,15 +637,28 @@ const MessagingService = {
      * @returns {Promise<{success: boolean, count: number, error: string|null}>}
      */
     async getUnreadCount(userId) {
-        console.log('[MessagingService] getUnreadCount() called', { userId });
+        console.log('[MessagingService] ========== getUnreadCount() CALLED ==========');
+        console.log('[MessagingService] getUnreadCount() - Start time:', new Date().toISOString());
+        console.log('[MessagingService] getUnreadCount() - Parameters:', { userId });
+        
         try {
+            console.log('[MessagingService] Getting DatabaseService...');
             const databaseService = this._getDatabaseService();
             if (!databaseService) {
+                console.error('[MessagingService] DatabaseService not available');
                 throw new Error('DatabaseService not available');
             }
+            console.log('[MessagingService] DatabaseService obtained');
 
             const messagesTableName = this._getTableName('messages');
+            console.log('[MessagingService] Messages table name:', messagesTableName);
 
+            console.log('[MessagingService] Preparing querySelect with filter:', {
+                recipient_id: userId,
+                read: false
+            });
+            const queryStartTime = Date.now();
+            
             const result = await databaseService.querySelect(messagesTableName, {
                 filter: {
                     recipient_id: userId,
@@ -654,8 +667,24 @@ const MessagingService = {
                 count: 'exact'
             });
 
+            const queryDuration = Date.now() - queryStartTime;
+            console.log('[MessagingService] querySelect completed in', queryDuration, 'ms');
+            console.log('[MessagingService] querySelect result:', {
+                hasError: !!result.error,
+                error: result.error,
+                hasCount: result.count !== undefined,
+                count: result.count,
+                hasData: !!result.data,
+                dataLength: result.data?.length
+            });
+
             if (result.error) {
-                console.error('[MessagingService] Error getting unread count:', result.error);
+                console.error('[MessagingService] Error getting unread count:', {
+                    error: result.error,
+                    message: result.error.message,
+                    code: result.error.code,
+                    details: result.error.details
+                });
                 return {
                     success: false,
                     count: 0,
@@ -665,13 +694,18 @@ const MessagingService = {
 
             const count = result.count || 0;
             console.log(`[MessagingService] Total unread count for user ${userId}: ${count}`);
+            console.log('[MessagingService] ========== getUnreadCount() COMPLETE ==========');
             return {
                 success: true,
                 count: count,
                 error: null
             };
         } catch (error) {
-            console.error('[MessagingService] Exception in getUnreadCount:', error);
+            console.error('[MessagingService] Exception in getUnreadCount:', {
+                error: error.message,
+                stack: error.stack,
+                userId: userId
+            });
             return {
                 success: false,
                 count: 0,
