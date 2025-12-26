@@ -127,6 +127,18 @@ CREATE POLICY "Shared users can view shares" ON data_shares
         AND (status = 'accepted' OR status = 'pending')
     );
 
+-- Shared users can UPDATE shares to accept/decline them (can only update status, responded_at, and updated_at)
+DROP POLICY IF EXISTS "Shared users can update share status" ON data_shares;
+CREATE POLICY "Shared users can update share status" ON data_shares
+    FOR UPDATE USING (
+        shared_with_user_id = auth.uid()
+        AND status = 'pending' -- Can only update pending shares
+    )
+    WITH CHECK (
+        shared_with_user_id = auth.uid()
+        AND status IN ('accepted', 'declined', 'blocked') -- Can only set to these statuses
+    );
+
 -- RLS Policies for field_locks
 -- Users can see all locks for resources they own or have access to
 DROP POLICY IF EXISTS "Users can view relevant locks" ON field_locks;
