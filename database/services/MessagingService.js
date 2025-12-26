@@ -1,0 +1,692 @@
+/**
+ * Messaging Service
+ * Handles conversation and message management
+ * Provides methods for sending messages, managing conversations, and real-time subscriptions
+ */
+
+const MessagingService = {
+    /**
+     * Get database service (requires config)
+     * @returns {Object} Database service
+     * @throws {Error} If DatabaseConfigHelper is not available or database service is not configured
+     */
+    _getDatabaseService() {
+        if (typeof DatabaseConfigHelper === 'undefined') {
+            throw new Error('DatabaseConfigHelper not available. Ensure database-config-helper.js is loaded and DatabaseModule.initialize() has been called.');
+        }
+        return DatabaseConfigHelper.getDatabaseService(this);
+    },
+
+    /**
+     * Get table name (requires config)
+     * @param {string} tableKey - Table key
+     * @returns {string} Table name
+     * @throws {Error} If DatabaseConfigHelper is not available or table name is not configured
+     */
+    _getTableName(tableKey) {
+        if (typeof DatabaseConfigHelper === 'undefined') {
+            throw new Error('DatabaseConfigHelper not available. Ensure database-config-helper.js is loaded and DatabaseModule.initialize() has been called.');
+        }
+        return DatabaseConfigHelper.getTableName(this, tableKey);
+    },
+
+    /**
+     * Get or create a conversation between two users
+     * Ensures user1_id < user2_id for consistent ordering
+     * @param {string} user1Id - First user ID
+     * @param {string} user2Id - Second user ID
+     * @returns {Promise<{success: boolean, conversation: Object|null, error: string|null}>}
+     */
+    async getOrCreateConversation(user1Id, user2Id) {
+        console.log('[MessagingService] getOrCreateConversation() called', { user1Id, user2Id });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            // Ensure consistent ordering (user1_id < user2_id)
+            const [orderedUser1, orderedUser2] = user1Id < user2Id ? [user1Id, user2Id] : [user2Id, user1Id];
+
+            const conversationsTableName = this._getTableName('conversations');
+
+            // Check if conversation already exists
+            const existingResult = await databaseService.querySelect(conversationsTableName, {
+                filter: {
+                    user1_id: orderedUser1,
+                    user2_id: orderedUser2
+                },
+                limit: 1
+            });
+
+            if (existingResult.error) {
+                console.error('[MessagingService] Error checking for existing conversation:', existingResult.error);
+                return {
+                    success: false,
+                    conversation: null,
+                    error: existingResult.error.message || 'Failed to check for existing conversation'
+                };
+            }
+
+            if (existingResult.data && existingResult.data.length > 0) {
+                console.log('[MessagingService] Existing conversation found:', existingResult.data[0].id);
+                return {
+                    success: true,
+                    conversation: existingResult.data[0],
+                    error: null
+                };
+            }
+
+            // Create new conversation
+            const conversationData = {
+                user1_id: orderedUser1,
+                user2_id: orderedUser2,
+                last_message_at: new Date().toISOString()
+            };
+
+            console.log('[MessagingService] Creating conversation with data:', conversationData);
+            const createResult = await databaseService.queryInsert(conversationsTableName, conversationData);
+            console.log('[MessagingService] Conversation insert result:', {
+                hasError: !!createResult.error,
+                error: createResult.error,
+                hasData: !!createResult.data,
+                dataType: typeof createResult.data,
+                isArray: Array.isArray(createResult.data),
+                dataLength: Array.isArray(createResult.data) ? createResult.data.length : 'N/A',
+                firstItem: Array.isArray(createResult.data) && createResult.data.length > 0 ? createResult.data[0] : createResult.data
+            });
+
+            if (createResult.error) {
+                console.error('[MessagingService] Error creating conversation:', createResult.error);
+                return {
+                    success: false,
+                    conversation: null,
+                    error: createResult.error.message || 'Failed to create conversation'
+                };
+            }
+
+            // queryInsert returns { data: Array, error: null }
+            const createdConversation = Array.isArray(createResult.data) && createResult.data.length > 0 
+                ? createResult.data[0] 
+                : createResult.data;
+            
+            console.log('[MessagingService] Conversation created successfully:', {
+                conversationId: createdConversation?.id,
+                user1Id: createdConversation?.user1_id,
+                user2Id: createdConversation?.user2_id,
+                fullData: createdConversation
+            });
+            
+            if (!createdConversation || !createdConversation.id) {
+                console.error('[MessagingService] Conversation created but missing ID:', createResult);
+                return {
+                    success: false,
+                    conversation: null,
+                    error: 'Conversation created but ID not returned. This may be due to RLS policies blocking the return representation.'
+                };
+            }
+            
+            return {
+                success: true,
+                conversation: createdConversation,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in getOrCreateConversation:', error);
+            return {
+                success: false,
+                conversation: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Send a message
+     * @param {string} conversationId - Conversation ID
+     * @param {string} senderId - Sender user ID
+     * @param {string} recipientId - Recipient user ID
+     * @param {string} content - Message content
+     * @returns {Promise<{success: boolean, message: Object|null, error: string|null}>}
+     */
+    async sendMessage(conversationId, senderId, recipientId, content) {
+        console.log('[MessagingService] sendMessage() called', { conversationId, senderId, recipientId, contentLength: content?.length });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            // Check if recipient has blocked sender
+            if (window.DataSharingService) {
+                const isBlockedResult = await window.DataSharingService.checkIfBlocked(recipientId, senderId);
+                if (isBlockedResult.isBlocked) {
+                    console.warn('[MessagingService] Cannot send message: Recipient has blocked sender');
+                    return {
+                        success: false,
+                        message: null,
+                        error: 'You have been blocked by this user.'
+                    };
+                }
+            }
+
+            // Sanitize content (basic check - prevent empty messages)
+            if (!content || typeof content !== 'string' || content.trim().length === 0) {
+                return {
+                    success: false,
+                    message: null,
+                    error: 'Message content cannot be empty'
+                };
+            }
+
+            const messagesTableName = this._getTableName('messages');
+            const conversationsTableName = this._getTableName('conversations');
+
+            // Create message
+            const messageData = {
+                conversation_id: conversationId,
+                sender_id: senderId,
+                recipient_id: recipientId,
+                content: content.trim(),
+                read: false
+            };
+
+            console.log('[MessagingService] Inserting message:', { 
+                conversationId, 
+                senderId, 
+                recipientId, 
+                contentLength: messageData.content.length 
+            });
+            
+            const messageResult = await databaseService.queryInsert(messagesTableName, messageData);
+
+            if (messageResult.error) {
+                console.error('[MessagingService] Error creating message:', messageResult.error);
+                return {
+                    success: false,
+                    message: null,
+                    error: messageResult.error.message || 'Failed to create message'
+                };
+            }
+
+            // queryInsert returns { data: Array, error: null }
+            const newMessage = Array.isArray(messageResult.data) && messageResult.data.length > 0 
+                ? messageResult.data[0] 
+                : messageResult.data;
+            
+            console.log('[MessagingService] Message created:', {
+                messageId: newMessage?.id,
+                conversationId: newMessage?.conversation_id,
+                senderId: newMessage?.sender_id,
+                recipientId: newMessage?.recipient_id,
+                fullData: newMessage
+            });
+            
+            if (!newMessage || !newMessage.id) {
+                console.error('[MessagingService] Message created but missing ID:', messageResult);
+                return {
+                    success: false,
+                    message: null,
+                    error: 'Message created but ID not returned. This may be due to RLS policies blocking the return representation.'
+                };
+            }
+
+            // Update conversation last_message_at
+            await databaseService.queryUpdate(conversationsTableName, conversationId, {
+                last_message_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+
+            console.log('[MessagingService] Message created successfully:', newMessage.id);
+
+            // Create notification for recipient via NotificationProcessor
+            if (window.NotificationProcessor) {
+                const fromUserEmailResult = await databaseService.getUserEmailById(senderId);
+                const toUserEmailResult = await databaseService.getUserEmailById(recipientId);
+                const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                    recipientId,
+                    'message_received',
+                    null, // No share_id
+                    senderId,
+                    null, // Let template generate message
+                    {
+                        fromUserEmail: fromUserEmailResult.success ? fromUserEmailResult.email : 'Unknown User',
+                        toUserEmail: toUserEmailResult.success ? toUserEmailResult.email : 'Unknown User',
+                        messagePreview: content.trim().substring(0, 100) // First 100 chars as preview
+                    },
+                    conversationId, // Pass conversation_id for notification
+                    null, // payment_id
+                    null, // subscription_id
+                    null  // invoice_id
+                );
+                if (!notificationResult.success) {
+                    console.warn('[MessagingService] Failed to create message_received notification:', notificationResult.error);
+                }
+            }
+
+            return {
+                success: true,
+                message: newMessage,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in sendMessage:', error);
+            return {
+                success: false,
+                message: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get all conversations for a user
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, conversations: Array|null, error: string|null}>}
+     */
+    async getConversations(userId) {
+        console.log('[MessagingService] getConversations() called', { userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const conversationsTableName = this._getTableName('conversations');
+
+            // Get conversations where user is either user1 or user2
+            const result = await databaseService.querySelect(conversationsTableName, {
+                filter: {
+                    $or: [
+                        { user1_id: userId },
+                        { user2_id: userId }
+                    ]
+                },
+                order: [{ column: 'last_message_at', ascending: false }]
+            });
+
+            if (result.error) {
+                console.error('[MessagingService] Error getting conversations:', result.error);
+                return {
+                    success: false,
+                    conversations: null,
+                    error: result.error.message || 'Failed to get conversations'
+                };
+            }
+
+            const conversations = result.data || [];
+
+            // For each conversation, get the other user's email and unread count
+            const conversationsWithDetails = await Promise.all(conversations.map(async (conv) => {
+                const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
+                const emailResult = await databaseService.getUserEmailById(otherUserId);
+                const unreadResult = await this.getUnreadCountForConversation(conv.id, userId);
+
+                return {
+                    ...conv,
+                    other_user_id: otherUserId,
+                    other_user_email: emailResult.success ? emailResult.email : 'Unknown User',
+                    unread_count: unreadResult.success ? unreadResult.count : 0
+                };
+            }));
+
+            console.log(`[MessagingService] Found ${conversationsWithDetails.length} conversations`);
+            return {
+                success: true,
+                conversations: conversationsWithDetails,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in getConversations:', error);
+            return {
+                success: false,
+                conversations: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get messages in a conversation
+     * @param {string} conversationId - Conversation ID
+     * @param {Object} options - Query options
+     * @param {number} options.limit - Limit number of messages
+     * @param {number} options.offset - Offset for pagination
+     * @returns {Promise<{success: boolean, messages: Array|null, error: string|null}>}
+     */
+    async getMessages(conversationId, options = {}) {
+        console.log('[MessagingService] getMessages() called', { conversationId, options });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            const queryOptions = {
+                filter: { conversation_id: conversationId },
+                order: [{ column: 'created_at', ascending: false }]
+            };
+
+            if (options.limit) {
+                queryOptions.limit = options.limit;
+            }
+            if (options.offset) {
+                queryOptions.offset = options.offset;
+            }
+
+            const result = await databaseService.querySelect(messagesTableName, queryOptions);
+
+            if (result.error) {
+                console.error('[MessagingService] Error getting messages:', result.error);
+                return {
+                    success: false,
+                    messages: null,
+                    error: result.error.message || 'Failed to get messages'
+                };
+            }
+
+            const messages = result.data || [];
+            console.log(`[MessagingService] Found ${messages.length} messages in conversation ${conversationId}`);
+
+            // Fetch sender emails for each message
+            const messagesWithEmails = await Promise.all(messages.map(async (msg) => {
+                const senderEmailResult = await databaseService.getUserEmailById(msg.sender_id);
+                return {
+                    ...msg,
+                    sender_email: senderEmailResult.success ? senderEmailResult.email : 'Unknown User'
+                };
+            }));
+
+            return {
+                success: true,
+                messages: messagesWithEmails,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in getMessages:', error);
+            return {
+                success: false,
+                messages: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark a message as read
+     * @param {string} messageId - Message ID
+     * @param {string} userId - User ID (must be the recipient)
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markMessageAsRead(messageId, userId) {
+        console.log('[MessagingService] markMessageAsRead() called', { messageId, userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            // First, verify the message exists and user is the recipient
+            const messageResult = await databaseService.querySelect(messagesTableName, {
+                filter: { id: messageId },
+                limit: 1
+            });
+
+            if (messageResult.error || !messageResult.data || messageResult.data.length === 0) {
+                return {
+                    success: false,
+                    error: 'Message not found'
+                };
+            }
+
+            const message = messageResult.data[0];
+            if (message.recipient_id !== userId) {
+                return {
+                    success: false,
+                    error: 'Not authorized to mark this message as read'
+                };
+            }
+
+            // Update message
+            const updateResult = await databaseService.queryUpdate(messagesTableName, messageId, {
+                read: true,
+                read_at: new Date().toISOString()
+            });
+
+            if (updateResult.error) {
+                console.error('[MessagingService] Error marking message as read:', updateResult.error);
+                return {
+                    success: false,
+                    error: updateResult.error.message || 'Failed to mark message as read'
+                };
+            }
+
+            console.log('[MessagingService] Message marked as read successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in markMessageAsRead:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark all messages in a conversation as read
+     * @param {string} conversationId - Conversation ID
+     * @param {string} userId - User ID (must be a participant)
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markConversationAsRead(conversationId, userId) {
+        console.log('[MessagingService] markConversationAsRead() called', { conversationId, userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            // Update all unread messages where user is recipient
+            const updateResult = await databaseService.queryUpdate(messagesTableName, null, {
+                read: true,
+                read_at: new Date().toISOString()
+            }, {
+                conversation_id: conversationId,
+                recipient_id: userId,
+                read: false
+            });
+
+            if (updateResult.error) {
+                console.error('[MessagingService] Error marking conversation as read:', updateResult.error);
+                return {
+                    success: false,
+                    error: updateResult.error.message || 'Failed to mark conversation as read'
+                };
+            }
+
+            console.log('[MessagingService] Conversation marked as read successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in markConversationAsRead:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get unread message count for a specific conversation
+     * @param {string} conversationId - Conversation ID
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async getUnreadCountForConversation(conversationId, userId) {
+        console.log('[MessagingService] getUnreadCountForConversation() called', { conversationId, userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            const result = await databaseService.querySelect(messagesTableName, {
+                filter: {
+                    conversation_id: conversationId,
+                    recipient_id: userId,
+                    read: false
+                },
+                count: 'exact'
+            });
+
+            if (result.error) {
+                console.error('[MessagingService] Error getting unread count:', result.error);
+                return {
+                    success: false,
+                    count: 0,
+                    error: result.error.message || 'Failed to get unread count'
+                };
+            }
+
+            const count = result.count || 0;
+            console.log(`[MessagingService] Unread count for conversation ${conversationId}: ${count}`);
+            return {
+                success: true,
+                count: count,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in getUnreadCountForConversation:', error);
+            return {
+                success: false,
+                count: 0,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get total unread message count for a user
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async getUnreadCount(userId) {
+        console.log('[MessagingService] getUnreadCount() called', { userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            const result = await databaseService.querySelect(messagesTableName, {
+                filter: {
+                    recipient_id: userId,
+                    read: false
+                },
+                count: 'exact'
+            });
+
+            if (result.error) {
+                console.error('[MessagingService] Error getting unread count:', result.error);
+                return {
+                    success: false,
+                    count: 0,
+                    error: result.error.message || 'Failed to get unread count'
+                };
+            }
+
+            const count = result.count || 0;
+            console.log(`[MessagingService] Total unread count for user ${userId}: ${count}`);
+            return {
+                success: true,
+                count: count,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception in getUnreadCount:', error);
+            return {
+                success: false,
+                count: 0,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Subscribe to real-time message updates for a user
+     * @param {string} userId - User ID
+     * @param {Function} callback - Callback function to call when messages change
+     * @returns {Promise<{success: boolean, subscription: Object|null, error: string|null}>}
+     */
+    async subscribeToMessages(userId, callback) {
+        console.log('[MessagingService] subscribeToMessages() called', { userId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService || !databaseService.client) {
+                throw new Error('DatabaseService or client not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            if (!databaseService.client.channel || typeof databaseService.client.channel !== 'function') {
+                console.warn('[MessagingService] Real-time not available, skipping subscription');
+                return {
+                    success: false,
+                    subscription: null,
+                    error: 'Real-time subscriptions not available'
+                };
+            }
+
+            const channel = databaseService.client.channel(`messages:${userId}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: messagesTableName,
+                    filter: `recipient_id=eq.${userId}`
+                }, (payload) => {
+                    console.log('[MessagingService] Real-time message update:', payload);
+                    if (callback) {
+                        callback(payload);
+                    }
+                })
+                .subscribe();
+
+            console.log(`[MessagingService] Subscribed to messages for user ${userId}`);
+            return {
+                success: true,
+                subscription: channel,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception subscribing to messages:', error);
+            return {
+                success: false,
+                subscription: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.MessagingService = MessagingService;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MessagingService;
+}
+

@@ -54,6 +54,89 @@ const NotificationTypeRegistry = {
             requiresAction: false,
             preferenceKey: 'share_responses'
         });
+
+        // Payment notification types
+        this.registerType('subscription_created', {
+            name: 'Subscription Created',
+            description: 'Your subscription has been created',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('subscription_updated', {
+            name: 'Subscription Updated',
+            description: 'Your subscription has been updated',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('subscription_cancelled', {
+            name: 'Subscription Cancelled',
+            description: 'Your subscription has been cancelled',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('subscription_expired', {
+            name: 'Subscription Expired',
+            description: 'Your subscription has expired',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('payment_succeeded', {
+            name: 'Payment Succeeded',
+            description: 'Your payment was successful',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('payment_failed', {
+            name: 'Payment Failed',
+            description: 'Your payment failed - action required',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: true,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('invoice_paid', {
+            name: 'Invoice Paid',
+            description: 'Your invoice has been paid',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        this.registerType('checkout_completed', {
+            name: 'Checkout Completed',
+            description: 'Your checkout has been completed',
+            defaultEnabled: true,
+            category: 'payments',
+            requiresAction: false,
+            preferenceKey: 'payment_notifications'
+        });
+
+        // Messaging notification type
+        this.registerType('message_received', {
+            name: 'New Message',
+            description: 'You have received a new message',
+            defaultEnabled: true,
+            category: 'messaging',
+            requiresAction: false,
+            preferenceKey: 'message_notifications'
+        });
     },
 
     /**

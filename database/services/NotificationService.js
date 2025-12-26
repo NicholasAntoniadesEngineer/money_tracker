@@ -63,6 +63,22 @@ const NotificationService = {
                 insertData.share_id = notificationData.share_id;
             }
 
+            if (notificationData.conversation_id !== null && notificationData.conversation_id !== undefined) {
+                insertData.conversation_id = notificationData.conversation_id;
+            }
+
+            if (notificationData.payment_id !== null && notificationData.payment_id !== undefined) {
+                insertData.payment_id = notificationData.payment_id;
+            }
+
+            if (notificationData.subscription_id !== null && notificationData.subscription_id !== undefined) {
+                insertData.subscription_id = notificationData.subscription_id;
+            }
+
+            if (notificationData.invoice_id !== null && notificationData.invoice_id !== undefined) {
+                insertData.invoice_id = notificationData.invoice_id;
+            }
+
             if (notificationData.message) {
                 insertData.message = notificationData.message;
             }

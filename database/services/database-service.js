@@ -272,9 +272,34 @@ const DatabaseService = {
             url.searchParams.append('select', options.select);
         }
         if (options.filter) {
-            Object.entries(options.filter).forEach(([key, value]) => {
-                url.searchParams.append(key, `eq.${value}`);
-            });
+            // Handle $or filter for PostgREST
+            if (options.filter.$or && Array.isArray(options.filter.$or)) {
+                // Convert $or array to PostgREST or syntax: or=(condition1,condition2)
+                const orConditions = options.filter.$or.map(condition => {
+                    // Each condition should be an object like { user1_id: userId }
+                    // For PostgREST, each condition in or() should be a single column comparison
+                    const conditionEntries = Object.entries(condition);
+                    if (conditionEntries.length !== 1) {
+                        throw new Error(`Each $or condition must have exactly one key-value pair, got ${conditionEntries.length}`);
+                    }
+                    const [key, value] = conditionEntries[0];
+                    return `${key}.eq.${value}`;
+                });
+                url.searchParams.append('or', `(${orConditions.join(',')})`);
+                console.log('[DatabaseService] querySelect - converted $or filter to PostgREST or syntax:', `or=(${orConditions.join(',')})`);
+                
+                // Also process other filters (if any)
+                Object.entries(options.filter).forEach(([key, value]) => {
+                    if (key !== '$or') {
+                        url.searchParams.append(key, `eq.${value}`);
+                    }
+                });
+            } else {
+                // Regular filters (no $or)
+                Object.entries(options.filter).forEach(([key, value]) => {
+                    url.searchParams.append(key, `eq.${value}`);
+                });
+            }
         }
         if (options.order) {
             options.order.forEach(({ column, ascending }) => {
@@ -2685,18 +2710,38 @@ const DatabaseService = {
                 'Authorization': authHeaders.Authorization,
                 'Content-Type': 'application/json'
             };
+            
+            console.log('[DatabaseService] Calling find-user-by-email Edge Function:', { functionUrl, email });
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: edgeFunctionHeaders,
                 body: JSON.stringify({ email: email })
             });
             
+            console.log('[DatabaseService] find-user-by-email response status:', response.status, response.statusText);
+            
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const errorText = await response.text();
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { error: errorText || 'Failed to find user' };
+                }
+                console.error('[DatabaseService] find-user-by-email error:', { status: response.status, errorData, errorText });
+                
+                if (response.status === 404) {
+                    return {
+                        success: false,
+                        userId: null,
+                        error: 'User not found. Please make sure the user has signed up for an account.'
+                    };
+                }
+                
                 return {
                     success: false,
                     userId: null,
-                    error: errorData.error || errorData.message || 'Failed to find user'
+                    error: errorData.error || errorData.message || `Failed to find user (HTTP ${response.status})`
                 };
             }
             
@@ -3726,6 +3771,248 @@ const DatabaseService = {
             return {
                 success: false,
                 preferences: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Send a message to another user
+     * @param {string} recipientEmail - Email of the recipient
+     * @param {string} content - Message content
+     * @returns {Promise<{success: boolean, message: Object|null, error: string|null}>}
+     */
+    async sendMessage(recipientEmail, content) {
+        console.log('[DatabaseService] sendMessage() called', { recipientEmail, contentLength: content?.length });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    message: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            // Find recipient user by email
+            console.log('[DatabaseService] Looking up recipient user by email:', recipientEmail);
+            const userResult = await this.findUserByEmail(recipientEmail);
+            if (!userResult.success || !userResult.userId) {
+                console.error('[DatabaseService] Recipient user not found:', recipientEmail);
+                return {
+                    success: false,
+                    message: null,
+                    error: `User with email ${recipientEmail} not found`
+                };
+            }
+
+            const recipientId = userResult.userId;
+            console.log('[DatabaseService] Recipient user found:', { recipientId, recipientEmail });
+
+            // Get or create conversation
+            console.log('[DatabaseService] Getting or creating conversation between:', { currentUserId, recipientId });
+            const conversationResult = await window.MessagingService.getOrCreateConversation(currentUserId, recipientId);
+            if (!conversationResult.success) {
+                console.error('[DatabaseService] Failed to get or create conversation:', conversationResult.error);
+                return {
+                    success: false,
+                    message: null,
+                    error: conversationResult.error || 'Failed to get or create conversation'
+                };
+            }
+
+            const conversation = conversationResult.conversation;
+            if (!conversation || !conversation.id) {
+                console.error('[DatabaseService] Conversation missing or missing ID:', conversationResult);
+                return {
+                    success: false,
+                    message: null,
+                    error: 'Failed to get conversation ID. ' + (conversationResult.error || 'Unknown error')
+                };
+            }
+            console.log('[DatabaseService] Conversation ready:', { conversationId: conversation.id });
+
+            // Send message
+            console.log('[DatabaseService] Sending message via MessagingService');
+            const sendResult = await window.MessagingService.sendMessage(conversation.id, currentUserId, recipientId, content);
+            console.log('[DatabaseService] Message send result:', { success: sendResult.success, messageId: sendResult.message?.id, error: sendResult.error });
+            return sendResult;
+        } catch (error) {
+            console.error('[DatabaseService] Exception sending message:', error);
+            return {
+                success: false,
+                message: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get all conversations for the current user
+     * @returns {Promise<{success: boolean, conversations: Array|null, error: string|null}>}
+     */
+    async getConversations() {
+        console.log('[DatabaseService] getConversations() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[DatabaseService] User not authenticated for getConversations');
+                return {
+                    success: false,
+                    conversations: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            console.log('[DatabaseService] Getting conversations for user:', currentUserId);
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            const result = await window.MessagingService.getConversations(currentUserId);
+            console.log('[DatabaseService] getConversations result:', { 
+                success: result.success, 
+                conversationCount: result.conversations?.length || 0,
+                error: result.error 
+            });
+            return result;
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting conversations:', {
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+            return {
+                success: false,
+                conversations: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get messages in a conversation
+     * @param {number} conversationId - Conversation ID
+     * @param {Object} options - Query options (limit, offset)
+     * @returns {Promise<{success: boolean, messages: Array|null, error: string|null}>}
+     */
+    async getMessages(conversationId, options = {}) {
+        console.log('[DatabaseService] getMessages() called', { conversationId, options });
+        try {
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            const result = await window.MessagingService.getMessages(conversationId, options);
+            console.log('[DatabaseService] getMessages result:', { 
+                success: result.success, 
+                messageCount: result.messages?.length || 0,
+                error: result.error 
+            });
+            return result;
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting messages:', {
+                conversationId,
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+            return {
+                success: false,
+                messages: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark a message as read
+     * @param {number} messageId - Message ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markMessageAsRead(messageId) {
+        console.log('[DatabaseService] markMessageAsRead() called', { messageId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.markMessageAsRead(messageId, currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception marking message as read:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark all messages in a conversation as read
+     * @param {number} conversationId - Conversation ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markConversationAsRead(conversationId) {
+        console.log('[DatabaseService] markConversationAsRead() called', { conversationId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.markConversationAsRead(conversationId, currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception marking conversation as read:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get unread message count for the current user
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async getUnreadMessageCount() {
+        console.log('[DatabaseService] getUnreadMessageCount() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    count: 0,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.getUnreadCount(currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting unread message count:', error);
+            return {
+                success: false,
+                count: 0,
                 error: error.message || 'An unexpected error occurred'
             };
         }

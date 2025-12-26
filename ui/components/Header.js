@@ -145,10 +145,6 @@ class Header {
                 const settingsHref = basePath + 'settings.html';
                 userInfoHtml = `
                 <div class="header-user-menu">
-                    <button class="notification-bell" id="notification-bell" aria-label="Notifications" aria-expanded="false">
-                        <i class="fa-regular fa-bell"></i>
-                        <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
-                    </button>
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                         <span class="user-initials">${userInitials}</span>
                     </button>
@@ -427,15 +423,7 @@ class Header {
      */
     static initNotificationBell() {
         try {
-            const notificationBell = document.getElementById('notification-bell');
             const notificationsButton = document.getElementById('header-notifications-button');
-
-            if (notificationBell) {
-                notificationBell.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.handleNotificationBellClick();
-                });
-            }
 
             if (notificationsButton) {
                 notificationsButton.addEventListener('click', (e) => {
@@ -451,7 +439,7 @@ class Header {
                 });
             }, 100);
         } catch (error) {
-            console.error('[Header] Error initializing notification bell:', error);
+            console.error('[Header] Error initializing notification features:', error);
         }
     }
 
@@ -481,18 +469,9 @@ class Header {
             const result = await window.NotificationService.getUnreadCount(currentUserId);
             if (result.success) {
                 const count = result.count || 0;
-                const badge = document.getElementById('notification-badge');
                 const countBadge = document.getElementById('header-notification-count');
 
-                if (badge) {
-                    if (count > 0) {
-                        badge.textContent = count > 99 ? '99+' : count.toString();
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-
+                // Only update the badge in the user menu (notification bell removed)
                 if (countBadge) {
                     if (count > 0) {
                         countBadge.textContent = count > 99 ? '99+' : count.toString();
@@ -741,10 +720,6 @@ class Header {
                 
                 const userInfoHtml = `
                 <div class="header-user-menu">
-                    <button class="notification-bell" id="notification-bell" aria-label="Notifications" aria-expanded="false">
-                        <i class="fa-regular fa-bell"></i>
-                        <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
-                    </button>
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                         <span class="user-initials">${userInitials}</span>
                     </button>
@@ -773,7 +748,7 @@ class Header {
                 this.initSignOutButton();
                 
                 try {
-                    this.initNotificationBell();
+                    // Notification bell removed - notifications are in user menu only
                     setTimeout(() => {
                         this.updateNotificationCount().catch(err => {
                             console.warn('[Header] Failed to update notification count in updateHeader:', err);
@@ -801,6 +776,12 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => Header.init());
 } else {
     Header.init();
+}
+
+// Export to window for global access
+if (typeof window !== 'undefined') {
+    window.Header = Header;
+    console.log('[Header] Header class assigned to window.Header');
 }
 
 // Export for module systems

@@ -2445,6 +2445,8 @@ const SettingsController = {
                 share_responses: true,
                 in_app_enabled: true,
                 email_enabled: false,
+                payment_notifications: true,
+                message_notifications: true,
                 auto_accept_shares: false,
                 auto_decline_shares: false,
                 quiet_hours_enabled: false,
@@ -2480,6 +2482,20 @@ const SettingsController = {
                 <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
                     <input type="checkbox" id="pref-share-responses" ${prefs.share_responses ? 'checked' : ''}>
                     <span>Receive share response notifications</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-payment-notifications" ${prefs.payment_notifications !== false ? 'checked' : ''}>
+                    <span>Receive payment and subscription notifications</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-message-notifications" ${prefs.message_notifications !== false ? 'checked' : ''}>
+                    <span>Receive message notifications</span>
                 </label>
             </div>
             
@@ -2556,6 +2572,8 @@ const SettingsController = {
                 email_enabled: document.getElementById('pref-email-enabled')?.checked || false,
                 share_requests: document.getElementById('pref-share-requests')?.checked || false,
                 share_responses: document.getElementById('pref-share-responses')?.checked || false,
+                payment_notifications: document.getElementById('pref-payment-notifications')?.checked !== false,
+                message_notifications: document.getElementById('pref-message-notifications')?.checked !== false,
                 auto_accept_shares: document.getElementById('pref-auto-accept')?.checked || false,
                 auto_decline_shares: document.getElementById('pref-auto-decline')?.checked || false,
                 quiet_hours_enabled: document.getElementById('pref-quiet-hours-enabled')?.checked || false,

@@ -31,7 +31,9 @@ const NotificationPreferenceService = {
             auto_decline_shares: false,
             quiet_hours_enabled: false,
             quiet_hours_start: '22:00',
-            quiet_hours_end: '08:00'
+            quiet_hours_end: '08:00',
+            payment_notifications: true,
+            message_notifications: true
         };
     },
 
@@ -161,7 +163,9 @@ const NotificationPreferenceService = {
             'auto_decline_shares',
             'quiet_hours_enabled',
             'quiet_hours_start',
-            'quiet_hours_end'
+            'quiet_hours_end',
+            'payment_notifications',
+            'message_notifications'
         ];
 
         for (const key of Object.keys(preferences)) {
