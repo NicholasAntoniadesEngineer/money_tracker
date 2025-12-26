@@ -70,6 +70,20 @@ const SettingsController = {
         } catch (error) {
             console.error('[SettingsController] Error loading data shares:', error);
         }
+
+        try {
+            await this.loadNotificationPreferences();
+            console.log('[SettingsController] Notification preferences loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading notification preferences:', error);
+        }
+
+        try {
+            await this.loadBlockedUsers();
+            console.log('[SettingsController] Blocked users loaded');
+        } catch (error) {
+            console.error('[SettingsController] Error loading blocked users:', error);
+        }
         
         console.log('[SettingsController] init() completed');
     },
@@ -2384,6 +2398,301 @@ const SettingsController = {
         } catch (error) {
             console.error('[SettingsController] Error loading share for edit:', error);
             alert(`Error: ${error.message}`);
+        }
+    },
+
+    /**
+     * Load notification preferences
+     */
+    async loadNotificationPreferences() {
+        console.log('[SettingsController] loadNotificationPreferences() called');
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.getNotificationPreferences();
+            if (result.success && result.preferences) {
+                this.renderNotificationPreferences(result.preferences);
+            } else {
+                throw new Error(result.error || 'Failed to load notification preferences');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error loading notification preferences:', error);
+            const list = document.getElementById('notification-preferences-list');
+            if (list) {
+                list.innerHTML = `<p style="color: var(--danger-color);">Error loading preferences: ${error.message}</p>`;
+            }
+        }
+    },
+
+    /**
+     * Render notification preferences form
+     */
+    renderNotificationPreferences(preferences) {
+        console.log('[SettingsController] renderNotificationPreferences() called', preferences);
+
+        const list = document.getElementById('notification-preferences-list');
+        if (!list) {
+            return;
+        }
+
+        const defaults = typeof window.NotificationPreferenceService !== 'undefined'
+            ? window.NotificationPreferenceService.getDefaultPreferences()
+            : {
+                share_requests: true,
+                share_responses: true,
+                in_app_enabled: true,
+                email_enabled: false,
+                auto_accept_shares: false,
+                auto_decline_shares: false,
+                quiet_hours_enabled: false,
+                quiet_hours_start: '22:00',
+                quiet_hours_end: '08:00'
+            };
+
+        const prefs = { ...defaults, ...preferences };
+
+        list.innerHTML = `
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-in-app-enabled" ${prefs.in_app_enabled ? 'checked' : ''}>
+                    <span>Enable in-app notifications</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-email-enabled" ${prefs.email_enabled ? 'checked' : ''}>
+                    <span>Enable email notifications (future)</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-share-requests" ${prefs.share_requests ? 'checked' : ''}>
+                    <span>Receive share request notifications</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-share-responses" ${prefs.share_responses ? 'checked' : ''}>
+                    <span>Receive share response notifications</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-auto-accept" ${prefs.auto_accept_shares ? 'checked' : ''}>
+                    <span>Auto-accept share requests</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-auto-decline" ${prefs.auto_decline_shares ? 'checked' : ''}>
+                    <span>Auto-decline share requests</span>
+                </label>
+            </div>
+            
+            <div class="settings-row">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <input type="checkbox" id="pref-quiet-hours-enabled" ${prefs.quiet_hours_enabled ? 'checked' : ''}>
+                    <span>Enable quiet hours</span>
+                </label>
+            </div>
+            
+            <div id="quiet-hours-container" style="display: ${prefs.quiet_hours_enabled ? 'block' : 'none'}; margin-top: var(--spacing-md); padding-left: var(--spacing-lg);">
+                <div class="settings-row">
+                    <label for="pref-quiet-hours-start" class="form-label">Quiet Hours Start:</label>
+                    <input type="time" id="pref-quiet-hours-start" class="form-input" value="${prefs.quiet_hours_start || '22:00'}" style="width: 150px;">
+                </div>
+                <div class="settings-row">
+                    <label for="pref-quiet-hours-end" class="form-label">Quiet Hours End:</label>
+                    <input type="time" id="pref-quiet-hours-end" class="form-input" value="${prefs.quiet_hours_end || '08:00'}" style="width: 150px;">
+                </div>
+            </div>
+        `;
+
+        this.setupNotificationPreferenceListeners();
+    },
+
+    /**
+     * Setup event listeners for notification preferences
+     */
+    setupNotificationPreferenceListeners() {
+        const quietHoursEnabled = document.getElementById('pref-quiet-hours-enabled');
+        const quietHoursContainer = document.getElementById('quiet-hours-container');
+        const saveButton = document.getElementById('save-notification-preferences-button');
+
+        if (quietHoursEnabled && quietHoursContainer) {
+            quietHoursEnabled.addEventListener('change', (e) => {
+                quietHoursContainer.style.display = e.target.checked ? 'block' : 'none';
+            });
+        }
+
+        if (saveButton) {
+            saveButton.addEventListener('click', () => {
+                this.saveNotificationPreferences();
+            });
+        }
+    },
+
+    /**
+     * Save notification preferences
+     */
+    async saveNotificationPreferences() {
+        console.log('[SettingsController] saveNotificationPreferences() called');
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const preferences = {
+                in_app_enabled: document.getElementById('pref-in-app-enabled')?.checked || false,
+                email_enabled: document.getElementById('pref-email-enabled')?.checked || false,
+                share_requests: document.getElementById('pref-share-requests')?.checked || false,
+                share_responses: document.getElementById('pref-share-responses')?.checked || false,
+                auto_accept_shares: document.getElementById('pref-auto-accept')?.checked || false,
+                auto_decline_shares: document.getElementById('pref-auto-decline')?.checked || false,
+                quiet_hours_enabled: document.getElementById('pref-quiet-hours-enabled')?.checked || false,
+                quiet_hours_start: document.getElementById('pref-quiet-hours-start')?.value || '22:00',
+                quiet_hours_end: document.getElementById('pref-quiet-hours-end')?.value || '08:00'
+            };
+
+            const result = await window.DatabaseService.updateNotificationPreferences(preferences);
+
+            if (result.success) {
+                const statusDiv = document.getElementById('notification-preferences-status');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Preferences saved successfully';
+                    statusDiv.style.color = 'var(--success-color)';
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+                }
+            } else {
+                throw new Error(result.error || 'Failed to save preferences');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error saving notification preferences:', error);
+            const statusDiv = document.getElementById('notification-preferences-status');
+            if (statusDiv) {
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.style.color = 'var(--danger-color)';
+            }
+        }
+    },
+
+    /**
+     * Load blocked users list
+     */
+    async loadBlockedUsers() {
+        console.log('[SettingsController] loadBlockedUsers() called');
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.getBlockedUsers();
+            if (result.success) {
+                this.renderBlockedUsers(result.blockedUsers || []);
+            } else {
+                throw new Error(result.error || 'Failed to load blocked users');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error loading blocked users:', error);
+            const list = document.getElementById('blocked-users-list');
+            if (list) {
+                list.innerHTML = `<p style="color: var(--danger-color);">Error loading blocked users: ${error.message}</p>`;
+            }
+        }
+    },
+
+    /**
+     * Render blocked users list
+     */
+    async renderBlockedUsers(blockedUsers) {
+        console.log('[SettingsController] renderBlockedUsers() called', { count: blockedUsers.length });
+
+        const list = document.getElementById('blocked-users-list');
+        if (!list) {
+            return;
+        }
+
+        if (blockedUsers.length === 0) {
+            list.innerHTML = '<p>No blocked users.</p>';
+            return;
+        }
+
+        const usersHtml = await Promise.all(
+            blockedUsers.map(async (block) => {
+                let userEmail = 'Unknown User';
+                if (block.blocked_user_id && typeof window.DatabaseService !== 'undefined') {
+                    const emailResult = await window.DatabaseService.getUserEmailById(block.blocked_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        userEmail = emailResult.email;
+                    }
+                }
+
+                return `
+                    <div class="blocked-user-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
+                        <span>${userEmail}</span>
+                        <button class="btn btn-sm btn-secondary unblock-user-btn" data-user-id="${block.blocked_user_id}" style="padding: 4px 12px;">Unblock</button>
+                    </div>
+                `;
+            })
+        );
+
+        list.innerHTML = usersHtml.join('');
+
+        list.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('unblock-user-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId) {
+                    await this.handleUnblockUser(userId);
+                }
+            }
+        });
+    },
+
+    /**
+     * Handle unblock user
+     */
+    async handleUnblockUser(userId) {
+        console.log('[SettingsController] handleUnblockUser() called', { userId });
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.unblockUser(userId);
+
+            if (result.success) {
+                await this.loadBlockedUsers();
+                const statusDiv = document.getElementById('blocked-users-status');
+                if (statusDiv) {
+                    statusDiv.textContent = 'User unblocked successfully';
+                    statusDiv.style.color = 'var(--success-color)';
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+                }
+            } else {
+                throw new Error(result.error || 'Failed to unblock user');
+            }
+        } catch (error) {
+            console.error('[SettingsController] Error unblocking user:', error);
+            const statusDiv = document.getElementById('blocked-users-status');
+            if (statusDiv) {
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.style.color = 'var(--danger-color)';
+            }
         }
     }
 };

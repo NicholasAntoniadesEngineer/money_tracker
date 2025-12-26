@@ -1512,6 +1512,9 @@ const DatabaseService = {
                     const sharedSharesResult = await this.getDataSharesSharedWithMe();
                     if (sharedSharesResult.success && sharedSharesResult.shares) {
                         for (const share of sharedSharesResult.shares) {
+                            if (share.status !== 'accepted') {
+                                continue;
+                            }
                             const sharedMonths = share.shared_months || [];
                             for (const monthEntry of sharedMonths) {
                                 let year, month;
@@ -1683,6 +1686,9 @@ const DatabaseService = {
                         const sharedSharesResult = await this.getDataSharesSharedWithMe();
                         if (sharedSharesResult.success && sharedSharesResult.shares) {
                             for (const share of sharedSharesResult.shares) {
+                                if (share.status !== 'accepted') {
+                                    continue;
+                                }
                                 const sharedMonths = share.shared_months || [];
                                 const isMonthShared = window.DataSharingService._isMonthInSharedList(year, month, sharedMonths);
                                 if (isMonthShared) {
@@ -1721,6 +1727,9 @@ const DatabaseService = {
                         const sharedSharesResult = await this.getDataSharesSharedWithMe();
                         if (sharedSharesResult.success && sharedSharesResult.shares) {
                             for (const share of sharedSharesResult.shares) {
+                                if (share.status !== 'accepted') {
+                                    continue;
+                                }
                                 const sharedMonths = share.shared_months || [];
                                 const isMonthShared = window.DataSharingService._isMonthInSharedList(year, month, sharedMonths);
                                 if (isMonthShared) {
@@ -2076,7 +2085,10 @@ const DatabaseService = {
                     const sharedSharesResult = await this.getDataSharesSharedWithMe();
                     if (sharedSharesResult.success && sharedSharesResult.shares) {
                         for (const share of sharedSharesResult.shares) {
-                            if (share.shared_pots) {
+                            if (share.status !== 'accepted') {
+                                continue;
+                            }
+                            if (share.shared_pots || share.share_all_data) {
                                 const sharedPotsResult = await this.querySelect('pots', {
                                     select: '*',
                                     filter: { user_id: share.owner_user_id },
@@ -2853,6 +2865,37 @@ const DatabaseService = {
                     error: 'Cannot share data with yourself'
                 };
             }
+
+            if (typeof window.DataSharingService !== 'undefined') {
+                const blockedResult = await window.DataSharingService.checkIfBlocked(currentUserId, userResult.userId);
+                if (blockedResult.isBlocked) {
+                    console.warn('[DatabaseService] User is blocked');
+                    return {
+                        success: false,
+                        share: null,
+                        error: 'Cannot share data with this user - they have blocked you'
+                    };
+                }
+            }
+
+            let shareStatus = 'pending';
+            let shouldCreateNotification = true;
+
+            if (typeof window.NotificationPreferenceService !== 'undefined') {
+                const preferencesResult = await window.NotificationPreferenceService.getPreferences(userResult.userId);
+                if (preferencesResult.success && preferencesResult.preferences) {
+                    const preferences = preferencesResult.preferences;
+                    if (preferences.auto_accept_shares) {
+                        shareStatus = 'accepted';
+                        shouldCreateNotification = false;
+                        console.log('[DatabaseService] Auto-accept enabled, setting status to accepted');
+                    } else if (preferences.auto_decline_shares) {
+                        shareStatus = 'declined';
+                        shouldCreateNotification = false;
+                        console.log('[DatabaseService] Auto-decline enabled, setting status to declined');
+                    }
+                }
+            }
             
             const tableName = this._getTableName('dataShares');
             
@@ -2880,6 +2923,7 @@ const DatabaseService = {
                     shared_pots: sharedPots,
                     shared_settings: sharedSettings,
                     share_all_data: shareAllData,
+                    status: shareStatus,
                     updated_at: new Date().toISOString()
                 };
                 
@@ -2907,7 +2951,8 @@ const DatabaseService = {
                     shared_months: JSON.stringify(sharedMonths),
                     shared_pots: sharedPots,
                     shared_settings: sharedSettings,
-                    share_all_data: shareAllData
+                    share_all_data: shareAllData,
+                    status: shareStatus
                 };
                 
                 const result = await this.queryInsert(tableName, shareData);
@@ -2934,6 +2979,7 @@ const DatabaseService = {
                                 shared_pots: sharedPots,
                                 shared_settings: sharedSettings,
                                 share_all_data: shareAllData,
+                                status: shareStatus,
                                 updated_at: new Date().toISOString()
                             };
                             
@@ -2964,6 +3010,28 @@ const DatabaseService = {
                 } else {
                     share = result.data && result.data.length > 0 ? result.data[0] : null;
                     console.log('[DatabaseService] Share created successfully');
+                }
+            }
+
+            if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
+                console.log('[DatabaseService] Creating notification for share');
+                const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                    userResult.userId,
+                    'share_request',
+                    share.id,
+                    currentUserId,
+                    null
+                );
+                if (notificationResult.success) {
+                    console.log('[DatabaseService] Notification created successfully');
+                    const updateResult = await this.queryUpdate(tableName, share.id, {
+                        notification_sent_at: new Date().toISOString()
+                    });
+                    if (updateResult.error) {
+                        console.warn('[DatabaseService] Failed to update notification_sent_at:', updateResult.error);
+                    }
+                } else {
+                    console.warn('[DatabaseService] Failed to create notification:', notificationResult.error);
                 }
             }
             
@@ -3251,6 +3319,413 @@ const DatabaseService = {
             return {
                 success: false,
                 shares: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Update share status (accept, decline, block)
+     * @param {number} shareId - Share ID
+     * @param {string} status - New status: 'accepted', 'declined', or 'blocked'
+     * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
+     */
+    async updateShareStatus(shareId, status) {
+        try {
+            console.log('[DatabaseService] updateShareStatus() called', { shareId, status });
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    share: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (!['accepted', 'declined', 'blocked'].includes(status)) {
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Invalid status. Must be accepted, declined, or blocked'
+                };
+            }
+
+            const tableName = this._getTableName('dataShares');
+
+            const shareResult = await this.querySelect(tableName, {
+                filter: { id: shareId },
+                limit: 1
+            });
+
+            if (shareResult.error || !shareResult.data || shareResult.data.length === 0) {
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Share not found'
+                };
+            }
+
+            const share = shareResult.data[0];
+
+            if (share.shared_with_user_id !== currentUserId) {
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Not authorized to update this share'
+                };
+            }
+
+            const updateData = {
+                status: status,
+                responded_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+
+            if (updateResult.error) {
+                console.error('[DatabaseService] Error updating share status:', updateResult.error);
+                return {
+                    success: false,
+                    share: null,
+                    error: updateResult.error.message || 'Failed to update share status'
+                };
+            }
+
+            const updatedShare = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : share;
+
+            if (typeof window.NotificationProcessor !== 'undefined') {
+                const notificationType = status === 'accepted' ? 'share_accepted' : 
+                                       status === 'declined' ? 'share_declined' : 'share_blocked';
+                
+                const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                    share.owner_user_id,
+                    notificationType,
+                    shareId,
+                    currentUserId,
+                    null
+                );
+                if (notificationResult.success) {
+                    console.log('[DatabaseService] Notification created for share status update');
+                } else {
+                    console.warn('[DatabaseService] Failed to create notification:', notificationResult.error);
+                }
+            }
+
+            if (status === 'blocked') {
+                await this.blockUser(share.owner_user_id);
+            }
+
+            return {
+                success: true,
+                share: updatedShare,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception updating share status:', error);
+            return {
+                success: false,
+                share: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Block a user (add to blocked list and decline all pending shares from them)
+     * @param {string} userIdToBlock - User ID to block
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async blockUser(userIdToBlock) {
+        try {
+            console.log('[DatabaseService] blockUser() called', { userIdToBlock });
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (userIdToBlock === currentUserId) {
+                return {
+                    success: false,
+                    error: 'Cannot block yourself'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    blocked_user_id: userIdToBlock
+                },
+                limit: 1
+            });
+
+            if (existingResult.data && existingResult.data.length > 0) {
+                console.log('[DatabaseService] User already blocked');
+                return {
+                    success: true,
+                    error: null
+                };
+            }
+
+            const insertResult = await this.queryInsert(tableName, {
+                user_id: currentUserId,
+                blocked_user_id: userIdToBlock
+            });
+
+            if (insertResult.error) {
+                console.error('[DatabaseService] Error blocking user:', insertResult.error);
+                return {
+                    success: false,
+                    error: insertResult.error.message || 'Failed to block user'
+                };
+            }
+
+            const sharesTableName = this._getTableName('dataShares');
+            const pendingSharesResult = await this.querySelect(sharesTableName, {
+                filter: {
+                    owner_user_id: userIdToBlock,
+                    shared_with_user_id: currentUserId,
+                    status: 'pending'
+                }
+            });
+
+            if (pendingSharesResult.data && pendingSharesResult.data.length > 0) {
+                for (const share of pendingSharesResult.data) {
+                    await this.queryUpdate(sharesTableName, share.id, {
+                        status: 'declined',
+                        responded_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                console.log(`[DatabaseService] Declined ${pendingSharesResult.data.length} pending shares from blocked user`);
+            }
+
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception blocking user:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Unblock a user (remove from blocked list)
+     * @param {string} userIdToUnblock - User ID to unblock
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async unblockUser(userIdToUnblock) {
+        try {
+            console.log('[DatabaseService] unblockUser() called', { userIdToUnblock });
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    blocked_user_id: userIdToUnblock
+                },
+                limit: 1
+            });
+
+            if (!existingResult.data || existingResult.data.length === 0) {
+                return {
+                    success: true,
+                    error: null
+                };
+            }
+
+            const blockId = existingResult.data[0].id;
+            const deleteResult = await this.queryDelete(tableName, blockId);
+
+            if (deleteResult.error) {
+                console.error('[DatabaseService] Error unblocking user:', deleteResult.error);
+                return {
+                    success: false,
+                    error: deleteResult.error.message || 'Failed to unblock user'
+                };
+            }
+
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception unblocking user:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get list of blocked users
+     * @returns {Promise<{success: boolean, blockedUsers: Array, error: string|null}>}
+     */
+    async getBlockedUsers() {
+        try {
+            console.log('[DatabaseService] getBlockedUsers() called');
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    blockedUsers: [],
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error getting blocked users:', result.error);
+                return {
+                    success: false,
+                    blockedUsers: [],
+                    error: result.error.message || 'Failed to get blocked users'
+                };
+            }
+
+            return {
+                success: true,
+                blockedUsers: result.data || [],
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting blocked users:', error);
+            return {
+                success: false,
+                blockedUsers: [],
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get all data shared with current user, grouped by status
+     * @returns {Promise<{success: boolean, data: Object, error: string|null}>}
+     */
+    async getSharedDataWithMe() {
+        try {
+            console.log('[DatabaseService] getSharedDataWithMe() called');
+
+            const sharesResult = await this.getDataSharesSharedWithMe();
+            if (!sharesResult.success) {
+                return sharesResult;
+            }
+
+            const shares = sharesResult.shares || [];
+            const grouped = {
+                pending: [],
+                accepted: [],
+                declined: [],
+                blocked: []
+            };
+
+            for (const share of shares) {
+                const status = share.status || 'pending';
+                if (grouped[status]) {
+                    grouped[status].push(share);
+                }
+            }
+
+            return {
+                success: true,
+                data: grouped,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting shared data:', error);
+            return {
+                success: false,
+                data: { pending: [], accepted: [], declined: [], blocked: [] },
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get user's notification preferences
+     * @returns {Promise<{success: boolean, preferences: Object|null, error: string|null}>}
+     */
+    async getNotificationPreferences() {
+        try {
+            if (typeof window.NotificationPreferenceService === 'undefined') {
+                throw new Error('NotificationPreferenceService not available');
+            }
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    preferences: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            return await window.NotificationPreferenceService.getPreferences(currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting notification preferences:', error);
+            return {
+                success: false,
+                preferences: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Update user's notification preferences
+     * @param {Object} preferences - Preferences to update
+     * @returns {Promise<{success: boolean, preferences: Object|null, error: string|null}>}
+     */
+    async updateNotificationPreferences(preferences) {
+        try {
+            if (typeof window.NotificationPreferenceService === 'undefined') {
+                throw new Error('NotificationPreferenceService not available');
+            }
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    preferences: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            return await window.NotificationPreferenceService.updatePreferences(currentUserId, preferences);
+        } catch (error) {
+            console.error('[DatabaseService] Exception updating notification preferences:', error);
+            return {
+                success: false,
+                preferences: null,
                 error: error.message || 'An unexpected error occurred'
             };
         }

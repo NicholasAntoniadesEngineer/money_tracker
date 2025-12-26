@@ -103,6 +103,14 @@ const DataSharingService = {
                     error: null
                 };
             }
+
+            if (share.status !== 'accepted') {
+                return {
+                    hasPermission: false,
+                    accessLevel: null,
+                    error: null
+                };
+            }
             
             if (resourceType === 'month' && resourceData) {
                 const isMonthShared = this._isMonthInSharedList(resourceData.year, resourceData.month, share.shared_months);
@@ -285,6 +293,57 @@ const DataSharingService = {
         }
         
         return false;
+    },
+
+    /**
+     * Check if a user is blocked by another user
+     * @param {string} ownerUserId - User ID of the data owner
+     * @param {string} sharedWithUserId - User ID to check if blocked
+     * @returns {Promise<{isBlocked: boolean, error: string|null}>}
+     */
+    async checkIfBlocked(ownerUserId, sharedWithUserId) {
+        try {
+            console.log('[DataSharingService] checkIfBlocked() called', { ownerUserId, sharedWithUserId });
+
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+            if (!tableName) {
+                throw new Error('blockedUsers table name not configured');
+            }
+
+            const result = await databaseService.querySelect(tableName, {
+                filter: {
+                    user_id: sharedWithUserId,
+                    blocked_user_id: ownerUserId
+                },
+                limit: 1
+            });
+
+            if (result.error) {
+                console.error('[DataSharingService] Error checking if blocked:', result.error);
+                return {
+                    isBlocked: false,
+                    error: result.error.message || 'Failed to check if blocked'
+                };
+            }
+
+            const isBlocked = result.data && result.data.length > 0;
+
+            return {
+                isBlocked: isBlocked,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DataSharingService] Exception checking if blocked:', error);
+            return {
+                isBlocked: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
     }
 };
 

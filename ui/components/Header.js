@@ -145,6 +145,10 @@ class Header {
                 const settingsHref = basePath + 'settings.html';
                 userInfoHtml = `
                 <div class="header-user-menu">
+                    <button class="notification-bell" id="notification-bell" aria-label="Notifications" aria-expanded="false">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+                    </button>
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                         <span class="user-initials">${userInitials}</span>
                     </button>
@@ -157,6 +161,11 @@ class Header {
                             <i class="fa-regular fa-gear user-dropdown-icon"></i>
                             <span>Settings</span>
                         </a>
+                        <button class="user-dropdown-item user-dropdown-notifications" id="header-notifications-button" aria-label="Notifications">
+                            <i class="fa-regular fa-bell user-dropdown-icon"></i>
+                            <span>Notifications</span>
+                            <span class="notification-count-badge" id="header-notification-count" style="display: none;">0</span>
+                        </button>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                             <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                             <span>Sign Out</span>
@@ -277,12 +286,24 @@ class Header {
         // Initialize sign out button
         this.initSignOutButton();
         
+        // Note: Notification bell is initialized in updateHeader() after HTML is rendered
+        
         // Listen for auth state changes to update header
         this.setupAuthStateListener();
         
         // Update header immediately to show user menu if already authenticated
         console.log('[Header] Updating header with current auth state...');
         this.updateHeader();
+        
+        // Update notification count after a delay to ensure services are loaded
+        setTimeout(() => {
+            this.updateNotificationCount().catch(err => {
+                console.warn('[Header] Failed to update notification count on init:', err);
+            });
+            this.setupNotificationSubscription().catch(err => {
+                console.warn('[Header] Failed to setup notification subscription:', err);
+            });
+        }, 1000);
         
         this.initialized = true;
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
@@ -399,6 +420,122 @@ class Header {
                 dropdownMenu.classList.remove('user-dropdown-open');
             }
         });
+    }
+
+    /**
+     * Initialize notification bell
+     */
+    static initNotificationBell() {
+        try {
+            const notificationBell = document.getElementById('notification-bell');
+            const notificationsButton = document.getElementById('header-notifications-button');
+
+            if (notificationBell) {
+                notificationBell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.handleNotificationBellClick();
+                });
+            }
+
+            if (notificationsButton) {
+                notificationsButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.handleNotificationBellClick();
+                });
+            }
+
+            setTimeout(() => {
+                this.updateNotificationCount().catch(err => {
+                    console.warn('[Header] Failed to update notification count:', err);
+                });
+            }, 100);
+        } catch (error) {
+            console.error('[Header] Error initializing notification bell:', error);
+        }
+    }
+
+    /**
+     * Handle notification bell click
+     */
+    static handleNotificationBellClick() {
+        const basePath = this.getBasePath();
+        const notificationsUrl = basePath + 'notifications.html';
+        window.location.href = notificationsUrl;
+    }
+
+    /**
+     * Update notification count in header
+     */
+    static async updateNotificationCount() {
+        try {
+            if (typeof window.NotificationService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
+                return;
+            }
+
+            const currentUserId = await window.DatabaseService?._getCurrentUserId();
+            if (!currentUserId) {
+                return;
+            }
+
+            const result = await window.NotificationService.getUnreadCount(currentUserId);
+            if (result.success) {
+                const count = result.count || 0;
+                const badge = document.getElementById('notification-badge');
+                const countBadge = document.getElementById('header-notification-count');
+
+                if (badge) {
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count.toString();
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                if (countBadge) {
+                    if (count > 0) {
+                        countBadge.textContent = count > 99 ? '99+' : count.toString();
+                        countBadge.style.display = 'inline-block';
+                    } else {
+                        countBadge.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Header] Error updating notification count:', error);
+        }
+    },
+
+    /**
+     * Setup real-time notification subscription
+     */
+    static async setupNotificationSubscription() {
+        try {
+            if (typeof window.NotificationService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
+                return;
+            }
+
+            const currentUserId = await window.DatabaseService?._getCurrentUserId();
+            if (!currentUserId) {
+                return;
+            }
+
+            const result = await window.NotificationService.subscribeToNotifications(currentUserId, (payload) => {
+                console.log('[Header] Notification update received:', payload);
+                this.updateNotificationCount();
+            });
+
+            if (result.success) {
+                console.log('[Header] Real-time notification subscription established');
+            } else {
+                console.warn('[Header] Real-time subscription not available, will poll instead');
+                setInterval(() => this.updateNotificationCount(), 30000);
+            }
+        } catch (error) {
+            console.error('[Header] Error setting up notification subscription:', error);
+            setInterval(() => this.updateNotificationCount(), 30000);
+        }
     }
 
     /**
@@ -603,28 +740,49 @@ class Header {
                 });
                 
                 const userInfoHtml = `
-                    <div class="header-user-menu">
-                        <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
-                            <span class="user-initials">${userInitials}</span>
-                        </button>
-                        <div class="user-dropdown-menu" id="user-dropdown-menu">
-                            <div class="user-dropdown-item user-dropdown-username">
-                                <i class="fa-regular fa-user user-dropdown-icon"></i>
-                                <span>${userEmail}</span>
-                            </div>
-                            <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                                <i class="fa-regular fa-gear user-dropdown-icon"></i>
-                                <span>Settings</span>
-                            </a>
-                            <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                                <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
-                                <span>Sign Out</span>
-                            </button>
+                <div class="header-user-menu">
+                    <button class="notification-bell" id="notification-bell" aria-label="Notifications" aria-expanded="false">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+                    </button>
+                    <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
+                        <span class="user-initials">${userInitials}</span>
+                    </button>
+                    <div class="user-dropdown-menu" id="user-dropdown-menu">
+                        <div class="user-dropdown-item user-dropdown-username">
+                            <i class="fa-regular fa-user user-dropdown-icon"></i>
+                            <span>${userEmail}</span>
                         </div>
-                    </div>`;
+                        <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
+                            <i class="fa-regular fa-gear user-dropdown-icon"></i>
+                            <span>Settings</span>
+                        </a>
+                        <button class="user-dropdown-item user-dropdown-notifications" id="header-notifications-button" aria-label="Notifications">
+                            <i class="fa-regular fa-bell user-dropdown-icon"></i>
+                            <span>Notifications</span>
+                            <span class="notification-count-badge" id="header-notification-count" style="display: none;">0</span>
+                        </button>
+                        <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
+                            <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>`;
                 nav.insertAdjacentHTML('beforeend', userInfoHtml);
                 this.initUserMenu();
                 this.initSignOutButton();
+                
+                try {
+                    this.initNotificationBell();
+                    setTimeout(() => {
+                        this.updateNotificationCount().catch(err => {
+                            console.warn('[Header] Failed to update notification count in updateHeader:', err);
+                        });
+                    }, 500);
+                } catch (error) {
+                    console.error('[Header] Error initializing notification bell in updateHeader:', error);
+                }
+                
                 console.log('[Header] User menu added successfully');
             } else {
                 console.log('[Header] User not authenticated, not adding user menu');

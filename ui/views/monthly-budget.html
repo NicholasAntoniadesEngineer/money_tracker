@@ -58,6 +58,13 @@
             </div>
         </section>
 
+        <section id="shared-from-section" class="form-section" style="display: none;">
+            <h2 class="section-title">Data Shared From</h2>
+            <div id="shared-from-content">
+                <p>Loading shared data...</p>
+            </div>
+        </section>
+
         <div id="month-content" style="display: none;">
 
             <section class="working-section form-section">
@@ -380,6 +387,13 @@
     <script src="../../database/services/database-service.js"></script>
     <script src="../../database/services/DataSharingService.js"></script>
     <script src="../../database/services/FieldLockingService.js"></script>
+    
+    <!-- Notification Services -->
+    <script src="../../database/services/NotificationTypeRegistry.js"></script>
+    <script src="../../database/services/NotificationService.js"></script>
+    <script src="../../database/services/NotificationPreferenceService.js"></script>
+    <script src="../../database/services/NotificationChannelService.js"></script>
+    <script src="../../database/services/NotificationProcessor.js"></script>
     
     <!-- Initialize Database Module -->
     <script src="../../database/init-database.js"></script>

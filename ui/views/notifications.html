@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Money Tracker</title>
+    <link rel="stylesheet" href="../vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
+        (function() {
+            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
+            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            
+            // Sync with database once services are available
+            async function syncFontSizeFromDatabase() {
+                try {
+                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
+                        const settings = await window.DatabaseService.getSettings();
+                        if (settings && settings.fontSize) {
+                            const fontSize = settings.fontSize;
+                            document.documentElement.style.fontSize = fontSize + 'px';
+                            localStorage.setItem('money_tracker_fontSize', fontSize);
+                        }
+                    } else if (document.readyState !== 'complete') {
+                        setTimeout(syncFontSizeFromDatabase, 100);
+                    }
+                } catch (error) {
+                    // Silently fail - use cached value
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
+            } else {
+                syncFontSizeFromDatabase();
+            }
+        })();
+    </script>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="notifications-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Notifications</h2>
+        </section>
+
+        <section class="notifications-section form-section">
+            <div class="notifications-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <button id="filter-all" class="btn btn-secondary filter-button active">All</button>
+                    <button id="filter-unread" class="btn btn-secondary filter-button">Unread</button>
+                </div>
+                <button id="mark-all-read-button" class="btn btn-action">Mark All as Read</button>
+            </div>
+
+            <div id="notifications-list" class="notifications-list">
+                <p>Loading notifications...</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Scripts -->
+    <script src="../../config/supabase-config.js"></script>
+    <script src="../../auth/services/auth-service.js"></script>
+    <script src="../../database/utils/database-config-helper.js"></script>
+    <script src="../../database/database-module.js"></script>
+    
+    <!-- Database Service -->
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../../database/services/DataSharingService.js"></script>
+    <script src="../../database/services/FieldLockingService.js"></script>
+    
+    <!-- Notification Services -->
+    <script src="../../database/services/NotificationTypeRegistry.js"></script>
+    <script src="../../database/services/NotificationService.js"></script>
+    <script src="../../database/services/NotificationPreferenceService.js"></script>
+    <script src="../../database/services/NotificationChannelService.js"></script>
+    <script src="../../database/services/NotificationProcessor.js"></script>
+    
+    <!-- Initialize Database Module -->
+    <script src="../../database/init-database.js"></script>
+    
+    <!-- Header Component -->
+    <script src="../components/Header.js"></script>
+    
+    <!-- Notifications Controller -->
+    <script src="../controllers/NotificationsController.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                if (window.NotificationsController) {
+                    await window.NotificationsController.init();
+                }
+            } catch (error) {
+                console.error('Error initializing notifications page:', error);
+                alert('Error initializing notifications page. Please check console for details.');
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS data_shares (
     shared_pots BOOLEAN DEFAULT false,
     shared_settings BOOLEAN DEFAULT false,
     share_all_data BOOLEAN DEFAULT false, -- If true, shares all data (months, pots, settings) regardless of individual flags
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'blocked')),
+    notification_sent_at TIMESTAMPTZ,
+    responded_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(owner_user_id, shared_with_user_id)
@@ -24,6 +27,24 @@ CREATE TABLE IF NOT EXISTS data_shares (
 
 -- Add comment to document the share_all_data column
 COMMENT ON COLUMN data_shares.share_all_data IS 'If true, shares all data (months, pots, settings) regardless of individual flags';
+
+-- Add new columns if they don't exist (for existing tables)
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS notification_sent_at TIMESTAMPTZ;
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS responded_at TIMESTAMPTZ;
+
+-- Add check constraint for status if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'data_shares_status_check' 
+        AND conrelid = 'data_shares'::regclass
+    ) THEN
+        ALTER TABLE data_shares ADD CONSTRAINT data_shares_status_check 
+            CHECK (status IN ('pending', 'accepted', 'declined', 'blocked'));
+    END IF;
+END $$;
 
 -- Field locks table (prevents concurrent edits to the same field)
 CREATE TABLE IF NOT EXISTS field_locks (
@@ -53,6 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_field_locks_expires_at ON field_locks(expires_at)
 CREATE INDEX IF NOT EXISTS idx_field_locks_resource_field ON field_locks(resource_type, resource_id, field_path);
 
 -- Triggers to auto-update updated_at for data_shares
+DROP TRIGGER IF EXISTS update_data_shares_updated_at ON data_shares;
 CREATE TRIGGER update_data_shares_updated_at BEFORE UPDATE ON data_shares
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -68,6 +90,7 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger to auto-set expiration time for field locks
+DROP TRIGGER IF EXISTS set_field_lock_expiration_trigger ON field_locks;
 CREATE TRIGGER set_field_lock_expiration_trigger BEFORE INSERT ON field_locks
     FOR EACH ROW EXECUTE FUNCTION set_field_lock_expiration();
 
@@ -91,15 +114,22 @@ ALTER TABLE field_locks ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for data_shares
 -- Owners can manage their shares (SELECT, INSERT, UPDATE, DELETE)
+DROP POLICY IF EXISTS "Owners can manage their shares" ON data_shares;
 CREATE POLICY "Owners can manage their shares" ON data_shares
     FOR ALL USING (owner_user_id = auth.uid()) WITH CHECK (owner_user_id = auth.uid());
 
 -- Shared users can only SELECT shares where they are the shared_with_user_id
+-- Only show accepted shares (or pending for the recipient to see their pending requests)
+DROP POLICY IF EXISTS "Shared users can view shares" ON data_shares;
 CREATE POLICY "Shared users can view shares" ON data_shares
-    FOR SELECT USING (shared_with_user_id = auth.uid());
+    FOR SELECT USING (
+        shared_with_user_id = auth.uid() 
+        AND (status = 'accepted' OR status = 'pending')
+    );
 
 -- RLS Policies for field_locks
 -- Users can see all locks for resources they own or have access to
+DROP POLICY IF EXISTS "Users can view relevant locks" ON field_locks;
 CREATE POLICY "Users can view relevant locks" ON field_locks
     FOR SELECT USING (
         owner_user_id = auth.uid() OR
@@ -108,11 +138,13 @@ CREATE POLICY "Users can view relevant locks" ON field_locks
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = field_locks.owner_user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     );
 
 -- Users can create locks for fields they have write access to
+DROP POLICY IF EXISTS "Users can create locks for accessible fields" ON field_locks;
 CREATE POLICY "Users can create locks for accessible fields" ON field_locks
     FOR INSERT WITH CHECK (
         owner_user_id = auth.uid() OR
@@ -120,15 +152,18 @@ CREATE POLICY "Users can create locks for accessible fields" ON field_locks
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = field_locks.owner_user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     );
 
 -- Users can only delete their own locks
+DROP POLICY IF EXISTS "Users can delete their own locks" ON field_locks;
 CREATE POLICY "Users can delete their own locks" ON field_locks
     FOR DELETE USING (locked_by_user_id = auth.uid());
 
 -- Users can update their own locks (to extend expiration)
+DROP POLICY IF EXISTS "Users can update their own locks" ON field_locks;
 CREATE POLICY "Users can update their own locks" ON field_locks
     FOR UPDATE USING (locked_by_user_id = auth.uid())
     WITH CHECK (locked_by_user_id = auth.uid());
@@ -143,6 +178,7 @@ CREATE POLICY "Allow shared users to read months" ON user_months
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = user_months.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (
                 data_shares.share_all_data = true OR
                 (data_shares.shared_months @> jsonb_build_array(jsonb_build_object('year', user_months.year, 'month', user_months.month)))
@@ -266,6 +302,7 @@ CREATE POLICY "Allow shared users to read pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
         )
     );
@@ -278,6 +315,7 @@ CREATE POLICY "Allow shared users to update pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
@@ -288,6 +326,7 @@ CREATE POLICY "Allow shared users to update pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
@@ -301,6 +340,7 @@ CREATE POLICY "Allow shared users to delete pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level = 'read_write_delete'
         )
@@ -315,6 +355,7 @@ CREATE POLICY "Allow shared users to read settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
         )
     );
@@ -327,6 +368,7 @@ CREATE POLICY "Allow shared users to update settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
@@ -337,6 +379,7 @@ CREATE POLICY "Allow shared users to update settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
+            AND data_shares.status = 'accepted'
             AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )

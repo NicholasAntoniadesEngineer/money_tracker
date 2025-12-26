@@ -96,6 +96,7 @@ const MonthlyBudgetController = {
         }
 
         this.setupEventListeners();
+        await this.loadSharedFromData();
     },
 
     /**
@@ -4376,6 +4377,240 @@ const MonthlyBudgetController = {
         } else if (accessLevel === 'read_write_delete') {
             if (saveButton) saveButton.disabled = false;
             if (deleteButton) deleteButton.disabled = false;
+        }
+    },
+
+    /**
+     * Load shared data with current user
+     */
+    async loadSharedFromData() {
+        console.log('[MonthlyBudgetController] loadSharedFromData() called');
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                console.warn('[MonthlyBudgetController] DatabaseService not available');
+                return;
+            }
+
+            const result = await window.DatabaseService.getSharedDataWithMe();
+            if (result.success) {
+                this.renderSharedFromSection(result.data);
+            } else {
+                console.error('[MonthlyBudgetController] Error loading shared data:', result.error);
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Exception loading shared data:', error);
+        }
+    },
+
+    /**
+     * Render shared from section
+     */
+    async renderSharedFromSection(sharedData) {
+        console.log('[MonthlyBudgetController] renderSharedFromSection() called', sharedData);
+
+        const section = document.getElementById('shared-from-section');
+        const content = document.getElementById('shared-from-content');
+        if (!section || !content) {
+            return;
+        }
+
+        const pending = sharedData.pending || [];
+        const accepted = sharedData.accepted || [];
+        const declined = sharedData.declined || [];
+
+        if (pending.length === 0 && accepted.length === 0 && declined.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        let html = '';
+
+        if (pending.length > 0) {
+            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Pending</h3>';
+            html += await this.renderSharedMonthsList(pending, 'pending');
+        }
+
+        if (accepted.length > 0) {
+            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Accepted</h3>';
+            html += await this.renderSharedMonthsList(accepted, 'accepted');
+        }
+
+        if (declined.length > 0) {
+            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Declined</h3>';
+            html += await this.renderSharedMonthsList(declined, 'declined');
+        }
+
+        content.innerHTML = html;
+
+        this.setupSharedFromListeners();
+    },
+
+    /**
+     * Render shared months list for a status
+     */
+    async renderSharedMonthsList(shares, status) {
+        const monthsHtml = await Promise.all(
+            shares.map(async (share) => {
+                let ownerEmail = 'Unknown User';
+                if (share.owner_user_id && typeof window.DatabaseService !== 'undefined') {
+                    const emailResult = await window.DatabaseService.getUserEmailById(share.owner_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        ownerEmail = emailResult.email;
+                    }
+                }
+
+                const sharedMonths = share.shared_months || [];
+                const monthsList = sharedMonths.map(m => {
+                    if (m.type === 'range') {
+                        return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
+                    } else {
+                        return `${m.month}/${m.year}`;
+                    }
+                }).join(', ') || 'All months';
+
+                let actionsHtml = '';
+                if (status === 'pending') {
+                    actionsHtml = `
+                        <div style="display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs);">
+                            <button class="btn btn-sm btn-primary accept-share-btn" data-share-id="${share.id}">Accept</button>
+                            <button class="btn btn-sm btn-secondary decline-share-btn" data-share-id="${share.id}">Decline</button>
+                            <button class="btn btn-sm btn-danger block-user-btn" data-user-id="${share.owner_user_id}">Block</button>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="shared-month-item" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
+                        <div><strong>From:</strong> ${ownerEmail}</div>
+                        <div><strong>Access Level:</strong> ${share.access_level}</div>
+                        <div><strong>Months:</strong> ${monthsList}</div>
+                        ${share.shared_pots || share.share_all_data ? '<div><strong>Pots:</strong> Yes</div>' : ''}
+                        ${share.shared_settings || share.share_all_data ? '<div><strong>Settings:</strong> Yes</div>' : ''}
+                        ${actionsHtml}
+                    </div>
+                `;
+            })
+        );
+
+        return monthsHtml.join('');
+    },
+
+    /**
+     * Setup event listeners for shared from section
+     */
+    setupSharedFromListeners() {
+        const content = document.getElementById('shared-from-content');
+        if (!content) {
+            return;
+        }
+
+        content.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('accept-share-btn')) {
+                const shareId = parseInt(e.target.dataset.shareId, 10);
+                if (shareId) {
+                    await this.handleAcceptShare(shareId);
+                }
+            }
+
+            if (e.target.classList.contains('decline-share-btn')) {
+                const shareId = parseInt(e.target.dataset.shareId, 10);
+                if (shareId) {
+                    await this.handleDeclineShare(shareId);
+                }
+            }
+
+            if (e.target.classList.contains('block-user-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId) {
+                    await this.handleBlockUser(userId);
+                }
+            }
+        });
+    },
+
+    /**
+     * Handle accept share
+     */
+    async handleAcceptShare(shareId) {
+        console.log('[MonthlyBudgetController] handleAcceptShare() called', { shareId });
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.updateShareStatus(shareId, 'accepted');
+
+            if (result.success) {
+                await this.loadSharedFromData();
+                await this.loadMonthSelector();
+                if (this.currentMonthKey) {
+                    await this.loadMonth(this.currentMonthKey);
+                }
+                alert('Share accepted successfully');
+            } else {
+                throw new Error(result.error || 'Failed to accept share');
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error accepting share:', error);
+            alert('Error accepting share: ' + error.message);
+        }
+    },
+
+    /**
+     * Handle decline share
+     */
+    async handleDeclineShare(shareId) {
+        console.log('[MonthlyBudgetController] handleDeclineShare() called', { shareId });
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
+
+            if (result.success) {
+                await this.loadSharedFromData();
+                alert('Share declined');
+            } else {
+                throw new Error(result.error || 'Failed to decline share');
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error declining share:', error);
+            alert('Error declining share: ' + error.message);
+        }
+    },
+
+    /**
+     * Handle block user
+     */
+    async handleBlockUser(userId) {
+        console.log('[MonthlyBudgetController] handleBlockUser() called', { userId });
+
+        if (!confirm('Are you sure you want to block this user? This will decline all pending shares from them.')) {
+            return;
+        }
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.blockUser(userId);
+
+            if (result.success) {
+                await this.loadSharedFromData();
+                alert('User blocked successfully');
+            } else {
+                throw new Error(result.error || 'Failed to block user');
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error blocking user:', error);
+            alert('Error blocking user: ' + error.message);
         }
     }
 };
