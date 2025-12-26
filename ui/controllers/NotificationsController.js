@@ -57,24 +57,21 @@ const NotificationsController = {
             console.log('[NotificationsController] User authenticated, proceeding with initialization');
             this.setupEventListeners();
             
+            // Always start with 'all' filter
+            this.currentFilter = 'all';
+            this.currentCategory = null;
+            this.currentView = 'notifications';
+            
             // Load both notifications and conversations
             await Promise.all([
                 this.loadNotifications(),
                 this.loadConversations()
             ]);
             
-            // If there are conversations but no notifications, switch to messages view
-            if (this.conversations && this.conversations.length > 0 && (!this.notifications || this.notifications.length === 0)) {
-                console.log('[NotificationsController] Found conversations but no notifications, switching to messages view', {
-                    conversationsCount: this.conversations.length,
-                    notificationsCount: this.notifications?.length || 0
-                });
-                this.currentView = 'messages';
-                this.currentCategory = 'messaging';
-                this.switchView('messages');
-            }
+            // Render the combined 'all' view (notifications + conversations)
+            this.renderAllView();
             
-            this.updateFilterDropdown(); // Set initial dropdown value after determining view
+            this.updateFilterDropdown(); // Set initial dropdown value to 'all'
         } catch (error) {
             console.error('[NotificationsController] Error initializing:', error);
             alert('Error loading notifications. Please check console for details.');
@@ -102,8 +99,7 @@ const NotificationsController = {
                     this.currentFilter = 'all';
                     this.currentCategory = null;
                     this.currentView = 'notifications';
-                    this.switchView('notifications');
-                    this.renderNotifications();
+                    this.renderAllView();
                 } else if (value === 'unread') {
                     this.currentFilter = 'unread';
                     this.currentCategory = null;
@@ -309,7 +305,11 @@ const NotificationsController = {
             if (result.success) {
                 this.notifications = result.notifications || [];
                 console.log('[NotificationsController] Loaded', this.notifications.length, 'notifications');
-                this.renderNotifications();
+                if (this.currentFilter === 'all' && !this.currentCategory) {
+                    this.renderAllView();
+                } else {
+                    this.renderNotifications();
+                }
             } else {
                 throw new Error(result.error || 'Failed to load notifications');
             }
@@ -361,6 +361,120 @@ const NotificationsController = {
         list.innerHTML = notificationsHtml.join('');
 
         this.setupNotificationItemListeners();
+    },
+
+    /**
+     * Render combined 'all' view showing both notifications and conversations
+     */
+    async renderAllView() {
+        console.log('[NotificationsController] renderAllView() called', { 
+            notificationsCount: this.notifications?.length || 0,
+            conversationsCount: this.conversations?.length || 0
+        });
+
+        const notificationsView = document.getElementById('notifications-view');
+        const messagesView = document.getElementById('messages-view');
+        const notificationsList = document.getElementById('notifications-list');
+        const conversationsList = document.getElementById('conversations-list');
+
+        if (!notificationsView || !notificationsList) {
+            return;
+        }
+
+        // Show notifications view
+        if (notificationsView) notificationsView.style.display = 'block';
+        if (messagesView) messagesView.style.display = 'none';
+
+        // Filter notifications (no category filter for 'all')
+        let filteredNotifications = this.notifications || [];
+        if (this.currentFilter === 'unread') {
+            filteredNotifications = filteredNotifications.filter(n => !n.read);
+        }
+
+        // Build combined HTML with both notifications and conversations
+        let html = '';
+
+        // Add conversations section if there are any
+        if (this.conversations && this.conversations.length > 0) {
+            html += '<div class="notifications-section-header" style="margin-bottom: var(--spacing-md);">';
+            html += '<h3 style="margin: 0 0 var(--spacing-sm) 0;">Conversations</h3>';
+            html += '</div>';
+
+            const conversationsHtml = await Promise.all(
+                this.conversations.map(conversation => this.renderConversationItem(conversation))
+            );
+            html += conversationsHtml.join('');
+        }
+
+        // Add notifications section if there are any
+        if (filteredNotifications.length > 0) {
+            html += '<div class="notifications-section-header" style="margin-top: var(--spacing-lg); margin-bottom: var(--spacing-md);">';
+            html += '<h3 style="margin: 0 0 var(--spacing-sm) 0;">Notifications</h3>';
+            html += '</div>';
+
+            const notificationsHtml = await Promise.all(
+                filteredNotifications.map(notification => this.renderNotificationItem(notification))
+            );
+            html += notificationsHtml.join('');
+        }
+
+        // Show message if nothing to display
+        if ((!this.conversations || this.conversations.length === 0) && filteredNotifications.length === 0) {
+            html = '<p>No notifications or conversations found.</p>';
+        }
+
+        notificationsList.innerHTML = html;
+
+        // Setup listeners for both notifications and conversations
+        this.setupNotificationItemListeners();
+        this.setupConversationItemListeners();
+    },
+
+    /**
+     * Render a single conversation item for the all view
+     */
+    async renderConversationItem(conversation) {
+        const unreadBadge = conversation.unread_count > 0 
+            ? `<span class="badge badge-primary" style="margin-left: var(--spacing-xs);">${conversation.unread_count}</span>`
+            : '';
+        
+        return `
+            <div class="notification-item conversation-item" data-conversation-id="${conversation.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${conversation.other_user_email || 'Unknown User'}</strong>${unreadBadge}
+                    ${conversation.last_message ? `<div style="color: var(--text-color-secondary); font-size: 0.9em; margin-top: var(--spacing-xs);">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</div>` : ''}
+                </div>
+                <div style="color: var(--text-color-secondary); font-size: 0.85em;">
+                    ${conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleDateString() : ''}
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Setup event listeners for conversation items in the all view
+     */
+    setupConversationItemListeners() {
+        const list = document.getElementById('notifications-list');
+        if (!list) {
+            return;
+        }
+
+        // Use event delegation for conversation items
+        list.addEventListener('click', async (e) => {
+            const conversationItem = e.target.closest('.conversation-item');
+            if (conversationItem) {
+                const conversationId = parseInt(conversationItem.dataset.conversationId, 10);
+                if (conversationId) {
+                    // Switch to messages view and open the conversation
+                    this.currentView = 'messages';
+                    this.currentCategory = 'messaging';
+                    this.switchView('messages');
+                    await this.loadConversations();
+                    await this.openConversation(conversationId);
+                }
+            }
+        });
     },
 
     /**
@@ -759,7 +873,11 @@ const NotificationsController = {
 
             if (result.success) {
                 this.notifications = this.notifications.filter(n => n.id !== notificationId);
-                this.renderNotifications();
+                if (this.currentFilter === 'all' && !this.currentCategory) {
+                    this.renderAllView();
+                } else {
+                    this.renderNotifications();
+                }
                 if (typeof window.Header !== 'undefined') {
                     window.Header.updateNotificationCount();
                 }

@@ -199,6 +199,7 @@ const MonthlyBudgetController = {
         const addPotBtn = document.getElementById('add-pot-button');
         const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
         const shareMonthBtn = document.getElementById('share-month-button');
+        const deleteMonthBtn = document.getElementById('delete-month-button');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
         if (saveMonthBtn) saveMonthBtn.addEventListener('click', () => this.saveMonthData());
@@ -209,6 +210,7 @@ const MonthlyBudgetController = {
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
         if (shareMonthBtn) shareMonthBtn.addEventListener('click', () => this.handleShareMonth());
+        if (deleteMonthBtn) deleteMonthBtn.addEventListener('click', () => this.deleteCurrentMonth());
         
         // Copy from month event listeners
         const copyIncomeBtn = document.getElementById('copy-income-button');
@@ -373,8 +375,10 @@ const MonthlyBudgetController = {
 
         const monthContent = document.getElementById('month-content');
         const noMonthMessage = document.getElementById('no-month-message');
+        const deleteMonthButton = document.getElementById('delete-month-button');
         if (monthContent) monthContent.style.display = 'block';
         if (noMonthMessage) noMonthMessage.style.display = 'none';
+        if (deleteMonthButton) deleteMonthButton.style.display = 'block';
 
         // Populate copy month selectors
         this.populateCopyMonthSelectors();
@@ -3469,8 +3473,10 @@ const MonthlyBudgetController = {
 
                 const monthContent = document.getElementById('month-content');
                 const noMonthMessage = document.getElementById('no-month-message');
+                const deleteMonthButton = document.getElementById('delete-month-button');
                 if (monthContent) monthContent.style.display = 'none';
                 if (noMonthMessage) noMonthMessage.style.display = 'block';
+                if (deleteMonthButton) deleteMonthButton.style.display = 'none';
                 this.updateShareButtonVisibility();
                 if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
                 if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
