@@ -3185,9 +3185,17 @@ const DatabaseService = {
                 
                 // If updating to pending status, we should create a notification
                 // (unless auto_accept/decline is enabled, which is already handled above)
-                if (shareStatus === 'pending' && existingShare.status !== 'pending') {
-                    console.log('[DatabaseService] Share status changed to pending, will create notification');
-                    shouldCreateNotification = true;
+                // Also create notification if share is already pending but being updated (e.g., new months added)
+                if (shareStatus === 'pending') {
+                    if (existingShare.status !== 'pending') {
+                        console.log('[DatabaseService] Share status changed to pending, will create notification');
+                        shouldCreateNotification = true;
+                    } else {
+                        // Share is already pending, but we're updating it (e.g., adding months, changing access level)
+                        // Create a notification to alert the recipient of the update
+                        console.log('[DatabaseService] Share is already pending but being updated, will create notification');
+                        shouldCreateNotification = true;
+                    }
                 }
                 
                 const updateData = {
@@ -3246,6 +3254,18 @@ const DatabaseService = {
                         
                         if (retryResult.data && retryResult.data.length > 0) {
                             const existingShare = retryResult.data[0];
+                            
+                            // If updating to pending status, ensure notification is created
+                            if (shareStatus === 'pending') {
+                                if (existingShare.status !== 'pending') {
+                                    console.log('[DatabaseService] Share status changed to pending (duplicate key path), will create notification');
+                                    shouldCreateNotification = true;
+                                } else {
+                                    console.log('[DatabaseService] Share is already pending but being updated (duplicate key path), will create notification');
+                                    shouldCreateNotification = true;
+                                }
+                            }
+                            
                             const updateData = {
                                 access_level: accessLevel,
                                 shared_months: JSON.stringify(sharedMonths),
@@ -3286,6 +3306,17 @@ const DatabaseService = {
                 }
             }
 
+            console.log('[DatabaseService] ========== NOTIFICATION CREATION CHECK ==========');
+            console.log('[DatabaseService] Pre-check values:', {
+                shouldCreateNotification: shouldCreateNotification,
+                hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
+                hasShare: !!share,
+                shareStatus: share?.status,
+                shareId: share?.id,
+                recipientUserId: userResult.userId,
+                recipientEmail: sharedWithEmail
+            });
+            
             if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
                 console.log('[DatabaseService] ========== Creating notification for share request ==========');
                 console.log('[DatabaseService] Notification details:', {
@@ -3293,32 +3324,42 @@ const DatabaseService = {
                     recipientEmail: sharedWithEmail,
                     sharerUserId: currentUserId,
                     shareId: share.id,
-                    notificationType: 'share_request'
+                    notificationType: 'share_request',
+                    shareStatus: share.status
                 });
-                const notificationResult = await window.NotificationProcessor.createAndDeliver(
-                    userResult.userId,
-                    'share_request',
-                    share.id,
-                    currentUserId,
-                    null
-                );
-                console.log('[DatabaseService] Notification creation result:', {
-                    success: notificationResult.success,
-                    notificationId: notificationResult.notification?.id,
-                    error: notificationResult.error
-                });
-                if (notificationResult.success) {
-                    console.log('[DatabaseService] Notification created successfully for recipient:', userResult.userId);
-                    const updateResult = await this.queryUpdate(tableName, share.id, {
-                        notification_sent_at: new Date().toISOString()
+                
+                try {
+                    const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                        userResult.userId,
+                        'share_request',
+                        share.id,
+                        currentUserId,
+                        null
+                    );
+                    console.log('[DatabaseService] Notification creation result:', {
+                        success: notificationResult.success,
+                        notificationId: notificationResult.notification?.id,
+                        error: notificationResult.error,
+                        notification: notificationResult.notification
                     });
-                    if (updateResult.error) {
-                        console.warn('[DatabaseService] Failed to update notification_sent_at:', updateResult.error);
+                    if (notificationResult.success) {
+                        console.log('[DatabaseService] ✅ Notification created successfully for recipient:', userResult.userId);
+                        const updateResult = await this.queryUpdate(tableName, share.id, {
+                            notification_sent_at: new Date().toISOString()
+                        });
+                        if (updateResult.error) {
+                            console.warn('[DatabaseService] Failed to update notification_sent_at:', updateResult.error);
+                        } else {
+                            console.log('[DatabaseService] notification_sent_at updated successfully');
+                        }
                     } else {
-                        console.log('[DatabaseService] notification_sent_at updated successfully');
+                        console.error('[DatabaseService] ❌ Failed to create notification for recipient:', notificationResult.error);
                     }
-                } else {
-                    console.error('[DatabaseService] Failed to create notification for recipient:', notificationResult.error);
+                } catch (notificationError) {
+                    console.error('[DatabaseService] ❌ Exception creating notification:', {
+                        error: notificationError.message,
+                        stack: notificationError.stack
+                    });
                 }
             } else {
                 console.log('[DatabaseService] ========== SKIPPING notification creation ==========');
@@ -3327,7 +3368,8 @@ const DatabaseService = {
                     hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
                     hasShare: !!share,
                     shareStatus: share?.status,
-                    shareId: share?.id
+                    shareId: share?.id,
+                    recipientUserId: userResult.userId
                 });
             }
             
