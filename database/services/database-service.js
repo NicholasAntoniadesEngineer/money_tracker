@@ -35,24 +35,78 @@ const DatabaseService = {
      */
     
     /**
+     * Get auth service (requires config)
+     * @returns {Object} Auth service
+     * @throws {Error} If DatabaseConfigHelper is not available or auth service is not configured
+     */
+    _getAuthService() {
+        // Try config system first
+        if (typeof DatabaseConfigHelper !== 'undefined') {
+            try {
+                return DatabaseConfigHelper.getAuthService(this);
+            } catch (error) {
+                // Fall back to window if config not available
+                console.warn('[DatabaseService] Config not available, falling back to window.AuthService:', error.message);
+            }
+        }
+        
+        // Fallback to window for backward compatibility
+        if (!window.AuthService) {
+            throw new Error('AuthService not available. Ensure DatabaseModule.initialize() has been called or window.AuthService is available.');
+        }
+        return window.AuthService;
+    },
+    
+    /**
+     * Get table name from config
+     * @param {string} tableKey - Table key (e.g., 'userMonths', 'settings')
+     * @returns {string} Table name
+     */
+    _getTableName(tableKey) {
+        // Try config system first
+        if (typeof DatabaseConfigHelper !== 'undefined') {
+            try {
+                return DatabaseConfigHelper.getTableName(this, tableKey);
+            } catch (error) {
+                // Fall back to defaults if config not available
+                console.warn('[DatabaseService] Config not available, using default table name for', tableKey, ':', error.message);
+            }
+        }
+        
+        // Fallback to default table names for backward compatibility
+        const defaultTables = {
+            userMonths: 'user_months',
+            exampleMonths: 'example_months',
+            settings: 'settings',
+            subscriptions: 'subscriptions',
+            subscriptionPlans: 'subscription_plans',
+            paymentHistory: 'payment_history'
+        };
+        
+        if (defaultTables[tableKey]) {
+            return defaultTables[tableKey];
+        }
+        
+        throw new Error(`Table name for '${tableKey}' not found. Ensure DatabaseModule.initialize() has been called or provide a default mapping.`);
+    },
+    
+    /**
      * Get the current authenticated user ID
      * Validates session before returning user ID
      * @returns {Promise<string|null>} User ID or null if not authenticated
      * @throws {Error} If AuthService is not available
      */
     async _getCurrentUserId() {
-        if (!window.AuthService) {
-            throw new Error('AuthService not available - cannot get current user ID');
-        }
+        const authService = this._getAuthService();
         
         // Validate session before returning user ID
-        const sessionValidation = await window.AuthService.validateSession();
+        const sessionValidation = await authService.validateSession();
         if (!sessionValidation.valid) {
             console.warn('[DatabaseService] Session validation failed - cannot get user ID');
             return null;
         }
         
-        const currentUser = window.AuthService.getCurrentUser();
+        const currentUser = authService.getCurrentUser();
         if (!currentUser || !currentUser.id) {
             console.warn('[DatabaseService] No current user found after session validation');
             return null;
@@ -68,15 +122,13 @@ const DatabaseService = {
      * @throws {Error} If AuthService is not available
      */
     _getCurrentUserIdSync() {
-        if (!window.AuthService) {
-            throw new Error('AuthService not available - cannot get current user ID');
-        }
+        const authService = this._getAuthService();
         
-        if (!window.AuthService.isAuthenticated()) {
+        if (!authService.isAuthenticated()) {
             return null;
         }
         
-        const currentUser = window.AuthService.getCurrentUser();
+        const currentUser = authService.getCurrentUser();
         if (!currentUser || !currentUser.id) {
             return null;
         }
@@ -116,11 +168,17 @@ const DatabaseService = {
         // Try to get authenticated user token from AuthService
         // Note: We don't validate session here for performance - validation happens in _getCurrentUserId()
         // If session is invalid, _getCurrentUserId() will handle redirect
-        if (window.AuthService && window.AuthService.isAuthenticated()) {
-            const accessToken = window.AuthService.getAccessToken();
-            if (accessToken) {
-                authToken = accessToken;
+        try {
+            const authService = this._getAuthService();
+            if (authService && authService.isAuthenticated()) {
+                const accessToken = authService.getAccessToken();
+                if (accessToken) {
+                    authToken = accessToken;
+                }
             }
+        } catch (error) {
+            // AuthService not available via config, continue with API key
+            console.warn('[DatabaseService] Could not get auth service for token:', error.message);
         }
         
         return {
@@ -354,7 +412,7 @@ const DatabaseService = {
             const patchUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
             patchUrl.searchParams.append('year', `eq.${year}`);
             patchUrl.searchParams.append('month', `eq.${month}`);
-            if (user_id !== undefined && table === 'user_months') {
+            if (user_id !== undefined && (table === 'user_months' || table === this._getTableName('userMonths'))) {
                 patchUrl.searchParams.append('user_id', `eq.${user_id}`);
             }
             patchUrl.searchParams.append('select', '*');
@@ -673,7 +731,7 @@ const DatabaseService = {
             const { year, month } = this.parseMonthKey(monthKey);
             console.log(`[DatabaseService] Checking example_months for year=${year}, month=${month}...`);
             
-            const { data, error } = await this.querySelect('example_months', {
+            const { data, error } = await this.querySelect(this._getTableName('exampleMonths'), {
                 select: 'id',
                 filter: { year: year, month: month },
                 limit: 1
@@ -720,7 +778,8 @@ const DatabaseService = {
     async getTableName(monthKey) {
         console.log(`[DatabaseService] getTableName() called for: ${monthKey}`);
         const isExample = await this.isExampleData(monthKey);
-        const tableName = isExample ? 'example_months' : 'user_months';
+        const tableKey = isExample ? 'exampleMonths' : 'userMonths';
+        const tableName = this._getTableName(tableKey);
         console.log(`[DatabaseService] getTableName() result for ${monthKey}: ${tableName}`);
         return tableName;
     },
@@ -868,14 +927,43 @@ const DatabaseService = {
         try {
             console.log('[DatabaseService] Initializing...');
             
-            if (!window.SupabaseConfig) {
-                const error = new Error('SupabaseConfig not available');
-                console.error('[DatabaseService] ❌ initialize error - SupabaseConfig not available');
-                throw error;
+            // Try to get client from config system first
+            let client = null;
+            
+            if (this._config && typeof DatabaseConfigHelper !== 'undefined') {
+                try {
+                    const providerType = DatabaseConfigHelper.getProviderType(this);
+                    console.log('[DatabaseService] Provider type from config:', providerType);
+                    
+                    if (providerType === 'supabase') {
+                        // For Supabase, we still use SupabaseConfig to get the client
+                        // This allows us to swap out the provider in the future
+                        if (!window.SupabaseConfig) {
+                            throw new Error('SupabaseConfig not available for Supabase provider');
+                        }
+                        console.log('[DatabaseService] initialize - calling SupabaseConfig.getClient() (via config)...');
+                        client = window.SupabaseConfig.getClient();
+                    } else {
+                        throw new Error(`Unsupported provider type: ${providerType}`);
+                    }
+                } catch (configError) {
+                    console.warn('[DatabaseService] Could not get client from config, falling back to SupabaseConfig:', configError.message);
+                }
             }
             
-            console.log('[DatabaseService] initialize - calling SupabaseConfig.getClient()...');
-            this.client = window.SupabaseConfig.getClient();
+            // Fallback to direct SupabaseConfig for backward compatibility
+            if (!client) {
+                if (!window.SupabaseConfig) {
+                    const error = new Error('SupabaseConfig not available and no config provided');
+                    console.error('[DatabaseService] ❌ initialize error - SupabaseConfig not available');
+                    throw error;
+                }
+                
+                console.log('[DatabaseService] initialize - calling SupabaseConfig.getClient() (fallback)...');
+                client = window.SupabaseConfig.getClient();
+            }
+            
+            this.client = client;
             console.log('[DatabaseService] initialize - getClient() returned:', {
                 hasClient: !!this.client,
                 clientType: this.client?.constructor?.name,
@@ -983,7 +1071,7 @@ const DatabaseService = {
                 
                 // Now try the Supabase client query
                 console.log('[DatabaseService] Testing Supabase client query...');
-                const testQuery = this.client.from('user_months').select('id').limit(1);
+                const testQuery = this.client.from(this._getTableName('userMonths')).select('id').limit(1);
                 console.log('[DatabaseService] Test query created, testing connection...');
                 console.log('[DatabaseService] Client object:', this.client);
                 console.log('[DatabaseService] Client supabaseUrl:', this.client.supabaseUrl);
@@ -1282,7 +1370,7 @@ const DatabaseService = {
                 userMonthsQueryOptions.filter = { user_id: currentUserId };
             }
             
-            const { data: userMonthsData, error: userMonthsError } = await this.querySelect('user_months', userMonthsQueryOptions);
+            const { data: userMonthsData, error: userMonthsError } = await this.querySelect(this._getTableName('userMonths'), userMonthsQueryOptions);
             
             if (userMonthsError) {
                 console.error('[DatabaseService] Error fetching user_months:', userMonthsError);
@@ -1330,7 +1418,7 @@ const DatabaseService = {
                         ],
                         filter: { user_id: currentUserId }
                     };
-                    const retryResult = await this.querySelect('user_months', retryQueryOptions);
+                    const retryResult = await this.querySelect(this._getTableName('userMonths'), retryQueryOptions);
                     if (!retryResult.error && retryResult.data) {
                         const retryData = Array.isArray(retryResult.data) ? retryResult.data : (retryResult.data ? [retryResult.data] : []);
                         if (retryData.length > 0) {
@@ -1352,7 +1440,7 @@ const DatabaseService = {
             
             if (includeExampleData && enabledExampleMonths.length > 0) {
                 console.log('[DatabaseService] Querying example_months table for enabled months...');
-                const { data: exampleData, error: exampleMonthsError } = await this.querySelect('example_months', {
+                const { data: exampleData, error: exampleMonthsError } = await this.querySelect(this._getTableName('exampleMonths'), {
                     select: '*',
                     order: [
                         { column: 'year', ascending: false },
@@ -1473,7 +1561,7 @@ const DatabaseService = {
             
             // First check example_months using centralized query interface
             console.log(`[DatabaseService] Checking example_months for ${year}-${month}...`);
-            let fetchResult = await this.querySelect('example_months', {
+            let fetchResult = await this.querySelect(this._getTableName('exampleMonths'), {
                 select: '*',
                 filter: { year: year, month: month },
                 limit: 1
@@ -1498,7 +1586,7 @@ const DatabaseService = {
                 }
                 
                 const userFetchFilter = { year: year, month: month, user_id: currentUserId };
-                const userFetchResult = await this.querySelect('user_months', {
+                const userFetchResult = await this.querySelect(this._getTableName('userMonths'), {
                     select: '*',
                     filter: userFetchFilter,
                     limit: 1
@@ -1581,7 +1669,7 @@ const DatabaseService = {
             // Otherwise, check if it's example data
             let tableName;
             if (forceUserTable) {
-                tableName = 'user_months';
+                tableName = this._getTableName('userMonths');
                 console.log(`[DatabaseService] Using user_months table (forced for import)`);
             } else {
                 tableName = await this.getTableName(monthKey);
@@ -1590,7 +1678,7 @@ const DatabaseService = {
             
             // Get user ID if saving to user_months table (validates session)
             let userId = null;
-            if (tableName === 'user_months') {
+            if (tableName === this._getTableName('userMonths')) {
                 userId = await this._getCurrentUserId();
                 if (!userId) {
                     throw new Error('User not authenticated - cannot save to user_months without authentication');
@@ -1611,7 +1699,7 @@ const DatabaseService = {
             // Use centralized upsert method
             // For user_months, include user_id in filter to ensure we update the correct user's record
             const upsertOptions = { filter: { year, month } };
-            if (tableName === 'user_months' && userId) {
+            if (tableName === this._getTableName('userMonths') && userId) {
                 upsertOptions.filter.user_id = userId;
             }
             
@@ -1724,7 +1812,7 @@ const DatabaseService = {
             // Include user_id in filter to ensure we only delete the current user's records
             console.log(`[DatabaseService] Deleting from user_months table...`);
             
-            const deleteResult = await this.queryDelete('user_months', { year, month, user_id: userId });
+            const deleteResult = await this.queryDelete(this._getTableName('userMonths'), { year, month, user_id: userId });
             
             if (deleteResult.error) {
                 console.error(`[DatabaseService] Error deleting from user_months:`, deleteResult.error);
@@ -1877,7 +1965,7 @@ const DatabaseService = {
                     
                     // Use centralized query interface for settings
                     const queryResult = await Promise.race([
-                        this.querySelect('settings', {
+                        this.querySelect(this._getTableName('settings'), {
                             select: '*',
                             filter: { user_id: currentUserId },
                             limit: 1
@@ -2004,7 +2092,7 @@ const DatabaseService = {
             console.log('[DatabaseService] Upserting to settings table for user_id:', currentUserId);
             
             // Use centralized upsert method with user_id as identifier
-            const upsertResult = await this.queryUpsert('settings', settingsRecord, {
+            const upsertResult = await this.queryUpsert(this._getTableName('settings'), settingsRecord, {
                 identifier: 'user_id',
                 identifierValue: currentUserId
             });
@@ -2280,7 +2368,7 @@ const DatabaseService = {
             console.log(`[DatabaseService] Deleting user_months for user_id: ${currentUserId}...`);
             try {
                 // Use queryDelete with user_id filter to only delete current user's data
-                const deleteResult = await this.queryDelete('user_months', { user_id: currentUserId });
+                const deleteResult = await this.queryDelete(this._getTableName('userMonths'), { user_id: currentUserId });
                 
                 if (deleteResult.error) {
                     throw deleteResult.error;
