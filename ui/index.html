@@ -96,9 +96,21 @@
     <script src="../database/config/supabase-config.js"></script>
     <script src="services/AuthService.js"></script>
     <script src="../database/services/database-service.js"></script>
-    <script src="../payments/config/stripe-config.js"></script>
+    
+    <!-- Payments Module Configuration -->
+    <script src="../payments/config/payments-config-base.js"></script>
+    <script src="../payments/config/money-tracker-config.js"></script>
+    <script src="../payments/utils/config-helper.js"></script>
+    <script src="../payments/payments-module.js"></script>
+    
+    <!-- Payments Services -->
+    <script src="../payments/services/StripeService.js"></script>
+    <script src="../payments/services/PaymentService.js"></script>
     <script src="../payments/services/SubscriptionService.js"></script>
     <script src="../payments/utils/subscription-checker.js"></script>
+    
+    <!-- Initialize Payments Module -->
+    <script src="../payments/init-payments.js"></script>
     <script src="utils/subscription-guard.js"></script>
     <script src="utils/auth-guard.js"></script>
     <script src="../database/models/data-manager.js"></script>

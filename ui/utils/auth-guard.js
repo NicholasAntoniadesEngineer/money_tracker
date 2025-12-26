@@ -82,6 +82,22 @@ const AuthGuard = {
             
             // Check subscription status
             console.log('[AuthGuard] ========== CHECKING SUBSCRIPTION STATUS ==========');
+            
+            // Wait for payments module to be initialized if it exists
+            if (typeof PaymentsModule !== 'undefined' && window.PaymentsModule) {
+                let waitCount = 0;
+                const maxWait = 50; // 5 seconds
+                while (!window.PaymentsModule.isInitialized() && waitCount < maxWait) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitCount++;
+                }
+                if (!window.PaymentsModule.isInitialized()) {
+                    console.warn('[AuthGuard] PaymentsModule not initialized after waiting, proceeding anyway');
+                } else {
+                    console.log('[AuthGuard] PaymentsModule initialized, proceeding with subscription check');
+                }
+            }
+            
             if (window.SubscriptionChecker) {
                 try {
                     console.log('[AuthGuard] SubscriptionChecker available, calling checkAccess()...');

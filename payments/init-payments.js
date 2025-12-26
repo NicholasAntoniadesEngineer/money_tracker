@@ -39,6 +39,23 @@
             return;
         }
         
+        // Wait for services to be loaded
+        let serviceWaitCount = 0;
+        const maxServiceWait = 50; // 5 seconds
+        while ((!window.StripeService || !window.PaymentService || !window.SubscriptionService) && serviceWaitCount < maxServiceWait) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            serviceWaitCount++;
+        }
+        
+        if (!window.StripeService || !window.PaymentService || !window.SubscriptionService) {
+            console.error('[PaymentsInit] Services not loaded after waiting:', {
+                hasStripeService: !!window.StripeService,
+                hasPaymentService: !!window.PaymentService,
+                hasSubscriptionService: !!window.SubscriptionService
+            });
+            return;
+        }
+        
         // Initialize the module
         const result = await PaymentsModule.initialize(MoneyTrackerPaymentsConfig);
         
