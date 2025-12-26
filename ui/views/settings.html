@@ -188,6 +188,7 @@
     
     <!-- Initialize Payments Module -->
     <script src="../../payments/init-payments.js"></script>
+    <script src="../../payments/utils/wait-for-payments-init.js"></script>
     <script src="../utils/subscription-guard.js"></script>
     <script src="../utils/auth-guard.js"></script>
     <script src="../../database/models/data-manager.js"></script>
@@ -208,6 +209,11 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('[SettingsPage] DOMContentLoaded - starting initialization');
             try {
+                // Wait for payments module initialization before checking auth
+                if (window.waitForPaymentsInit) {
+                    await window.waitForPaymentsInit();
+                }
+                
                 // Check authentication first
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {

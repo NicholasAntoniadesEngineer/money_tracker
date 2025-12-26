@@ -83,8 +83,19 @@ const AuthGuard = {
             // Check subscription status
             console.log('[AuthGuard] ========== CHECKING SUBSCRIPTION STATUS ==========');
             
-            // Wait for payments module to be initialized if it exists
-            if (typeof PaymentsModule !== 'undefined' && window.PaymentsModule) {
+            // Wait for payments module initialization
+            if (window.PaymentsModuleInitPromise) {
+                console.log('[AuthGuard] Waiting for PaymentsModule initialization...');
+                try {
+                    await window.PaymentsModuleInitPromise;
+                    console.log('[AuthGuard] PaymentsModule initialization complete');
+                } catch (initError) {
+                    console.error('[AuthGuard] PaymentsModule initialization failed:', initError);
+                    // Continue anyway - let subscription check handle the error
+                }
+            } else if (window.PaymentsModule && !window.PaymentsModule.isInitialized()) {
+                // Fallback: wait for initialization if PaymentsModule exists but not initialized
+                console.log('[AuthGuard] PaymentsModule exists but not initialized, waiting...');
                 let waitCount = 0;
                 const maxWait = 50; // 5 seconds
                 while (!window.PaymentsModule.isInitialized() && waitCount < maxWait) {
@@ -92,9 +103,9 @@ const AuthGuard = {
                     waitCount++;
                 }
                 if (!window.PaymentsModule.isInitialized()) {
-                    console.warn('[AuthGuard] PaymentsModule not initialized after waiting, proceeding anyway');
+                    console.warn('[AuthGuard] PaymentsModule not initialized after waiting');
                 } else {
-                    console.log('[AuthGuard] PaymentsModule initialized, proceeding with subscription check');
+                    console.log('[AuthGuard] PaymentsModule initialized');
                 }
             }
             
