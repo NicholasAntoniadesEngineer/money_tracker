@@ -222,8 +222,30 @@ const PaymentsConfigBase = {
      * @returns {Object} Merged configuration
      */
     merge(config) {
-        const merged = JSON.parse(JSON.stringify(this));
+        // Store methods before cloning
+        const validateMethod = this.validate;
+        const mergeMethod = this.merge;
         
+        // Create a new object, copying all data properties
+        const merged = {};
+        
+        // Copy all data properties (not methods)
+        merged.services = { ...this.services };
+        merged.stripe = { ...this.stripe };
+        merged.backend = {
+            ...this.backend,
+            endpoints: { ...this.backend.endpoints }
+        };
+        merged.tables = { ...this.tables };
+        merged.subscription = {
+            ...this.subscription,
+            tierMapping: { ...this.subscription.tierMapping },
+            tierHierarchy: { ...this.subscription.tierHierarchy }
+        };
+        merged.application = { ...this.application };
+        merged.logging = { ...this.logging };
+        
+        // Merge config properties
         if (config.services) {
             merged.services = { ...merged.services, ...config.services };
         }
@@ -259,6 +281,23 @@ const PaymentsConfigBase = {
         
         if (config.logging) {
             merged.logging = { ...merged.logging, ...config.logging };
+        }
+        
+        // Add methods to the merged object, bound to it
+        if (typeof validateMethod === 'function') {
+            merged.validate = function() {
+                return validateMethod.call(merged);
+            };
+        } else {
+            throw new Error('validate method not found on PaymentsConfigBase');
+        }
+        
+        if (typeof mergeMethod === 'function') {
+            merged.merge = function(newConfig) {
+                return mergeMethod.call(merged, newConfig);
+            };
+        } else {
+            throw new Error('merge method not found on PaymentsConfigBase');
         }
         
         return merged;
