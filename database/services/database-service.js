@@ -3826,20 +3826,63 @@ const DatabaseService = {
                 isOwner: share.owner_user_id === currentUserId
             });
 
-            console.log('[DatabaseService] updateShareStatus() - Calling queryUpdate...');
+            // Use RPC function to bypass RLS (similar to notification creation)
+            // This avoids policy conflicts and ensures the update succeeds
+            console.log('[DatabaseService] updateShareStatus() - Using RPC function to bypass RLS...');
+            const rpcParams = {
+                p_share_id: shareId,
+                p_new_status: status,
+                p_user_id: currentUserId
+            };
+            
+            console.log('[DatabaseService] updateShareStatus() - RPC parameters:', JSON.stringify(rpcParams, null, 2));
+            console.log('[DatabaseService] updateShareStatus() - Calling queryRpc("update_share_status", ...)');
             const updateStartTime = Date.now();
-            const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+            const rpcResult = await this.queryRpc('update_share_status', rpcParams);
             const updateDuration = Date.now() - updateStartTime;
-            console.log(`[DatabaseService] updateShareStatus() - queryUpdate completed in ${updateDuration}ms`);
+            console.log(`[DatabaseService] updateShareStatus() - queryRpc completed in ${updateDuration}ms`);
+            
+            console.log('[DatabaseService] updateShareStatus() - RPC result:', {
+                hasError: !!rpcResult.error,
+                error: rpcResult.error,
+                hasData: rpcResult.data !== null && rpcResult.data !== undefined,
+                data: rpcResult.data,
+                dataType: typeof rpcResult.data
+            });
+
+            if (rpcResult.error) {
+                console.error('[DatabaseService] updateShareStatus() - RPC error:', rpcResult.error);
+                return {
+                    success: false,
+                    share: null,
+                    error: rpcResult.error.message || 'Failed to update share status'
+                };
+            }
+
+            // Extract the updated share from the RPC result
+            // The function returns a table, so we get an array with one row
+            let updatedShare = null;
+            if (Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
+                updatedShare = rpcResult.data[0];
+                console.log('[DatabaseService] updateShareStatus() - Extracted share from RPC result:', updatedShare);
+            } else if (rpcResult.data && typeof rpcResult.data === 'object' && !Array.isArray(rpcResult.data)) {
+                updatedShare = rpcResult.data;
+                console.log('[DatabaseService] updateShareStatus() - Using RPC result as share object:', updatedShare);
+            } else {
+                console.warn('[DatabaseService] updateShareStatus() - Unexpected RPC result format, using original share');
+                updatedShare = share;
+            }
+
+            // Create a result object that matches the expected format
+            const updateResult = {
+                error: null,
+                data: updatedShare ? [updatedShare] : []
+            };
 
             console.log('[DatabaseService] updateShareStatus() - ========== UPDATE RESULT ==========');
             console.log('[DatabaseService] updateShareStatus() - Update result:', {
                 hasError: !!updateResult.error,
                 error: updateResult.error,
-                errorCode: updateResult.error?.code,
-                errorMessage: updateResult.error?.message,
-                errorDetails: updateResult.error?.details,
-                errorHint: updateResult.error?.hint,
                 hasData: !!updateResult.data,
                 dataLength: updateResult.data?.length || 0,
                 dataType: Array.isArray(updateResult.data) ? 'array' : typeof updateResult.data,
@@ -3849,24 +3892,8 @@ const DatabaseService = {
             if (updateResult.error) {
                 console.error('[DatabaseService] updateShareStatus() - ========== UPDATE FAILED ==========');
                 console.error('[DatabaseService] updateShareStatus() - Error details:', {
-                    code: updateResult.error.code,
                     message: updateResult.error.message,
-                    details: updateResult.error.details,
-                    hint: updateResult.error.hint,
-                    status: updateResult.error.status,
                     fullError: JSON.stringify(updateResult.error, null, 2)
-                });
-                console.error('[DatabaseService] updateShareStatus() - Context:', {
-                    shareId: shareId,
-                    tableName: tableName,
-                    updateData: updateData,
-                    currentStatus: share.status,
-                    newStatus: status,
-                    ownerUserId: share.owner_user_id,
-                    sharedWithUserId: share.shared_with_user_id,
-                    currentUserId: currentUserId,
-                    isRecipient: share.shared_with_user_id === currentUserId,
-                    isOwner: share.owner_user_id === currentUserId
                 });
                 return {
                     success: false,
@@ -3875,7 +3902,11 @@ const DatabaseService = {
                 };
             }
 
-            const updatedShare = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : share;
+            // updatedShare is already extracted from RPC result above
+            if (!updatedShare) {
+                console.warn('[DatabaseService] updateShareStatus() - No share returned from RPC, using original share');
+                updatedShare = share;
+            }
             
             console.log('[DatabaseService] updateShareStatus() - ========== UPDATE SUCCESS ==========');
             console.log('[DatabaseService] updateShareStatus() - Share status updated successfully:', {
@@ -3887,46 +3918,7 @@ const DatabaseService = {
                 updatedAt: updatedShare.updated_at
             });
             
-            // Verify the update by querying the share again
-            console.log('[DatabaseService] updateShareStatus() - Verifying share status after update...');
-            const verifyResult = await this.querySelect(tableName, {
-                filter: { id: shareId },
-                limit: 1
-            });
-            
-            console.log('[DatabaseService] updateShareStatus() - Verification query result:', {
-                hasError: !!verifyResult.error,
-                error: verifyResult.error,
-                hasData: !!verifyResult.data,
-                dataLength: verifyResult.data?.length || 0
-            });
-            
-            if (verifyResult.data && verifyResult.data.length > 0) {
-                const verifiedShare = verifyResult.data[0];
-                console.log('[DatabaseService] updateShareStatus() - Verified share status after update:', {
-                    shareId: shareId,
-                    verifiedStatus: verifiedShare.status,
-                    expectedStatus: status,
-                    matchesExpected: verifiedShare.status === status,
-                    verifiedShare: verifiedShare
-                });
-                
-                if (verifiedShare.status !== status) {
-                    console.error('[DatabaseService] updateShareStatus() - WARNING: Share status does not match expected value!', {
-                        expected: status,
-                        actual: verifiedShare.status,
-                        shareId: shareId,
-                        verifiedShare: verifiedShare
-                    });
-                }
-            } else {
-                console.warn('[DatabaseService] updateShareStatus() - Could not verify share update - share not found after update:', {
-                    hasError: !!verifyResult.error,
-                    error: verifyResult.error,
-                    hasData: !!verifyResult.data,
-                    dataLength: verifyResult.data?.length || 0
-                });
-            }
+            // No need to verify - the RPC function already returns the updated share
 
             if (typeof window.NotificationProcessor !== 'undefined') {
                 const notificationType = status === 'accepted' ? 'share_accepted' : 
