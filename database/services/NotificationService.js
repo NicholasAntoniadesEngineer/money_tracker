@@ -204,32 +204,20 @@ const NotificationService = {
                 
                 console.log('[NotificationService] Final notification ID:', notificationId, 'Type:', typeof notificationId);
 
-                // Fetch the created notification
-                const tableName = this._getTableName('notifications');
-                const fetchResult = await databaseService.querySelect(tableName, {
-                    filter: { id: notificationId },
-                    limit: 1
-                });
-
-                if (fetchResult.error || !fetchResult.data || fetchResult.data.length === 0) {
-                    console.warn('[NotificationService] Could not fetch created notification, but creation succeeded');
-                    return {
-                        success: true,
-                        notification: { id: notificationId },
-                        error: null
-                    };
-                }
-
-                const fetchedNotification = fetchResult.data[0];
-                console.log('[NotificationService] Fetched notification after RPC creation:', {
-                    notificationId: fetchedNotification?.id,
-                    userId: fetchedNotification?.user_id,
-                    type: fetchedNotification?.type
-                });
+                // Don't try to fetch the notification - RLS will block it since it belongs to another user
+                // We already have the ID from the RPC call, which is sufficient
+                console.log('[NotificationService] Skipping notification fetch (RLS would block - notification belongs to another user)');
                 console.log('[NotificationService] ========== createNotification() COMPLETE (RPC path) ==========');
                 return {
                     success: true,
-                    notification: fetchedNotification,
+                    notification: { 
+                        id: notificationId,
+                        user_id: notificationData.user_id,
+                        type: notificationData.type,
+                        from_user_id: notificationData.from_user_id,
+                        share_id: notificationData.share_id || null,
+                        message: notificationData.message || null
+                    },
                     error: null
                 };
             }
@@ -262,14 +250,30 @@ const NotificationService = {
      */
     async getNotifications(userId, options = {}) {
         try {
-            console.log('[NotificationService] getNotifications() called', { userId, options });
+            console.log('[NotificationService] ========== getNotifications() CALLED ==========');
+            console.log('[NotificationService] getNotifications() - Start time:', new Date().toISOString());
+            console.log('[NotificationService] getNotifications() - Parameters:', { 
+                userId, 
+                options,
+                unreadOnly: options.unreadOnly,
+                limit: options.limit,
+                offset: options.offset
+            });
 
             const databaseService = this._getDatabaseService();
             if (!databaseService) {
+                console.error('[NotificationService] DatabaseService not available');
                 throw new Error('DatabaseService not available');
             }
 
+            // Get current user ID to verify we're querying for the right user
+            const currentUserId = await databaseService._getCurrentUserId();
+            console.log('[NotificationService] Current user ID:', currentUserId);
+            console.log('[NotificationService] Querying notifications for user ID:', userId);
+            console.log('[NotificationService] User ID match:', currentUserId === userId);
+
             const tableName = this._getTableName('notifications');
+            console.log('[NotificationService] Notifications table name:', tableName);
 
             const filter = {
                 user_id: userId
@@ -277,6 +281,7 @@ const NotificationService = {
 
             if (options.unreadOnly) {
                 filter.read = false;
+                console.log('[NotificationService] Filtering for unread notifications only');
             }
 
             const queryOptions = {
@@ -295,7 +300,25 @@ const NotificationService = {
                 queryOptions.offset = options.offset;
             }
 
+            console.log('[NotificationService] Query options:', JSON.stringify(queryOptions, null, 2));
             const result = await databaseService.querySelect(tableName, queryOptions);
+
+            console.log('[NotificationService] Query result:', {
+                hasError: !!result.error,
+                error: result.error,
+                hasData: !!result.data,
+                dataLength: result.data?.length || 0,
+                dataType: Array.isArray(result.data) ? 'array' : typeof result.data,
+                sampleNotifications: result.data?.slice(0, 3).map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    user_id: n.user_id,
+                    from_user_id: n.from_user_id,
+                    share_id: n.share_id,
+                    read: n.read,
+                    created_at: n.created_at
+                }))
+            });
 
             if (result.error) {
                 console.error('[NotificationService] Error getting notifications:', result.error);
@@ -306,13 +329,22 @@ const NotificationService = {
                 };
             }
 
+            const notifications = result.data || [];
+            console.log(`[NotificationService] Returning ${notifications.length} notifications`);
+            console.log('[NotificationService] ========== getNotifications() COMPLETE ==========');
             return {
                 success: true,
-                notifications: result.data || [],
+                notifications: notifications,
                 error: null
             };
         } catch (error) {
-            console.error('[NotificationService] Exception getting notifications:', error);
+            console.error('[NotificationService] ========== EXCEPTION in getNotifications() ==========');
+            console.error('[NotificationService] Exception details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            console.error('[NotificationService] ========== END EXCEPTION ==========');
             return {
                 success: false,
                 notifications: [],

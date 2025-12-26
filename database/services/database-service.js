@@ -1653,8 +1653,14 @@ const DatabaseService = {
                     if (sharedSharesResult.success && sharedSharesResult.shares) {
                         for (const share of sharedSharesResult.shares) {
                             if (share.status !== 'accepted') {
+                                console.log(`[DatabaseService] Skipping share ${share.id} - status: ${share.status}`);
                                 continue;
                             }
+                            
+                            console.log(`[DatabaseService] Processing accepted share ${share.id} from owner ${share.owner_user_id}`, {
+                                shareAllData: share.share_all_data,
+                                sharedMonthsCount: share.shared_months?.length || 0
+                            });
                             
                             // Fetch owner email once per share (more efficient)
                             let ownerEmail = 'Unknown User';
@@ -1662,12 +1668,45 @@ const DatabaseService = {
                                 const ownerEmailResult = await this.getUserEmailById(share.owner_user_id);
                                 if (ownerEmailResult.success && ownerEmailResult.email) {
                                     ownerEmail = ownerEmailResult.email;
+                                    console.log(`[DatabaseService] Owner email for share ${share.id}: ${ownerEmail}`);
                                 }
                             } catch (emailError) {
                                 console.warn('[DatabaseService] Error fetching owner email for share:', emailError);
                             }
                             
+                            // If share_all_data is true, fetch all months from the owner
+                            if (share.share_all_data) {
+                                console.log(`[DatabaseService] Share ${share.id} has share_all_data=true, fetching all months from owner ${share.owner_user_id}`);
+                                const ownerMonthsResult = await this.querySelect(this._getTableName('userMonths'), {
+                                    select: '*',
+                                    filter: { user_id: share.owner_user_id },
+                                    order: [{ column: 'year', ascending: false }, { column: 'month', ascending: false }]
+                                });
+                                
+                                if (ownerMonthsResult.data && ownerMonthsResult.data.length > 0) {
+                                    console.log(`[DatabaseService] Found ${ownerMonthsResult.data.length} months from owner ${share.owner_user_id}`);
+                                    for (const monthRecord of ownerMonthsResult.data) {
+                                        const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                                        if (!monthsObject[monthKey]) {
+                                            const transformedMonth = this.transformMonthFromDatabase(monthRecord);
+                                            transformedMonth.isShared = true;
+                                            transformedMonth.sharedOwnerId = share.owner_user_id;
+                                            transformedMonth.sharedAccessLevel = share.access_level;
+                                            transformedMonth.sharedOwnerEmail = ownerEmail;
+                                            
+                                            monthsObject[monthKey] = transformedMonth;
+                                            console.log(`[DatabaseService] Added shared month (all data): ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
+                                        }
+                                    }
+                                } else {
+                                    console.log(`[DatabaseService] No months found for owner ${share.owner_user_id} (share_all_data=true)`);
+                                }
+                                continue; // Skip the shared_months loop since we've already loaded all months
+                            }
+                            
+                            // Otherwise, process only the specified months
                             const sharedMonths = share.shared_months || [];
+                            console.log(`[DatabaseService] Processing ${sharedMonths.length} specific months for share ${share.id}`);
                             for (const monthEntry of sharedMonths) {
                                 let year, month;
                                 
@@ -3190,7 +3229,14 @@ const DatabaseService = {
             }
 
             if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
-                console.log('[DatabaseService] Creating notification for share');
+                console.log('[DatabaseService] ========== Creating notification for share request ==========');
+                console.log('[DatabaseService] Notification details:', {
+                    recipientUserId: userResult.userId,
+                    recipientEmail: sharedWithEmail,
+                    sharerUserId: currentUserId,
+                    shareId: share.id,
+                    notificationType: 'share_request'
+                });
                 const notificationResult = await window.NotificationProcessor.createAndDeliver(
                     userResult.userId,
                     'share_request',
@@ -3198,17 +3244,30 @@ const DatabaseService = {
                     currentUserId,
                     null
                 );
+                console.log('[DatabaseService] Notification creation result:', {
+                    success: notificationResult.success,
+                    notificationId: notificationResult.notification?.id,
+                    error: notificationResult.error
+                });
                 if (notificationResult.success) {
-                    console.log('[DatabaseService] Notification created successfully');
+                    console.log('[DatabaseService] Notification created successfully for recipient:', userResult.userId);
                     const updateResult = await this.queryUpdate(tableName, share.id, {
                         notification_sent_at: new Date().toISOString()
                     });
                     if (updateResult.error) {
                         console.warn('[DatabaseService] Failed to update notification_sent_at:', updateResult.error);
+                    } else {
+                        console.log('[DatabaseService] notification_sent_at updated successfully');
                     }
                 } else {
-                    console.warn('[DatabaseService] Failed to create notification:', notificationResult.error);
+                    console.error('[DatabaseService] Failed to create notification for recipient:', notificationResult.error);
                 }
+            } else {
+                console.log('[DatabaseService] Skipping notification creation:', {
+                    shouldCreateNotification: shouldCreateNotification,
+                    hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
+                    hasShare: !!share
+                });
             }
             
             return {
