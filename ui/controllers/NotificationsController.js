@@ -305,6 +305,19 @@ const NotificationsController = {
             if (result.success) {
                 this.notifications = result.notifications || [];
                 console.log('[NotificationsController] Loaded', this.notifications.length, 'notifications');
+                console.log('[NotificationsController] Notification types:', this.notifications.map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    read: n.read,
+                    share_id: n.share_id,
+                    from_user_id: n.from_user_id
+                })));
+                console.log('[NotificationsController] Share request notifications:', this.notifications.filter(n => n.type === 'share_request').map(n => ({
+                    id: n.id,
+                    share_id: n.share_id,
+                    read: n.read,
+                    message: n.message
+                })));
                 if (this.currentFilter === 'all' && !this.currentCategory) {
                     this.renderAllView();
                 } else {
@@ -369,7 +382,10 @@ const NotificationsController = {
     async renderAllView() {
         console.log('[NotificationsController] renderAllView() called', { 
             notificationsCount: this.notifications?.length || 0,
-            conversationsCount: this.conversations?.length || 0
+            conversationsCount: this.conversations?.length || 0,
+            currentFilter: this.currentFilter,
+            currentCategory: this.currentCategory,
+            notifications: this.notifications?.map(n => ({ id: n.id, type: n.type, read: n.read, share_id: n.share_id }))
         });
 
         const notificationsView = document.getElementById('notifications-view');
@@ -387,9 +403,26 @@ const NotificationsController = {
 
         // Filter notifications (no category filter for 'all')
         let filteredNotifications = this.notifications || [];
+        console.log('[NotificationsController] renderAllView - Before filtering:', {
+            totalNotifications: filteredNotifications.length,
+            currentFilter: this.currentFilter,
+            notificationTypes: filteredNotifications.map(n => n.type),
+            shareRequestCount: filteredNotifications.filter(n => n.type === 'share_request').length
+        });
+        
         if (this.currentFilter === 'unread') {
             filteredNotifications = filteredNotifications.filter(n => !n.read);
+            console.log('[NotificationsController] renderAllView - After unread filter:', {
+                unreadCount: filteredNotifications.length,
+                unreadTypes: filteredNotifications.map(n => n.type)
+            });
         }
+        
+        console.log('[NotificationsController] renderAllView - Final filtered notifications:', {
+            count: filteredNotifications.length,
+            types: filteredNotifications.map(n => n.type),
+            shareRequests: filteredNotifications.filter(n => n.type === 'share_request').map(n => ({ id: n.id, share_id: n.share_id, read: n.read }))
+        });
 
         // Build combined HTML with both notifications and conversations
         let html = '';

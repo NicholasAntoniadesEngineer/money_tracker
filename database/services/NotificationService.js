@@ -486,11 +486,22 @@ const NotificationService = {
      */
     async getUnreadCount(userId) {
         try {
-            console.log('[NotificationService] getUnreadCount() called', { userId });
+            console.log('[NotificationService] ========== getUnreadCount() CALLED ==========');
+            console.log('[NotificationService] getUnreadCount() - Start time:', new Date().toISOString());
+            console.log('[NotificationService] getUnreadCount() - Parameters:', { userId });
 
             const result = await this.getNotifications(userId, { unreadOnly: true });
 
+            console.log('[NotificationService] getUnreadCount() - getNotifications result:', {
+                success: result.success,
+                notificationsCount: result.notifications?.length || 0,
+                error: result.error,
+                notificationTypes: result.notifications?.map(n => n.type) || [],
+                shareRequestCount: result.notifications?.filter(n => n.type === 'share_request').length || 0
+            });
+
             if (!result.success) {
+                console.warn('[NotificationService] getUnreadCount() - getNotifications failed:', result.error);
                 return {
                     success: false,
                     count: 0,
@@ -498,13 +509,18 @@ const NotificationService = {
                 };
             }
 
+            const count = result.notifications.length;
+            console.log('[NotificationService] getUnreadCount() - Returning count:', count);
+            console.log('[NotificationService] ========== getUnreadCount() COMPLETE ==========');
             return {
                 success: true,
-                count: result.notifications.length,
+                count: count,
                 error: null
             };
         } catch (error) {
+            console.error('[NotificationService] ========== EXCEPTION in getUnreadCount() ==========');
             console.error('[NotificationService] Exception getting unread count:', error);
+            console.error('[NotificationService] ========== END EXCEPTION ==========');
             return {
                 success: false,
                 count: 0,
