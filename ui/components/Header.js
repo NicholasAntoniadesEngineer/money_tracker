@@ -505,7 +505,7 @@ class Header {
         } catch (error) {
             console.error('[Header] Error updating notification count:', error);
         }
-    },
+    }
 
     /**
      * Setup real-time notification subscription
