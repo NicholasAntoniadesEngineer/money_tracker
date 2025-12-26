@@ -62,8 +62,10 @@
     </main>
 
     <!-- Scripts -->
-    <script src="../../config/supabase-config.js"></script>
-    <script src="../../auth/services/auth-service.js"></script>
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../../database/config/database-config-base.js"></script>
+    <script src="../../database/config/money-tracker-database-config.js"></script>
     <script src="../../database/utils/database-config-helper.js"></script>
     <script src="../../database/database-module.js"></script>
     
@@ -91,6 +93,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                // Initialize Header first
+                await window.Header.init();
+                console.log('Header initialized');
+
+                // Initialize NotificationsController
                 if (window.NotificationsController) {
                     await window.NotificationsController.init();
                 }
