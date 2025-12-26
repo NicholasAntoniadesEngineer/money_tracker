@@ -6,8 +6,58 @@
 
 const SubscriptionService = {
     /**
+     * Get database service (requires config)
+     * @returns {Object} Database service
+     * @throws {Error} If ConfigHelper is not available or database service is not configured
+     */
+    _getDatabaseService() {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getDatabaseService(this);
+    },
+    
+    /**
+     * Get auth service (requires config)
+     * @returns {Object} Auth service
+     * @throws {Error} If ConfigHelper is not available or auth service is not configured
+     */
+    _getAuthService() {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getAuthService(this);
+    },
+    
+    /**
+     * Get table name (requires config)
+     * @param {string} tableKey - Table key
+     * @returns {string} Table name
+     * @throws {Error} If ConfigHelper is not available or table name is not configured
+     */
+    _getTableName(tableKey) {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getTableName(this, tableKey);
+    },
+    
+    /**
+     * Get subscription config (requires config)
+     * @returns {Object} Subscription config
+     * @throws {Error} If ConfigHelper is not available or subscription config is not configured
+     */
+    _getSubscriptionConfig() {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getSubscriptionConfig(this);
+    },
+    
+    /**
      * Subscription tier mapping
      * Maps plan names to subscription tiers
+     * Note: This is used as fallback. Config-based tier mapping takes precedence.
      */
     TIER_MAPPING: {
         // Trial tier (no payment required)
@@ -39,9 +89,13 @@ const SubscriptionService = {
             return 'basic';
         }
         
+        // Get tier mapping from config if available
+        const subscriptionConfig = this._getSubscriptionConfig();
+        const tierMapping = subscriptionConfig.tierMapping || this.TIER_MAPPING;
+        
         // Check tier mapping (case-insensitive)
         const planNameLower = planName.toLowerCase();
-        for (const [key, tier] of Object.entries(this.TIER_MAPPING)) {
+        for (const [key, tier] of Object.entries(tierMapping)) {
             if (planNameLower === key.toLowerCase()) {
                 return tier;
             }
@@ -59,7 +113,8 @@ const SubscriptionService = {
      * @returns {boolean} True if user has access
      */
     hasTierAccess(requiredTier, userTier) {
-        const tierHierarchy = {
+        const subscriptionConfig = this._getSubscriptionConfig();
+        const tierHierarchy = subscriptionConfig.tierHierarchy || {
             'trial': 0,
             'basic': 1,
             'premium': 2
@@ -76,11 +131,13 @@ const SubscriptionService = {
      */
     async getDefaultPlan() {
         try {
-            if (!window.DatabaseService) {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
                 throw new Error('DatabaseService not available');
             }
             
-            const result = await window.DatabaseService.querySelect('subscription_plans', {
+            const tableName = this._getTableName('subscriptionPlans');
+            const result = await databaseService.querySelect(tableName, {
                 filter: { is_active: true },
                 order: [{ column: 'id', ascending: true }],
                 limit: 1
@@ -120,7 +177,8 @@ const SubscriptionService = {
      */
     async createTrialSubscription(userId) {
         try {
-            if (!window.DatabaseService) {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
                 throw new Error('DatabaseService not available');
             }
             
@@ -129,13 +187,10 @@ const SubscriptionService = {
             // Get default plan from database
             const planResult = await this.getDefaultPlan();
             if (!planResult.success || !planResult.plan) {
-                // Fallback to config if no plan in database
-                console.warn('[SubscriptionService] No plan found in database, using config fallback');
-                if (!window.StripeConfig) {
-                    throw new Error('StripeConfig not available and no plan in database');
-                }
-                
-                const trialPeriodDays = window.StripeConfig.getTrialPeriodDays();
+                // Use config for trial period if no plan in database
+                console.warn('[SubscriptionService] No plan found in database, using config for trial period');
+                const subscriptionConfig = this._getSubscriptionConfig();
+                const trialPeriodDays = subscriptionConfig.defaultTrialPeriodDays;
                 const trialStartDate = new Date();
                 const trialEndDate = new Date(trialStartDate);
                 trialEndDate.setDate(trialEndDate.getDate() + trialPeriodDays);
@@ -157,7 +212,8 @@ const SubscriptionService = {
                     cancellation_reason: null
                 };
                 
-                const result = await window.DatabaseService.queryUpsert('subscriptions', subscriptionData, {
+                const tableName = this._getTableName('subscriptions');
+                const result = await databaseService.queryUpsert(tableName, subscriptionData, {
                     identifier: 'user_id',
                     identifierValue: userId
                 });
@@ -198,7 +254,8 @@ const SubscriptionService = {
                 cancellation_reason: null
             };
             
-            const result = await window.DatabaseService.queryUpsert('subscriptions', subscriptionData, {
+            const tableName = this._getTableName('subscriptions');
+            const result = await databaseService.queryUpsert(tableName, subscriptionData, {
                 identifier: 'user_id',
                 identifierValue: userId
             });
@@ -247,14 +304,17 @@ const SubscriptionService = {
         console.log('[SubscriptionService] getCurrentUserSubscription - call stack:', new Error().stack?.split('\n').slice(1, 6).join('\n'));
         
         try {
+            const databaseService = this._getDatabaseService();
+            const authService = this._getAuthService();
+            
             console.log('[SubscriptionService] getCurrentUserSubscription - checking services availability...');
-            if (!window.DatabaseService) {
+            if (!databaseService) {
                 const error = new Error('DatabaseService not available');
                 console.error('[SubscriptionService] ❌ getCurrentUserSubscription error:', error);
                 throw error;
             }
             
-            if (!window.AuthService) {
+            if (!authService) {
                 const error = new Error('AuthService not available');
                 console.error('[SubscriptionService] ❌ getCurrentUserSubscription error:', error);
                 throw error;
@@ -262,20 +322,20 @@ const SubscriptionService = {
             
             console.log('[SubscriptionService] getCurrentUserSubscription - services available');
             console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state:', {
-                hasDatabaseService: !!window.DatabaseService,
-                hasClient: !!window.DatabaseService.client,
-                clientType: window.DatabaseService.client?.constructor?.name,
-                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl,
-                clientIsNull: window.DatabaseService.client === null,
-                clientIsUndefined: window.DatabaseService.client === undefined
+                hasDatabaseService: !!databaseService,
+                hasClient: !!databaseService.client,
+                clientType: databaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!databaseService.client?.supabaseUrl,
+                clientIsNull: databaseService.client === null,
+                clientIsUndefined: databaseService.client === undefined
             });
             
             // Ensure DatabaseService is initialized before using it
-            if (!window.DatabaseService.client) {
+            if (!databaseService.client) {
                 console.log('[SubscriptionService] ⚠️ DatabaseService not initialized, initializing...');
                 const initStartTime = Date.now();
                 try {
-                    await window.DatabaseService.initialize();
+                    await databaseService.initialize();
                     const initElapsed = Date.now() - initStartTime;
                     console.log(`[SubscriptionService] DatabaseService.initialize() completed in ${initElapsed}ms`);
                 } catch (initError) {
@@ -292,14 +352,14 @@ const SubscriptionService = {
             }
             
             console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state AFTER init check:', {
-                hasClient: !!window.DatabaseService.client,
-                clientType: window.DatabaseService.client?.constructor?.name,
-                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl,
-                supabaseUrl: window.DatabaseService.client?.supabaseUrl
+                hasClient: !!databaseService.client,
+                clientType: databaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!databaseService.client?.supabaseUrl,
+                supabaseUrl: databaseService.client?.supabaseUrl
             });
             
             console.log('[SubscriptionService] getCurrentUserSubscription - calling _getCurrentUserId()...');
-            const userId = await window.DatabaseService._getCurrentUserId();
+            const userId = await databaseService._getCurrentUserId();
             console.log('[SubscriptionService] getCurrentUserSubscription - userId:', userId);
             if (!userId) {
                 return {
@@ -313,13 +373,14 @@ const SubscriptionService = {
             // Get subscription
             console.log('[SubscriptionService] getCurrentUserSubscription - calling querySelect for subscriptions...');
             console.log('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state BEFORE querySelect:', {
-                hasClient: !!window.DatabaseService.client,
-                clientType: window.DatabaseService.client?.constructor?.name,
-                hasSupabaseUrl: !!window.DatabaseService.client?.supabaseUrl
+                hasClient: !!databaseService.client,
+                clientType: databaseService.client?.constructor?.name,
+                hasSupabaseUrl: !!databaseService.client?.supabaseUrl
             });
             
             const queryStartTime = Date.now();
-            const subscriptionResult = await window.DatabaseService.querySelect('subscriptions', {
+            const tableName = this._getTableName('subscriptions');
+            const subscriptionResult = await databaseService.querySelect(tableName, {
                 filter: { user_id: userId },
                 limit: 1
             });
@@ -358,7 +419,8 @@ const SubscriptionService = {
             // Get plan details if subscription has plan_id
             let plan = null;
             if (subscription && subscription.plan_id) {
-                const planResult = await window.DatabaseService.querySelect('subscription_plans', {
+                const plansTableName = this._getTableName('subscriptionPlans');
+                const planResult = await databaseService.querySelect(plansTableName, {
                     filter: { id: subscription.plan_id },
                     limit: 1
                 });
@@ -462,12 +524,13 @@ const SubscriptionService = {
                 name: error.name,
                 stack: error.stack
             });
+            const databaseService = this._getDatabaseService();
             console.error('[SubscriptionService] getCurrentUserSubscription - DatabaseService.client state on error:', {
-                hasDatabaseService: !!window.DatabaseService,
-                hasClient: !!window.DatabaseService?.client,
-                clientType: window.DatabaseService?.client?.constructor?.name,
-                clientIsNull: window.DatabaseService?.client === null,
-                clientIsUndefined: window.DatabaseService?.client === undefined
+                hasDatabaseService: !!databaseService,
+                hasClient: !!databaseService?.client,
+                clientType: databaseService?.client?.constructor?.name,
+                clientIsNull: databaseService?.client === null,
+                clientIsUndefined: databaseService?.client === undefined
             });
             console.error('[SubscriptionService] ========== getCurrentUserSubscription() FAILED ==========');
             
@@ -544,7 +607,8 @@ const SubscriptionService = {
             if (!subscription) {
                 console.warn('[SubscriptionService] updateSubscription - No subscription returned from queryUpsert');
                 // Try to fetch the subscription to verify it was updated
-                const fetchResult = await window.DatabaseService.querySelect('subscriptions', {
+                const tableName = this._getTableName('subscriptions');
+                const fetchResult = await databaseService.querySelect(tableName, {
                     filter: { user_id: userId },
                     limit: 1
                 });
@@ -676,8 +740,11 @@ const SubscriptionService = {
             
             await window.StripeService.initialize();
             
-            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
-            const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+            // Get backend endpoint from config
+            if (typeof ConfigHelper === 'undefined') {
+                throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+            }
+            const updateEndpoint = ConfigHelper.getBackendEndpoint(this, 'updateSubscription');
             
             const result = await window.StripeService.updateSubscription(
                 userId,
@@ -721,8 +788,11 @@ const SubscriptionService = {
             
             await window.StripeService.initialize();
             
-            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
-            const updateEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+            // Get backend endpoint from config
+            if (typeof ConfigHelper === 'undefined') {
+                throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+            }
+            const updateEndpoint = ConfigHelper.getBackendEndpoint(this, 'updateSubscription');
             
             const result = await window.StripeService.updateSubscription(
                 userId,

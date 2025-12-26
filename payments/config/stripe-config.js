@@ -6,9 +6,10 @@
 
 const StripeConfig = {
     PUBLISHABLE_KEY: 'pk_test_51QAQyCClUqvgxZvpgpfE0qWj3sOl3FbVBEhGS1uLOWdl8zyMK2z3LWGijvw0y4cn04EvydDqdK26VD7tcy1Qx1q40073PZrcmn',
-    // SECRET_KEY and RESTRICTED_KEY removed for security
+    // SECRET_KEY and RESTRICTED_KEY not on client side for security
     // These keys should ONLY be used in server-side Edge Functions via environment variables
     // Never expose secret keys (sk_...) or restricted keys (rk_...) in client-side code
+    
     SUBSCRIPTION_PRICE_AMOUNT: 500, // 5 EUR in cents
     SUBSCRIPTION_PRICE_CURRENCY: 'eur',
     TRIAL_PERIOD_DAYS: 30,

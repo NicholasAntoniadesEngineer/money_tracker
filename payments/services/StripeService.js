@@ -13,22 +13,25 @@ const StripeService = {
     
     /**
      * Initialize Stripe with publishable key
+     * Requires configuration to be set via PaymentsModule.initialize()
      * @returns {Promise<Object>} Stripe instance
+     * @throws {Error} If config is not available or Stripe.js is not loaded
      */
     async initialize() {
         if (this.stripeInstance) {
             return this.stripeInstance;
         }
         
-        if (!window.StripeConfig) {
-            throw new Error('StripeConfig not available');
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
         }
+        
+        const publishableKey = ConfigHelper.getStripePublishableKey(this);
         
         if (!window.Stripe) {
             throw new Error('Stripe.js library not loaded. Please include Stripe.js script in your HTML.');
         }
         
-        const publishableKey = window.StripeConfig.getPublishableKey();
         this.stripeInstance = window.Stripe(publishableKey);
         
         console.log('[StripeService] Stripe initialized with publishable key');
@@ -81,22 +84,11 @@ const StripeService = {
                 });
                 
                 try {
-                    // Get auth token for Supabase Edge Function
-                    let authToken = null;
-                    if (window.AuthService && window.AuthService.isAuthenticated()) {
-                        authToken = window.AuthService.getAccessToken();
+                    if (typeof ConfigHelper === 'undefined') {
+                        throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
                     }
                     
-                    const headers = {
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    if (authToken) {
-                        headers['Authorization'] = `Bearer ${authToken}`;
-                        console.log('[StripeService] Adding Authorization header with access token');
-                    } else {
-                        console.warn('[StripeService] ⚠️ No auth token available - request may fail');
-                    }
+                    const headers = await ConfigHelper.getAuthHeaders(this);
                     
                     const requestBody = {
                         customerEmail: customerEmail,
@@ -309,22 +301,11 @@ const StripeService = {
                 });
                 
                 try {
-                    // Get auth token for Supabase Edge Function
-                    let authToken = null;
-                    if (window.AuthService && window.AuthService.isAuthenticated()) {
-                        authToken = window.AuthService.getAccessToken();
+                    if (typeof ConfigHelper === 'undefined') {
+                        throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
                     }
                     
-                    const headers = {
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    if (authToken) {
-                        headers['Authorization'] = `Bearer ${authToken}`;
-                        console.log('[StripeService] Adding Authorization header with access token');
-                    } else {
-                        console.warn('[StripeService] ⚠️ No auth token available - request may fail');
-                    }
+                    const headers = await ConfigHelper.getAuthHeaders(this);
                     
                     const fetchStartTime = Date.now();
                     const response = await fetch(backendEndpoint, {
@@ -443,22 +424,11 @@ const StripeService = {
                 });
                 
                 try {
-                    // Get auth token for Supabase Edge Function
-                    let authToken = null;
-                    if (window.AuthService && window.AuthService.isAuthenticated()) {
-                        authToken = window.AuthService.getAccessToken();
+                    if (typeof ConfigHelper === 'undefined') {
+                        throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
                     }
                     
-                    const headers = {
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    if (authToken) {
-                        headers['Authorization'] = `Bearer ${authToken}`;
-                        console.log('[StripeService] Adding Authorization header with access token');
-                    } else {
-                        console.warn('[StripeService] ⚠️ No auth token available - request may fail');
-                    }
+                    const headers = await ConfigHelper.getAuthHeaders(this);
                     
                     const fetchStartTime = Date.now();
                     const response = await fetch(backendEndpoint, {
@@ -570,16 +540,12 @@ const StripeService = {
                 throw new Error('Either planId or recurringBillingEnabled must be provided');
             }
             
-            // Get auth token for Supabase Edge Function
-            let authToken = null;
-            if (window.AuthService && window.AuthService.isAuthenticated()) {
-                authToken = window.AuthService.getAccessToken();
-            }
-            
             // Use default endpoint if not provided
             if (!backendEndpoint) {
-                const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
-                backendEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                if (typeof ConfigHelper === 'undefined') {
+                    throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+                }
+                backendEndpoint = ConfigHelper.getBackendEndpoint(this, 'updateSubscription');
             }
             
             console.log('[StripeService] Step 2: Calling update-subscription Edge Function...');
@@ -591,16 +557,11 @@ const StripeService = {
                 recurringBillingEnabled: recurringBillingEnabled
             });
             
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            
-            if (authToken) {
-                headers['Authorization'] = `Bearer ${authToken}`;
-                console.log('[StripeService] Adding Authorization header with access token');
-            } else {
-                console.warn('[StripeService] ⚠️ No auth token available - request may fail');
+            if (typeof ConfigHelper === 'undefined') {
+                throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
             }
+            
+            const headers = await ConfigHelper.getAuthHeaders(this);
             
             const requestBody = {
                 userId: userId
@@ -732,15 +693,11 @@ const StripeService = {
                     limit: limit
                 });
                 
-                // Get access token from AuthService
-                let accessToken = null;
-                if (window.AuthService && window.AuthService.getCurrentUser) {
-                    const session = await window.AuthService.getSession();
-                    if (session && session.access_token) {
-                        accessToken = session.access_token;
-                        console.log('[StripeService] Adding Authorization header with access token');
-                    }
+                if (typeof ConfigHelper === 'undefined') {
+                    throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
                 }
+                
+                const headers = await ConfigHelper.getAuthHeaders(this);
                 
                 const requestBody = {
                     customerId: customerId,
@@ -751,10 +708,7 @@ const StripeService = {
                 
                 const response = await fetch(backendEndpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
-                    },
+                    headers: headers,
                     body: JSON.stringify(requestBody)
                 });
                 
