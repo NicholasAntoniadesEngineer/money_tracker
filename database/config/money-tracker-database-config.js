@@ -33,7 +33,9 @@ const MoneyTrackerDatabaseConfig = DatabaseConfigBase.merge({
         settings: 'settings',
         subscriptions: 'subscriptions',
         subscriptionPlans: 'subscription_plans',
-        paymentHistory: 'payment_history'
+        paymentHistory: 'payment_history',
+        dataShares: 'data_shares',
+        fieldLocks: 'field_locks'
     },
     
     cache: {

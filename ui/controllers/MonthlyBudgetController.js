@@ -2804,6 +2804,299 @@ const MonthlyBudgetController = {
     setElementHTML(id, html) {
         const el = document.getElementById(id);
         if (el) el.innerHTML = html;
+    },
+    
+    /**
+     * ============================================================================
+     * DATA SHARING AND FIELD LOCKING METHODS
+     * ============================================================================
+     */
+    
+    /**
+     * Show shared data indicator
+     */
+    showSharedDataIndicator(monthData) {
+        const header = document.querySelector('.month-header, h1, .page-header');
+        if (header && monthData.isShared) {
+            const accessLevel = monthData.sharedAccessLevel || 'read';
+            const accessText = accessLevel.replace('_', '/').replace(/\b\w/g, l => l.toUpperCase());
+            const indicator = document.createElement('div');
+            indicator.id = 'shared-data-indicator';
+            indicator.style.cssText = 'padding: var(--spacing-sm); margin: var(--spacing-sm) 0; background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.5); border-radius: var(--border-radius); font-size: 0.9rem;';
+            indicator.innerHTML = `🔒 Shared Data - Access Level: ${accessText}`;
+            if (!document.getElementById('shared-data-indicator')) {
+                header.insertAdjacentElement('afterend', indicator);
+            }
+        }
+    },
+    
+    /**
+     * Hide shared data indicator
+     */
+    hideSharedDataIndicator() {
+        const indicator = document.getElementById('shared-data-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    },
+    
+    /**
+     * Setup field-level locking for shared data
+     */
+    async setupFieldLocking(monthData) {
+        if (!window.FieldLockingService || !monthData.isShared || !monthData.sharedOwnerId) {
+            return;
+        }
+        
+        this.fieldLocks = {};
+        this.lockSubscriptions = {};
+        
+        const resourceType = 'month';
+        const resourceId = this.currentMonthKey;
+        const ownerUserId = monthData.sharedOwnerId;
+        
+        try {
+            const subscriptionResult = await window.FieldLockingService.subscribeToLocks(
+                resourceType,
+                resourceId,
+                (payload) => {
+                    this.handleLockUpdate(payload);
+                }
+            );
+            
+            if (subscriptionResult.success) {
+                this.lockSubscriptions[resourceId] = subscriptionResult.subscription;
+            }
+            
+            const locksResult = await window.FieldLockingService.getAllLocksForResource(resourceType, resourceId);
+            if (locksResult.success && locksResult.locks) {
+                locksResult.locks.forEach(lock => {
+                    this.fieldLocks[lock.field_path] = lock;
+                    this.updateFieldLockUI(lock.field_path, lock);
+                });
+            }
+            
+            this.attachFieldLockListeners();
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error setting up field locking:', error);
+        }
+    },
+    
+    /**
+     * Cleanup field-level locking
+     */
+    cleanupFieldLocking() {
+        if (this.lockSubscriptions) {
+            Object.values(this.lockSubscriptions).forEach(channel => {
+                try {
+                    channel.unsubscribe();
+                } catch (error) {
+                    console.error('[MonthlyBudgetController] Error unsubscribing from locks:', error);
+                }
+            });
+            this.lockSubscriptions = {};
+        }
+        
+        this.fieldLocks = {};
+        this.removeFieldLockListeners();
+    },
+    
+    /**
+     * Attach field lock listeners to input fields
+     */
+    attachFieldLockListeners() {
+        const inputs = document.querySelectorAll('input[type="number"], input[type="text"], textarea');
+        inputs.forEach(input => {
+            const fieldPath = this.getFieldPath(input);
+            if (fieldPath) {
+                input.addEventListener('focus', () => this.acquireFieldLock(fieldPath, input));
+                input.addEventListener('blur', () => this.releaseFieldLock(fieldPath));
+                input.addEventListener('input', () => this.extendFieldLock(fieldPath));
+            }
+        });
+    },
+    
+    /**
+     * Remove field lock listeners
+     */
+    removeFieldLockListeners() {
+        const inputs = document.querySelectorAll('input[type="number"], input[type="text"], textarea');
+        inputs.forEach(input => {
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+        });
+    },
+    
+    /**
+     * Get field path from input element
+     */
+    getFieldPath(input) {
+        const name = input.name || input.id;
+        if (!name) {
+            return null;
+        }
+        
+        const monthData = this.currentMonthData;
+        if (!monthData || !monthData.isShared) {
+            return null;
+        }
+        
+        if (name.includes('variable-cost')) {
+            const match = name.match(/variable-cost-(\d+)-(estimated|actual)/);
+            if (match) {
+                const index = parseInt(match[1], 10);
+                const field = match[2] === 'estimated' ? 'estimatedAmount' : 'actualAmount';
+                return `variable_costs[${index}].${field}`;
+            }
+        }
+        
+        if (name.includes('fixed-cost')) {
+            const match = name.match(/fixed-cost-(\d+)-(amount|description)/);
+            if (match) {
+                const index = parseInt(match[1], 10);
+                const field = match[2] === 'amount' ? 'amount' : 'description';
+                return `fixed_costs[${index}].${field}`;
+            }
+        }
+        
+        return name;
+    },
+    
+    /**
+     * Acquire field lock
+     */
+    async acquireFieldLock(fieldPath, inputElement) {
+        if (!window.FieldLockingService || !this.currentMonthData || !this.currentMonthData.isShared) {
+            return;
+        }
+        
+        const resourceType = 'month';
+        const resourceId = this.currentMonthKey;
+        const ownerUserId = this.currentMonthData.sharedOwnerId;
+        
+        try {
+            const result = await window.FieldLockingService.acquireFieldLock(
+                resourceType,
+                resourceId,
+                fieldPath,
+                ownerUserId
+            );
+            
+            if (result.success) {
+                this.fieldLocks[fieldPath] = result.lock;
+                this.updateFieldLockUI(fieldPath, result.lock);
+            } else if (result.isLockedByOther) {
+                this.updateFieldLockUI(fieldPath, result.lock);
+                alert('This field is being edited by another user. Please wait.');
+                inputElement.blur();
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error acquiring lock:', error);
+        }
+    },
+    
+    /**
+     * Release field lock
+     */
+    async releaseFieldLock(fieldPath) {
+        if (!window.FieldLockingService || !this.fieldLocks || !this.fieldLocks[fieldPath]) {
+            return;
+        }
+        
+        const lock = this.fieldLocks[fieldPath];
+        try {
+            await window.FieldLockingService.releaseFieldLock(lock.id);
+            delete this.fieldLocks[fieldPath];
+            this.updateFieldLockUI(fieldPath, null);
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error releasing lock:', error);
+        }
+    },
+    
+    /**
+     * Extend field lock
+     */
+    async extendFieldLock(fieldPath) {
+        if (!window.FieldLockingService || !this.fieldLocks || !this.fieldLocks[fieldPath]) {
+            return;
+        }
+        
+        const lock = this.fieldLocks[fieldPath];
+        try {
+            await window.FieldLockingService.extendLock(lock.id);
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error extending lock:', error);
+        }
+    },
+    
+    /**
+     * Handle lock update from real-time subscription
+     */
+    handleLockUpdate(payload) {
+        const fieldPath = payload.new?.field_path || payload.old?.field_path;
+        if (!fieldPath) {
+            return;
+        }
+        
+        if (payload.eventType === 'DELETE' || !payload.new) {
+            delete this.fieldLocks[fieldPath];
+            this.updateFieldLockUI(fieldPath, null);
+        } else {
+            this.fieldLocks[fieldPath] = payload.new;
+            this.updateFieldLockUI(fieldPath, payload.new);
+        }
+    },
+    
+    /**
+     * Update field lock UI
+     */
+    updateFieldLockUI(fieldPath, lock) {
+        const inputs = document.querySelectorAll('input, textarea');
+        inputs.forEach(input => {
+            const inputFieldPath = this.getFieldPath(input);
+            if (inputFieldPath === fieldPath) {
+                if (lock) {
+                    const currentUserId = window.AuthService?.getCurrentUser()?.id;
+                    if (lock.locked_by_user_id !== currentUserId) {
+                        input.disabled = true;
+                        input.title = 'This field is being edited by another user';
+                        input.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+                    } else {
+                        input.disabled = false;
+                        input.title = 'You are editing this field';
+                        input.style.backgroundColor = '';
+                    }
+                } else {
+                    input.disabled = false;
+                    input.title = '';
+                    input.style.backgroundColor = '';
+                }
+            }
+        });
+    },
+    
+    /**
+     * Check access level and disable actions accordingly
+     */
+    checkAccessLevel(monthData) {
+        if (!monthData || !monthData.isShared) {
+            return;
+        }
+        
+        const accessLevel = monthData.sharedAccessLevel || 'read';
+        const saveButton = document.querySelector('button[id*="save"], button:contains("Save")');
+        const deleteButton = document.querySelector('button[id*="delete"], button:contains("Delete")');
+        
+        if (accessLevel === 'read') {
+            if (saveButton) saveButton.disabled = true;
+            if (deleteButton) deleteButton.disabled = true;
+        } else if (accessLevel === 'read_write') {
+            if (saveButton) saveButton.disabled = false;
+            if (deleteButton) deleteButton.disabled = true;
+        } else if (accessLevel === 'read_write_delete') {
+            if (saveButton) saveButton.disabled = false;
+            if (deleteButton) deleteButton.disabled = false;
+        }
     }
 };
 
