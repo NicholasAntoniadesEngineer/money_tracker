@@ -3709,10 +3709,20 @@ const DatabaseService = {
      */
     async updateShareStatus(shareId, status) {
         try {
-            console.log('[DatabaseService] updateShareStatus() called', { shareId, status });
+            console.log('[DatabaseService] ========== updateShareStatus() CALLED ==========');
+            console.log('[DatabaseService] updateShareStatus() - Start time:', new Date().toISOString());
+            console.log('[DatabaseService] updateShareStatus() - Parameters:', { 
+                shareId, 
+                status, 
+                shareIdType: typeof shareId, 
+                statusType: typeof status 
+            });
 
             const currentUserId = await this._getCurrentUserId();
+            console.log('[DatabaseService] updateShareStatus() - Current user ID:', currentUserId, 'Type:', typeof currentUserId);
+            
             if (!currentUserId) {
+                console.error('[DatabaseService] updateShareStatus() - User not authenticated');
                 return {
                     success: false,
                     share: null,
@@ -3721,6 +3731,7 @@ const DatabaseService = {
             }
 
             if (!['accepted', 'declined', 'blocked'].includes(status)) {
+                console.error('[DatabaseService] updateShareStatus() - Invalid status:', status);
                 return {
                     success: false,
                     share: null,
@@ -3729,13 +3740,29 @@ const DatabaseService = {
             }
 
             const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] updateShareStatus() - Table name:', tableName);
 
+            console.log('[DatabaseService] updateShareStatus() - Fetching share from database...');
             const shareResult = await this.querySelect(tableName, {
                 filter: { id: shareId },
                 limit: 1
             });
 
+            console.log('[DatabaseService] updateShareStatus() - Share query result:', {
+                hasError: !!shareResult.error,
+                error: shareResult.error,
+                hasData: !!shareResult.data,
+                dataLength: shareResult.data?.length || 0,
+                dataType: Array.isArray(shareResult.data) ? 'array' : typeof shareResult.data
+            });
+
             if (shareResult.error || !shareResult.data || shareResult.data.length === 0) {
+                console.error('[DatabaseService] updateShareStatus() - Share not found:', {
+                    hasError: !!shareResult.error,
+                    error: shareResult.error,
+                    hasData: !!shareResult.data,
+                    dataLength: shareResult.data?.length || 0
+                });
                 return {
                     success: false,
                     share: null,
@@ -3744,8 +3771,34 @@ const DatabaseService = {
             }
 
             const share = shareResult.data[0];
+            console.log('[DatabaseService] updateShareStatus() - Share found:', {
+                shareId: share.id,
+                ownerUserId: share.owner_user_id,
+                sharedWithUserId: share.shared_with_user_id,
+                currentStatus: share.status,
+                accessLevel: share.access_level,
+                shareAllData: share.share_all_data,
+                sharedMonths: share.shared_months,
+                createdAt: share.created_at,
+                updatedAt: share.updated_at
+            });
+
+            console.log('[DatabaseService] updateShareStatus() - Authorization check:', {
+                sharedWithUserId: share.shared_with_user_id,
+                currentUserId: currentUserId,
+                areEqual: share.shared_with_user_id === currentUserId,
+                sharedWithType: typeof share.shared_with_user_id,
+                currentType: typeof currentUserId,
+                sharedWithString: String(share.shared_with_user_id),
+                currentString: String(currentUserId)
+            });
 
             if (share.shared_with_user_id !== currentUserId) {
+                console.error('[DatabaseService] updateShareStatus() - Not authorized to update this share:', {
+                    shareSharedWithUserId: share.shared_with_user_id,
+                    currentUserId: currentUserId,
+                    match: share.shared_with_user_id === currentUserId
+                });
                 return {
                     success: false,
                     share: null,
@@ -3759,25 +3812,62 @@ const DatabaseService = {
                 updated_at: new Date().toISOString()
             };
 
-            console.log('[DatabaseService] Updating share with data:', {
+            console.log('[DatabaseService] updateShareStatus() - ========== PREPARING UPDATE ==========');
+            console.log('[DatabaseService] updateShareStatus() - Update details:', {
                 shareId: shareId,
+                tableName: tableName,
                 updateData: updateData,
                 currentStatus: share.status,
-                newStatus: status
+                newStatus: status,
+                ownerUserId: share.owner_user_id,
+                sharedWithUserId: share.shared_with_user_id,
+                currentUserId: currentUserId,
+                isRecipient: share.shared_with_user_id === currentUserId,
+                isOwner: share.owner_user_id === currentUserId
             });
 
+            console.log('[DatabaseService] updateShareStatus() - Calling queryUpdate...');
+            const updateStartTime = Date.now();
             const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+            const updateDuration = Date.now() - updateStartTime;
+            console.log(`[DatabaseService] updateShareStatus() - queryUpdate completed in ${updateDuration}ms`);
 
-            console.log('[DatabaseService] Update result:', {
+            console.log('[DatabaseService] updateShareStatus() - ========== UPDATE RESULT ==========');
+            console.log('[DatabaseService] updateShareStatus() - Update result:', {
                 hasError: !!updateResult.error,
                 error: updateResult.error,
+                errorCode: updateResult.error?.code,
+                errorMessage: updateResult.error?.message,
+                errorDetails: updateResult.error?.details,
+                errorHint: updateResult.error?.hint,
                 hasData: !!updateResult.data,
                 dataLength: updateResult.data?.length || 0,
+                dataType: Array.isArray(updateResult.data) ? 'array' : typeof updateResult.data,
                 returnedData: updateResult.data
             });
 
             if (updateResult.error) {
-                console.error('[DatabaseService] Error updating share status:', updateResult.error);
+                console.error('[DatabaseService] updateShareStatus() - ========== UPDATE FAILED ==========');
+                console.error('[DatabaseService] updateShareStatus() - Error details:', {
+                    code: updateResult.error.code,
+                    message: updateResult.error.message,
+                    details: updateResult.error.details,
+                    hint: updateResult.error.hint,
+                    status: updateResult.error.status,
+                    fullError: JSON.stringify(updateResult.error, null, 2)
+                });
+                console.error('[DatabaseService] updateShareStatus() - Context:', {
+                    shareId: shareId,
+                    tableName: tableName,
+                    updateData: updateData,
+                    currentStatus: share.status,
+                    newStatus: status,
+                    ownerUserId: share.owner_user_id,
+                    sharedWithUserId: share.shared_with_user_id,
+                    currentUserId: currentUserId,
+                    isRecipient: share.shared_with_user_id === currentUserId,
+                    isOwner: share.owner_user_id === currentUserId
+                });
                 return {
                     success: false,
                     share: null,
@@ -3787,36 +3877,55 @@ const DatabaseService = {
 
             const updatedShare = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : share;
             
-            console.log('[DatabaseService] Share status updated successfully:', {
+            console.log('[DatabaseService] updateShareStatus() - ========== UPDATE SUCCESS ==========');
+            console.log('[DatabaseService] updateShareStatus() - Share status updated successfully:', {
                 shareId: shareId,
                 oldStatus: share.status,
                 newStatus: updatedShare.status,
-                updatedShare: updatedShare
+                updatedShare: updatedShare,
+                respondedAt: updatedShare.responded_at,
+                updatedAt: updatedShare.updated_at
             });
             
             // Verify the update by querying the share again
+            console.log('[DatabaseService] updateShareStatus() - Verifying share status after update...');
             const verifyResult = await this.querySelect(tableName, {
                 filter: { id: shareId },
                 limit: 1
             });
             
+            console.log('[DatabaseService] updateShareStatus() - Verification query result:', {
+                hasError: !!verifyResult.error,
+                error: verifyResult.error,
+                hasData: !!verifyResult.data,
+                dataLength: verifyResult.data?.length || 0
+            });
+            
             if (verifyResult.data && verifyResult.data.length > 0) {
                 const verifiedShare = verifyResult.data[0];
-                console.log('[DatabaseService] Verified share status after update:', {
+                console.log('[DatabaseService] updateShareStatus() - Verified share status after update:', {
                     shareId: shareId,
                     verifiedStatus: verifiedShare.status,
-                    matchesExpected: verifiedShare.status === status
+                    expectedStatus: status,
+                    matchesExpected: verifiedShare.status === status,
+                    verifiedShare: verifiedShare
                 });
                 
                 if (verifiedShare.status !== status) {
-                    console.error('[DatabaseService] WARNING: Share status does not match expected value!', {
+                    console.error('[DatabaseService] updateShareStatus() - WARNING: Share status does not match expected value!', {
                         expected: status,
                         actual: verifiedShare.status,
-                        shareId: shareId
+                        shareId: shareId,
+                        verifiedShare: verifiedShare
                     });
                 }
             } else {
-                console.warn('[DatabaseService] Could not verify share update - share not found after update');
+                console.warn('[DatabaseService] updateShareStatus() - Could not verify share update - share not found after update:', {
+                    hasError: !!verifyResult.error,
+                    error: verifyResult.error,
+                    hasData: !!verifyResult.data,
+                    dataLength: verifyResult.data?.length || 0
+                });
             }
 
             if (typeof window.NotificationProcessor !== 'undefined') {
@@ -3865,7 +3974,14 @@ const DatabaseService = {
                 error: null
             };
         } catch (error) {
-            console.error('[DatabaseService] Exception updating share status:', error);
+            console.error('[DatabaseService] updateShareStatus() - ========== EXCEPTION IN updateShareStatus() ==========');
+            console.error('[DatabaseService] updateShareStatus() - Exception details:', {
+                errorMessage: error.message,
+                errorStack: error.stack,
+                errorName: error.name,
+                errorType: typeof error,
+                fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            });
             return {
                 success: false,
                 share: null,
