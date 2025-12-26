@@ -43,20 +43,47 @@ const NotificationService = {
      */
     async createNotification(notificationData) {
         try {
-            console.log('[NotificationService] createNotification() called', { type: notificationData.type, userId: notificationData.user_id });
+            console.log('[NotificationService] ========== createNotification() CALLED ==========');
+            console.log('[NotificationService] createNotification() - Start time:', new Date().toISOString());
+            console.log('[NotificationService] createNotification() - Input data:', {
+                type: notificationData.type,
+                userId: notificationData.user_id,
+                fromUserId: notificationData.from_user_id,
+                shareId: notificationData.share_id,
+                conversationId: notificationData.conversation_id,
+                paymentId: notificationData.payment_id,
+                subscriptionId: notificationData.subscription_id,
+                invoiceId: notificationData.invoice_id,
+                message: notificationData.message
+            });
 
             const databaseService = this._getDatabaseService();
             if (!databaseService) {
+                console.error('[NotificationService] DatabaseService not available');
                 throw new Error('DatabaseService not available');
             }
+            console.log('[NotificationService] DatabaseService obtained');
 
             // Check if we're creating a notification for the current user
             // If not, use the RPC function to bypass RLS
+            console.log('[NotificationService] Getting current user ID...');
             const currentUserId = await databaseService._getCurrentUserId();
+            console.log('[NotificationService] Current user ID:', currentUserId);
+            console.log('[NotificationService] Target user ID (notification recipient):', notificationData.user_id);
+            
             const isForCurrentUser = notificationData.user_id === currentUserId;
+            console.log('[NotificationService] Is notification for current user?', isForCurrentUser);
+            console.log('[NotificationService] User ID comparison:', {
+                targetUserId: notificationData.user_id,
+                currentUserId: currentUserId,
+                areEqual: notificationData.user_id === currentUserId,
+                targetType: typeof notificationData.user_id,
+                currentType: typeof currentUserId
+            });
 
             if (isForCurrentUser) {
                 // Use regular insert for current user (RLS allows this)
+                console.log('[NotificationService] Using direct insert path (notification for current user)');
                 const tableName = this._getTableName('notifications');
 
                 const insertData = {
@@ -101,18 +128,26 @@ const NotificationService = {
                     };
                 }
 
-                console.log('[NotificationService] Notification created successfully:', result.data?.id);
+                const createdNotification = Array.isArray(result.data) && result.data.length > 0
+                    ? result.data[0]
+                    : result.data;
+                console.log('[NotificationService] Notification created successfully via direct insert:', {
+                    notificationId: createdNotification?.id,
+                    fullData: createdNotification
+                });
                 return {
                     success: true,
-                    notification: result.data,
+                    notification: createdNotification,
                     error: null
                 };
             } else {
                 // Use RPC function to create notification for another user (bypasses RLS)
+                console.log('[NotificationService] ========== USING RPC PATH (notification for another user) ==========');
                 console.log('[NotificationService] Creating notification for another user, using RPC function', {
                     targetUserId: notificationData.user_id,
                     currentUserId: currentUserId
                 });
+                
                 const rpcParams = {
                     p_user_id: notificationData.user_id,
                     p_type: notificationData.type,
@@ -124,8 +159,20 @@ const NotificationService = {
                     p_subscription_id: notificationData.subscription_id || null,
                     p_invoice_id: notificationData.invoice_id || null
                 };
-
+                
+                console.log('[NotificationService] RPC parameters:', JSON.stringify(rpcParams, null, 2));
+                console.log('[NotificationService] Calling queryRpc("create_notification", ...)');
+                const rpcStartTime = Date.now();
                 const result = await databaseService.queryRpc('create_notification', rpcParams);
+                const rpcDuration = Date.now() - rpcStartTime;
+                console.log(`[NotificationService] RPC call completed in ${rpcDuration}ms`);
+                console.log('[NotificationService] RPC result:', {
+                    hasError: !!result.error,
+                    error: result.error,
+                    hasData: result.data !== null && result.data !== undefined,
+                    data: result.data,
+                    dataType: typeof result.data
+                });
 
                 if (result.error) {
                     console.error('[NotificationService] Error creating notification via RPC:', result.error);
@@ -136,9 +183,26 @@ const NotificationService = {
                     };
                 }
 
-                // RPC returns the notification ID, fetch the full notification
-                const notificationId = result.data;
-                console.log('[NotificationService] Notification created via RPC, ID:', notificationId);
+                // RPC returns the notification ID (BIGINT), which might be a number or string
+                let notificationId = result.data;
+                console.log('[NotificationService] Raw RPC return value:', notificationId, 'Type:', typeof notificationId);
+                
+                // Handle different return formats from Supabase RPC
+                if (Array.isArray(notificationId) && notificationId.length > 0) {
+                    notificationId = notificationId[0];
+                    console.log('[NotificationService] Extracted ID from array:', notificationId);
+                } else if (typeof notificationId === 'object' && notificationId !== null && 'id' in notificationId) {
+                    notificationId = notificationId.id;
+                    console.log('[NotificationService] Extracted ID from object:', notificationId);
+                }
+                
+                // Convert to number if it's a string
+                if (typeof notificationId === 'string' && !isNaN(notificationId)) {
+                    notificationId = parseInt(notificationId, 10);
+                    console.log('[NotificationService] Converted string ID to number:', notificationId);
+                }
+                
+                console.log('[NotificationService] Final notification ID:', notificationId, 'Type:', typeof notificationId);
 
                 // Fetch the created notification
                 const tableName = this._getTableName('notifications');
@@ -156,14 +220,27 @@ const NotificationService = {
                     };
                 }
 
+                const fetchedNotification = fetchResult.data[0];
+                console.log('[NotificationService] Fetched notification after RPC creation:', {
+                    notificationId: fetchedNotification?.id,
+                    userId: fetchedNotification?.user_id,
+                    type: fetchedNotification?.type
+                });
+                console.log('[NotificationService] ========== createNotification() COMPLETE (RPC path) ==========');
                 return {
                     success: true,
-                    notification: fetchResult.data[0],
+                    notification: fetchedNotification,
                     error: null
                 };
             }
         } catch (error) {
-            console.error('[NotificationService] Exception creating notification:', error);
+            console.error('[NotificationService] ========== EXCEPTION in createNotification() ==========');
+            console.error('[NotificationService] Exception details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            console.error('[NotificationService] ========== END EXCEPTION ==========');
             return {
                 success: false,
                 notification: null,

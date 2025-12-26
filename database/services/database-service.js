@@ -3589,6 +3589,22 @@ const DatabaseService = {
                 const notificationType = status === 'accepted' ? 'share_accepted' : 
                                        status === 'declined' ? 'share_declined' : 'share_blocked';
                 
+                console.log('[DatabaseService] ========== Creating notification for share status update ==========');
+                console.log('[DatabaseService] Notification details:', {
+                    notificationType: notificationType,
+                    targetUserId: share.owner_user_id,
+                    fromUserId: currentUserId,
+                    shareId: shareId,
+                    shareStatus: status
+                });
+                console.log('[DatabaseService] User ID comparison:', {
+                    ownerUserId: share.owner_user_id,
+                    currentUserId: currentUserId,
+                    areEqual: share.owner_user_id === currentUserId,
+                    ownerType: typeof share.owner_user_id,
+                    currentType: typeof currentUserId
+                });
+                
                 const notificationResult = await window.NotificationProcessor.createAndDeliver(
                     share.owner_user_id,
                     notificationType,
@@ -3597,10 +3613,12 @@ const DatabaseService = {
                     null
                 );
                 if (notificationResult.success) {
-                    console.log('[DatabaseService] Notification created for share status update');
+                    console.log('[DatabaseService] Notification created successfully for share status update');
                 } else {
-                    console.warn('[DatabaseService] Failed to create notification:', notificationResult.error);
+                    console.error('[DatabaseService] Failed to create notification:', notificationResult.error);
                 }
+            } else {
+                console.warn('[DatabaseService] NotificationProcessor not available, skipping notification creation');
             }
 
             if (status === 'blocked') {
