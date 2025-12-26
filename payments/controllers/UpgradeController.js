@@ -234,6 +234,12 @@ const UpgradeController = {
                 console.log('[UpgradeController] Step 4: Calling displayCurrentSubscription()...');
                 this.displayCurrentSubscription();
                 console.log('[UpgradeController] displayCurrentSubscription() call completed');
+                
+                // Load recent invoices if user has a paid subscription
+                if (this.currentSubscription && this.currentSubscription.stripe_customer_id) {
+                    console.log('[UpgradeController] Step 5: Loading recent invoices...');
+                    this.loadRecentInvoices();
+                }
             } else {
                 console.warn('[UpgradeController] ⚠️ No subscription found or result unsuccessful:', {
                     success: result?.success,
@@ -468,12 +474,6 @@ const UpgradeController = {
                 throw new Error('User email not available');
             }
             
-            if (!window.StripeService) {
-                throw new Error('StripeService not available');
-            }
-            
-            await window.StripeService.initialize();
-            
             // Determine if this is an upgrade or downgrade
             const currentPlan = this.currentPlan;
             const currentPlanPrice = currentPlan ? (currentPlan.price_amount * 100) : 0; // Convert to cents
@@ -562,11 +562,15 @@ const UpgradeController = {
                 }
                 
                 // Update subscription directly to Free plan
+                // Clear subscription dates since Free plan has no billing period
                 const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
                     plan_id: planId,
                     subscription_type: 'trial', // Free plan is trial type
                     status: 'active',
                     stripe_subscription_id: null, // Clear Stripe subscription ID
+                    subscription_start_date: null, // Clear subscription dates for Free plan
+                    subscription_end_date: null,
+                    next_billing_date: null,
                     recurring_billing_enabled: false // Disable recurring billing for Free plan
                 });
                 
@@ -583,6 +587,29 @@ const UpgradeController = {
                 }
                 
                 return;
+            }
+            
+            // For paid plans (priceAmount > 0): need StripeService for checkout (or use fallback)
+            let useStripeService = false;
+            if (priceAmount > 0) {
+                console.log('[UpgradeController] Processing paid plan, checking StripeService...');
+                
+                // Brief wait for StripeService to be available
+                const maxWaitTime = 250;
+                const startWaitTime = Date.now();
+                
+                if (!window.StripeService) {
+                    await new Promise(resolve => setTimeout(resolve, maxWaitTime));
+                }
+                
+                if (window.StripeService) {
+                    console.log('[UpgradeController] ✅ StripeService available, initializing...');
+                    await window.StripeService.initialize();
+                    useStripeService = true;
+                } else {
+                    console.log('[UpgradeController] ⚠️ StripeService not available, will use direct Edge Function call as fallback');
+                    useStripeService = false;
+                }
             }
             
             // For downgrades (to paid plans): use update-subscription Edge Function (scheduled)
@@ -641,6 +668,41 @@ const UpgradeController = {
                 const result = await response.json();
                 
                 if (result.success) {
+                    // Sync subscription dates from Stripe to ensure they're up to date
+                    console.log('[UpgradeController] Syncing subscription dates after downgrade scheduling...');
+                    try {
+                        const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                        const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                        
+                        let accessToken = null;
+                        if (window.AuthService && window.AuthService.getSession) {
+                            try {
+                                const session = await window.AuthService.getSession();
+                                if (session && session.access_token) {
+                                    accessToken = session.access_token;
+                                }
+                            } catch (sessionError) {
+                                console.warn('[UpgradeController] Error getting session:', sessionError);
+                            }
+                        }
+                        
+                        await fetch(syncEndpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                            },
+                            body: JSON.stringify({
+                                userId: currentUser.id,
+                                syncDates: true
+                            })
+                        }).catch(err => {
+                            console.warn('[UpgradeController] Date sync failed (non-critical):', err);
+                        });
+                    } catch (syncError) {
+                        console.warn('[UpgradeController] Error syncing dates (non-critical):', syncError);
+                    }
+                    
                     alert(`Downgrade scheduled! You will be moved to ${planName} at the end of your current billing period (${new Date(result.changeDate).toLocaleDateString()}). You will continue to have access to your current plan features until then.`);
                     
                     // Reload subscription and plans to refresh the display
@@ -664,24 +726,92 @@ const UpgradeController = {
             
             console.log('[UpgradeController] Creating checkout session for upgrade...');
             
-            const supabaseProjectUrl = 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/create-checkout-session`;
             
-            const result = await window.StripeService.createCheckoutSession(
-                currentUser.email,
-                currentUser.id,
-                successUrl,
-                cancelUrl,
-                backendEndpoint,
-                planId,
-                priceAmount
-            );
+            let result;
+            
+            if (useStripeService && window.StripeService && typeof window.StripeService.createCheckoutSession === 'function') {
+                console.log('[UpgradeController] Using StripeService to create checkout session...');
+                result = await window.StripeService.createCheckoutSession(
+                    currentUser.email,
+                    currentUser.id,
+                    successUrl,
+                    cancelUrl,
+                    backendEndpoint,
+                    planId,
+                    priceAmount
+                );
+            } else {
+                console.log('[UpgradeController] Using direct Edge Function call to create checkout session...');
+                
+                // Get access token from AuthService
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                            console.log('[UpgradeController] ✅ Access token obtained');
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] ⚠️ Error getting session:', sessionError);
+                    }
+                }
+                
+                console.log('[UpgradeController] Calling create-checkout-session Edge Function:', {
+                    endpoint: backendEndpoint,
+                    email: currentUser.email,
+                    userId: currentUser.id,
+                    planId: planId,
+                    priceAmount: priceAmount,
+                    hasAccessToken: !!accessToken
+                });
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerEmail: currentUser.email,
+                        userId: currentUser.id,
+                        successUrl: successUrl,
+                        cancelUrl: cancelUrl,
+                        planId: planId,
+                        priceAmount: priceAmount
+                    })
+                });
+                
+                console.log('[UpgradeController] Edge Function response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[UpgradeController] Edge Function response data:', data);
+                
+                result = {
+                    success: data.url ? true : false,
+                    sessionId: data.sessionId || null,
+                    customerId: data.customerId || null,
+                    url: data.url || null,
+                    error: data.error || null
+                };
+            }
             
             if (!result.success) {
                 throw new Error(result.error || 'Failed to create checkout session');
             }
             
-            if (result.sessionId) {
+            if (result.sessionId || result.url) {
                 // Store customer ID if returned (non-blocking - webhook will also update this)
                 // Use a timeout to ensure redirect happens even if update is slow
                 if (result.customerId && window.SubscriptionService) {
@@ -697,9 +827,20 @@ const UpgradeController = {
                 }
                 
                 console.log('[UpgradeController] Redirecting to Stripe Checkout...');
-                const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
-                if (!redirectResult.success) {
-                    throw new Error(redirectResult.error || 'Failed to redirect to checkout');
+                
+                // If we have a direct URL (from fallback), use it
+                if (result.url) {
+                    console.log('[UpgradeController] Using direct checkout URL:', result.url);
+                    window.location.href = result.url;
+                } else if (result.sessionId && window.StripeService && typeof window.StripeService.redirectToCheckout === 'function') {
+                    // If we have StripeService, use its redirect method
+                    console.log('[UpgradeController] Using StripeService.redirectToCheckout()');
+                    const redirectResult = await window.StripeService.redirectToCheckout(result.sessionId);
+                    if (!redirectResult.success) {
+                        throw new Error(redirectResult.error || 'Failed to redirect to checkout');
+                    }
+                } else {
+                    throw new Error('No checkout URL or session ID available for redirect');
                 }
             } else {
                 throw new Error('Checkout session requires backend implementation.');
@@ -822,6 +963,134 @@ const UpgradeController = {
             
             if (updateResult.success) {
                 console.log('[UpgradeController] ✅ Subscription updated successfully:', updateResult.subscription);
+                console.log('[UpgradeController] Subscription details for sync check:', {
+                    hasSubscription: !!updateResult.subscription,
+                    hasStripeSubscriptionId: !!(updateResult.subscription && updateResult.subscription.stripe_subscription_id),
+                    hasStripeCustomerId: !!(updateResult.subscription && updateResult.subscription.stripe_customer_id),
+                    stripeSubscriptionId: updateResult.subscription?.stripe_subscription_id || 'null',
+                    stripeCustomerId: updateResult.subscription?.stripe_customer_id || 'null',
+                    subscriptionType: updateResult.subscription?.subscription_type,
+                    status: updateResult.subscription?.status
+                });
+                
+                // Attempt to sync subscription dates from Stripe
+                // Try even if stripe_subscription_id is null - the Edge Function can look it up using customer ID
+                if (updateResult.subscription && updateResult.subscription.subscription_type === 'paid') {
+                    console.log('[UpgradeController] ========== ATTEMPTING DATE SYNC ==========');
+                    console.log('[UpgradeController] Sync attempt details:', {
+                        hasStripeSubscriptionId: !!(updateResult.subscription.stripe_subscription_id),
+                        hasStripeCustomerId: !!(updateResult.subscription.stripe_customer_id),
+                        willAttemptSync: true
+                    });
+                    
+                    // If we don't have stripe_subscription_id yet, wait a bit for webhook to fire
+                    let retryCount = 0;
+                    const maxRetries = 3;
+                    const retryDelay = 2000; // 2 seconds
+                    
+                    const attemptSync = async () => {
+                        try {
+                            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                            const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                            
+                            console.log('[UpgradeController] Sync attempt', retryCount + 1, 'of', maxRetries);
+                            console.log('[UpgradeController] Calling sync endpoint:', syncEndpoint);
+                            
+                            let accessToken = null;
+                            if (window.AuthService && window.AuthService.getSession) {
+                                try {
+                                    const session = await window.AuthService.getSession();
+                                    if (session && session.access_token) {
+                                        accessToken = session.access_token;
+                                        console.log('[UpgradeController] ✅ Access token obtained for sync');
+                                    } else {
+                                        console.warn('[UpgradeController] ⚠️ No access token in session');
+                                    }
+                                } catch (sessionError) {
+                                    console.warn('[UpgradeController] ⚠️ Error getting session for sync:', sessionError);
+                                }
+                            }
+                            
+                            const syncPayload = {
+                                userId: currentUser.id,
+                                syncDates: true // Flag to sync dates from Stripe
+                            };
+                            
+                            console.log('[UpgradeController] Sync request payload:', syncPayload);
+                            
+                            // Call update-subscription with syncDates flag to fetch dates from Stripe
+                            const syncResponse = await fetch(syncEndpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                                },
+                                body: JSON.stringify(syncPayload),
+                                credentials: 'omit'
+                            });
+                            
+                            console.log('[UpgradeController] Sync response status:', syncResponse.status, syncResponse.statusText);
+                            console.log('[UpgradeController] Sync response ok:', syncResponse.ok);
+                            
+                            if (syncResponse.ok) {
+                                const syncResult = await syncResponse.json();
+                                console.log('[UpgradeController] ✅ Subscription dates synced from Stripe successfully');
+                                console.log('[UpgradeController] Sync result:', syncResult);
+                                return { success: true, result: syncResult };
+                            } else {
+                                const errorText = await syncResponse.text();
+                                console.warn('[UpgradeController] ⚠️ Sync failed with status', syncResponse.status);
+                                console.warn('[UpgradeController] Sync error response:', errorText);
+                                return { success: false, error: errorText, status: syncResponse.status };
+                            }
+                        } catch (syncError) {
+                            console.error('[UpgradeController] ❌ Exception during sync attempt:', syncError);
+                            console.error('[UpgradeController] Sync error details:', {
+                                message: syncError.message,
+                                stack: syncError.stack,
+                                name: syncError.name
+                            });
+                            return { success: false, error: syncError.message };
+                        }
+                    };
+                    
+                    // Try sync immediately
+                    let syncResult = await attemptSync();
+                    
+                    // If sync failed and we don't have stripe_subscription_id, retry after delays
+                    if (!syncResult.success && !updateResult.subscription.stripe_subscription_id && retryCount < maxRetries) {
+                        console.log('[UpgradeController] ⏳ No stripe_subscription_id yet, waiting for webhook...');
+                        for (let i = 0; i < maxRetries; i++) {
+                            retryCount++;
+                            console.log('[UpgradeController] Waiting', retryDelay, 'ms before retry', retryCount, 'of', maxRetries);
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            
+                            // Reload subscription to check if webhook has updated it
+                            console.log('[UpgradeController] Reloading subscription to check for stripe_subscription_id...');
+                            const reloadResult = await window.SubscriptionService.getCurrentUserSubscription();
+                            if (reloadResult.success && reloadResult.subscription && reloadResult.subscription.stripe_subscription_id) {
+                                console.log('[UpgradeController] ✅ Found stripe_subscription_id after retry:', reloadResult.subscription.stripe_subscription_id);
+                                // Update our local subscription object
+                                updateResult.subscription = reloadResult.subscription;
+                                // Try sync again
+                                syncResult = await attemptSync();
+                                if (syncResult.success) {
+                                    break;
+                                }
+                            } else {
+                                console.log('[UpgradeController] Still no stripe_subscription_id, will retry...');
+                            }
+                        }
+                    }
+                    
+                    if (!syncResult.success) {
+                        console.warn('[UpgradeController] ⚠️ Date sync failed after all attempts (webhook will handle it eventually)');
+                        console.warn('[UpgradeController] Final sync error:', syncResult.error);
+                    }
+                } else {
+                    console.log('[UpgradeController] ⏭️ Skipping date sync - subscription type:', updateResult.subscription?.subscription_type);
+                }
+                
                 alert(`Subscription upgrade successful! You are now on the ${planName || 'new'} plan.`);
                 
                 // Reload subscription and plans to refresh the display
@@ -1056,71 +1325,301 @@ const UpgradeController = {
     async handleViewInvoices() {
         console.log('[UpgradeController] ========== handleViewInvoices() STARTED ==========');
         const startTime = Date.now();
+        console.log('[UpgradeController] Start time:', new Date().toISOString());
         
         try {
             console.log('[UpgradeController] Step 1: Getting button element...');
             const button = document.getElementById('view-invoices-button');
+            console.log('[UpgradeController] Button element check:', {
+                found: !!button,
+                id: button?.id,
+                currentText: button?.textContent,
+                currentDisabled: button?.disabled
+            });
             if (button) {
                 button.disabled = true;
                 button.textContent = 'Loading...';
                 console.log('[UpgradeController] ✅ Button found and disabled');
+                console.log('[UpgradeController] Button state after update:', {
+                    disabled: button.disabled,
+                    textContent: button.textContent
+                });
+            } else {
+                console.warn('[UpgradeController] ⚠️ Button element not found');
             }
             
             console.log('[UpgradeController] Step 2: Checking authentication...');
+            console.log('[UpgradeController] AuthService check:', {
+                hasAuthService: !!window.AuthService,
+                authServiceType: typeof window.AuthService,
+                hasIsAuthenticated: !!(window.AuthService && typeof window.AuthService.isAuthenticated === 'function')
+            });
             if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                 console.error('[UpgradeController] ❌ User not authenticated');
+                console.error('[UpgradeController] AuthService state:', {
+                    hasAuthService: !!window.AuthService,
+                    isAuthenticated: window.AuthService ? window.AuthService.isAuthenticated() : 'N/A'
+                });
                 throw new Error('User not authenticated');
             }
+            const currentUser = window.AuthService.getCurrentUser();
             console.log('[UpgradeController] ✅ User authenticated');
+            console.log('[UpgradeController] Current user:', {
+                hasUser: !!currentUser,
+                userId: currentUser?.id,
+                userEmail: currentUser?.email
+            });
             
             console.log('[UpgradeController] Step 3: Getting subscription data...');
+            console.log('[UpgradeController] Current subscription state:', {
+                hasCurrentSubscription: !!this.currentSubscription,
+                subscriptionKeys: this.currentSubscription ? Object.keys(this.currentSubscription) : [],
+                hasStripeCustomerId: !!(this.currentSubscription?.stripe_customer_id),
+                stripeCustomerId: this.currentSubscription?.stripe_customer_id || null,
+                subscriptionType: this.currentSubscription?.subscription_type || null,
+                status: this.currentSubscription?.status || null
+            });
             if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
                 console.error('[UpgradeController] ❌ No Stripe customer ID found');
+                console.error('[UpgradeController] Subscription data available:', {
+                    hasSubscription: !!this.currentSubscription,
+                    subscriptionData: this.currentSubscription ? JSON.stringify(this.currentSubscription, null, 2) : 'null'
+                });
                 throw new Error('No active subscription found. Invoices are only available for paid subscriptions.');
             }
             
             const customerId = this.currentSubscription.stripe_customer_id;
             console.log('[UpgradeController] ✅ Customer ID:', customerId);
+            console.log('[UpgradeController] Customer ID details:', {
+                customerId: customerId,
+                length: customerId?.length,
+                startsWithCus: customerId?.startsWith('cus_'),
+                type: typeof customerId
+            });
             
             console.log('[UpgradeController] Step 4: Opening invoice modal...');
-            this.openInvoiceModal();
+            const modalOpenResult = this.openInvoiceModal();
+            console.log('[UpgradeController] Modal open result:', modalOpenResult);
             
-            console.log('[UpgradeController] Step 5: Fetching invoices from Stripe...');
+            console.log('[UpgradeController] Step 5: Checking StripeService availability...');
+            console.log('[UpgradeController] Window object check:', {
+                hasWindow: typeof window !== 'undefined',
+                windowType: typeof window
+            });
+            console.log('[UpgradeController] StripeService check:', {
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService,
+                stripeServiceValue: window.StripeService,
+                hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
+            });
+            
+            // Check for script loading issues
+            console.log('[UpgradeController] Checking for StripeService script tag...');
+            const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
+            console.log('[UpgradeController] StripeService script tag:', {
+                found: !!stripeServiceScript,
+                src: stripeServiceScript?.src,
+                loaded: stripeServiceScript?.getAttribute('data-loaded') || 'unknown'
+            });
+            
+            // Check all window properties that might be related
+            console.log('[UpgradeController] Window properties check:', {
+                hasStripe: !!window.Stripe,
+                hasStripeConfig: !!window.StripeConfig,
+                hasStripeService: !!window.StripeService,
+                windowKeys: Object.keys(window).filter(key => key.toLowerCase().includes('stripe'))
+            });
+            
+            // Brief wait for StripeService to be available
+            const maxWaitTime = 250; 
+            const startWaitTime = Date.now();
+            
+            console.log('[UpgradeController] Brief check for StripeService availability...');
+            if (!window.StripeService) {
+                // Wait up to 30ms for StripeService to load
+                await new Promise(resolve => setTimeout(resolve, maxWaitTime));
+            }
+            
+            const elapsed = Date.now() - startWaitTime;
+            console.log('[UpgradeController] StripeService check completed:', {
+                elapsed: elapsed,
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService
+            });
+            
+            // Fallback: Call Edge Function directly if StripeService is not available
             const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
             const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
             
+            let result;
+            
             if (!window.StripeService) {
-                throw new Error('StripeService not available');
+                console.warn('[UpgradeController] ⚠️ StripeService not available, using direct Edge Function call as fallback');
+                console.log('[UpgradeController] Calling Edge Function directly...');
+                
+                // Get access token from AuthService
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                            console.log('[UpgradeController] ✅ Access token obtained');
+                        } else {
+                            console.warn('[UpgradeController] ⚠️ No access token in session');
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] ⚠️ Error getting session:', sessionError);
+                    }
+                }
+                
+                console.log('[UpgradeController] Direct Edge Function call:', {
+                    endpoint: backendEndpoint,
+                    customerId: customerId,
+                    limit: 20,
+                    hasAccessToken: !!accessToken
+                });
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        limit: 20
+                    })
+                });
+                
+                console.log('[UpgradeController] Edge Function response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[UpgradeController] Edge Function response data:', {
+                    success: data.success,
+                    hasInvoices: !!(data.invoices && data.invoices.length > 0),
+                    invoiceCount: data.invoices ? data.invoices.length : 0
+                });
+                
+                result = {
+                    success: data.success || false,
+                    invoices: data.invoices || [],
+                    count: data.count || (data.invoices ? data.invoices.length : 0),
+                    error: data.error || null
+                };
+            } else {
+                if (typeof window.StripeService.listInvoices !== 'function') {
+                    console.error('[UpgradeController] ❌ StripeService.listInvoices is not a function');
+                    console.error('[UpgradeController] StripeService methods:', Object.keys(window.StripeService));
+                    throw new Error('StripeService.listInvoices method not available. The service may not be fully loaded.');
+                }
+                
+                console.log('[UpgradeController] ✅ StripeService available with listInvoices method');
+                console.log('[UpgradeController] Step 6: Fetching invoices from Stripe...');
+                console.log('[UpgradeController] SupabaseConfig check:', {
+                    hasSupabaseConfig: !!window.SupabaseConfig,
+                    supabaseConfigType: typeof window.SupabaseConfig,
+                    hasProjectUrl: !!(window.SupabaseConfig?.PROJECT_URL),
+                    projectUrl: window.SupabaseConfig?.PROJECT_URL || 'not found'
+                });
+                console.log('[UpgradeController] Backend endpoint constructed:', {
+                    supabaseProjectUrl: supabaseProjectUrl,
+                    backendEndpoint: backendEndpoint,
+                    endpointLength: backendEndpoint.length
+                });
+                
+                console.log('[UpgradeController] Calling StripeService.listInvoices with:', {
+                    customerId: customerId,
+                    customerIdType: typeof customerId,
+                    customerIdLength: customerId?.length,
+                    limit: 20,
+                    limitType: typeof 20,
+                    backendEndpoint: backendEndpoint,
+                    backendEndpointType: typeof backendEndpoint
+                });
+                console.log('[UpgradeController] About to call StripeService.listInvoices...');
+                
+                result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
             }
             
-            const result = await window.StripeService.listInvoices(customerId, 20, backendEndpoint);
+            console.log('[UpgradeController] StripeService.listInvoices result:', {
+                success: result.success,
+                hasInvoices: !!(result.invoices && result.invoices.length > 0),
+                invoiceCount: result.invoices ? result.invoices.length : 0,
+                error: result.error || null
+            });
             
             if (!result.success) {
                 throw new Error(result.error || 'Failed to fetch invoices');
             }
             
-            console.log('[UpgradeController] Step 6: Displaying invoices...');
+            console.log('[UpgradeController] Step 7: Displaying invoices...');
+            console.log('[UpgradeController] Invoices to display:', {
+                invoiceCount: result.invoices ? result.invoices.length : 0,
+                hasInvoices: !!(result.invoices && result.invoices.length > 0),
+                invoiceData: result.invoices ? result.invoices.map(inv => ({
+                    id: inv.id,
+                    number: inv.number,
+                    amount: inv.amount_paid,
+                    status: inv.status
+                })) : []
+            });
             this.displayInvoices(result.invoices || []);
             
             const totalElapsed = Date.now() - startTime;
             console.log('[UpgradeController] ========== handleViewInvoices() SUCCESS ==========');
             console.log('[UpgradeController] Total time:', `${totalElapsed}ms`);
+            console.log('[UpgradeController] End time:', new Date().toISOString());
         } catch (error) {
             const totalElapsed = Date.now() - startTime;
             console.error('[UpgradeController] ========== handleViewInvoices() ERROR ==========');
+            console.error('[UpgradeController] Error occurred after:', `${totalElapsed}ms`);
+            console.error('[UpgradeController] Error time:', new Date().toISOString());
             console.error('[UpgradeController] Error details:', {
                 message: error.message,
+                name: error.name,
                 stack: error.stack,
-                elapsed: `${totalElapsed}ms`
+                elapsed: `${totalElapsed}ms`,
+                errorType: typeof error,
+                errorConstructor: error.constructor?.name
             });
+            console.error('[UpgradeController] Full error object:', error);
             
-            this.displayInvoiceError(error.message || 'Failed to load invoices. Please try again.');
+            console.log('[UpgradeController] Step 8: Displaying error in modal...');
+            const errorMessage = error.message || 'Failed to load invoices. Please try again.';
+            console.log('[UpgradeController] Error message to display:', errorMessage);
+            this.displayInvoiceError(errorMessage);
             
+            console.log('[UpgradeController] Step 9: Re-enabling button...');
             const button = document.getElementById('view-invoices-button');
+            console.log('[UpgradeController] Button element check for re-enable:', {
+                found: !!button,
+                id: button?.id,
+                currentDisabled: button?.disabled,
+                currentText: button?.textContent
+            });
             if (button) {
                 button.disabled = false;
                 button.textContent = 'View Invoices';
+                console.log('[UpgradeController] ✅ Button re-enabled');
+                console.log('[UpgradeController] Button state after re-enable:', {
+                    disabled: button.disabled,
+                    textContent: button.textContent
+                });
+            } else {
+                console.warn('[UpgradeController] ⚠️ Button element not found for re-enable');
             }
+            
+            console.error('[UpgradeController] ========== handleViewInvoices() ERROR HANDLING COMPLETE ==========');
         }
     },
     
@@ -1128,13 +1627,35 @@ const UpgradeController = {
      * Open invoice modal
      */
     openInvoiceModal() {
+        console.log('[UpgradeController] ========== openInvoiceModal() CALLED ==========');
         const modal = document.getElementById('invoice-modal');
+        console.log('[UpgradeController] Modal element check:', {
+            found: !!modal,
+            id: modal?.id,
+            currentClasses: modal?.className,
+            currentDisplay: modal ? window.getComputedStyle(modal).display : 'N/A'
+        });
+        
         if (modal) {
             modal.classList.add('active');
+            console.log('[UpgradeController] Modal classes after adding active:', modal.className);
             const body = document.getElementById('invoice-modal-body');
+            console.log('[UpgradeController] Modal body check:', {
+                found: !!body,
+                id: body?.id,
+                currentInnerHTML: body ? body.innerHTML.substring(0, 100) : 'N/A'
+            });
             if (body) {
                 body.innerHTML = '<div class="invoice-loading">Loading invoices...</div>';
+                console.log('[UpgradeController] ✅ Modal body updated with loading message');
+            } else {
+                console.warn('[UpgradeController] ⚠️ Modal body element not found');
             }
+            console.log('[UpgradeController] Modal display after update:', window.getComputedStyle(modal).display);
+            return { success: true, modalFound: true, bodyFound: !!body };
+        } else {
+            console.error('[UpgradeController] ❌ Modal element not found');
+            return { success: false, modalFound: false, bodyFound: false };
         }
     },
     
@@ -1142,15 +1663,41 @@ const UpgradeController = {
      * Close invoice modal
      */
     closeInvoiceModal() {
+        console.log('[UpgradeController] ========== closeInvoiceModal() CALLED ==========');
         const modal = document.getElementById('invoice-modal');
+        console.log('[UpgradeController] Modal element check:', {
+            found: !!modal,
+            id: modal?.id,
+            currentClasses: modal?.className,
+            hasActiveClass: modal?.classList.contains('active')
+        });
+        
         if (modal) {
             modal.classList.remove('active');
+            console.log('[UpgradeController] ✅ Modal active class removed');
+            console.log('[UpgradeController] Modal classes after removal:', modal.className);
+            console.log('[UpgradeController] Modal display after update:', window.getComputedStyle(modal).display);
+        } else {
+            console.warn('[UpgradeController] ⚠️ Modal element not found');
         }
         
         const button = document.getElementById('view-invoices-button');
+        console.log('[UpgradeController] Button element check:', {
+            found: !!button,
+            id: button?.id,
+            currentDisabled: button?.disabled,
+            currentText: button?.textContent
+        });
         if (button) {
             button.disabled = false;
             button.textContent = 'View Invoices';
+            console.log('[UpgradeController] ✅ Button re-enabled');
+            console.log('[UpgradeController] Button state after update:', {
+                disabled: button.disabled,
+                textContent: button.textContent
+            });
+        } else {
+            console.warn('[UpgradeController] ⚠️ Button element not found');
         }
     },
     
@@ -1158,32 +1705,81 @@ const UpgradeController = {
      * Display invoices in modal
      */
     displayInvoices(invoices) {
-        const body = document.getElementById('invoice-modal-body');
-        if (!body) return;
+        console.log('[UpgradeController] ========== displayInvoices() CALLED ==========');
+        console.log('[UpgradeController] Input invoices:', {
+            invoiceCount: invoices ? invoices.length : 0,
+            isArray: Array.isArray(invoices),
+            invoices: invoices ? invoices.map(inv => ({
+                id: inv.id,
+                number: inv.number,
+                amount: inv.amount_paid,
+                status: inv.status,
+                hasHostedUrl: !!inv.hosted_invoice_url,
+                hasPdf: !!inv.invoice_pdf
+            })) : []
+        });
         
-        if (invoices.length === 0) {
-            body.innerHTML = '<div class="invoice-empty">No invoices found.</div>';
+        const body = document.getElementById('invoice-modal-body');
+        console.log('[UpgradeController] Modal body element check:', {
+            found: !!body,
+            id: body?.id,
+            currentInnerHTML: body ? body.innerHTML.substring(0, 200) : 'N/A'
+        });
+        if (!body) {
+            console.error('[UpgradeController] ❌ Modal body element not found');
             return;
         }
         
+        if (invoices.length === 0) {
+            console.log('[UpgradeController] No invoices to display, showing empty message');
+            body.innerHTML = '<div class="invoice-empty">No invoices found.</div>';
+            console.log('[UpgradeController] ✅ Empty message displayed');
+            return;
+        }
+        
+        console.log('[UpgradeController] Processing', invoices.length, 'invoices for display...');
+        
         const formatDate = (dateString) => {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-GB', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric' 
-            });
+            console.log('[UpgradeController] formatDate called with:', dateString);
+            if (!dateString) {
+                console.log('[UpgradeController] No date string provided, returning N/A');
+                return 'N/A';
+            }
+            try {
+                const date = new Date(dateString);
+                const formatted = date.toLocaleString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                console.log('[UpgradeController] Date formatted:', { input: dateString, output: formatted });
+                return formatted;
+            } catch (error) {
+                console.error('[UpgradeController] Error formatting date:', error);
+                return 'Invalid Date';
+            }
         };
         
         const formatCurrency = (amount, currency) => {
-            return new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: currency || 'EUR'
-            }).format(amount);
+            console.log('[UpgradeController] formatCurrency called with:', { amount, currency });
+            try {
+                const formatted = new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: currency || 'EUR'
+                }).format(amount);
+                console.log('[UpgradeController] Currency formatted:', { input: { amount, currency }, output: formatted });
+                return formatted;
+            } catch (error) {
+                console.error('[UpgradeController] Error formatting currency:', error);
+                return `${amount} ${currency || 'EUR'}`;
+            }
         };
         
         const getStatusClass = (status) => {
+            console.log('[UpgradeController] getStatusClass called with:', status);
             const statusMap = {
                 'paid': 'paid',
                 'open': 'open',
@@ -1191,20 +1787,36 @@ const UpgradeController = {
                 'void': 'draft',
                 'uncollectible': 'draft'
             };
-            return statusMap[status.toLowerCase()] || 'draft';
+            const statusLower = status ? status.toLowerCase() : '';
+            const mappedClass = statusMap[statusLower] || 'draft';
+            console.log('[UpgradeController] Status class mapped:', { input: status, output: mappedClass });
+            return mappedClass;
         };
         
-        const invoicesHTML = `
-            <ul class="invoice-list">
-                ${invoices.map(invoice => `
+        console.log('[UpgradeController] Generating HTML for invoices...');
+        const invoiceHTMLParts = invoices.map((invoice, index) => {
+            console.log(`[UpgradeController] Processing invoice ${index + 1}/${invoices.length}:`, {
+                id: invoice.id,
+                number: invoice.number,
+                amount: invoice.amount_paid,
+                status: invoice.status,
+                hasHostedUrl: !!invoice.hosted_invoice_url,
+                hasPdf: !!invoice.invoice_pdf
+            });
+            
+            const formattedDate = formatDate(invoice.created);
+            const formattedAmount = formatCurrency(invoice.amount_paid, invoice.currency);
+            const statusClass = getStatusClass(invoice.status);
+            
+            return `
                     <li class="invoice-item">
                         <div class="invoice-item-info">
                             <div class="invoice-item-number">Invoice ${invoice.number || invoice.id}</div>
-                            <div class="invoice-item-date">${formatDate(invoice.created)}</div>
-                            <div class="invoice-item-amount">${formatCurrency(invoice.amount_paid, invoice.currency)}</div>
+                            <div class="invoice-item-date">${formattedDate}</div>
+                            <div class="invoice-item-amount">${formattedAmount}</div>
                         </div>
                         <div>
-                            <span class="invoice-item-status ${getStatusClass(invoice.status)}">${invoice.status}</span>
+                            <span class="invoice-item-status ${statusClass}">${invoice.status}</span>
                         </div>
                         <div class="invoice-item-actions">
                             ${invoice.hosted_invoice_url ? `
@@ -1219,20 +1831,48 @@ const UpgradeController = {
                             ` : ''}
                         </div>
                     </li>
-                `).join('')}
+                `;
+        });
+        
+        const invoicesHTML = `
+            <ul class="invoice-list">
+                ${invoiceHTMLParts.join('')}
             </ul>
         `;
         
+        console.log('[UpgradeController] HTML generated, length:', invoicesHTML.length);
+        console.log('[UpgradeController] HTML preview (first 500 chars):', invoicesHTML.substring(0, 500));
+        
         body.innerHTML = invoicesHTML;
+        console.log('[UpgradeController] ✅ Invoices HTML inserted into modal body');
+        console.log('[UpgradeController] Modal body after update:', {
+            innerHTMLLength: body.innerHTML.length,
+            childElementCount: body.children.length,
+            firstChildTag: body.firstElementChild?.tagName
+        });
     },
     
     /**
      * Display invoice error in modal
      */
     displayInvoiceError(errorMessage) {
+        console.log('[UpgradeController] ========== displayInvoiceError() CALLED ==========');
+        console.log('[UpgradeController] Error message:', errorMessage);
         const body = document.getElementById('invoice-modal-body');
+        console.log('[UpgradeController] Modal body element check:', {
+            found: !!body,
+            id: body?.id,
+            currentInnerHTML: body ? body.innerHTML.substring(0, 200) : 'N/A'
+        });
         if (body) {
             body.innerHTML = `<div class="invoice-error">${errorMessage}</div>`;
+            console.log('[UpgradeController] ✅ Error message displayed in modal');
+            console.log('[UpgradeController] Modal body after error update:', {
+                innerHTMLLength: body.innerHTML.length,
+                innerHTML: body.innerHTML
+            });
+        } else {
+            console.error('[UpgradeController] ❌ Modal body element not found');
         }
     },
     
@@ -1491,6 +2131,187 @@ const UpgradeController = {
         
         const totalElapsed = Date.now() - startTime;
         console.log('[UpgradeController] ========== displayCurrentSubscription() COMPLETE in', totalElapsed, 'ms ==========');
+    },
+    
+    /**
+     * Load and display recent invoices (last 3)
+     */
+    async loadRecentInvoices() {
+        console.log('[UpgradeController] ========== loadRecentInvoices() STARTED ==========');
+        const startTime = Date.now();
+        
+        try {
+            const section = document.getElementById('recent-invoices-section');
+            const content = document.getElementById('recent-invoices-content');
+            
+            if (!section || !content) {
+                console.warn('[UpgradeController] Recent invoices section not found');
+                return;
+            }
+            
+            if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
+                console.log('[UpgradeController] No customer ID, hiding recent invoices section');
+                section.style.display = 'none';
+                return;
+            }
+            
+            const customerId = this.currentSubscription.stripe_customer_id;
+            console.log('[UpgradeController] Fetching recent invoices for customer:', customerId);
+            
+            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+            const backendEndpoint = `${supabaseProjectUrl}/functions/v1/list-invoices`;
+            
+            // Show loading state
+            section.style.display = 'block';
+            content.innerHTML = '<div class="invoice-loading-small">Loading invoices...</div>';
+            
+            let result;
+            
+            // Try to use StripeService if available, otherwise use direct call
+            if (window.StripeService && typeof window.StripeService.listInvoices === 'function') {
+                console.log('[UpgradeController] Using StripeService to fetch invoices');
+                result = await window.StripeService.listInvoices(customerId, 3, backendEndpoint);
+            } else {
+                console.log('[UpgradeController] Using direct Edge Function call');
+                let accessToken = null;
+                if (window.AuthService && window.AuthService.getSession) {
+                    try {
+                        const session = await window.AuthService.getSession();
+                        if (session && session.access_token) {
+                            accessToken = session.access_token;
+                        }
+                    } catch (sessionError) {
+                        console.warn('[UpgradeController] Error getting session:', sessionError);
+                    }
+                }
+                
+                const response = await fetch(backendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                    },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        limit: 3
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                result = {
+                    success: data.success || false,
+                    invoices: data.invoices || [],
+                    count: data.count || (data.invoices ? data.invoices.length : 0),
+                    error: data.error || null
+                };
+            }
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to fetch invoices');
+            }
+            
+            const invoices = result.invoices || [];
+            console.log('[UpgradeController] Recent invoices fetched:', invoices.length);
+            
+            this.displayRecentInvoices(invoices);
+            
+            const totalElapsed = Date.now() - startTime;
+            console.log('[UpgradeController] ========== loadRecentInvoices() COMPLETE in', totalElapsed, 'ms ==========');
+        } catch (error) {
+            console.error('[UpgradeController] Error loading recent invoices:', error);
+            const section = document.getElementById('recent-invoices-section');
+            const content = document.getElementById('recent-invoices-content');
+            if (section && content) {
+                section.style.display = 'block';
+                content.innerHTML = '<div class="invoice-error-small">Unable to load invoices</div>';
+            }
+        }
+    },
+    
+    /**
+     * Display recent invoices in the compact section
+     */
+    displayRecentInvoices(invoices) {
+        console.log('[UpgradeController] ========== displayRecentInvoices() CALLED ==========');
+        console.log('[UpgradeController] Invoices to display:', invoices.length);
+        
+        const content = document.getElementById('recent-invoices-content');
+        if (!content) {
+            console.error('[UpgradeController] Recent invoices content element not found');
+            return;
+        }
+        
+        if (invoices.length === 0) {
+            content.innerHTML = '<div class="invoice-empty-small">No invoices found</div>';
+            return;
+        }
+        
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+            } catch (error) {
+                return 'Invalid Date';
+            }
+        };
+        
+        const formatCurrency = (amount, currency) => {
+            try {
+                return new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: currency || 'EUR'
+                }).format(amount);
+            } catch (error) {
+                return `${amount} ${currency || 'EUR'}`;
+            }
+        };
+        
+        const getStatusClass = (status) => {
+            const statusMap = {
+                'paid': 'paid',
+                'open': 'open',
+                'draft': 'draft',
+                'void': 'draft',
+                'uncollectible': 'draft'
+            };
+            return statusMap[status ? status.toLowerCase() : ''] || 'draft';
+        };
+        
+        const invoicesHTML = invoices.map(invoice => {
+            const formattedDate = formatDate(invoice.created);
+            const formattedAmount = formatCurrency(invoice.amount_paid, invoice.currency);
+            const statusClass = getStatusClass(invoice.status);
+            const invoiceNumber = invoice.number || invoice.id.substring(invoice.id.lastIndexOf('_') + 1);
+            
+            return `
+                <div class="recent-invoice-item">
+                    <div class="recent-invoice-item-left">
+                        <div class="recent-invoice-item-number">Invoice ${invoiceNumber}</div>
+                        <div class="recent-invoice-item-date">${formattedDate}</div>
+                    </div>
+                    <div class="recent-invoice-item-right">
+                        <div class="recent-invoice-item-amount">${formattedAmount}</div>
+                        <span class="recent-invoice-item-status ${statusClass}">${invoice.status}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        content.innerHTML = invoicesHTML;
+        console.log('[UpgradeController] ✅ Recent invoices displayed');
     },
     
     /**

@@ -24,6 +24,12 @@ const DataManager = {
                 };
                 await this.saveSettings(defaultSettings);
                 this._cachedSettings = defaultSettings;
+                // Ensure localStorage is updated (saveSettings does this, but be explicit)
+                try {
+                    localStorage.setItem('money_tracker_settings', JSON.stringify(defaultSettings));
+                } catch (error) {
+                    // Silently fail if localStorage is not available
+                }
                 return defaultSettings;
             }
             
@@ -33,6 +39,12 @@ const DataManager = {
             }
             
             this._cachedSettings = existingSettings;
+            // Ensure localStorage is updated
+            try {
+                localStorage.setItem('money_tracker_settings', JSON.stringify(existingSettings));
+            } catch (error) {
+                // Silently fail if localStorage is not available
+            }
             return existingSettings;
         } catch (error) {
             console.error('Error initializing settings:', error);
@@ -197,6 +209,12 @@ const DataManager = {
             const settings = await window.DatabaseService.getSettings();
             if (settings) {
                 this._cachedSettings = settings;
+                // Update localStorage cache for immediate access on next page load
+                try {
+                    localStorage.setItem('money_tracker_settings', JSON.stringify(settings));
+                } catch (error) {
+                    // Silently fail if localStorage is not available
+                }
             }
             return settings;
         } catch (error) {
@@ -212,11 +230,29 @@ const DataManager = {
     
     /**
      * Get cached settings synchronously (for use in synchronous contexts)
-     * Returns null if settings haven't been loaded yet
+     * Checks localStorage first for immediate access, then in-memory cache
      * @returns {Object|null} Cached settings object or null
      */
     getCachedSettings() {
-        return this._cachedSettings;
+        // First check in-memory cache (most up-to-date)
+        if (this._cachedSettings) {
+            return this._cachedSettings;
+        }
+        
+        // Fallback to localStorage for immediate access (prevents FOUC)
+        try {
+            const cachedSettings = localStorage.getItem('money_tracker_settings');
+            if (cachedSettings) {
+                const parsed = JSON.parse(cachedSettings);
+                // Cache in memory for future calls
+                this._cachedSettings = parsed;
+                return parsed;
+            }
+        } catch (error) {
+            // Silently fail - localStorage might not be available
+        }
+        
+        return null;
     },
     
     /**
@@ -232,6 +268,12 @@ const DataManager = {
             const success = await window.DatabaseService.saveSettings(settings);
             if (success) {
                 this._cachedSettings = settings;
+                // Update localStorage cache for immediate access on next page load
+                try {
+                    localStorage.setItem('money_tracker_settings', JSON.stringify(settings));
+                } catch (error) {
+                    // Silently fail if localStorage is not available
+                }
             }
             return success;
         } catch (error) {

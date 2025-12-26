@@ -7,14 +7,30 @@ const Formatters = {
     /**
      * Get currency symbol from settings
      * Uses cached settings for synchronous access
+     * Checks localStorage first for immediate access, then DataManager cache
      */
     getCurrencySymbol() {
+        // First try DataManager cache (most up-to-date)
         if (typeof window !== 'undefined' && window.DataManager) {
             const settings = DataManager.getCachedSettings();
             if (settings && settings.currency) {
                 return settings.currency;
             }
         }
+        
+        // Fallback to localStorage for immediate access (prevents FOUC)
+        try {
+            const cachedSettings = localStorage.getItem('money_tracker_settings');
+            if (cachedSettings) {
+                const parsed = JSON.parse(cachedSettings);
+                if (parsed && parsed.currency) {
+                    return parsed.currency;
+                }
+            }
+        } catch (error) {
+            // Silently fail - localStorage might not be available
+        }
+        
         return '£'; // Default to £
     },
 

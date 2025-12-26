@@ -428,6 +428,102 @@
             color: var(--text-secondary);
         }
         
+        /* Recent Invoices Section Styles */
+        #recent-invoices-section {
+            max-width: 100%;
+        }
+        
+        #recent-invoices-content {
+            display: grid;
+            gap: 0.5rem;
+        }
+        
+        .recent-invoice-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0.5rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            border: 1px solid var(--border-color, rgba(0,0,0,0.1));
+            font-size: 0.85rem;
+        }
+        
+        .recent-invoice-item-left {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .recent-invoice-item-number {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.15rem;
+            font-size: 0.9rem;
+        }
+        
+        .recent-invoice-item-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .recent-invoice-item-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-left: var(--spacing-xs);
+        }
+        
+        .recent-invoice-item-amount {
+            font-weight: 600;
+            color: var(--primary-color, #007bff);
+            font-size: 0.9rem;
+        }
+        
+        .recent-invoice-item-status {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            margin-top: 0.2rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .recent-invoice-item-status.paid {
+            background: var(--success-color, #28a745);
+            color: white;
+        }
+        
+        .recent-invoice-item-status.open {
+            background: var(--warning-color, #ffc107);
+            color: #000;
+        }
+        
+        .recent-invoice-item-status.draft {
+            background: var(--text-secondary, #6c757d);
+            color: white;
+        }
+        
+        .invoice-loading-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .invoice-error-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--danger-color, #dc3545);
+            font-size: 0.85rem;
+        }
+        
+        .invoice-empty-small {
+            text-align: center;
+            padding: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
         @media (max-width: 768px) {
             .invoice-modal-content {
                 padding: var(--spacing-md);
@@ -465,6 +561,13 @@
                         <button id="view-invoices-button" class="btn btn-action">
                             View Invoices
                         </button>
+                    </div>
+                    
+                    <div id="recent-invoices-section" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
+                        <h3 style="margin: 0 0 var(--spacing-xs) 0; font-size: 1rem; font-weight: 600;">Recent Invoices</h3>
+                        <div id="recent-invoices-content" style="font-size: 0.85rem;">
+                            <div class="invoice-loading-small">Loading...</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -515,15 +618,132 @@
     <script src="../../payments/controllers/UpgradeController.js?v=2.0.0-session-wait-20251225"></script>
     
     <script>
+        // Verify all required services are loaded
+        console.log('[upgrade.html] Checking required services after script load...');
+        console.log('[upgrade.html] Services check:', {
+            hasSupabaseConfig: !!window.SupabaseConfig,
+            hasAuthService: !!window.AuthService,
+            hasDatabaseService: !!window.DatabaseService,
+            hasSubscriptionService: !!window.SubscriptionService,
+            hasStripeService: !!window.StripeService,
+            hasStripeConfig: !!window.StripeConfig,
+            hasHeader: !!window.Header,
+            hasUpgradeController: !!window.UpgradeController
+        });
+        
+        // Check for script loading errors
+        window.addEventListener('error', function(e) {
+            console.log('[upgrade.html] Global error event:', {
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                error: e.error,
+                isStripeService: e.filename && e.filename.includes('StripeService')
+            });
+            if (e.filename && e.filename.includes('StripeService')) {
+                console.error('[upgrade.html] ⚠️ StripeService script loading error detected:', {
+                    message: e.message,
+                    filename: e.filename,
+                    lineno: e.lineno,
+                    colno: e.colno,
+                    error: e.error
+                });
+            }
+        }, true);
+        
+        // Check for resource loading errors (network errors)
+        window.addEventListener('error', function(e) {
+            const target = e.target;
+            if (target && target.tagName === 'SCRIPT' && target.src && target.src.includes('StripeService')) {
+                console.error('[upgrade.html] ⚠️ StripeService script resource loading error:', {
+                    src: target.src,
+                    error: e.error,
+                    type: target.type
+                });
+            }
+        }, true);
+        
+        // Verify script tags after a delay
+        setTimeout(function() {
+            const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
+            if (stripeServiceScript) {
+                console.log('[upgrade.html] StripeService script tag found:', {
+                    src: stripeServiceScript.src,
+                    async: stripeServiceScript.async,
+                    defer: stripeServiceScript.defer,
+                    type: stripeServiceScript.type
+                });
+                
+                // Try to manually check if script loaded
+                stripeServiceScript.addEventListener('load', function() {
+                    console.log('[upgrade.html] ✅ StripeService script load event fired');
+                    console.log('[upgrade.html] StripeService available after load event:', !!window.StripeService);
+                });
+                
+                stripeServiceScript.addEventListener('error', function(e) {
+                    console.error('[upgrade.html] ❌ StripeService script error event fired:', e);
+                });
+            } else {
+                console.error('[upgrade.html] ❌ StripeService script tag not found in DOM');
+            }
+        }, 100);
+        
         // Initialize header
         if (window.Header) {
             window.Header.init();
+        } else {
+            console.warn('[upgrade.html] Header not available');
         }
         
         // Initialize upgrade page
         if (window.UpgradeController) {
             window.UpgradeController.init();
+        } else {
+            console.warn('[upgrade.html] UpgradeController not available');
         }
+        
+        // Final check after a short delay
+        setTimeout(function() {
+            console.log('[upgrade.html] Final services check after delay:', {
+                hasStripeService: !!window.StripeService,
+                stripeServiceType: typeof window.StripeService,
+                hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
+            });
+            
+            // If StripeService still not available, try to manually verify the script URL
+            if (!window.StripeService) {
+                console.warn('[upgrade.html] ⚠️ StripeService still not available after delay');
+                const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
+                if (stripeServiceScript) {
+                    const scriptUrl = stripeServiceScript.src;
+                    console.log('[upgrade.html] Attempting to manually verify script URL:', scriptUrl);
+                    
+                    // Try to fetch the script to see if it's accessible
+                    fetch(scriptUrl)
+                        .then(response => {
+                            console.log('[upgrade.html] Script fetch response:', {
+                                status: response.status,
+                                statusText: response.statusText,
+                                ok: response.ok,
+                                contentType: response.headers.get('content-type')
+                            });
+                            if (!response.ok) {
+                                console.error('[upgrade.html] ❌ Script URL returned error status:', response.status);
+                            }
+                            return response.text();
+                        })
+                        .then(text => {
+                            console.log('[upgrade.html] Script content preview (first 200 chars):', text.substring(0, 200));
+                            console.log('[upgrade.html] Script contains StripeService definition:', text.includes('const StripeService'));
+                            console.log('[upgrade.html] Script contains window.StripeService:', text.includes('window.StripeService'));
+                        })
+                        .catch(error => {
+                            console.error('[upgrade.html] ❌ Error fetching script:', error);
+                        });
+                }
+            }
+        }, 1000);
     </script>
 </body>
 </html>
