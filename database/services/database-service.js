@@ -777,17 +777,68 @@ const DatabaseService = {
      * @returns {Promise<{data: Array|null, error: Object|null}>}
      */
     async queryUpdate(table, id, updateData) {
+        console.log('[DatabaseService] ========== queryUpdate CALLED ==========');
+        console.log('[DatabaseService] queryUpdate - table:', table);
+        console.log('[DatabaseService] queryUpdate - id:', id, 'type:', typeof id);
+        console.log('[DatabaseService] queryUpdate - updateData:', JSON.stringify(updateData, null, 2));
+        
         const updateUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
         updateUrl.searchParams.append('id', `eq.${id}`);
         updateUrl.searchParams.append('select', '*');
         
-        const response = await fetch(updateUrl.toString(), {
-            method: 'PATCH',
-            headers: this._getAuthHeaders(),
-            body: JSON.stringify(updateData)
+        console.log('[DatabaseService] queryUpdate - URL:', updateUrl.toString());
+        
+        const authHeaders = this._getAuthHeaders();
+        const headers = {
+            ...authHeaders,
+            'Prefer': 'return=representation' // This is required for Supabase to return the updated rows
+        };
+        
+        console.log('[DatabaseService] queryUpdate - headers:', {
+            hasApikey: !!headers.apikey,
+            hasAuthorization: !!headers.Authorization,
+            hasPrefer: !!headers.Prefer,
+            preferValue: headers.Prefer
         });
         
-        return await this._handleResponse(response);
+        console.log('[DatabaseService] queryUpdate - calling fetch()...');
+        const fetchStartTime = Date.now();
+        const response = await fetch(updateUrl.toString(), {
+            method: 'PATCH',
+            headers: headers,
+            body: JSON.stringify(updateData)
+        });
+        const fetchDuration = Date.now() - fetchStartTime;
+        
+        console.log(`[DatabaseService] queryUpdate - fetch() completed in ${fetchDuration}ms`);
+        console.log('[DatabaseService] queryUpdate - response status:', response.status, response.statusText);
+        console.log('[DatabaseService] queryUpdate - response headers:', {
+            contentType: response.headers.get('content-type'),
+            contentRange: response.headers.get('content-range'),
+            contentLength: response.headers.get('content-length')
+        });
+        
+        // Clone response for logging (can only read body once)
+        const responseClone = response.clone();
+        try {
+            const responseText = await responseClone.text();
+            console.log('[DatabaseService] queryUpdate - response body (first 500 chars):', responseText.substring(0, 500));
+        } catch (e) {
+            console.warn('[DatabaseService] queryUpdate - Could not read response body for logging:', e.message);
+        }
+        
+        const result = await this._handleResponse(response);
+        
+        console.log('[DatabaseService] queryUpdate - result:', {
+            hasError: !!result.error,
+            error: result.error,
+            hasData: !!result.data,
+            dataLength: result.data?.length || 0,
+            dataType: Array.isArray(result.data) ? 'array' : typeof result.data
+        });
+        console.log('[DatabaseService] ========== queryUpdate COMPLETE ==========');
+        
+        return result;
     },
     
     /**
