@@ -337,6 +337,9 @@ const MonthlyBudgetController = {
         // Load variable costs with normalized data
         this.loadVariableCosts(normalizedVariableCosts, false); // Allow rebuild to ensure proper display
         
+        // Reload shared from data to show only shares relevant to this month
+        await this.loadSharedFromData();
+        
         // Explicitly update current month data to ensure it's in sync (matching copyVariableCostsFromMonth pattern)
         this.currentMonthData.variableCosts = normalizedVariableCosts;
         
@@ -4420,6 +4423,47 @@ const MonthlyBudgetController = {
     },
 
     /**
+     * Check if a share includes the current month
+     */
+    shareIncludesCurrentMonth(share) {
+        if (!this.currentMonthKey) {
+            return false;
+        }
+
+        // If share_all_data is true, it includes all months (handle both snake_case and camelCase)
+        if (share.share_all_data || share.shareAllData) {
+            return true;
+        }
+
+        // Parse current month key (format: "YYYY-MM")
+        const [currentYear, currentMonth] = this.currentMonthKey.split('-').map(Number);
+
+        // Check shared_months array
+        const sharedMonths = share.shared_months || [];
+        for (const monthData of sharedMonths) {
+            if (monthData.type === 'single') {
+                if (monthData.year === currentYear && monthData.month === currentMonth) {
+                    return true;
+                }
+            } else if (monthData.type === 'range') {
+                const startYear = monthData.startYear || monthData.year;
+                const startMonth = monthData.startMonth || monthData.month;
+                const endYear = monthData.endYear || monthData.year;
+                const endMonth = monthData.endMonth || monthData.month;
+
+                // Check if current month is within the range
+                if (currentYear > startYear || (currentYear === startYear && currentMonth >= startMonth)) {
+                    if (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    },
+
+    /**
      * Render shared from section
      */
     async renderSharedFromSection(sharedData) {
@@ -4435,7 +4479,15 @@ const MonthlyBudgetController = {
         const accepted = sharedData.accepted || [];
         const declined = sharedData.declined || [];
 
-        if (pending.length === 0 && accepted.length === 0 && declined.length === 0) {
+        // Filter accepted shares to only show those that include the current month
+        const filteredAccepted = this.currentMonthKey 
+            ? accepted.filter(share => this.shareIncludesCurrentMonth(share))
+            : [];
+
+        // Always show pending shares (so users can accept/decline them)
+        // Only show accepted shares that include the current month
+        // Don't show declined shares (they're not relevant)
+        if (pending.length === 0 && filteredAccepted.length === 0) {
             section.style.display = 'none';
             return;
         }
@@ -4449,14 +4501,9 @@ const MonthlyBudgetController = {
             html += await this.renderSharedMonthsList(pending, 'pending');
         }
 
-        if (accepted.length > 0) {
+        if (filteredAccepted.length > 0) {
             html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Accepted</h3>';
-            html += await this.renderSharedMonthsList(accepted, 'accepted');
-        }
-
-        if (declined.length > 0) {
-            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Declined</h3>';
-            html += await this.renderSharedMonthsList(declined, 'declined');
+            html += await this.renderSharedMonthsList(filteredAccepted, 'accepted');
         }
 
         content.innerHTML = html;
