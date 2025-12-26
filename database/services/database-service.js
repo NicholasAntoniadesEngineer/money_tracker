@@ -3183,6 +3183,13 @@ const DatabaseService = {
                 const existingShare = existingShareResult.data[0];
                 const shareId = existingShare.id;
                 
+                // If updating to pending status, we should create a notification
+                // (unless auto_accept/decline is enabled, which is already handled above)
+                if (shareStatus === 'pending' && existingShare.status !== 'pending') {
+                    console.log('[DatabaseService] Share status changed to pending, will create notification');
+                    shouldCreateNotification = true;
+                }
+                
                 const updateData = {
                     access_level: accessLevel,
                     shared_months: JSON.stringify(sharedMonths),
@@ -3314,10 +3321,13 @@ const DatabaseService = {
                     console.error('[DatabaseService] Failed to create notification for recipient:', notificationResult.error);
                 }
             } else {
-                console.log('[DatabaseService] Skipping notification creation:', {
+                console.log('[DatabaseService] ========== SKIPPING notification creation ==========');
+                console.log('[DatabaseService] Skip reasons:', {
                     shouldCreateNotification: shouldCreateNotification,
                     hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
-                    hasShare: !!share
+                    hasShare: !!share,
+                    shareStatus: share?.status,
+                    shareId: share?.id
                 });
             }
             

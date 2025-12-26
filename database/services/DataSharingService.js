@@ -112,22 +112,54 @@ const DataSharingService = {
                 };
             }
             
-            if (resourceType === 'month' && resourceData) {
-                const isMonthShared = this._isMonthInSharedList(resourceData.year, resourceData.month, share.shared_months);
-                if (!isMonthShared) {
-                    return {
-                        hasPermission: false,
-                        accessLevel: null,
-                        error: null
-                    };
+            // Parse shared_months if it's a string (JSONB from database)
+            if (share.shared_months && typeof share.shared_months === 'string') {
+                try {
+                    share.shared_months = JSON.parse(share.shared_months);
+                } catch (e) {
+                    console.warn('[DataSharingService] Failed to parse shared_months:', e);
+                    share.shared_months = [];
                 }
-            } else if (resourceType === 'pot' && !share.shared_pots) {
+            }
+            
+            // Check share_all_data (handle both snake_case and camelCase)
+            const shareAllData = share.share_all_data || share.shareAllData || false;
+            
+            console.log('[DataSharingService] Checking permission:', {
+                resourceType,
+                operation,
+                shareAllData,
+                accessLevel: share.access_level,
+                sharedMonths: share.shared_months,
+                resourceData
+            });
+            
+            if (resourceType === 'month' && resourceData) {
+                // Check if share_all_data is true - if so, all months are shared
+                if (!shareAllData) {
+                    // Only check specific months if share_all_data is false
+                    const isMonthShared = this._isMonthInSharedList(resourceData.year, resourceData.month, share.shared_months || []);
+                    if (!isMonthShared) {
+                        console.log('[DataSharingService] Month not in shared list:', {
+                            year: resourceData.year,
+                            month: resourceData.month,
+                            sharedMonths: share.shared_months
+                        });
+                        return {
+                            hasPermission: false,
+                            accessLevel: null,
+                            error: null
+                        };
+                    }
+                }
+                // If share_all_data is true, skip the month check and proceed
+            } else if (resourceType === 'pot' && !shareAllData && !share.shared_pots) {
                 return {
                     hasPermission: false,
                     accessLevel: null,
                     error: null
                 };
-            } else if (resourceType === 'setting' && !share.shared_settings) {
+            } else if (resourceType === 'setting' && !share.share_all_data && !share.shared_settings) {
                 return {
                     hasPermission: false,
                     accessLevel: null,
