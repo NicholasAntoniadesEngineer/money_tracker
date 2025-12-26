@@ -128,8 +128,8 @@ serve(async (req) => {
     const startTime = Date.now()
     
     // Parse request body
-    const { userId, planId, changeType, recurringBillingEnabled } = await req.json()
-    console.log("[update-subscription] Request data:", { userId, planId, changeType, recurringBillingEnabled })
+    const { userId, planId, changeType, recurringBillingEnabled, syncDates } = await req.json()
+    console.log("[update-subscription] Request data:", { userId, planId, changeType, recurringBillingEnabled, syncDates })
 
     // Validate required fields
     if (!userId) {
@@ -190,6 +190,92 @@ serve(async (req) => {
       recurring_billing_enabled: currentSubscription.recurring_billing_enabled
     })
 
+    // If syncDates is true, fetch subscription dates from Stripe and update database
+    if (syncDates === true) {
+      console.log("[update-subscription] Syncing subscription dates from Stripe...")
+      
+      if (!currentSubscription.stripe_subscription_id) {
+        console.warn("[update-subscription] No stripe_subscription_id, cannot sync dates")
+        return new Response(
+          JSON.stringify({ error: "No Stripe subscription ID found. Cannot sync dates." }),
+          { 
+            status: 400,
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            } 
+          }
+        )
+      }
+      
+      try {
+        // Fetch subscription from Stripe
+        const stripeSubscription = await stripe.subscriptions.retrieve(currentSubscription.stripe_subscription_id)
+        
+        console.log("[update-subscription] Stripe subscription retrieved:", {
+          id: stripeSubscription.id,
+          current_period_start: stripeSubscription.current_period_start,
+          current_period_end: stripeSubscription.current_period_end,
+          status: stripeSubscription.status
+        })
+        
+        // Update database with dates from Stripe
+        const updateData = {
+          subscription_start_date: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
+          subscription_end_date: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+          next_billing_date: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+          stripe_price_id: stripeSubscription.items.data[0]?.price?.id || currentSubscription.stripe_price_id,
+          updated_at: new Date().toISOString()
+        }
+        
+        const updateResponse = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabaseServiceKey,
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+            "Prefer": "return=representation"
+          },
+          body: JSON.stringify(updateData)
+        })
+        
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text()
+          throw new Error(`Failed to update subscription dates: ${errorText}`)
+        }
+        
+        const updatedSubscription = await updateResponse.json()
+        console.log("[update-subscription] ✅ Subscription dates synced successfully")
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            message: "Subscription dates synced from Stripe",
+            subscription: updatedSubscription[0] || updatedSubscription
+          }),
+          { 
+            status: 200,
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            } 
+          }
+        )
+      } catch (error) {
+        console.error("[update-subscription] Error syncing dates:", error)
+        return new Response(
+          JSON.stringify({ error: `Failed to sync dates: ${error.message}` }),
+          { 
+            status: 500,
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            } 
+          }
+        )
+      }
+    }
+    
     // For recurring billing toggle, we need a Stripe subscription
     if (recurringBillingEnabled !== undefined && recurringBillingEnabled !== null) {
       if (!currentSubscription.stripe_subscription_id) {

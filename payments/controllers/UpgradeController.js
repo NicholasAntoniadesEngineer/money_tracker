@@ -562,11 +562,15 @@ const UpgradeController = {
                 }
                 
                 // Update subscription directly to Free plan
+                // Clear subscription dates since Free plan has no billing period
                 const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
                     plan_id: planId,
                     subscription_type: 'trial', // Free plan is trial type
                     status: 'active',
                     stripe_subscription_id: null, // Clear Stripe subscription ID
+                    subscription_start_date: null, // Clear subscription dates for Free plan
+                    subscription_end_date: null,
+                    next_billing_date: null,
                     recurring_billing_enabled: false // Disable recurring billing for Free plan
                 });
                 
@@ -664,6 +668,41 @@ const UpgradeController = {
                 const result = await response.json();
                 
                 if (result.success) {
+                    // Sync subscription dates from Stripe to ensure they're up to date
+                    console.log('[UpgradeController] Syncing subscription dates after downgrade scheduling...');
+                    try {
+                        const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                        const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                        
+                        let accessToken = null;
+                        if (window.AuthService && window.AuthService.getSession) {
+                            try {
+                                const session = await window.AuthService.getSession();
+                                if (session && session.access_token) {
+                                    accessToken = session.access_token;
+                                }
+                            } catch (sessionError) {
+                                console.warn('[UpgradeController] Error getting session:', sessionError);
+                            }
+                        }
+                        
+                        await fetch(syncEndpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                            },
+                            body: JSON.stringify({
+                                userId: currentUser.id,
+                                syncDates: true
+                            })
+                        }).catch(err => {
+                            console.warn('[UpgradeController] Date sync failed (non-critical):', err);
+                        });
+                    } catch (syncError) {
+                        console.warn('[UpgradeController] Error syncing dates (non-critical):', syncError);
+                    }
+                    
                     alert(`Downgrade scheduled! You will be moved to ${planName} at the end of your current billing period (${new Date(result.changeDate).toLocaleDateString()}). You will continue to have access to your current plan features until then.`);
                     
                     // Reload subscription and plans to refresh the display
@@ -924,6 +963,50 @@ const UpgradeController = {
             
             if (updateResult.success) {
                 console.log('[UpgradeController] ✅ Subscription updated successfully:', updateResult.subscription);
+                
+                // Fetch subscription dates from Stripe if we have a subscription ID
+                if (updateResult.subscription && updateResult.subscription.stripe_subscription_id) {
+                    console.log('[UpgradeController] Fetching subscription dates from Stripe...');
+                    try {
+                        const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                        const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                        
+                        let accessToken = null;
+                        if (window.AuthService && window.AuthService.getSession) {
+                            try {
+                                const session = await window.AuthService.getSession();
+                                if (session && session.access_token) {
+                                    accessToken = session.access_token;
+                                }
+                            } catch (sessionError) {
+                                console.warn('[UpgradeController] Error getting session:', sessionError);
+                            }
+                        }
+                        
+                        // Call update-subscription with just syncDates flag to fetch dates from Stripe
+                        const syncResponse = await fetch(syncEndpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                            },
+                            body: JSON.stringify({
+                                userId: currentUser.id,
+                                syncDates: true // Flag to sync dates from Stripe
+                            })
+                        });
+                        
+                        if (syncResponse.ok) {
+                            const syncResult = await syncResponse.json();
+                            console.log('[UpgradeController] ✅ Subscription dates synced from Stripe:', syncResult);
+                        } else {
+                            console.warn('[UpgradeController] ⚠️ Failed to sync dates (webhook will handle it):', await syncResponse.text());
+                        }
+                    } catch (syncError) {
+                        console.warn('[UpgradeController] ⚠️ Error syncing dates (webhook will handle it):', syncError);
+                    }
+                }
+                
                 alert(`Subscription upgrade successful! You are now on the ${planName || 'new'} plan.`);
                 
                 // Reload subscription and plans to refresh the display
