@@ -672,10 +672,17 @@ const MessagingService = {
             console.log('[MessagingService] querySelect result:', {
                 hasError: !!result.error,
                 error: result.error,
-                hasCount: result.count !== undefined,
+                hasCount: result.count !== undefined && result.count !== null,
                 count: result.count,
                 hasData: !!result.data,
-                dataLength: result.data?.length
+                dataLength: result.data?.length,
+                dataSample: result.data?.slice(0, 2)?.map(m => ({
+                    id: m.id,
+                    sender_id: m.sender_id,
+                    recipient_id: m.recipient_id,
+                    read: m.read,
+                    content_preview: m.content?.substring(0, 50)
+                }))
             });
 
             if (result.error) {
@@ -692,8 +699,24 @@ const MessagingService = {
                 };
             }
 
-            const count = result.count || 0;
+            // Extract count from result - prefer result.count, fallback to data length
+            let count = result.count;
+            if (count === null || count === undefined) {
+                // If count wasn't in result, use data length as fallback
+                if (result.data && Array.isArray(result.data)) {
+                    count = result.data.length;
+                    console.log('[MessagingService] Count not in result, using data length as fallback:', count);
+                } else {
+                    count = 0;
+                }
+            }
+            
             console.log(`[MessagingService] Total unread count for user ${userId}: ${count}`);
+            console.log('[MessagingService] Final count calculation:', {
+                resultCount: result.count,
+                dataLength: result.data?.length,
+                finalCount: count
+            });
             console.log('[MessagingService] ========== getUnreadCount() COMPLETE ==========');
             return {
                 success: true,

@@ -328,6 +328,7 @@ const DatabaseService = {
             console.error('[DatabaseService] querySelect - header error stack:', headerError.stack);
             return {
                 data: null,
+                count: null,
                 error: {
                     message: `Failed to get auth headers: ${headerError.message}`,
                     code: 'AUTH_HEADERS_FAILED',
@@ -386,6 +387,7 @@ const DatabaseService = {
         console.log('[DatabaseService] querySelect - response headers:', {
             contentType: response.headers.get('content-type'),
             contentLength: response.headers.get('content-length'),
+            contentRange: response.headers.get('content-range'),
             status: response.status,
             statusText: response.statusText,
             ok: response.ok
@@ -711,6 +713,7 @@ const DatabaseService = {
             }
             return {
                 data: null,
+                count: null,
                 error: {
                     message: errorObj.message || errorText,
                     code: errorObj.code,
@@ -721,21 +724,41 @@ const DatabaseService = {
             };
         }
         
+        // Extract count from Content-Range header if present (for count: 'exact' queries)
+        let count = null;
+        const contentRange = response.headers.get('content-range');
+        if (contentRange) {
+            // Content-Range format: "0-4/5" where 5 is the total count
+            const match = contentRange.match(/\/(\d+)$/);
+            if (match) {
+                count = parseInt(match[1], 10);
+                console.log('[DatabaseService] _handleResponse - Extracted count from Content-Range header:', {
+                    contentRange: contentRange,
+                    extractedCount: count
+                });
+            }
+        }
+        
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             const text = await response.text();
             if (!text || text.trim() === '') {
-                return { data: null, error: null };
+                return { data: null, count: count || 0, error: null };
             }
             try {
                 const data = JSON.parse(text);
-                return { data, error: null };
+                // If count wasn't extracted from header but we have data, use data length as fallback
+                if (count === null && Array.isArray(data)) {
+                    count = data.length;
+                    console.log('[DatabaseService] _handleResponse - Using data length as count:', count);
+                }
+                return { data, count: count || (Array.isArray(data) ? data.length : null), error: null };
             } catch (e) {
-                return { data: null, error: { message: 'Invalid JSON response', status: response.status } };
+                return { data: null, count: null, error: { message: 'Invalid JSON response', status: response.status } };
             }
         }
         
-        return { data: null, error: null };
+        return { data: null, count: null, error: null };
     },
     
     /**

@@ -897,31 +897,31 @@ class Header {
                 });
                 
                 const userInfoHtml = `
-                <div class="header-user-menu">
-                    <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
-                        <span class="user-initials">${userInitials}</span>
+                    <div class="header-user-menu">
+                        <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
+                            <span class="user-initials">${userInitials}</span>
                         <span class="avatar-notification-badge" id="avatar-notification-badge" style="display: none;">0</span>
-                    </button>
-                    <div class="user-dropdown-menu" id="user-dropdown-menu">
-                        <div class="user-dropdown-item user-dropdown-username">
-                            <i class="fa-regular fa-user user-dropdown-icon"></i>
-                            <span>${userEmail}</span>
-                        </div>
-                        <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
-                            <i class="fa-regular fa-gear user-dropdown-icon"></i>
-                            <span>Settings</span>
-                        </a>
+                        </button>
+                        <div class="user-dropdown-menu" id="user-dropdown-menu">
+                            <div class="user-dropdown-item user-dropdown-username">
+                                <i class="fa-regular fa-user user-dropdown-icon"></i>
+                                <span>${userEmail}</span>
+                            </div>
+                            <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
+                                <i class="fa-regular fa-gear user-dropdown-icon"></i>
+                                <span>Settings</span>
+                            </a>
                         <button class="user-dropdown-item user-dropdown-notifications" id="header-notifications-button" aria-label="Notifications">
                             <i class="fa-regular fa-bell user-dropdown-icon"></i>
                             <span>Notifications</span>
                             <span class="notification-count-badge" id="header-notification-count" style="display: none;">0</span>
                         </button>
-                        <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
-                            <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
-                            <span>Sign Out</span>
-                        </button>
-                    </div>
-                </div>`;
+                            <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
+                                <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
+                    </div>`;
                 nav.insertAdjacentHTML('beforeend', userInfoHtml);
                 this.initUserMenu();
                 this.initSignOutButton();
