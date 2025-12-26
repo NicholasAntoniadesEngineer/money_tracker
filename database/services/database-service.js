@@ -678,6 +678,98 @@ const DatabaseService = {
     },
     
     /**
+     * Execute an RPC (Remote Procedure Call) to a database function
+     * @param {string} functionName - Function name
+     * @param {Object} params - Function parameters
+     * @returns {Promise<{data: any|null, error: Object|null}>}
+     */
+    async queryRpc(functionName, params = {}) {
+        console.log('[DatabaseService] ========== queryRpc CALLED ==========');
+        console.log('[DatabaseService] queryRpc - function:', functionName);
+        console.log('[DatabaseService] queryRpc - params:', JSON.stringify(params));
+
+        if (!this.client) {
+            console.log('[DatabaseService] Client not initialized, initializing...');
+            await this.initialize();
+        }
+
+        if (!this.client || !this.client.supabaseUrl) {
+            return {
+                data: null,
+                error: {
+                    message: 'Database client not initialized',
+                    status: 500
+                }
+            };
+        }
+
+        const rpcUrl = new URL(`${this.client.supabaseUrl}/rest/v1/rpc/${functionName}`);
+        console.log('[DatabaseService] queryRpc URL:', rpcUrl.toString());
+
+        const authHeaders = this._getAuthHeaders();
+        console.log('[DatabaseService] queryRpc - calling fetch()...');
+
+        try {
+            const response = await fetch(rpcUrl.toString(), {
+                method: 'POST',
+                headers: {
+                    ...authHeaders,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            });
+
+            const responseText = await response.text();
+            console.log('[DatabaseService] queryRpc response status:', response.status, response.statusText);
+            console.log('[DatabaseService] queryRpc response body:', responseText.substring(0, 200));
+
+            if (!response.ok) {
+                let errorObj;
+                try {
+                    errorObj = JSON.parse(responseText);
+                } catch {
+                    errorObj = { message: responseText };
+                }
+                return {
+                    data: null,
+                    error: {
+                        message: errorObj.message || responseText,
+                        code: errorObj.code,
+                        details: errorObj.details,
+                        hint: errorObj.hint,
+                        status: response.status
+                    }
+                };
+            }
+
+            let data = null;
+            if (responseText && responseText.trim() !== '') {
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.warn('[DatabaseService] queryRpc response not JSON:', responseText.substring(0, 100));
+                    data = responseText;
+                }
+            }
+
+            console.log('[DatabaseService] ========== queryRpc COMPLETE ==========');
+            return {
+                data: data,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception in queryRpc:', error);
+            return {
+                data: null,
+                error: {
+                    message: error.message || 'An unexpected error occurred',
+                    status: 500
+                }
+            };
+        }
+    },
+
+    /**
      * Execute an UPDATE operation
      * @param {string} table - Table name
      * @param {string|number} id - Record ID to update
@@ -1563,6 +1655,18 @@ const DatabaseService = {
                             if (share.status !== 'accepted') {
                                 continue;
                             }
+                            
+                            // Fetch owner email once per share (more efficient)
+                            let ownerEmail = 'Unknown User';
+                            try {
+                                const ownerEmailResult = await this.getUserEmailById(share.owner_user_id);
+                                if (ownerEmailResult.success && ownerEmailResult.email) {
+                                    ownerEmail = ownerEmailResult.email;
+                                }
+                            } catch (emailError) {
+                                console.warn('[DatabaseService] Error fetching owner email for share:', emailError);
+                            }
+                            
                             const sharedMonths = share.shared_months || [];
                             for (const monthEntry of sharedMonths) {
                                 let year, month;
@@ -1597,8 +1701,10 @@ const DatabaseService = {
                                                     transformedMonth.isShared = true;
                                                     transformedMonth.sharedOwnerId = share.owner_user_id;
                                                     transformedMonth.sharedAccessLevel = share.access_level;
+                                                    transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
+                                                    
                                                     monthsObject[monthKey] = transformedMonth;
-                                                    console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id}`);
+                                                    console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
                                                 }
                                             }
                                         }
@@ -1624,8 +1730,10 @@ const DatabaseService = {
                                             transformedMonth.isShared = true;
                                             transformedMonth.sharedOwnerId = share.owner_user_id;
                                             transformedMonth.sharedAccessLevel = share.access_level;
+                                            transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
+                                            
                                             monthsObject[monthKey] = transformedMonth;
-                                            console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id}`);
+                                            console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
                                         }
                                     }
                                 }

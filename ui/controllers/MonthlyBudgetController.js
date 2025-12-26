@@ -119,21 +119,9 @@ const MonthlyBudgetController = {
                 
                 // If this is a shared month, append owner email
                 if (monthData.isShared && monthData.sharedOwnerId) {
-                    try {
-                        if (window.DatabaseService) {
-                            const emailResult = await window.DatabaseService.getUserEmailById(monthData.sharedOwnerId);
-                            if (emailResult.success && emailResult.email) {
-                                displayText += ` (shared from: ${emailResult.email})`;
-                            } else {
-                                displayText += ` (shared from: Unknown User)`;
-                            }
-                        } else {
-                            displayText += ` (shared from: Unknown User)`;
-                        }
-                    } catch (error) {
-                        console.warn('[MonthlyBudgetController] Error fetching owner email for shared month:', error);
-                        displayText += ` (shared from: Unknown User)`;
-                    }
+                    // Use owner email from getAllMonths (should already be set)
+                    const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
+                    displayText += ` (shared:${ownerEmail})`;
                 }
                 
                 return `<option value="${key}">${displayText}</option>`;

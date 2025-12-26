@@ -50,56 +50,118 @@ const NotificationService = {
                 throw new Error('DatabaseService not available');
             }
 
-            const tableName = this._getTableName('notifications');
+            // Check if we're creating a notification for the current user
+            // If not, use the RPC function to bypass RLS
+            const currentUserId = await databaseService._getCurrentUserId();
+            const isForCurrentUser = notificationData.user_id === currentUserId;
 
-            const insertData = {
-                user_id: notificationData.user_id,
-                type: notificationData.type,
-                from_user_id: notificationData.from_user_id,
-                read: false
-            };
+            if (isForCurrentUser) {
+                // Use regular insert for current user (RLS allows this)
+                const tableName = this._getTableName('notifications');
 
-            if (notificationData.share_id !== null && notificationData.share_id !== undefined) {
-                insertData.share_id = notificationData.share_id;
-            }
+                const insertData = {
+                    user_id: notificationData.user_id,
+                    type: notificationData.type,
+                    from_user_id: notificationData.from_user_id,
+                    read: false
+                };
 
-            if (notificationData.conversation_id !== null && notificationData.conversation_id !== undefined) {
-                insertData.conversation_id = notificationData.conversation_id;
-            }
+                if (notificationData.share_id !== null && notificationData.share_id !== undefined) {
+                    insertData.share_id = notificationData.share_id;
+                }
 
-            if (notificationData.payment_id !== null && notificationData.payment_id !== undefined) {
-                insertData.payment_id = notificationData.payment_id;
-            }
+                if (notificationData.conversation_id !== null && notificationData.conversation_id !== undefined) {
+                    insertData.conversation_id = notificationData.conversation_id;
+                }
 
-            if (notificationData.subscription_id !== null && notificationData.subscription_id !== undefined) {
-                insertData.subscription_id = notificationData.subscription_id;
-            }
+                if (notificationData.payment_id !== null && notificationData.payment_id !== undefined) {
+                    insertData.payment_id = notificationData.payment_id;
+                }
 
-            if (notificationData.invoice_id !== null && notificationData.invoice_id !== undefined) {
-                insertData.invoice_id = notificationData.invoice_id;
-            }
+                if (notificationData.subscription_id !== null && notificationData.subscription_id !== undefined) {
+                    insertData.subscription_id = notificationData.subscription_id;
+                }
 
-            if (notificationData.message) {
-                insertData.message = notificationData.message;
-            }
+                if (notificationData.invoice_id !== null && notificationData.invoice_id !== undefined) {
+                    insertData.invoice_id = notificationData.invoice_id;
+                }
 
-            const result = await databaseService.queryInsert(tableName, insertData);
+                if (notificationData.message) {
+                    insertData.message = notificationData.message;
+                }
 
-            if (result.error) {
-                console.error('[NotificationService] Error creating notification:', result.error);
+                const result = await databaseService.queryInsert(tableName, insertData);
+
+                if (result.error) {
+                    console.error('[NotificationService] Error creating notification:', result.error);
+                    return {
+                        success: false,
+                        notification: null,
+                        error: result.error.message || 'Failed to create notification'
+                    };
+                }
+
+                console.log('[NotificationService] Notification created successfully:', result.data?.id);
                 return {
-                    success: false,
-                    notification: null,
-                    error: result.error.message || 'Failed to create notification'
+                    success: true,
+                    notification: result.data,
+                    error: null
+                };
+            } else {
+                // Use RPC function to create notification for another user (bypasses RLS)
+                console.log('[NotificationService] Creating notification for another user, using RPC function', {
+                    targetUserId: notificationData.user_id,
+                    currentUserId: currentUserId
+                });
+                const rpcParams = {
+                    p_user_id: notificationData.user_id,
+                    p_type: notificationData.type,
+                    p_from_user_id: notificationData.from_user_id,
+                    p_share_id: notificationData.share_id || null,
+                    p_message: notificationData.message || null,
+                    p_conversation_id: notificationData.conversation_id || null,
+                    p_payment_id: notificationData.payment_id || null,
+                    p_subscription_id: notificationData.subscription_id || null,
+                    p_invoice_id: notificationData.invoice_id || null
+                };
+
+                const result = await databaseService.queryRpc('create_notification', rpcParams);
+
+                if (result.error) {
+                    console.error('[NotificationService] Error creating notification via RPC:', result.error);
+                    return {
+                        success: false,
+                        notification: null,
+                        error: result.error.message || 'Failed to create notification'
+                    };
+                }
+
+                // RPC returns the notification ID, fetch the full notification
+                const notificationId = result.data;
+                console.log('[NotificationService] Notification created via RPC, ID:', notificationId);
+
+                // Fetch the created notification
+                const tableName = this._getTableName('notifications');
+                const fetchResult = await databaseService.querySelect(tableName, {
+                    filter: { id: notificationId },
+                    limit: 1
+                });
+
+                if (fetchResult.error || !fetchResult.data || fetchResult.data.length === 0) {
+                    console.warn('[NotificationService] Could not fetch created notification, but creation succeeded');
+                    return {
+                        success: true,
+                        notification: { id: notificationId },
+                        error: null
+                    };
+                }
+
+                return {
+                    success: true,
+                    notification: fetchResult.data[0],
+                    error: null
                 };
             }
-
-            console.log('[NotificationService] Notification created successfully:', result.data?.id);
-            return {
-                success: true,
-                notification: result.data,
-                error: null
-            };
         } catch (error) {
             console.error('[NotificationService] Exception creating notification:', error);
             return {
