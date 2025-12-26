@@ -147,6 +147,7 @@ class Header {
                 <div class="header-user-menu">
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                         <span class="user-initials">${userInitials}</span>
+                        <span class="avatar-notification-badge" id="avatar-notification-badge" style="display: none;">0</span>
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
                         <div class="user-dropdown-item user-dropdown-username">
@@ -470,14 +471,25 @@ class Header {
             if (result.success) {
                 const count = result.count || 0;
                 const countBadge = document.getElementById('header-notification-count');
+                const avatarBadge = document.getElementById('avatar-notification-badge');
 
-                // Only update the badge in the user menu (notification bell removed)
+                // Update badge in the user menu dropdown
                 if (countBadge) {
                     if (count > 0) {
                         countBadge.textContent = count > 99 ? '99+' : count.toString();
                         countBadge.style.display = 'inline-block';
                     } else {
                         countBadge.style.display = 'none';
+                    }
+                }
+
+                // Update badge on avatar icon
+                if (avatarBadge) {
+                    if (count > 0) {
+                        avatarBadge.textContent = count > 99 ? '99+' : count.toString();
+                        avatarBadge.style.display = 'inline-block';
+                    } else {
+                        avatarBadge.style.display = 'none';
                     }
                 }
             }
@@ -752,6 +764,7 @@ class Header {
                 <div class="header-user-menu">
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
                         <span class="user-initials">${userInitials}</span>
+                        <span class="avatar-notification-badge" id="avatar-notification-badge" style="display: none;">0</span>
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
                         <div class="user-dropdown-item user-dropdown-username">

@@ -109,13 +109,41 @@ const MonthlyBudgetController = {
         const allMonths = await DataManager.getAllMonths(false, true);
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        const optionsHtml = monthKeys.length > 0 
-            ? monthKeys.map(key => {
+        // Build options with shared month labels
+        let optionsHtml = '';
+        if (monthKeys.length > 0) {
+            const optionsPromises = monthKeys.map(async (key) => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
-            }).join('')
-            : '<option value="">No months available</option>';
+                let displayText = `${monthName} ${monthData.year}`;
+                
+                // If this is a shared month, append owner email
+                if (monthData.isShared && monthData.sharedOwnerId) {
+                    try {
+                        if (window.DatabaseService) {
+                            const emailResult = await window.DatabaseService.getUserEmailById(monthData.sharedOwnerId);
+                            if (emailResult.success && emailResult.email) {
+                                displayText += ` (shared from: ${emailResult.email})`;
+                            } else {
+                                displayText += ` (shared from: Unknown User)`;
+                            }
+                        } else {
+                            displayText += ` (shared from: Unknown User)`;
+                        }
+                    } catch (error) {
+                        console.warn('[MonthlyBudgetController] Error fetching owner email for shared month:', error);
+                        displayText += ` (shared from: Unknown User)`;
+                    }
+                }
+                
+                return `<option value="${key}">${displayText}</option>`;
+            });
+            
+            const options = await Promise.all(optionsPromises);
+            optionsHtml = options.join('');
+        } else {
+            optionsHtml = '<option value="">No months available</option>';
+        }
 
         if (selector) {
             selector.innerHTML = optionsHtml;
@@ -4545,6 +4573,26 @@ const MonthlyBudgetController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'accepted');
 
             if (result.success) {
+                // Delete related notification if it exists
+                if (typeof window.NotificationService !== 'undefined') {
+                    try {
+                        const currentUserId = await window.DatabaseService._getCurrentUserId();
+                        if (currentUserId) {
+                            const notificationsResult = await window.NotificationService.getNotifications(currentUserId, { unreadOnly: false });
+                            if (notificationsResult.success && notificationsResult.notifications) {
+                                const relatedNotification = notificationsResult.notifications.find(n => n.share_id === shareId);
+                                if (relatedNotification) {
+                                    const deleteResult = await window.NotificationService.deleteNotification(relatedNotification.id);
+                                    if (!deleteResult.success) {
+                                        console.warn('[MonthlyBudgetController] Failed to delete notification after accepting share:', deleteResult.error);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (notifError) {
+                        console.warn('[MonthlyBudgetController] Error deleting notification after accepting share:', notifError);
+                    }
+                }
                 await this.loadSharedFromData();
                 await this.loadMonthSelector();
                 if (this.currentMonthKey) {
@@ -4574,6 +4622,26 @@ const MonthlyBudgetController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
 
             if (result.success) {
+                // Delete related notification if it exists
+                if (typeof window.NotificationService !== 'undefined') {
+                    try {
+                        const currentUserId = await window.DatabaseService._getCurrentUserId();
+                        if (currentUserId) {
+                            const notificationsResult = await window.NotificationService.getNotifications(currentUserId, { unreadOnly: false });
+                            if (notificationsResult.success && notificationsResult.notifications) {
+                                const relatedNotification = notificationsResult.notifications.find(n => n.share_id === shareId);
+                                if (relatedNotification) {
+                                    const deleteResult = await window.NotificationService.deleteNotification(relatedNotification.id);
+                                    if (!deleteResult.success) {
+                                        console.warn('[MonthlyBudgetController] Failed to delete notification after declining share:', deleteResult.error);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (notifError) {
+                        console.warn('[MonthlyBudgetController] Error deleting notification after declining share:', notifError);
+                    }
+                }
                 await this.loadSharedFromData();
                 alert('Share declined');
             } else {

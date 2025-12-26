@@ -76,7 +76,10 @@
                 </div>
                 <div id="message-thread-container" style="display: none;">
                     <button id="back-to-conversations" class="btn btn-secondary" style="margin-bottom: var(--spacing-md);">← Back to Conversations</button>
-                    <h3 id="conversation-partner-name" style="margin-bottom: var(--spacing-md);"></h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                        <h3 id="conversation-partner-name" style="margin: 0;"></h3>
+                        <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none;">Block User</button>
+                    </div>
                     <div id="message-thread" class="message-thread">
                         <p>Loading messages...</p>
                     </div>

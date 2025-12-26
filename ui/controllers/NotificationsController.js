@@ -201,6 +201,18 @@ const NotificationsController = {
                 this.handleBackToConversations();
             });
         }
+
+        // Block user button in conversation
+        const blockUserConversationBtn = document.getElementById('block-user-conversation-btn');
+        if (blockUserConversationBtn) {
+            blockUserConversationBtn.addEventListener('click', () => {
+                const userId = blockUserConversationBtn.dataset.userId;
+                const userEmail = blockUserConversationBtn.dataset.userEmail;
+                if (userId) {
+                    this.handleBlockUserFromConversation(userId, userEmail);
+                }
+            });
+        }
     },
 
     /**
@@ -541,7 +553,13 @@ const NotificationsController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'accepted');
 
             if (result.success) {
-                await this.handleNotificationClick(notificationId);
+                // Delete the notification instead of just marking as read
+                if (notificationId && typeof window.NotificationService !== 'undefined') {
+                    const deleteResult = await window.NotificationService.deleteNotification(notificationId);
+                    if (!deleteResult.success) {
+                        console.warn('[NotificationsController] Failed to delete notification after accepting share:', deleteResult.error);
+                    }
+                }
                 await this.loadNotifications();
                 alert('Share accepted successfully');
             } else {
@@ -567,7 +585,13 @@ const NotificationsController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
 
             if (result.success) {
-                await this.handleNotificationClick(notificationId);
+                // Delete the notification instead of just marking as read
+                if (notificationId && typeof window.NotificationService !== 'undefined') {
+                    const deleteResult = await window.NotificationService.deleteNotification(notificationId);
+                    if (!deleteResult.success) {
+                        console.warn('[NotificationsController] Failed to delete notification after declining share:', deleteResult.error);
+                    }
+                }
                 await this.loadNotifications();
                 alert('Share declined');
             } else {
@@ -576,6 +600,38 @@ const NotificationsController = {
         } catch (error) {
             console.error('[NotificationsController] Error declining share:', error);
             alert('Error declining share: ' + error.message);
+        }
+    },
+
+    /**
+     * Handle block user from conversation view
+     */
+    async handleBlockUserFromConversation(userId, userEmail) {
+        console.log('[NotificationsController] handleBlockUserFromConversation() called', { userId, userEmail });
+
+        if (!confirm(`Are you sure you want to block ${userEmail || 'this user'}? This will decline all pending shares from them and prevent them from messaging you.`)) {
+            return;
+        }
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            const result = await window.DatabaseService.blockUser(userId);
+
+            if (result.success) {
+                alert('User blocked successfully');
+                // Go back to conversations list
+                this.handleBackToConversations();
+                // Reload conversations to refresh the list
+                await this.loadConversations();
+            } else {
+                throw new Error(result.error || 'Failed to block user');
+            }
+        } catch (error) {
+            console.error('[NotificationsController] Error blocking user from conversation:', error);
+            alert('Error blocking user: ' + error.message);
         }
     },
 
@@ -763,6 +819,24 @@ const NotificationsController = {
         try {
             if (typeof window.DatabaseService === 'undefined') {
                 throw new Error('DatabaseService not available');
+            }
+
+            // Find conversation to get partner info
+            const conversation = this.conversations.find(c => c.id === conversationId);
+            if (!conversation) {
+                throw new Error('Conversation not found');
+            }
+
+            // Set partner name and show block button
+            const partnerNameElement = document.getElementById('conversation-partner-name');
+            const blockButton = document.getElementById('block-user-conversation-btn');
+            if (partnerNameElement) {
+                partnerNameElement.textContent = conversation.other_user_email || 'Unknown User';
+            }
+            if (blockButton) {
+                blockButton.style.display = 'inline-block';
+                blockButton.dataset.userId = conversation.other_user_id;
+                blockButton.dataset.userEmail = conversation.other_user_email || 'Unknown User';
             }
 
             console.log('[NotificationsController] Fetching messages for conversation:', conversationId);

@@ -289,7 +289,7 @@ const DatabaseService = {
                 console.log('[DatabaseService] querySelect - converted $or filter to PostgREST or syntax:', `or=(${orConditions.join(',')})`);
                 
                 // Also process other filters (if any)
-                Object.entries(options.filter).forEach(([key, value]) => {
+            Object.entries(options.filter).forEach(([key, value]) => {
                     if (key !== '$or') {
                         url.searchParams.append(key, `eq.${value}`);
                     }
@@ -297,8 +297,8 @@ const DatabaseService = {
             } else {
                 // Regular filters (no $or)
                 Object.entries(options.filter).forEach(([key, value]) => {
-                    url.searchParams.append(key, `eq.${value}`);
-                });
+                url.searchParams.append(key, `eq.${value}`);
+            });
             }
         }
         if (options.order) {
