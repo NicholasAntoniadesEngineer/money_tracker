@@ -5,6 +5,43 @@
 
 const PaymentService = {
     /**
+     * Get database service (requires config)
+     * @returns {Object} Database service
+     * @throws {Error} If ConfigHelper is not available or database service is not configured
+     */
+    _getDatabaseService() {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getDatabaseService(this);
+    },
+    
+    /**
+     * Get auth service (requires config)
+     * @returns {Object} Auth service
+     * @throws {Error} If ConfigHelper is not available or auth service is not configured
+     */
+    _getAuthService() {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getAuthService(this);
+    },
+    
+    /**
+     * Get table name (requires config)
+     * @param {string} tableKey - Table key
+     * @returns {string} Table name
+     * @throws {Error} If ConfigHelper is not available or table name is not configured
+     */
+    _getTableName(tableKey) {
+        if (typeof ConfigHelper === 'undefined') {
+            throw new Error('ConfigHelper not available. Ensure config-helper.js is loaded and PaymentsModule.initialize() has been called.');
+        }
+        return ConfigHelper.getTableName(this, tableKey);
+    },
+    
+    /**
      * Record a payment in payment history
      * @param {string} userId - User ID
      * @param {Object} paymentData - Payment data
@@ -12,7 +49,8 @@ const PaymentService = {
      */
     async recordPayment(userId, paymentData) {
         try {
-            if (!window.DatabaseService) {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
                 throw new Error('DatabaseService not available');
             }
             
@@ -32,7 +70,8 @@ const PaymentService = {
                 metadata: paymentData.metadata || {}
             };
             
-            const result = await window.DatabaseService.queryInsert('payment_history', paymentRecord);
+            const tableName = this._getTableName('paymentHistory');
+            const result = await databaseService.queryInsert(tableName, paymentRecord);
             
             if (result.error) {
                 console.error('[PaymentService] Error recording payment:', result.error);
@@ -73,15 +112,17 @@ const PaymentService = {
      */
     async getPaymentHistory(limit = 50) {
         try {
-            if (!window.DatabaseService) {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
                 throw new Error('DatabaseService not available');
             }
             
-            if (!window.AuthService) {
+            const authService = this._getAuthService();
+            if (!authService) {
                 throw new Error('AuthService not available');
             }
             
-            const userId = await window.DatabaseService._getCurrentUserId();
+            const userId = await databaseService._getCurrentUserId();
             if (!userId) {
                 return {
                     success: false,
@@ -90,7 +131,8 @@ const PaymentService = {
                 };
             }
             
-            const result = await window.DatabaseService.querySelect('payment_history', {
+            const tableName = this._getTableName('paymentHistory');
+            const result = await databaseService.querySelect(tableName, {
                 filter: { user_id: userId },
                 order: [{ column: 'payment_date', ascending: false }],
                 limit: limit
@@ -130,7 +172,8 @@ const PaymentService = {
      */
     async updatePaymentStatus(paymentId, status) {
         try {
-            if (!window.DatabaseService) {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
                 throw new Error('DatabaseService not available');
             }
             
@@ -138,7 +181,8 @@ const PaymentService = {
                 status: status
             };
             
-            const result = await window.DatabaseService.queryUpdate('payment_history', paymentId, updateData);
+            const tableName = this._getTableName('paymentHistory');
+            const result = await databaseService.queryUpdate(tableName, paymentId, updateData);
             
             if (result.error) {
                 console.error('[PaymentService] Error updating payment status:', result.error);
