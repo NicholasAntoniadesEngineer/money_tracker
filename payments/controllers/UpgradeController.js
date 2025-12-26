@@ -963,48 +963,132 @@ const UpgradeController = {
             
             if (updateResult.success) {
                 console.log('[UpgradeController] ✅ Subscription updated successfully:', updateResult.subscription);
+                console.log('[UpgradeController] Subscription details for sync check:', {
+                    hasSubscription: !!updateResult.subscription,
+                    hasStripeSubscriptionId: !!(updateResult.subscription && updateResult.subscription.stripe_subscription_id),
+                    hasStripeCustomerId: !!(updateResult.subscription && updateResult.subscription.stripe_customer_id),
+                    stripeSubscriptionId: updateResult.subscription?.stripe_subscription_id || 'null',
+                    stripeCustomerId: updateResult.subscription?.stripe_customer_id || 'null',
+                    subscriptionType: updateResult.subscription?.subscription_type,
+                    status: updateResult.subscription?.status
+                });
                 
-                // Fetch subscription dates from Stripe if we have a subscription ID
-                if (updateResult.subscription && updateResult.subscription.stripe_subscription_id) {
-                    console.log('[UpgradeController] Fetching subscription dates from Stripe...');
-                    try {
-                        const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
-                        const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
-                        
-                        let accessToken = null;
-                        if (window.AuthService && window.AuthService.getSession) {
-                            try {
-                                const session = await window.AuthService.getSession();
-                                if (session && session.access_token) {
-                                    accessToken = session.access_token;
+                // Attempt to sync subscription dates from Stripe
+                // Try even if stripe_subscription_id is null - the Edge Function can look it up using customer ID
+                if (updateResult.subscription && updateResult.subscription.subscription_type === 'paid') {
+                    console.log('[UpgradeController] ========== ATTEMPTING DATE SYNC ==========');
+                    console.log('[UpgradeController] Sync attempt details:', {
+                        hasStripeSubscriptionId: !!(updateResult.subscription.stripe_subscription_id),
+                        hasStripeCustomerId: !!(updateResult.subscription.stripe_customer_id),
+                        willAttemptSync: true
+                    });
+                    
+                    // If we don't have stripe_subscription_id yet, wait a bit for webhook to fire
+                    let retryCount = 0;
+                    const maxRetries = 3;
+                    const retryDelay = 2000; // 2 seconds
+                    
+                    const attemptSync = async () => {
+                        try {
+                            const supabaseProjectUrl = window.SupabaseConfig?.PROJECT_URL || 'https://ofutzrxfbrgtbkyafndv.supabase.co';
+                            const syncEndpoint = `${supabaseProjectUrl}/functions/v1/update-subscription`;
+                            
+                            console.log('[UpgradeController] Sync attempt', retryCount + 1, 'of', maxRetries);
+                            console.log('[UpgradeController] Calling sync endpoint:', syncEndpoint);
+                            
+                            let accessToken = null;
+                            if (window.AuthService && window.AuthService.getSession) {
+                                try {
+                                    const session = await window.AuthService.getSession();
+                                    if (session && session.access_token) {
+                                        accessToken = session.access_token;
+                                        console.log('[UpgradeController] ✅ Access token obtained for sync');
+                                    } else {
+                                        console.warn('[UpgradeController] ⚠️ No access token in session');
+                                    }
+                                } catch (sessionError) {
+                                    console.warn('[UpgradeController] ⚠️ Error getting session for sync:', sessionError);
                                 }
-                            } catch (sessionError) {
-                                console.warn('[UpgradeController] Error getting session:', sessionError);
                             }
-                        }
-                        
-                        // Call update-subscription with just syncDates flag to fetch dates from Stripe
-                        const syncResponse = await fetch(syncEndpoint, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
-                            },
-                            body: JSON.stringify({
+                            
+                            const syncPayload = {
                                 userId: currentUser.id,
                                 syncDates: true // Flag to sync dates from Stripe
-                            })
-                        });
-                        
-                        if (syncResponse.ok) {
-                            const syncResult = await syncResponse.json();
-                            console.log('[UpgradeController] ✅ Subscription dates synced from Stripe:', syncResult);
-                        } else {
-                            console.warn('[UpgradeController] ⚠️ Failed to sync dates (webhook will handle it):', await syncResponse.text());
+                            };
+                            
+                            console.log('[UpgradeController] Sync request payload:', syncPayload);
+                            
+                            // Call update-subscription with syncDates flag to fetch dates from Stripe
+                            const syncResponse = await fetch(syncEndpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                                },
+                                body: JSON.stringify(syncPayload),
+                                credentials: 'omit'
+                            });
+                            
+                            console.log('[UpgradeController] Sync response status:', syncResponse.status, syncResponse.statusText);
+                            console.log('[UpgradeController] Sync response ok:', syncResponse.ok);
+                            
+                            if (syncResponse.ok) {
+                                const syncResult = await syncResponse.json();
+                                console.log('[UpgradeController] ✅ Subscription dates synced from Stripe successfully');
+                                console.log('[UpgradeController] Sync result:', syncResult);
+                                return { success: true, result: syncResult };
+                            } else {
+                                const errorText = await syncResponse.text();
+                                console.warn('[UpgradeController] ⚠️ Sync failed with status', syncResponse.status);
+                                console.warn('[UpgradeController] Sync error response:', errorText);
+                                return { success: false, error: errorText, status: syncResponse.status };
+                            }
+                        } catch (syncError) {
+                            console.error('[UpgradeController] ❌ Exception during sync attempt:', syncError);
+                            console.error('[UpgradeController] Sync error details:', {
+                                message: syncError.message,
+                                stack: syncError.stack,
+                                name: syncError.name
+                            });
+                            return { success: false, error: syncError.message };
                         }
-                    } catch (syncError) {
-                        console.warn('[UpgradeController] ⚠️ Error syncing dates (webhook will handle it):', syncError);
+                    };
+                    
+                    // Try sync immediately
+                    let syncResult = await attemptSync();
+                    
+                    // If sync failed and we don't have stripe_subscription_id, retry after delays
+                    if (!syncResult.success && !updateResult.subscription.stripe_subscription_id && retryCount < maxRetries) {
+                        console.log('[UpgradeController] ⏳ No stripe_subscription_id yet, waiting for webhook...');
+                        for (let i = 0; i < maxRetries; i++) {
+                            retryCount++;
+                            console.log('[UpgradeController] Waiting', retryDelay, 'ms before retry', retryCount, 'of', maxRetries);
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            
+                            // Reload subscription to check if webhook has updated it
+                            console.log('[UpgradeController] Reloading subscription to check for stripe_subscription_id...');
+                            const reloadResult = await window.SubscriptionService.getCurrentUserSubscription();
+                            if (reloadResult.success && reloadResult.subscription && reloadResult.subscription.stripe_subscription_id) {
+                                console.log('[UpgradeController] ✅ Found stripe_subscription_id after retry:', reloadResult.subscription.stripe_subscription_id);
+                                // Update our local subscription object
+                                updateResult.subscription = reloadResult.subscription;
+                                // Try sync again
+                                syncResult = await attemptSync();
+                                if (syncResult.success) {
+                                    break;
+                                }
+                            } else {
+                                console.log('[UpgradeController] Still no stripe_subscription_id, will retry...');
+                            }
+                        }
                     }
+                    
+                    if (!syncResult.success) {
+                        console.warn('[UpgradeController] ⚠️ Date sync failed after all attempts (webhook will handle it eventually)');
+                        console.warn('[UpgradeController] Final sync error:', syncResult.error);
+                    }
+                } else {
+                    console.log('[UpgradeController] ⏭️ Skipping date sync - subscription type:', updateResult.subscription?.subscription_type);
                 }
                 
                 alert(`Subscription upgrade successful! You are now on the ${planName || 'new'} plan.`);

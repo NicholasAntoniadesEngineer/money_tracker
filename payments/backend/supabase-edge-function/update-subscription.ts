@@ -192,12 +192,111 @@ serve(async (req) => {
 
     // If syncDates is true, fetch subscription dates from Stripe and update database
     if (syncDates === true) {
-      console.log("[update-subscription] Syncing subscription dates from Stripe...")
+      console.log("[update-subscription] ========== SYNCING SUBSCRIPTION DATES ==========")
+      console.log("[update-subscription] Sync request details:", {
+        userId: userId,
+        hasStripeSubscriptionId: !!currentSubscription.stripe_subscription_id,
+        hasStripeCustomerId: !!currentSubscription.stripe_customer_id,
+        stripeSubscriptionId: currentSubscription.stripe_subscription_id || 'null',
+        stripeCustomerId: currentSubscription.stripe_customer_id || 'null',
+        subscriptionType: currentSubscription.subscription_type,
+        status: currentSubscription.status
+      })
       
-      if (!currentSubscription.stripe_subscription_id) {
-        console.warn("[update-subscription] No stripe_subscription_id, cannot sync dates")
+      let stripeSubscriptionId = currentSubscription.stripe_subscription_id
+      
+      // If we don't have stripe_subscription_id but have customer_id, try to find it
+      if (!stripeSubscriptionId && currentSubscription.stripe_customer_id) {
+        console.log("[update-subscription] ⚠️ No stripe_subscription_id found, attempting to look up using customer ID...")
+        console.log("[update-subscription] Looking up subscriptions for customer:", currentSubscription.stripe_customer_id)
+        
+        try {
+          // Look up active subscriptions for this customer in Stripe
+          const stripeSubscriptions = await stripe.subscriptions.list({
+            customer: currentSubscription.stripe_customer_id,
+            status: 'active',
+            limit: 1
+          })
+          
+          console.log("[update-subscription] Stripe subscriptions lookup result:", {
+            found: stripeSubscriptions.data.length,
+            subscriptions: stripeSubscriptions.data.map(s => ({ id: s.id, status: s.status }))
+          })
+          
+          if (stripeSubscriptions.data.length > 0) {
+            const foundSubscription = stripeSubscriptions.data[0]
+            stripeSubscriptionId = foundSubscription.id
+            console.log("[update-subscription] ✅ Found Stripe subscription:", stripeSubscriptionId)
+            
+            // Update database with the found subscription ID
+            const updateSubIdResponse = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": supabaseServiceKey,
+                "Authorization": `Bearer ${supabaseServiceKey}`,
+                "Prefer": "return=representation"
+              },
+              body: JSON.stringify({
+                stripe_subscription_id: stripeSubscriptionId,
+                updated_at: new Date().toISOString()
+              })
+            })
+            
+            if (updateSubIdResponse.ok) {
+              console.log("[update-subscription] ✅ Synced Stripe subscription ID to database")
+            } else {
+              const errorText = await updateSubIdResponse.text()
+              console.warn("[update-subscription] ⚠️ Failed to update stripe_subscription_id in database:", errorText)
+            }
+          } else {
+            console.error("[update-subscription] ❌ No active Stripe subscription found for customer", currentSubscription.stripe_customer_id)
+            return new Response(
+              JSON.stringify({ 
+                error: "No active Stripe subscription found. The subscription may still be processing.",
+                details: {
+                  customer_id: currentSubscription.stripe_customer_id,
+                  subscription_type: currentSubscription.subscription_type,
+                  status: currentSubscription.status
+                }
+              }),
+              { 
+                status: 404,
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                } 
+              }
+            )
+          }
+        } catch (lookupError) {
+          console.error("[update-subscription] ❌ Error looking up Stripe subscription:", lookupError)
+          return new Response(
+            JSON.stringify({ 
+              error: "Failed to look up Stripe subscription. Please try again in a moment.",
+              details: lookupError.message
+            }),
+            { 
+              status: 500,
+              headers: { 
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              } 
+            }
+          )
+        }
+      }
+      
+      if (!stripeSubscriptionId) {
+        console.error("[update-subscription] ❌ Cannot sync dates: No stripe_subscription_id and no stripe_customer_id")
         return new Response(
-          JSON.stringify({ error: "No Stripe subscription ID found. Cannot sync dates." }),
+          JSON.stringify({ 
+            error: "No Stripe subscription ID found and cannot look up using customer ID. Cannot sync dates.",
+            details: {
+              hasStripeSubscriptionId: false,
+              hasStripeCustomerId: false
+            }
+          }),
           { 
             status: 400,
             headers: { 
@@ -209,14 +308,19 @@ serve(async (req) => {
       }
       
       try {
+        console.log("[update-subscription] Fetching subscription from Stripe using ID:", stripeSubscriptionId)
         // Fetch subscription from Stripe
-        const stripeSubscription = await stripe.subscriptions.retrieve(currentSubscription.stripe_subscription_id)
+        const stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId)
         
-        console.log("[update-subscription] Stripe subscription retrieved:", {
+        console.log("[update-subscription] ✅ Stripe subscription retrieved:", {
           id: stripeSubscription.id,
           current_period_start: stripeSubscription.current_period_start,
+          current_period_start_date: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
           current_period_end: stripeSubscription.current_period_end,
-          status: stripeSubscription.status
+          current_period_end_date: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+          status: stripeSubscription.status,
+          hasItems: stripeSubscription.items?.data?.length > 0,
+          priceId: stripeSubscription.items?.data?.[0]?.price?.id || 'none'
         })
         
         // Update database with dates from Stripe
@@ -227,6 +331,8 @@ serve(async (req) => {
           stripe_price_id: stripeSubscription.items.data[0]?.price?.id || currentSubscription.stripe_price_id,
           updated_at: new Date().toISOString()
         }
+        
+        console.log("[update-subscription] Updating database with dates:", updateData)
         
         const updateResponse = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}`, {
           method: "PATCH",
@@ -239,19 +345,34 @@ serve(async (req) => {
           body: JSON.stringify(updateData)
         })
         
+        console.log("[update-subscription] Database update response status:", updateResponse.status)
+        
         if (!updateResponse.ok) {
           const errorText = await updateResponse.text()
+          console.error("[update-subscription] ❌ Database update failed:", errorText)
           throw new Error(`Failed to update subscription dates: ${errorText}`)
         }
         
         const updatedSubscription = await updateResponse.json()
+        const finalSubscription = updatedSubscription[0] || updatedSubscription
+        
         console.log("[update-subscription] ✅ Subscription dates synced successfully")
+        console.log("[update-subscription] Updated subscription dates:", {
+          subscription_start_date: finalSubscription.subscription_start_date,
+          subscription_end_date: finalSubscription.subscription_end_date,
+          next_billing_date: finalSubscription.next_billing_date
+        })
         
         return new Response(
           JSON.stringify({ 
             success: true,
             message: "Subscription dates synced from Stripe",
-            subscription: updatedSubscription[0] || updatedSubscription
+            updatedDates: {
+              subscription_start_date: finalSubscription.subscription_start_date,
+              subscription_end_date: finalSubscription.subscription_end_date,
+              next_billing_date: finalSubscription.next_billing_date
+            },
+            subscription: finalSubscription
           }),
           { 
             status: 200,
@@ -262,9 +383,17 @@ serve(async (req) => {
           }
         )
       } catch (error) {
-        console.error("[update-subscription] Error syncing dates:", error)
+        console.error("[update-subscription] ❌ Error syncing dates:", error)
+        console.error("[update-subscription] Error details:", {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        })
         return new Response(
-          JSON.stringify({ error: `Failed to sync dates: ${error.message}` }),
+          JSON.stringify({ 
+            error: `Failed to sync dates: ${error.message}`,
+            details: error.stack
+          }),
           { 
             status: 500,
             headers: { 
