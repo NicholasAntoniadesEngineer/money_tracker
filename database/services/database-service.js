@@ -3213,9 +3213,11 @@ const DatabaseService = {
      * @returns {Promise<{success: boolean, error: string|null}>}
      */
     async deleteDataShare(shareId) {
+        console.log('[DatabaseService] deleteDataShare() called', { shareId });
         try {
             const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
+                console.warn('[DatabaseService] deleteDataShare: User not authenticated');
                 return {
                     success: false,
                     error: 'User not authenticated'
@@ -3223,11 +3225,22 @@ const DatabaseService = {
             }
             
             const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] deleteDataShare: Calling queryDelete', { 
+                tableName, 
+                shareId, 
+                ownerUserId: currentUserId 
+            });
+            
+            // queryDelete expects a flat filter object, not nested in 'filter'
             const result = await this.queryDelete(tableName, {
-                filter: {
-                    id: shareId,
-                    owner_user_id: currentUserId
-                }
+                id: shareId,
+                owner_user_id: currentUserId
+            });
+            
+            console.log('[DatabaseService] deleteDataShare: queryDelete result', { 
+                success: !result.error, 
+                error: result.error,
+                deletedCount: result.data?.length || 0
             });
             
             if (result.error) {
@@ -3238,6 +3251,7 @@ const DatabaseService = {
                 };
             }
             
+            console.log('[DatabaseService] deleteDataShare: Successfully deleted share', shareId);
             return {
                 success: true,
                 error: null

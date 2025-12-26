@@ -599,10 +599,12 @@ class Header {
         // Create handler functions
         this._authSignInHandler = () => {
             console.log('[Header] auth:signin event received, updating header...');
-            // Small delay to ensure AuthService state is updated
+            // Clear last update state to force update
+            this.lastUpdateState = null;
+            // Longer delay to ensure AuthService state is fully updated
             setTimeout(() => {
-                this.updateHeader();
-            }, 100);
+                this.updateHeader(true); // Force update on sign-in
+            }, 300);
         };
         
         this._authSignOutHandler = () => {
@@ -634,17 +636,18 @@ class Header {
 
     /**
      * Update header to reflect current auth state
+     * @param {boolean} force - Force update even if state appears unchanged
      */
-    static updateHeader() {
-        console.log('[Header] ========== UPDATE HEADER CALLED ==========');
+    static updateHeader(force = false) {
+        console.log('[Header] ========== UPDATE HEADER CALLED ==========', { force });
         
-        if (this.updateInProgress) {
+        if (this.updateInProgress && !force) {
             console.log('[Header] Update already in progress, skipping duplicate call');
             return;
         }
         
         this.updateInProgress = true;
-        console.log('[Header] updateHeader() called');
+        console.log('[Header] updateHeader() called', { force });
         
         try {
             const header = document.querySelector('.main-header');
@@ -652,6 +655,7 @@ class Header {
             
             if (!header) {
                 console.warn('[Header] Header element not found in DOM');
+                this.updateInProgress = false;
                 return;
             }
             
@@ -660,6 +664,7 @@ class Header {
             
             if (!nav) {
                 console.warn('[Header] Navigation element not found in header');
+                this.updateInProgress = false;
                 return;
             }
             
@@ -674,18 +679,43 @@ class Header {
                 isAuthenticated = methodCheck || directCheck;
                 const user = window.AuthService.getCurrentUser();
                 currentUserEmail = user?.email || null;
+                
+                // If still not authenticated on force update, wait a bit and retry (for sign-in timing issues)
+                if (!isAuthenticated && force) {
+                    console.log('[Header] Auth check failed on force update, retrying after delay...');
+                    this.updateInProgress = false; // Reset to allow retry
+                    setTimeout(() => {
+                        // Recursively call updateHeader with force to retry
+                        this.updateHeader(true);
+                    }, 300);
+                    return;
+                }
             }
             
+            this._performHeaderUpdate(nav, isAuthenticated, currentUserEmail, force);
+        } catch (error) {
+            console.error('[Header] Error in updateHeader:', error);
+            this.updateInProgress = false;
+        }
+    }
+    
+    /**
+     * Perform the actual header update
+     * @private
+     */
+    static _performHeaderUpdate(nav, isAuthenticated, currentUserEmail, force) {
+        try {
             const currentState = {
                 isAuthenticated: isAuthenticated,
                 userEmail: currentUserEmail
             };
             
-            // Check if state has actually changed
-            if (this.lastUpdateState && 
+            // Check if state has actually changed (unless forced)
+            if (!force && this.lastUpdateState && 
                 this.lastUpdateState.isAuthenticated === currentState.isAuthenticated &&
                 this.lastUpdateState.userEmail === currentState.userEmail) {
                 console.log('[Header] Auth state unchanged, skipping update');
+                this.updateInProgress = false;
                 return;
             }
             
@@ -746,6 +776,7 @@ class Header {
                 nav.insertAdjacentHTML('beforeend', userInfoHtml);
                 this.initUserMenu();
                 this.initSignOutButton();
+                this.initNotificationBell(); // Initialize notifications button click handler
                 
                 try {
                     // Notification bell removed - notifications are in user menu only
@@ -765,7 +796,9 @@ class Header {
             
             this.lastUpdateState = currentState;
             console.log('[Header] ========== UPDATE HEADER COMPLETE ==========');
-        } finally {
+            this.updateInProgress = false;
+        } catch (error) {
+            console.error('[Header] Error in _performHeaderUpdate:', error);
             this.updateInProgress = false;
         }
     }

@@ -240,27 +240,80 @@ const MessagingService = {
             console.log('[MessagingService] Message created successfully:', newMessage.id);
 
             // Create notification for recipient via NotificationProcessor
-            if (window.NotificationProcessor) {
-                const fromUserEmailResult = await databaseService.getUserEmailById(senderId);
-                const toUserEmailResult = await databaseService.getUserEmailById(recipientId);
-                const notificationResult = await window.NotificationProcessor.createAndDeliver(
-                    recipientId,
-                    'message_received',
-                    null, // No share_id
-                    senderId,
-                    null, // Let template generate message
-                    {
+            console.log('[MessagingService] Checking for NotificationProcessor availability...', {
+                hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
+                recipientId: recipientId,
+                senderId: senderId,
+                conversationId: conversationId
+            });
+
+            if (typeof window.NotificationProcessor === 'undefined') {
+                console.error('[MessagingService] NotificationProcessor not available - notification will not be created');
+            } else {
+                try {
+                    console.log('[MessagingService] Fetching user emails for notification...');
+                    const fromUserEmailResult = await databaseService.getUserEmailById(senderId);
+                    const toUserEmailResult = await databaseService.getUserEmailById(recipientId);
+                    
+                    console.log('[MessagingService] User email lookup results:', {
+                        fromUserEmailSuccess: fromUserEmailResult.success,
+                        fromUserEmail: fromUserEmailResult.success ? fromUserEmailResult.email : 'Failed',
+                        toUserEmailSuccess: toUserEmailResult.success,
+                        toUserEmail: toUserEmailResult.success ? toUserEmailResult.email : 'Failed'
+                    });
+
+                    const messageData = {
                         fromUserEmail: fromUserEmailResult.success ? fromUserEmailResult.email : 'Unknown User',
                         toUserEmail: toUserEmailResult.success ? toUserEmailResult.email : 'Unknown User',
                         messagePreview: content.trim().substring(0, 100) // First 100 chars as preview
-                    },
-                    conversationId, // Pass conversation_id for notification
-                    null, // payment_id
-                    null, // subscription_id
-                    null  // invoice_id
-                );
-                if (!notificationResult.success) {
-                    console.warn('[MessagingService] Failed to create message_received notification:', notificationResult.error);
+                    };
+
+                    console.log('[MessagingService] Creating notification via NotificationProcessor...', {
+                        recipientId: recipientId,
+                        type: 'message_received',
+                        senderId: senderId,
+                        conversationId: conversationId,
+                        messageData: messageData
+                    });
+
+                    const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                        recipientId,
+                        'message_received',
+                        null, // No share_id
+                        senderId,
+                        null, // Let template generate message
+                        messageData,
+                        conversationId, // Pass conversation_id for notification
+                        null, // payment_id
+                        null, // subscription_id
+                        null  // invoice_id
+                    );
+
+                    console.log('[MessagingService] Notification creation result:', {
+                        success: notificationResult.success,
+                        hasNotification: !!notificationResult.notification,
+                        notificationId: notificationResult.notification?.id,
+                        error: notificationResult.error
+                    });
+
+                    if (!notificationResult.success) {
+                        console.error('[MessagingService] Failed to create message_received notification:', {
+                            error: notificationResult.error,
+                            recipientId: recipientId,
+                            senderId: senderId,
+                            conversationId: conversationId
+                        });
+                    } else {
+                        console.log('[MessagingService] Successfully created message notification:', notificationResult.notification?.id);
+                    }
+                } catch (error) {
+                    console.error('[MessagingService] Exception while creating message notification:', {
+                        error: error.message,
+                        stack: error.stack,
+                        recipientId: recipientId,
+                        senderId: senderId,
+                        conversationId: conversationId
+                    });
                 }
             }
 
