@@ -3548,6 +3548,15 @@ const DatabaseService = {
             
             const shares = result.data || [];
             
+            console.log('[DatabaseService] getDataSharesSharedWithMe - Raw shares from database:', shares.map(s => ({
+                id: s.id,
+                status: s.status,
+                owner_user_id: s.owner_user_id,
+                shared_with_user_id: s.shared_with_user_id,
+                responded_at: s.responded_at,
+                updated_at: s.updated_at
+            })));
+            
             for (const share of shares) {
                 if (typeof share.shared_months === 'string') {
                     try {
@@ -3557,6 +3566,12 @@ const DatabaseService = {
                     }
                 }
             }
+            
+            console.log('[DatabaseService] getDataSharesSharedWithMe - Returning shares:', shares.map(s => ({
+                id: s.id,
+                status: s.status,
+                shareAllData: s.share_all_data
+            })));
             
             return {
                 success: true,
@@ -3631,7 +3646,22 @@ const DatabaseService = {
                 updated_at: new Date().toISOString()
             };
 
+            console.log('[DatabaseService] Updating share with data:', {
+                shareId: shareId,
+                updateData: updateData,
+                currentStatus: share.status,
+                newStatus: status
+            });
+
             const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+
+            console.log('[DatabaseService] Update result:', {
+                hasError: !!updateResult.error,
+                error: updateResult.error,
+                hasData: !!updateResult.data,
+                dataLength: updateResult.data?.length || 0,
+                returnedData: updateResult.data
+            });
 
             if (updateResult.error) {
                 console.error('[DatabaseService] Error updating share status:', updateResult.error);
@@ -3643,6 +3673,38 @@ const DatabaseService = {
             }
 
             const updatedShare = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : share;
+            
+            console.log('[DatabaseService] Share status updated successfully:', {
+                shareId: shareId,
+                oldStatus: share.status,
+                newStatus: updatedShare.status,
+                updatedShare: updatedShare
+            });
+            
+            // Verify the update by querying the share again
+            const verifyResult = await this.querySelect(tableName, {
+                filter: { id: shareId },
+                limit: 1
+            });
+            
+            if (verifyResult.data && verifyResult.data.length > 0) {
+                const verifiedShare = verifyResult.data[0];
+                console.log('[DatabaseService] Verified share status after update:', {
+                    shareId: shareId,
+                    verifiedStatus: verifiedShare.status,
+                    matchesExpected: verifiedShare.status === status
+                });
+                
+                if (verifiedShare.status !== status) {
+                    console.error('[DatabaseService] WARNING: Share status does not match expected value!', {
+                        expected: status,
+                        actual: verifiedShare.status,
+                        shareId: shareId
+                    });
+                }
+            } else {
+                console.warn('[DatabaseService] Could not verify share update - share not found after update');
+            }
 
             if (typeof window.NotificationProcessor !== 'undefined') {
                 const notificationType = status === 'accepted' ? 'share_accepted' : 
