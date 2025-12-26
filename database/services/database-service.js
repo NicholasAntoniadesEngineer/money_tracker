@@ -3314,8 +3314,18 @@ const DatabaseService = {
                 shareStatus: share?.status,
                 shareId: share?.id,
                 recipientUserId: userResult.userId,
-                recipientEmail: sharedWithEmail
+                recipientEmail: sharedWithEmail,
+                shareCreated: !!share,
+                shareIdValue: share?.id,
+                shareStatusValue: share?.status
             });
+            
+            // Always create notification for pending shares, regardless of other conditions
+            // This ensures recipients always get notified of share requests
+            if (share && share.status === 'pending' && typeof window.NotificationProcessor !== 'undefined') {
+                console.log('[DatabaseService] ========== FORCING notification creation for pending share ==========');
+                shouldCreateNotification = true;
+            }
             
             if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
                 console.log('[DatabaseService] ========== Creating notification for share request ==========');
