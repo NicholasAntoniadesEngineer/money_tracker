@@ -79,6 +79,86 @@
 
         </section>
 
+        <section id="data-sharing-section" class="settings-section form-section">
+            <h2 class="section-title">Data Sharing</h2>
+            <p id="premium-required-message" style="display: none; margin-bottom: var(--spacing-md); font-size: 0.9rem; color: var(--text-color-secondary);">
+                Share your data with other users. Premium subscription required.
+            </p>
+            
+            <div id="data-shares-list" class="data-shares-list" style="margin-bottom: var(--spacing-md);">
+                <p>Loading...</p>
+            </div>
+            
+            <div class="settings-row">
+                <button id="add-share-button" class="btn btn-action">Add Share</button>
+            </div>
+            
+            <div id="add-share-form" class="add-share-form" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+                <h3 style="margin-bottom: var(--spacing-md);">Create New Share</h3>
+                
+                <div class="settings-row">
+                    <label for="share-email" class="form-label">User Email:</label>
+                    <input type="email" id="share-email" class="form-input" placeholder="user@example.com" autocomplete="email" required>
+                </div>
+                
+                <div class="settings-row">
+                    <label for="share-access-level" class="form-label">Access Level:</label>
+                    <select id="share-access-level" class="form-select">
+                        <option value="read">Read Only</option>
+                        <option value="read_write">Read/Write</option>
+                        <option value="read_write_delete">Read/Write/Delete</option>
+                    </select>
+                </div>
+                
+                <div class="settings-row">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <input type="checkbox" id="share-all-data">
+                        <span><strong>Share All Data</strong></span>
+                    </label>
+                </div>
+                
+                <div class="settings-row">
+                    <label class="form-label">Share Options:</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-months" checked>
+                            <span>Months</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-pots">
+                            <span>Pots</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-settings">
+                            <span>Settings</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="share-months-container" style="margin-top: var(--spacing-md);">
+                    <label class="form-label">Select Months:</label>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                        <select id="month-selector-dropdown" class="form-select" style="flex: 1;">
+                            <option value="">Select a month...</option>
+                        </select>
+                        <button type="button" id="add-month-button" class="btn btn-action" style="flex: 0 0 auto;">Add Month</button>
+                    </div>
+                    <div id="selected-months-list" style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <!-- Selected months will be added here -->
+                    </div>
+                </div>
+                
+                <div class="settings-row" style="margin-top: var(--spacing-md); gap: 0.5rem;">
+                    <button id="save-share-button" class="btn btn-action">Save</button>
+                    <button id="cancel-share-button" class="btn btn-secondary">Cancel</button>
+                </div>
+                
+                <div id="share-form-status" class="settings-status"></div>
+            </div>
+            
+            <div id="data-sharing-status" class="settings-status"></div>
+        </section>
+
         <section class="settings-section form-section">
             <h2 class="section-title">Import</h2>
 
@@ -160,77 +240,6 @@
             </div>
             
             <div id="subscription-status" class="settings-status"></div>
-        </section>
-
-        <section id="data-sharing-section" class="settings-section form-section" style="display: none;">
-            <h2 class="section-title">Data Sharing</h2>
-            <p style="margin-bottom: var(--spacing-md); font-size: 0.9rem; color: var(--text-color-secondary);">
-                Share your data with other users. Premium subscription required.
-            </p>
-            
-            <div id="data-shares-list" class="data-shares-list" style="margin-bottom: var(--spacing-md);">
-                <!-- Shares will be populated by JavaScript -->
-            </div>
-            
-            <div class="settings-row">
-                <button id="add-share-button" class="btn btn-action">Add Share</button>
-            </div>
-            
-            <div id="add-share-form" class="add-share-form" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
-                <h3 style="margin-bottom: var(--spacing-md);">Create New Share</h3>
-                
-                <div class="settings-row">
-                    <label for="share-email" class="form-label">User Email:</label>
-                    <input type="email" id="share-email" class="form-input" placeholder="user@example.com" required>
-                </div>
-                
-                <div class="settings-row">
-                    <label for="share-access-level" class="form-label">Access Level:</label>
-                    <select id="share-access-level" class="form-select">
-                        <option value="read">Read Only</option>
-                        <option value="read_write">Read/Write</option>
-                        <option value="read_write_delete">Read/Write/Delete</option>
-                    </select>
-                </div>
-                
-                <div class="settings-row">
-                    <label class="form-label">Share Options:</label>
-                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-months" checked>
-                            <span>Months</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-pots">
-                            <span>Pots</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-settings">
-                            <span>Settings</span>
-                        </label>
-                    </div>
-                </div>
-                
-                <div id="share-months-container" style="margin-top: var(--spacing-md);">
-                    <label class="form-label">Select Months:</label>
-                    <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
-                        <button type="button" id="add-month-button" class="btn btn-action" style="flex: 0 0 auto;">Add Month</button>
-                        <button type="button" id="add-month-range-button" class="btn btn-action" style="flex: 0 0 auto;">Add Range</button>
-                    </div>
-                    <div id="selected-months-list" style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <!-- Selected months will be added here -->
-                    </div>
-                </div>
-                
-                <div class="settings-row" style="margin-top: var(--spacing-md); gap: 0.5rem;">
-                    <button id="save-share-button" class="btn btn-action">Save Share</button>
-                    <button id="cancel-share-button" class="btn btn-secondary">Cancel</button>
-                </div>
-                
-                <div id="share-form-status" class="settings-status"></div>
-            </div>
-            
-            <div id="data-sharing-status" class="settings-status"></div>
         </section>
 
         <div id="file-operations-status" class="settings-status"></div>

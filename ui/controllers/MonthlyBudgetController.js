@@ -6,6 +6,7 @@
 const MonthlyBudgetController = {
     currentMonthData: null,
     currentMonthKey: null,
+    editingShareId: null,
 
     /**
      * Calculate the number of weeks in a month
@@ -102,7 +103,6 @@ const MonthlyBudgetController = {
      */
     async loadMonthSelector() {
         const selector = document.getElementById('month-selector');
-        const selectorInitial = document.getElementById('month-selector-initial');
 
         // Load user months + enabled example data only
         const allMonths = await DataManager.getAllMonths(false, true);
@@ -116,8 +116,57 @@ const MonthlyBudgetController = {
             }).join('')
             : '<option value="">No months available</option>';
 
-        if (selector) selector.innerHTML = optionsHtml;
-        if (selectorInitial) selectorInitial.innerHTML = optionsHtml;
+        if (selector) {
+            selector.innerHTML = optionsHtml;
+            this.adjustMonthSelectorWidth();
+        }
+    },
+    
+    /**
+     * Adjust month selector width to fit content
+     */
+    adjustMonthSelectorWidth() {
+        const selector = document.getElementById('month-selector');
+        if (!selector) return;
+        
+        // Create a temporary span to measure text width
+        const tempSpan = document.createElement('span');
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.whiteSpace = 'nowrap';
+        tempSpan.style.fontSize = window.getComputedStyle(selector).fontSize;
+        tempSpan.style.fontFamily = window.getComputedStyle(selector).fontFamily;
+        tempSpan.style.fontWeight = window.getComputedStyle(selector).fontWeight;
+        tempSpan.style.padding = window.getComputedStyle(selector).padding;
+        document.body.appendChild(tempSpan);
+        
+        // Find the longest option text
+        let maxWidth = 0;
+        const options = selector.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            tempSpan.textContent = option.textContent;
+            const width = tempSpan.offsetWidth;
+            if (width > maxWidth) {
+                maxWidth = width;
+            }
+        }
+        
+        // Also check the label width
+        const label = document.querySelector('label[for="month-selector"]');
+        if (label) {
+            tempSpan.textContent = label.textContent;
+            const labelWidth = tempSpan.offsetWidth;
+            if (labelWidth > maxWidth) {
+                maxWidth = labelWidth;
+            }
+        }
+        
+        // Set the width (add some padding for dropdown arrow and borders)
+        selector.style.width = `${maxWidth + 40}px`;
+        
+        // Clean up
+        document.body.removeChild(tempSpan);
     },
 
     /**
@@ -132,6 +181,7 @@ const MonthlyBudgetController = {
         const addUnplannedBtn = document.getElementById('add-unplanned-expense-button');
         const addPotBtn = document.getElementById('add-pot-button');
         const addWeeklyBreakdownBtn = document.getElementById('add-weekly-breakdown-button');
+        const shareMonthBtn = document.getElementById('share-month-button');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
         if (saveMonthBtn) saveMonthBtn.addEventListener('click', () => this.saveMonthData());
@@ -141,6 +191,7 @@ const MonthlyBudgetController = {
         if (addUnplannedBtn) addUnplannedBtn.addEventListener('click', () => this.addUnplannedExpenseRow());
         if (addPotBtn) addPotBtn.addEventListener('click', () => this.addPotRow());
         if (addWeeklyBreakdownBtn) addWeeklyBreakdownBtn.addEventListener('click', () => this.addWeeklyBreakdownRow());
+        if (shareMonthBtn) shareMonthBtn.addEventListener('click', () => this.handleShareMonth());
         
         // Copy from month event listeners
         const copyIncomeBtn = document.getElementById('copy-income-button');
@@ -155,7 +206,6 @@ const MonthlyBudgetController = {
 
         // Month selector event listeners
         const selector = document.getElementById('month-selector');
-        const selectorInitial = document.getElementById('month-selector-initial');
         
         const handleMonthChange = async (value) => {
             if (value) {
@@ -165,9 +215,6 @@ const MonthlyBudgetController = {
         
         if (selector) {
             selector.addEventListener('change', () => handleMonthChange(selector.value));
-        }
-        if (selectorInitial) {
-            selectorInitial.addEventListener('change', () => handleMonthChange(selectorInitial.value));
         }
 
         const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
@@ -214,32 +261,32 @@ const MonthlyBudgetController = {
      * Load a specific month
      */
     async loadMonth(monthKey) {
+        console.log('[MonthlyBudgetController] loadMonth() called for:', monthKey);
+        
         const monthData = await DataManager.getMonth(monthKey);
         
         if (!monthData) {
+            console.warn('[MonthlyBudgetController] Month not found:', monthKey);
             alert('Month not found');
             return;
         }
+
+        console.log('[MonthlyBudgetController] Month data loaded:', { 
+            year: monthData.year, 
+            month: monthData.month, 
+            monthName: monthData.monthName 
+        });
 
         this.currentMonthData = monthData;
         this.currentMonthKey = monthKey;
 
         const selector = document.getElementById('month-selector');
-        const selectorInitial = document.getElementById('month-selector-initial');
-        const monthTitle = document.getElementById('month-title');
-        const monthTitleWrapper = document.getElementById('month-title-wrapper');
-        const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
 
-        // Update both selectors
-        if (selector) selector.value = monthKey;
-        if (selectorInitial) selectorInitial.value = monthKey;
-        
-        // Show month title with compact selector, hide initial selector
-        if (monthTitle) {
-            monthTitle.textContent = `${monthData.monthName} ${monthData.year}`;
+        // Update selector
+        if (selector) {
+            selector.value = monthKey;
+            this.adjustMonthSelectorWidth();
         }
-        if (monthTitleWrapper) monthTitleWrapper.style.display = 'flex';
-        if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'none';
 
         this.loadIncomeSources(monthData.income || monthData.incomeSources || []);
         this.loadFixedCosts(monthData.fixedCosts || []);
@@ -317,6 +364,1239 @@ const MonthlyBudgetController = {
         this.copyVariableCostsFromMonthInternal(monthKey);
 
         this.updateCalculations();
+        
+        // Show share button if user has premium
+        this.updateShareButtonVisibility();
+        
+        // Update sharing indicators
+        await this.updateSharingIndicators();
+        
+        console.log('[MonthlyBudgetController] loadMonth() completed for:', monthKey);
+    },
+    
+    /**
+     * Update share button visibility based on premium status and month loaded
+     */
+    async updateShareButtonVisibility() {
+        console.log('[MonthlyBudgetController] updateShareButtonVisibility() called');
+        
+        const shareBtn = document.getElementById('share-month-button');
+        const indicator = document.getElementById('month-sharing-indicator');
+        
+        if (!shareBtn) {
+            console.warn('[MonthlyBudgetController] share-month-button not found');
+            return;
+        }
+        
+        if (!this.currentMonthKey || !this.currentMonthData) {
+            console.log('[MonthlyBudgetController] No current month, hiding share button');
+            shareBtn.style.display = 'none';
+            if (indicator) indicator.style.display = 'none';
+            return;
+        }
+        
+        // Check if user has premium subscription
+        if (window.SubscriptionGuard) {
+            try {
+                const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+                console.log('[MonthlyBudgetController] Premium status:', hasPremium);
+                
+                if (hasPremium) {
+                    shareBtn.style.display = 'inline-block';
+                    // Indicator visibility will be set by updateSharingIndicators
+                } else {
+                    shareBtn.style.display = 'none';
+                    if (indicator) indicator.style.display = 'none';
+                }
+            } catch (error) {
+                console.warn('[MonthlyBudgetController] Error checking premium status:', error);
+                shareBtn.style.display = 'none';
+                if (indicator) indicator.style.display = 'none';
+            }
+        } else {
+            console.warn('[MonthlyBudgetController] SubscriptionGuard not available');
+            shareBtn.style.display = 'none';
+            if (indicator) indicator.style.display = 'none';
+        }
+    },
+    
+    /**
+     * Handle share month button click
+     */
+    /**
+     * Handle share month button click - shows modal
+     */
+    async handleShareMonth() {
+        console.log('[MonthlyBudgetController] handleShareMonth() called');
+        
+        if (!this.currentMonthKey || !this.currentMonthData) {
+            console.warn('[MonthlyBudgetController] No month selected');
+            alert('No month selected');
+            return;
+        }
+        
+        console.log('[MonthlyBudgetController] Current month:', this.currentMonthKey);
+        
+        if (!window.SubscriptionGuard) {
+            console.error('[MonthlyBudgetController] SubscriptionGuard not available');
+            alert('Subscription service not available');
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        console.log('[MonthlyBudgetController] Premium status:', hasPremium);
+        
+        if (!hasPremium) {
+            alert('Premium subscription required to share data');
+            return;
+        }
+        
+        await this.showShareMonthModal();
+    },
+    
+    /**
+     * Show share month modal
+     */
+    async showShareMonthModal() {
+        console.log('[MonthlyBudgetController] showShareMonthModal() called');
+        
+        const modal = document.getElementById('share-month-modal');
+        if (!modal) {
+            console.error('[MonthlyBudgetController] Share modal not found');
+            return;
+        }
+        
+        // Reset form
+        this.resetShareMonthForm();
+        
+        // Load existing shares for this month
+        await this.loadExistingSharesForMonth();
+        
+        // Load user months as checkboxes
+        await this.loadUserMonthsAsCheckboxes();
+        
+        // Pre-select current month
+        if (this.currentMonthKey) {
+            const checkbox = document.querySelector(`input[type="checkbox"][data-month-key="${this.currentMonthKey}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                console.log('[MonthlyBudgetController] Pre-selected current month:', this.currentMonthKey);
+            }
+        }
+        
+        // Setup event listeners
+        this.setupShareMonthModalListeners();
+        
+        // Show modal
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        
+        console.log('[MonthlyBudgetController] Share modal displayed');
+    },
+    
+    /**
+     * Setup event listeners for share month modal
+     */
+    setupShareMonthModalListeners() {
+        console.log('[MonthlyBudgetController] ========== setupShareMonthModalListeners() CALLED ==========');
+        
+        const closeBtn = document.getElementById('close-share-modal');
+        const cancelBtn = document.getElementById('share-month-cancel-button');
+        const saveBtn = document.getElementById('share-month-save-button');
+        const shareAllDataCheckbox = document.getElementById('share-month-all-data');
+        
+        console.log('[MonthlyBudgetController] Element checks:', {
+            closeBtn: !!closeBtn,
+            cancelBtn: !!cancelBtn,
+            saveBtn: !!saveBtn,
+            shareAllDataCheckbox: !!shareAllDataCheckbox
+        });
+        
+        if (closeBtn) {
+            console.log('[MonthlyBudgetController] Setting up close button listener');
+            closeBtn.onclick = () => {
+                console.log('[MonthlyBudgetController] Close button clicked');
+                this.hideShareMonthModal();
+            };
+        } else {
+            console.warn('[MonthlyBudgetController] Close button not found!');
+        }
+        
+        if (cancelBtn) {
+            console.log('[MonthlyBudgetController] Setting up cancel button listener');
+            cancelBtn.onclick = () => {
+                console.log('[MonthlyBudgetController] Cancel button clicked');
+                this.hideShareMonthModal();
+            };
+        } else {
+            console.warn('[MonthlyBudgetController] Cancel button not found!');
+        }
+        
+        if (saveBtn) {
+            console.log('[MonthlyBudgetController] Setting up save button listener');
+            // Remove any existing listeners first
+            const newSaveBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+            
+            // Add click listener
+            newSaveBtn.addEventListener('click', (e) => {
+                console.log('[MonthlyBudgetController] ========== SAVE BUTTON CLICKED ==========');
+                console.log('[MonthlyBudgetController] Event:', e);
+                console.log('[MonthlyBudgetController] Event type:', e.type);
+                console.log('[MonthlyBudgetController] Event target:', e.target);
+                console.log('[MonthlyBudgetController] Event currentTarget:', e.currentTarget);
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleSaveShareMonth();
+            });
+            console.log('[MonthlyBudgetController] Save button listener attached successfully');
+        } else {
+            console.error('[MonthlyBudgetController] ❌ Save button not found!');
+            console.error('[MonthlyBudgetController] Attempting to find button by querySelector...');
+            const foundBtn = document.querySelector('#share-month-save-button');
+            console.error('[MonthlyBudgetController] QuerySelector result:', foundBtn);
+        }
+        
+        if (shareAllDataCheckbox) {
+            console.log('[MonthlyBudgetController] Setting up share all data checkbox listener');
+            shareAllDataCheckbox.onchange = () => {
+                console.log('[MonthlyBudgetController] Share all data checkbox changed');
+                this.handleShareAllDataChangeInModal();
+            };
+        } else {
+            console.warn('[MonthlyBudgetController] Share all data checkbox not found!');
+        }
+        
+        console.log('[MonthlyBudgetController] ========== setupShareMonthModalListeners() COMPLETE ==========');
+        
+        // Close on overlay click
+        const modal = document.getElementById('share-month-modal');
+        if (modal) {
+            const overlay = modal.querySelector('.help-modal-overlay');
+            if (overlay) {
+                overlay.onclick = () => this.hideShareMonthModal();
+            }
+        }
+        
+        // Close on Escape key
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                this.hideShareMonthModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    },
+    
+    /**
+     * Hide share month modal
+     */
+    hideShareMonthModal() {
+        console.log('[MonthlyBudgetController] hideShareMonthModal() called');
+        
+        const modal = document.getElementById('share-month-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            this.resetShareMonthForm();
+        }
+    },
+    
+    /**
+     * Reset share month form
+     */
+    resetShareMonthForm() {
+        console.log('[MonthlyBudgetController] resetShareMonthForm() called');
+        
+        const emailInput = document.getElementById('share-month-email');
+        if (emailInput) {
+            emailInput.value = '';
+            emailInput.readOnly = false;
+            emailInput.title = '';
+        }
+        
+        const accessLevel = document.getElementById('share-month-access-level');
+        if (accessLevel) accessLevel.value = 'read';
+        
+        const shareAllData = document.getElementById('share-month-all-data');
+        if (shareAllData) shareAllData.checked = false;
+        
+        const shareMonths = document.getElementById('share-month-months');
+        if (shareMonths) {
+            shareMonths.checked = true;
+            shareMonths.disabled = false;
+        }
+        
+        const sharePots = document.getElementById('share-month-pots');
+        if (sharePots) {
+            sharePots.checked = false;
+            sharePots.disabled = false;
+        }
+        
+        const shareSettings = document.getElementById('share-month-settings');
+        if (shareSettings) {
+            shareSettings.checked = false;
+            shareSettings.disabled = false;
+        }
+        
+        const monthsCheckboxes = document.getElementById('share-month-months-checkboxes');
+        if (monthsCheckboxes) {
+            monthsCheckboxes.innerHTML = '';
+            // Uncheck all checkboxes
+            monthsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+        
+        const statusDiv = document.getElementById('share-month-form-status');
+        if (statusDiv) statusDiv.innerHTML = '';
+        
+        const monthsContainer = document.getElementById('share-month-months-container');
+        if (monthsContainer) monthsContainer.style.display = 'block';
+        
+        this.editingShareId = null;
+    },
+    
+    /**
+     * Edit share in modal - populate form with existing share data
+     */
+    async editShareInModal(share) {
+        console.log('[MonthlyBudgetController] editShareInModal() called for share:', share.id);
+        
+        if (!window.SubscriptionGuard) {
+            console.error('[MonthlyBudgetController] SubscriptionGuard not available');
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            console.warn('[MonthlyBudgetController] User does not have premium');
+            return;
+        }
+        
+        // Set editing flag
+        this.editingShareId = share.id;
+        
+        // Get user email for display
+        let userEmail = share.displayEmail || share.shared_with_user_id;
+        if (!share.displayEmail && window.DatabaseService) {
+            try {
+                const emailResult = await window.DatabaseService.getUserEmailById(share.shared_with_user_id);
+                if (emailResult.success && emailResult.email) {
+                    userEmail = emailResult.email;
+                }
+            } catch (error) {
+                console.warn('[MonthlyBudgetController] Error looking up email:', error);
+            }
+        }
+        
+        // Populate form fields
+        const emailInput = document.getElementById('share-month-email');
+        if (emailInput) {
+            emailInput.value = userEmail;
+            emailInput.readOnly = true;
+            emailInput.title = 'Email cannot be changed when editing';
+        }
+        
+        const accessLevel = document.getElementById('share-month-access-level');
+        if (accessLevel) {
+            accessLevel.value = share.access_level;
+        }
+        
+        // Parse shared_months if it's a string
+        let sharedMonths = share.shared_months;
+        if (typeof sharedMonths === 'string') {
+            try {
+                sharedMonths = JSON.parse(sharedMonths);
+            } catch (e) {
+                console.warn('[MonthlyBudgetController] Error parsing shared_months:', e);
+                sharedMonths = [];
+            }
+        }
+        
+        const shareAllData = share.share_all_data === true || share.share_all_data === 'true';
+        const shareMonthsCheck = shareAllData || (sharedMonths && sharedMonths.length > 0);
+        const sharePotsCheck = shareAllData || share.shared_pots === true || share.shared_pots === 'true';
+        const shareSettingsCheck = shareAllData || share.shared_settings === true || share.shared_settings === 'true';
+        
+        const shareAllDataCheckbox = document.getElementById('share-month-all-data');
+        if (shareAllDataCheckbox) {
+            shareAllDataCheckbox.checked = shareAllData;
+            // Trigger change handler to update UI
+            shareAllDataCheckbox.dispatchEvent(new Event('change'));
+        }
+        
+        const shareMonthsCheckbox = document.getElementById('share-month-months');
+        if (shareMonthsCheckbox) {
+            shareMonthsCheckbox.checked = shareMonthsCheck;
+        }
+        
+        const sharePotsCheckbox = document.getElementById('share-month-pots');
+        if (sharePotsCheckbox) {
+            sharePotsCheckbox.checked = sharePotsCheck;
+        }
+        
+        const shareSettingsCheckbox = document.getElementById('share-month-settings');
+        if (shareSettingsCheckbox) {
+            shareSettingsCheckbox.checked = shareSettingsCheck;
+        }
+        
+        // Load months as checkboxes and pre-select the ones in the share
+        await this.loadUserMonthsAsCheckboxes();
+        
+        if (!shareAllData && sharedMonths && sharedMonths.length > 0) {
+            // Pre-select the months that are in the share
+            sharedMonths.forEach(monthEntry => {
+                if (monthEntry.type === 'single') {
+                    const monthKey = `${monthEntry.year}-${String(monthEntry.month).padStart(2, '0')}`;
+                    const checkbox = document.querySelector(`input[type="checkbox"][data-month-key="${monthKey}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        console.log('[MonthlyBudgetController] Pre-selected month:', monthKey);
+                    }
+                }
+            });
+        }
+        
+        // Re-setup event listeners (in case they were removed)
+        console.log('[MonthlyBudgetController] Re-setting up event listeners for edit mode...');
+        this.setupShareMonthModalListeners();
+        
+        // Show the modal
+        const modal = document.getElementById('share-month-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            console.log('[MonthlyBudgetController] Share modal opened in edit mode');
+        }
+    },
+    
+    /**
+     * Load existing shares for current month
+     */
+    async loadExistingSharesForMonth() {
+        console.log('[MonthlyBudgetController] loadExistingSharesForMonth() called for month:', this.currentMonthKey);
+        
+        if (!window.DatabaseService) {
+            console.error('[MonthlyBudgetController] DatabaseService not available');
+            return;
+        }
+        
+        try {
+            const result = await window.DatabaseService.getDataSharesCreatedByMe();
+            console.log('[MonthlyBudgetController] getDataSharesCreatedByMe result:', result);
+            
+            if (result.success && result.shares) {
+                const [year, month] = this.currentMonthKey.split('-');
+                const yearNum = parseInt(year, 10);
+                const monthNum = parseInt(month, 10);
+                
+                // Filter shares that include this month
+                const relevantShares = result.shares.filter(share => {
+                    if (!share.shared_months || share.shared_months.length === 0) {
+                        return false;
+                    }
+                    
+                    return share.shared_months.some(monthEntry => {
+                        if (monthEntry.type === 'single') {
+                            return monthEntry.year === yearNum && monthEntry.month === monthNum;
+                        }
+                        // Handle range if needed
+                        return false;
+                    });
+                });
+                
+                console.log('[MonthlyBudgetController] Relevant shares found:', relevantShares.length);
+                this.renderExistingSharesInModal(relevantShares);
+            } else {
+                const list = document.getElementById('share-month-shares-list');
+                if (list) {
+                    list.innerHTML = '<p>No shares for this month yet.</p>';
+                }
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error loading existing shares:', error);
+        }
+    },
+    
+    /**
+     * Render existing shares in modal
+     */
+    async renderExistingSharesInModal(shares) {
+        console.log('[MonthlyBudgetController] renderExistingSharesInModal() called with', shares.length, 'shares');
+        
+        const list = document.getElementById('share-month-shares-list');
+        if (!list) {
+            console.warn('[MonthlyBudgetController] share-month-shares-list not found');
+            return;
+        }
+        
+        if (shares.length === 0) {
+            list.innerHTML = '<p>No shares for this month yet.</p>';
+            return;
+        }
+        
+        // Look up emails for all shares
+        const sharesWithEmails = await Promise.all(shares.map(async (share) => {
+            let email = share.shared_with_user_id;
+            if (window.DatabaseService) {
+                try {
+                    const emailResult = await window.DatabaseService.getUserEmailById(share.shared_with_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        email = emailResult.email;
+                    }
+                } catch (error) {
+                    console.warn('[MonthlyBudgetController] Error looking up email:', error);
+                }
+            }
+            return { ...share, displayEmail: email };
+        }));
+        
+        list.innerHTML = sharesWithEmails.map(share => `
+            <div class="share-item" style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <strong>Shared with:</strong> ${share.displayEmail}<br>
+                        <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                    </div>
+                    <button class="btn btn-danger btn-sm delete-share-month-btn" data-share-id="${share.id}">Delete</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Add delete handlers
+        list.querySelectorAll('.delete-share-month-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.handleDeleteShareFromModal(btn.dataset.shareId));
+        });
+    },
+    
+    /**
+     * Handle delete share from modal
+     */
+    async handleDeleteShareFromModal(shareId) {
+        console.log('[MonthlyBudgetController] handleDeleteShareFromModal() called for share:', shareId);
+        
+        if (!confirm('Are you sure you want to delete this share?')) {
+            return;
+        }
+        
+        try {
+            const result = await window.DatabaseService.deleteDataShare(parseInt(shareId, 10));
+            console.log('[MonthlyBudgetController] deleteDataShare result:', result);
+            
+            if (result.success) {
+                await this.loadExistingSharesForMonth();
+                await this.updateSharingIndicators();
+            } else {
+                alert(`Error deleting share: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error deleting share:', error);
+            alert(`Error: ${error.message}`);
+        }
+    },
+    
+    /**
+     * Load user months as checkboxes for multiple selection
+     */
+    async loadUserMonthsAsCheckboxes() {
+        console.log('[MonthlyBudgetController] loadUserMonthsAsCheckboxes() called');
+        
+        const checkboxesContainer = document.getElementById('share-month-months-checkboxes');
+        if (!checkboxesContainer) {
+            console.warn('[MonthlyBudgetController] share-month-months-checkboxes not found');
+            return;
+        }
+        
+        try {
+            if (!window.DatabaseService) {
+                console.error('[MonthlyBudgetController] DatabaseService not available');
+                return;
+            }
+            
+            const allMonths = await window.DatabaseService.getAllMonths(false, false);
+            const monthKeys = Object.keys(allMonths).sort().reverse();
+            
+            console.log('[MonthlyBudgetController] Found', monthKeys.length, 'user months to display as checkboxes');
+            
+            checkboxesContainer.innerHTML = '';
+            
+            if (monthKeys.length === 0) {
+                checkboxesContainer.innerHTML = '<p>No months available to share.</p>';
+                return;
+            }
+            
+            monthKeys.forEach(monthKey => {
+                const monthData = allMonths[monthKey];
+                if (monthData && !monthData.isShared) {
+                    const monthName = monthData.monthName || window.DataManager.getMonthName(monthData.month);
+                    const displayText = `${monthName} ${monthData.year}`;
+                    
+                    const label = document.createElement('label');
+                    label.style.display = 'flex';
+                    label.style.alignItems = 'center';
+                    label.style.gap = 'var(--spacing-sm)';
+                    label.style.cursor = 'pointer';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = monthKey;
+                    checkbox.dataset.monthKey = monthKey;
+                    checkbox.dataset.year = monthData.year;
+                    checkbox.dataset.month = monthData.month;
+                    
+                    const span = document.createElement('span');
+                    span.textContent = displayText;
+                    
+                    label.appendChild(checkbox);
+                    label.appendChild(span);
+                    checkboxesContainer.appendChild(label);
+                }
+            });
+            
+            console.log('[MonthlyBudgetController] Loaded', checkboxesContainer.children.length, 'month checkboxes');
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error loading user months as checkboxes:', error);
+            checkboxesContainer.innerHTML = '<p style="color: var(--error-color);">Error loading months.</p>';
+        }
+    },
+    
+    /**
+     * Handle share all data checkbox change in modal
+     */
+    async handleShareAllDataChangeInModal() {
+        console.log('[MonthlyBudgetController] handleShareAllDataChangeInModal() called');
+        
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            const checkbox = document.getElementById('share-month-all-data');
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            return;
+        }
+        
+        const shareAllData = document.getElementById('share-month-all-data').checked;
+        const shareMonthsCheckbox = document.getElementById('share-month-months');
+        const sharePotsCheckbox = document.getElementById('share-month-pots');
+        const shareSettingsCheckbox = document.getElementById('share-month-settings');
+        const monthsContainer = document.getElementById('share-month-months-container');
+        
+        if (shareAllData) {
+            shareMonthsCheckbox.checked = true;
+            sharePotsCheckbox.checked = true;
+            shareSettingsCheckbox.checked = true;
+            shareMonthsCheckbox.disabled = true;
+            sharePotsCheckbox.disabled = true;
+            shareSettingsCheckbox.disabled = true;
+            if (monthsContainer) {
+                monthsContainer.style.display = 'none';
+            }
+            // Uncheck all month checkboxes
+            const checkboxes = document.querySelectorAll('#share-month-months-checkboxes input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+        } else {
+            shareMonthsCheckbox.disabled = false;
+            sharePotsCheckbox.disabled = false;
+            shareSettingsCheckbox.disabled = false;
+            if (monthsContainer) {
+                monthsContainer.style.display = 'block';
+            }
+        }
+    },
+    
+    /**
+     * Handle save share from modal
+     */
+    async handleSaveShareMonth() {
+        console.log('[MonthlyBudgetController] handleSaveShareMonth() called');
+        
+        if (!window.SubscriptionGuard) {
+            alert('Subscription service not available');
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            alert('Premium subscription required');
+            return;
+        }
+        
+        const email = document.getElementById('share-month-email').value.trim();
+        const accessLevel = document.getElementById('share-month-access-level').value;
+        const shareAllData = document.getElementById('share-month-all-data').checked;
+        const shareMonths = document.getElementById('share-month-months').checked;
+        const sharePots = document.getElementById('share-month-pots').checked;
+        const shareSettings = document.getElementById('share-month-settings').checked;
+        
+        console.log('[MonthlyBudgetController] Form values:', { email, accessLevel, shareAllData, shareMonths, sharePots, shareSettings });
+        
+        // When editing, email field is read-only and already has a value
+        // But we still need to validate it's not empty
+        if (!email) {
+            const statusDiv = document.getElementById('share-month-form-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<p style="color: var(--error-color);">Please enter an email address.</p>';
+            } else {
+                alert('Please enter an email address');
+            }
+            console.warn('[MonthlyBudgetController] Save failed: Email is empty');
+            return;
+        }
+        
+        // When shareAllData is true, all share options are automatically enabled
+        // So we should check shareAllData OR at least one share option
+        if (!shareAllData && !shareMonths && !sharePots && !shareSettings) {
+            const statusDiv = document.getElementById('share-month-form-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<p style="color: var(--error-color);">Please select at least one thing to share.</p>';
+            } else {
+                alert('Please select at least one thing to share');
+            }
+            console.warn('[MonthlyBudgetController] Save failed: No share options selected');
+            return;
+        }
+        
+        let selectedMonths = [];
+        
+        if (shareAllData) {
+            if (!window.DatabaseService) {
+                alert('DatabaseService not available');
+                return;
+            }
+            
+            try {
+                const allMonths = await window.DatabaseService.getAllMonths(false, false);
+                const monthKeys = Object.keys(allMonths);
+                selectedMonths = monthKeys.map(monthKey => {
+                    const monthData = allMonths[monthKey];
+                    if (monthData && !monthData.isShared) {
+                        return { type: 'single', year: monthData.year, month: monthData.month };
+                    }
+                    return null;
+                }).filter(m => m !== null);
+                
+                console.log('[MonthlyBudgetController] Share all data - selected', selectedMonths.length, 'months');
+            } catch (error) {
+                console.error('[MonthlyBudgetController] Error loading all months:', error);
+                alert('Error loading your months. Please try again.');
+                return;
+            }
+        } else if (shareMonths) {
+            // Get selected months from checkboxes
+            const checkboxes = document.querySelectorAll('#share-month-months-checkboxes input[type="checkbox"]:checked');
+            selectedMonths = Array.from(checkboxes).map(checkbox => ({
+                type: 'single',
+                year: parseInt(checkbox.dataset.year, 10),
+                month: parseInt(checkbox.dataset.month, 10)
+            }));
+            
+            console.log('[MonthlyBudgetController] Selected months from checkboxes:', selectedMonths.length);
+            
+            if (selectedMonths.length === 0) {
+                alert('Please select at least one month');
+                return;
+            }
+        }
+        
+        const statusDiv = document.getElementById('share-month-form-status');
+        if (!statusDiv) {
+            console.error('[MonthlyBudgetController] Status div not found');
+            alert('Error: Status element not found');
+            return;
+        }
+        
+        statusDiv.innerHTML = '<p>Saving share...</p>';
+        console.log('[MonthlyBudgetController] Starting save operation. Editing:', !!this.editingShareId, 'Share ID:', this.editingShareId);
+        
+        try {
+            let result;
+            
+            if (this.editingShareId) {
+                console.log('[MonthlyBudgetController] Updating existing share ID:', this.editingShareId);
+                console.log('[MonthlyBudgetController] Update parameters:', {
+                    shareId: this.editingShareId,
+                    accessLevel,
+                    selectedMonthsCount: selectedMonths.length,
+                    sharePots,
+                    shareSettings,
+                    shareAllData
+                });
+                
+                result = await window.DatabaseService.updateDataShare(
+                    this.editingShareId,
+                    accessLevel,
+                    selectedMonths,
+                    sharePots,
+                    shareSettings,
+                    shareAllData
+                );
+                console.log('[MonthlyBudgetController] updateDataShare result:', result);
+            } else {
+                console.log('[MonthlyBudgetController] MODE: CREATE NEW SHARE');
+                console.log('[MonthlyBudgetController] Create parameters:', {
+                    email: email,
+                    accessLevel: accessLevel,
+                    selectedMonthsCount: selectedMonths.length,
+                    selectedMonths: selectedMonths,
+                    sharePots: sharePots,
+                    shareSettings: shareSettings,
+                    shareAllData: shareAllData
+                });
+                
+                console.log('[MonthlyBudgetController] Calling DatabaseService.createDataShare()...');
+                const createStartTime = Date.now();
+                result = await window.DatabaseService.createDataShare(
+                    email,
+                    accessLevel,
+                    selectedMonths,
+                    sharePots,
+                    shareSettings,
+                    shareAllData
+                );
+                const createEndTime = Date.now();
+                console.log('[MonthlyBudgetController] createDataShare completed in', (createEndTime - createStartTime), 'ms');
+                console.log('[MonthlyBudgetController] createDataShare result:', result);
+                console.log('[MonthlyBudgetController] Result success:', result ? result.success : 'result is null/undefined');
+                console.log('[MonthlyBudgetController] Result error:', result ? result.error : 'N/A');
+                console.log('[MonthlyBudgetController] Result share:', result ? result.share : 'N/A');
+            }
+            
+            console.log('[MonthlyBudgetController] ========== PROCESSING RESULT ==========');
+            console.log('[MonthlyBudgetController] Result object:', result);
+            console.log('[MonthlyBudgetController] Result type:', typeof result);
+            console.log('[MonthlyBudgetController] Result is null:', result === null);
+            console.log('[MonthlyBudgetController] Result is undefined:', result === undefined);
+            
+            if (!result) {
+                console.error('[MonthlyBudgetController] Result is null or undefined!');
+                statusDiv.innerHTML = '<p style="color: var(--error-color);">Error: No result returned from save operation.</p>';
+                return;
+            }
+            
+            if (result.success) {
+                console.log('[MonthlyBudgetController] ✅ SAVE OPERATION SUCCESSFUL');
+                const message = this.editingShareId ? 'Share updated successfully!' : 'Share saved successfully!';
+                console.log('[MonthlyBudgetController] Success message:', message);
+                statusDiv.innerHTML = `<p style="color: var(--success-color);">${message}</p>`;
+                
+                // Clear editing flag
+                console.log('[MonthlyBudgetController] Clearing editingShareId (was:', this.editingShareId, ')');
+                this.editingShareId = null;
+                console.log('[MonthlyBudgetController] editingShareId cleared, now:', this.editingShareId);
+                
+                // Reload existing shares
+                console.log('[MonthlyBudgetController] Reloading existing shares...');
+                await this.loadExistingSharesForMonth();
+                console.log('[MonthlyBudgetController] Existing shares reloaded');
+                
+                // Update sharing indicators
+                console.log('[MonthlyBudgetController] Updating sharing indicators...');
+                await this.updateSharingIndicators();
+                console.log('[MonthlyBudgetController] Sharing indicators updated');
+                
+                // Reset form after a delay
+                console.log('[MonthlyBudgetController] Scheduling form reset and modal close in 1500ms...');
+                setTimeout(() => {
+                    console.log('[MonthlyBudgetController] Timeout callback executing - resetting form and closing modal');
+                    this.resetShareMonthForm();
+                    this.hideShareMonthModal();
+                    console.log('[MonthlyBudgetController] Form reset and modal closed');
+                }, 1500);
+                console.log('[MonthlyBudgetController] Timeout scheduled');
+            } else {
+                console.error('[MonthlyBudgetController] ❌ SAVE OPERATION FAILED');
+                console.error('[MonthlyBudgetController] Error result:', result);
+                console.error('[MonthlyBudgetController] Error message:', result.error);
+                console.error('[MonthlyBudgetController] Error type:', typeof result.error);
+                
+                let errorMessage = result.error || 'Unknown error occurred';
+                console.log('[MonthlyBudgetController] Initial error message:', errorMessage);
+                
+                // Provide user-friendly error message for duplicate key
+                if (errorMessage.includes('duplicate key') || errorMessage.includes('already exists')) {
+                    console.log('[MonthlyBudgetController] Duplicate key error detected, updating message');
+                    errorMessage = 'A share with this user already exists. The share has been updated instead.';
+                    // Still reload to show the updated share
+                    console.log('[MonthlyBudgetController] Reloading shares despite error...');
+                    await this.loadExistingSharesForMonth();
+                    await this.updateSharingIndicators();
+                    console.log('[MonthlyBudgetController] Shares reloaded after duplicate key error');
+                }
+                
+                console.log('[MonthlyBudgetController] Displaying error message to user:', errorMessage);
+                statusDiv.innerHTML = `<p style="color: var(--error-color);">Error: ${errorMessage}</p>`;
+            }
+            console.log('[MonthlyBudgetController] ============================================');
+        } catch (error) {
+            console.error('[MonthlyBudgetController] ========== EXCEPTION IN SAVE OPERATION ==========');
+            console.error('[MonthlyBudgetController] Exception type:', error.constructor.name);
+            console.error('[MonthlyBudgetController] Exception message:', error.message);
+            console.error('[MonthlyBudgetController] Exception stack:', error.stack);
+            console.error('[MonthlyBudgetController] Full error object:', error);
+            console.error('[MonthlyBudgetController] ===================================================');
+            
+            const errorMessage = error.message || 'An unexpected error occurred';
+            if (statusDiv) {
+                statusDiv.innerHTML = `<p style="color: var(--error-color);">Error: ${errorMessage}</p>`;
+                console.log('[MonthlyBudgetController] Error message displayed in status div');
+            } else {
+                console.warn('[MonthlyBudgetController] Status div not found, using alert');
+                alert(`Error: ${errorMessage}`);
+            }
+        }
+        console.log('[MonthlyBudgetController] ========== handleSaveShareMonth() COMPLETE ==========');
+    },
+    
+    /**
+     * Update sharing indicators for current month and pots
+     */
+    async updateSharingIndicators() {
+        console.log('[MonthlyBudgetController] updateSharingIndicators() called');
+        
+        if (!this.currentMonthKey || !this.currentMonthData) {
+            console.log('[MonthlyBudgetController] No current month, skipping indicator update');
+            return;
+        }
+        
+        if (!window.DatabaseService) {
+            console.warn('[MonthlyBudgetController] DatabaseService not available');
+            return;
+        }
+        
+        try {
+            const result = await window.DatabaseService.getDataSharesCreatedByMe();
+            console.log('[MonthlyBudgetController] Shares for indicator update:', result);
+            
+            if (result.success && result.shares) {
+                const [year, month] = this.currentMonthKey.split('-');
+                const yearNum = parseInt(year, 10);
+                const monthNum = parseInt(month, 10);
+                
+                // Find shares that include this month
+                const monthShares = result.shares.filter(share => {
+                    if (!share.shared_months || share.shared_months.length === 0) {
+                        return false;
+                    }
+                    
+                    return share.shared_months.some(monthEntry => {
+                        if (monthEntry.type === 'single') {
+                            return monthEntry.year === yearNum && monthEntry.month === monthNum;
+                        }
+                        return false;
+                    });
+                });
+                
+                console.log('[MonthlyBudgetController] Found', monthShares.length, 'shares for current month');
+                
+                // Update sharing indicator next to Share Month button
+                await this.updateMonthSharingIndicator(monthShares);
+                
+                // Update pots indicators if pots are shared
+                const potsShares = result.shares.filter(share => share.shared_pots === true);
+                console.log('[MonthlyBudgetController] Found', potsShares.length, 'shares with pots');
+                await this.updatePotsIndicators(potsShares);
+            }
+        } catch (error) {
+            console.error('[MonthlyBudgetController] Error updating sharing indicators:', error);
+        }
+    },
+    
+    /**
+     * Update sharing indicator next to Share Month button
+     */
+    async updateMonthSharingIndicator(shares) {
+        console.log('[MonthlyBudgetController] updateMonthSharingIndicator() called with', shares.length, 'shares');
+        
+        const indicator = document.getElementById('month-sharing-indicator');
+        if (!indicator) {
+            console.warn('[MonthlyBudgetController] month-sharing-indicator not found');
+            return;
+        }
+        
+        if (shares.length === 0) {
+            indicator.style.display = 'none';
+            indicator.innerHTML = '';
+            indicator.title = '';
+            console.log('[MonthlyBudgetController] Hiding sharing indicator (no shares)');
+            return;
+        }
+        
+        // Look up emails and store share data
+        const sharesWithEmails = await Promise.all(shares.map(async (share) => {
+            let email = share.shared_with_user_id;
+            if (window.DatabaseService) {
+                try {
+                    const emailResult = await window.DatabaseService.getUserEmailById(share.shared_with_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        email = emailResult.email;
+                    }
+                } catch (error) {
+                    console.warn('[MonthlyBudgetController] Error looking up email for share:', share.id, error);
+                }
+            }
+            return { ...share, displayEmail: email };
+        }));
+        
+        console.log('[MonthlyBudgetController] Month shared with:', sharesWithEmails.map(s => s.displayEmail));
+        
+        // Create clickable list of users, each on a new line
+        const userLinks = sharesWithEmails.map((share, index) => {
+            return `<div class="shared-user-link" data-share-id="${share.id}" style="cursor: pointer; text-decoration: underline; color: var(--link-color, #0066cc); margin-top: 0.25rem;">${share.displayEmail}</div>`;
+        });
+        
+        indicator.innerHTML = `<div style="display: flex; flex-direction: column;"><strong>Shared with:</strong>${userLinks.join('')}</div>`;
+        
+        // Store share data for popup (store in a way that's accessible)
+        this._sharesData = sharesWithEmails;
+        
+        // Add click handlers to user names
+        indicator.querySelectorAll('.shared-user-link').forEach(link => {
+            // Remove any existing listeners by cloning
+            const newLink = link.cloneNode(true);
+            link.parentNode.replaceChild(newLink, link);
+            
+            newLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const shareId = parseInt(newLink.dataset.shareId, 10);
+                const share = sharesWithEmails.find(s => s.id === shareId);
+                if (share) {
+                    console.log('[MonthlyBudgetController] User link clicked, showing details for share:', shareId);
+                    this.showShareDetailsPopup(share);
+                } else {
+                    console.warn('[MonthlyBudgetController] Share not found for ID:', shareId);
+                }
+            });
+        });
+        
+        indicator.style.display = 'block';
+        indicator.title = `Click on a user's name to see share details`;
+        
+        console.log('[MonthlyBudgetController] Updated sharing indicator with clickable user list');
+    },
+    
+    /**
+     * Show share details popup for a specific share
+     */
+    async showShareDetailsPopup(share) {
+        console.log('[MonthlyBudgetController] showShareDetailsPopup() called for share:', share.id);
+        
+        const modal = document.getElementById('share-details-modal');
+        const modalTitle = document.getElementById('share-details-modal-title');
+        const modalBody = document.getElementById('share-details-modal-body');
+        
+        if (!modal || !modalTitle || !modalBody) {
+            console.error('[MonthlyBudgetController] Share details modal elements not found');
+            return;
+        }
+        
+        // Parse shared_months if it's a string
+        let sharedMonths = share.shared_months;
+        if (typeof sharedMonths === 'string') {
+            try {
+                sharedMonths = JSON.parse(sharedMonths);
+            } catch (e) {
+                console.warn('[MonthlyBudgetController] Error parsing shared_months:', e);
+                sharedMonths = [];
+            }
+        }
+        
+        // Check if share_all_data is set
+        const shareAllData = share.share_all_data === true || share.share_all_data === 'true';
+        
+        // Format months list
+        let monthsList = 'None';
+        if (shareAllData) {
+            monthsList = 'All months';
+        } else if (sharedMonths && sharedMonths.length > 0) {
+            const monthStrings = sharedMonths.map(monthEntry => {
+                if (monthEntry.type === 'single') {
+                    const monthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.month) : `Month ${monthEntry.month}`;
+                    return `${monthName} ${monthEntry.year}`;
+                } else if (monthEntry.type === 'range') {
+                    const startMonthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.startMonth) : `Month ${monthEntry.startMonth}`;
+                    const endMonthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.endMonth) : `Month ${monthEntry.endMonth}`;
+                    return `${startMonthName} ${monthEntry.startYear} - ${endMonthName} ${monthEntry.endYear}`;
+                }
+                return '';
+            }).filter(s => s);
+            monthsList = monthStrings.length > 0 ? monthStrings.join(', ') : 'None';
+        }
+        
+        modalTitle.textContent = `Share Details: ${share.displayEmail}`;
+        
+        modalBody.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                <div>
+                    <strong>Shared With:</strong> ${share.displayEmail}
+                </div>
+                <div>
+                    <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                </div>
+                ${shareAllData ? '<div><strong>Share All Data:</strong> Yes</div>' : ''}
+                <div>
+                    <strong>Months:</strong> ${shareAllData || (share.shared_months && sharedMonths.length > 0) ? 'Yes' : 'No'}<br>
+                    ${shareAllData || (share.shared_months && sharedMonths.length > 0) ? `<span style="font-size: 0.9em; color: var(--text-color-secondary); margin-top: 0.25rem; display: block;">${monthsList}</span>` : ''}
+                </div>
+                <div>
+                    <strong>Pots:</strong> ${shareAllData || share.shared_pots ? 'Yes' : 'No'}
+                </div>
+                <div>
+                    <strong>Settings:</strong> ${shareAllData || share.shared_settings ? 'Yes' : 'No'}
+                </div>
+                <div style="margin-top: var(--spacing-md);">
+                    <button class="btn btn-action" id="edit-share-from-details" data-share-id="${share.id}">Edit Share</button>
+                    <button class="btn btn-danger" id="delete-share-from-details" data-share-id="${share.id}" style="margin-left: var(--spacing-sm);">Delete Share</button>
+                </div>
+            </div>
+        `;
+        
+        // Setup event listeners
+        const editBtn = document.getElementById('edit-share-from-details');
+        const deleteBtn = document.getElementById('delete-share-from-details');
+        const closeBtn = document.getElementById('close-share-details-modal');
+        
+        if (editBtn) {
+            editBtn.addEventListener('click', async () => {
+                console.log('[MonthlyBudgetController] Edit share clicked:', share.id);
+                this.hideShareDetailsPopup();
+                await this.editShareInModal(share);
+            });
+        }
+        
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to delete this share?')) {
+                    await this.handleDeleteShareFromModal(share.id);
+                    this.hideShareDetailsPopup();
+                }
+            });
+        }
+        
+        if (closeBtn) {
+            closeBtn.onclick = () => this.hideShareDetailsPopup();
+        }
+        
+        // Close on overlay click
+        const overlay = modal.querySelector('.help-modal-overlay');
+        if (overlay) {
+            overlay.onclick = () => this.hideShareDetailsPopup();
+        }
+        
+        // Close on Escape key
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                this.hideShareDetailsPopup();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+        
+        // Show modal
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        
+        console.log('[MonthlyBudgetController] Share details popup displayed');
+    },
+    
+    /**
+     * Hide share details popup
+     */
+    hideShareDetailsPopup() {
+        console.log('[MonthlyBudgetController] hideShareDetailsPopup() called');
+        
+        const modal = document.getElementById('share-details-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+    },
+    
+    /**
+     * Update pots section with sharing indicator
+     */
+    async updatePotsIndicators(shares) {
+        console.log('[MonthlyBudgetController] updatePotsIndicators() called with', shares.length, 'shares');
+        
+        if (shares.length === 0) {
+            // Remove indicator if exists
+            const existingIndicator = document.getElementById('pots-sharing-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+                console.log('[MonthlyBudgetController] Removed pots sharing indicator');
+            }
+            return;
+        }
+        
+        // Look up emails
+        const emails = await Promise.all(shares.map(async (share) => {
+            if (window.DatabaseService) {
+                try {
+                    const emailResult = await window.DatabaseService.getUserEmailById(share.shared_with_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        return emailResult.email;
+                    }
+                } catch (error) {
+                    console.warn('[MonthlyBudgetController] Error looking up email for share:', share.id, error);
+                }
+            }
+            return share.shared_with_user_id;
+        }));
+        
+        console.log('[MonthlyBudgetController] Pots shared with emails:', emails);
+        
+        // Find or create indicator - pots might be in monthly budget or separate page
+        let indicator = document.getElementById('pots-sharing-indicator');
+        if (!indicator) {
+            // Try to find pots section in monthly budget
+            const potsTable = document.getElementById('pots-tbody');
+            if (potsTable) {
+                const potsSection = potsTable.closest('section');
+                if (potsSection) {
+                    const title = potsSection.querySelector('h2');
+                    if (title) {
+                        indicator = document.createElement('span');
+                        indicator.id = 'pots-sharing-indicator';
+                        indicator.style.marginLeft = '0.5rem';
+                        indicator.style.fontSize = '0.9em';
+                        indicator.style.color = 'var(--text-color-secondary)';
+                        title.appendChild(indicator);
+                        console.log('[MonthlyBudgetController] Created pots sharing indicator in monthly budget');
+                    }
+                }
+            } else {
+                // Try pots page
+                const potsPageTitle = document.querySelector('.pots-list-section h2');
+                if (potsPageTitle) {
+                    indicator = document.createElement('span');
+                    indicator.id = 'pots-sharing-indicator';
+                    indicator.style.marginLeft = '0.5rem';
+                    indicator.style.fontSize = '0.9em';
+                    indicator.style.color = 'var(--text-color-secondary)';
+                    potsPageTitle.appendChild(indicator);
+                    console.log('[MonthlyBudgetController] Created pots sharing indicator in pots page');
+                }
+            }
+        }
+        
+        if (indicator) {
+            const shareText = shares.length === 1 
+                ? `🔗 Shared with ${emails[0]}`
+                : `🔗 Shared with ${shares.length} users`;
+            indicator.textContent = shareText;
+            indicator.title = `Shared with: ${emails.join(', ')}`;
+            console.log('[MonthlyBudgetController] Updated pots sharing indicator:', shareText);
+        } else {
+            console.log('[MonthlyBudgetController] Could not find or create pots section for indicator');
+        }
     },
 
     /**
@@ -2169,10 +3449,9 @@ const MonthlyBudgetController = {
 
                 const monthContent = document.getElementById('month-content');
                 const noMonthMessage = document.getElementById('no-month-message');
-                const monthTitleWrapper = document.getElementById('month-title-wrapper');
-                const monthSelectorWrapper = document.getElementById('month-selector-wrapper');
                 if (monthContent) monthContent.style.display = 'none';
                 if (noMonthMessage) noMonthMessage.style.display = 'block';
+                this.updateShareButtonVisibility();
                 if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
                 if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
 
@@ -2188,6 +3467,7 @@ const MonthlyBudgetController = {
                     const noMonthMessage = document.getElementById('no-month-message');
                     if (monthContent) monthContent.style.display = 'none';
                     if (noMonthMessage) noMonthMessage.style.display = 'block';
+                    this.updateShareButtonVisibility();
                 }
             } else {
                 alert('Error deleting month. Please try again.');

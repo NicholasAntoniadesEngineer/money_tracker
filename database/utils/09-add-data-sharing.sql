@@ -16,10 +16,14 @@ CREATE TABLE IF NOT EXISTS data_shares (
     shared_months JSONB DEFAULT '[]',
     shared_pots BOOLEAN DEFAULT false,
     shared_settings BOOLEAN DEFAULT false,
+    share_all_data BOOLEAN DEFAULT false, -- If true, shares all data (months, pots, settings) regardless of individual flags
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(owner_user_id, shared_with_user_id)
 );
+
+-- Add comment to document the share_all_data column
+COMMENT ON COLUMN data_shares.share_all_data IS 'If true, shares all data (months, pots, settings) regardless of individual flags';
 
 -- Field locks table (prevents concurrent edits to the same field)
 CREATE TABLE IF NOT EXISTS field_locks (
@@ -140,6 +144,7 @@ CREATE POLICY "Allow shared users to read months" ON user_months
             WHERE data_shares.owner_user_id = user_months.user_id
             AND data_shares.shared_with_user_id = auth.uid()
             AND (
+                data_shares.share_all_data = true OR
                 (data_shares.shared_months @> jsonb_build_array(jsonb_build_object('year', user_months.year, 'month', user_months.month)))
                 OR
                 EXISTS (
@@ -171,6 +176,7 @@ CREATE POLICY "Allow shared users to update months" ON user_months
             AND data_shares.shared_with_user_id = auth.uid()
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
             AND (
+                data_shares.share_all_data = true OR
                 (data_shares.shared_months @> jsonb_build_array(jsonb_build_object('year', user_months.year, 'month', user_months.month)))
                 OR
                 EXISTS (
@@ -198,6 +204,7 @@ CREATE POLICY "Allow shared users to update months" ON user_months
             AND data_shares.shared_with_user_id = auth.uid()
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
             AND (
+                data_shares.share_all_data = true OR
                 (data_shares.shared_months @> jsonb_build_array(jsonb_build_object('year', user_months.year, 'month', user_months.month)))
                 OR
                 EXISTS (
@@ -229,6 +236,7 @@ CREATE POLICY "Allow shared users to delete months" ON user_months
             AND data_shares.shared_with_user_id = auth.uid()
             AND data_shares.access_level = 'read_write_delete'
             AND (
+                data_shares.share_all_data = true OR
                 (data_shares.shared_months @> jsonb_build_array(jsonb_build_object('year', user_months.year, 'month', user_months.month)))
                 OR
                 EXISTS (
@@ -258,7 +266,7 @@ CREATE POLICY "Allow shared users to read pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_pots = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
         )
     );
 
@@ -270,7 +278,7 @@ CREATE POLICY "Allow shared users to update pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_pots = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     )
@@ -280,7 +288,7 @@ CREATE POLICY "Allow shared users to update pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_pots = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     );
@@ -293,7 +301,7 @@ CREATE POLICY "Allow shared users to delete pots" ON pots
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = pots.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_pots = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_pots = true)
             AND data_shares.access_level = 'read_write_delete'
         )
     );
@@ -307,7 +315,7 @@ CREATE POLICY "Allow shared users to read settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_settings = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
         )
     );
 
@@ -319,7 +327,7 @@ CREATE POLICY "Allow shared users to update settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_settings = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     )
@@ -329,7 +337,7 @@ CREATE POLICY "Allow shared users to update settings" ON settings
             SELECT 1 FROM data_shares
             WHERE data_shares.owner_user_id = settings.user_id
             AND data_shares.shared_with_user_id = auth.uid()
-            AND data_shares.shared_settings = true
+            AND (data_shares.share_all_data = true OR data_shares.shared_settings = true)
             AND data_shares.access_level IN ('read_write', 'read_write_delete')
         )
     );

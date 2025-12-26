@@ -2667,9 +2667,15 @@ const DatabaseService = {
             }
             
             const functionUrl = `${this.client.supabaseUrl}/functions/v1/find-user-by-email`;
+            const authHeaders = this._getAuthHeaders();
+            const edgeFunctionHeaders = {
+                'apikey': authHeaders.apikey,
+                'Authorization': authHeaders.Authorization,
+                'Content-Type': 'application/json'
+            };
             const response = await fetch(functionUrl, {
                 method: 'POST',
-                headers: this._getAuthHeaders(),
+                headers: edgeFunctionHeaders,
                 body: JSON.stringify({ email: email })
             });
             
@@ -2708,18 +2714,96 @@ const DatabaseService = {
     },
     
     /**
+     * Get user email by user ID
+     * Note: This requires a Supabase Edge Function or admin API access
+     * @param {string} userId - User ID to look up
+     * @returns {Promise<{success: boolean, email: string|null, error: string|null}>}
+     */
+    async getUserEmailById(userId) {
+        try {
+            if (!userId || typeof userId !== 'string') {
+                return {
+                    success: false,
+                    email: null,
+                    error: 'User ID is required'
+                };
+            }
+            
+            if (!this.client || !this.client.supabaseUrl) {
+                throw new Error('DatabaseService client not available');
+            }
+            
+            const functionUrl = `${this.client.supabaseUrl}/functions/v1/get-user-email-by-id`;
+            const authHeaders = this._getAuthHeaders();
+            const edgeFunctionHeaders = {
+                'apikey': authHeaders.apikey,
+                'Authorization': authHeaders.Authorization,
+                'Content-Type': 'application/json'
+            };
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: edgeFunctionHeaders,
+                body: JSON.stringify({ userId: userId })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                return {
+                    success: false,
+                    email: null,
+                    error: errorData.error || errorData.message || 'Failed to get user email'
+                };
+            }
+            
+            const data = await response.json();
+            
+            if (!data.email) {
+                return {
+                    success: false,
+                    email: null,
+                    error: 'Email not found'
+                };
+            }
+            
+            return {
+                success: true,
+                email: data.email,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting user email by ID:', error);
+            return {
+                success: false,
+                email: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
      * Create a data share
      * @param {string} sharedWithEmail - Email of user to share with
      * @param {string} accessLevel - Access level: 'read', 'read_write', or 'read_write_delete'
      * @param {Array} sharedMonths - Array of month objects or date ranges
      * @param {boolean} sharedPots - Whether to share pots
      * @param {boolean} sharedSettings - Whether to share settings
+     * @param {boolean} shareAllData - Whether to share all data (optional, defaults to false)
      * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
      */
-    async createDataShare(sharedWithEmail, accessLevel, sharedMonths, sharedPots, sharedSettings) {
+    async createDataShare(sharedWithEmail, accessLevel, sharedMonths, sharedPots, sharedSettings, shareAllData = false) {
+        console.log('[DatabaseService] createDataShare() called');
+        console.log('[DatabaseService] Parameters:', { 
+            sharedWithEmail, 
+            accessLevel, 
+            sharedMonthsCount: sharedMonths?.length || 0, 
+            sharedPots, 
+            sharedSettings 
+        });
+        
         try {
             const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
+                console.error('[DatabaseService] User not authenticated');
                 return {
                     success: false,
                     share: null,
@@ -2727,7 +2811,10 @@ const DatabaseService = {
                 };
             }
             
+            console.log('[DatabaseService] Current user ID:', currentUserId);
+            
             if (!window.SubscriptionGuard) {
+                console.error('[DatabaseService] SubscriptionGuard not available');
                 return {
                     success: false,
                     share: null,
@@ -2736,6 +2823,8 @@ const DatabaseService = {
             }
             
             const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+            console.log('[DatabaseService] Premium status:', hasPremium);
+            
             if (!hasPremium) {
                 return {
                     success: false,
@@ -2744,7 +2833,10 @@ const DatabaseService = {
                 };
             }
             
+            console.log('[DatabaseService] Looking up user by email:', sharedWithEmail);
             const userResult = await this.findUserByEmail(sharedWithEmail);
+            console.log('[DatabaseService] findUserByEmail result:', userResult);
+            
             if (!userResult.success || !userResult.userId) {
                 return {
                     success: false,
@@ -2754,6 +2846,7 @@ const DatabaseService = {
             }
             
             if (userResult.userId === currentUserId) {
+                console.warn('[DatabaseService] Attempted to share with self');
                 return {
                     success: false,
                     share: null,
@@ -2762,27 +2855,117 @@ const DatabaseService = {
             }
             
             const tableName = this._getTableName('dataShares');
-            const shareData = {
-                owner_user_id: currentUserId,
-                shared_with_user_id: userResult.userId,
-                access_level: accessLevel,
-                shared_months: JSON.stringify(sharedMonths),
-                shared_pots: sharedPots,
-                shared_settings: sharedSettings
-            };
             
-            const result = await this.queryInsert(tableName, shareData);
+            // Check if a share already exists for this owner-user pair
+            console.log('[DatabaseService] Checking for existing share between owner:', currentUserId, 'and user:', userResult.userId);
+            const existingShareResult = await this.querySelect(tableName, {
+                filter: {
+                    owner_user_id: currentUserId,
+                    shared_with_user_id: userResult.userId
+                },
+                limit: 1
+            });
             
-            if (result.error) {
-                console.error('[DatabaseService] Error creating data share:', result.error);
-                return {
-                    success: false,
-                    share: null,
-                    error: result.error.message || 'Failed to create share'
+            let share;
+            
+            if (existingShareResult.data && existingShareResult.data.length > 0) {
+                // Share already exists, update it
+                console.log('[DatabaseService] Existing share found, updating share ID:', existingShareResult.data[0].id);
+                const existingShare = existingShareResult.data[0];
+                const shareId = existingShare.id;
+                
+                const updateData = {
+                    access_level: accessLevel,
+                    shared_months: JSON.stringify(sharedMonths),
+                    shared_pots: sharedPots,
+                    shared_settings: sharedSettings,
+                    share_all_data: shareAllData,
+                    updated_at: new Date().toISOString()
                 };
+                
+                console.log('[DatabaseService] Updating existing share with data:', updateData);
+                const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+                
+                if (updateResult.error) {
+                    console.error('[DatabaseService] Error updating data share:', updateResult.error);
+                    return {
+                        success: false,
+                        share: null,
+                        error: updateResult.error.message || 'Failed to update share'
+                    };
+                }
+                
+                share = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : existingShare;
+                console.log('[DatabaseService] Share updated successfully');
+            } else {
+                // No existing share, create new one
+                console.log('[DatabaseService] No existing share found, creating new share');
+                const shareData = {
+                    owner_user_id: currentUserId,
+                    shared_with_user_id: userResult.userId,
+                    access_level: accessLevel,
+                    shared_months: JSON.stringify(sharedMonths),
+                    shared_pots: sharedPots,
+                    shared_settings: sharedSettings,
+                    share_all_data: shareAllData
+                };
+                
+                const result = await this.queryInsert(tableName, shareData);
+                
+                if (result.error) {
+                    console.error('[DatabaseService] Error creating data share:', result.error);
+                    // Check if it's a duplicate key error
+                    if (result.error.code === '23505' || result.error.message?.includes('duplicate key')) {
+                        console.log('[DatabaseService] Duplicate key error detected, attempting to update existing share');
+                        // Try to find and update the existing share
+                        const retryResult = await this.querySelect(tableName, {
+                            filter: {
+                                owner_user_id: currentUserId,
+                                shared_with_user_id: userResult.userId
+                            },
+                            limit: 1
+                        });
+                        
+                        if (retryResult.data && retryResult.data.length > 0) {
+                            const existingShare = retryResult.data[0];
+                            const updateData = {
+                                access_level: accessLevel,
+                                shared_months: JSON.stringify(sharedMonths),
+                                shared_pots: sharedPots,
+                                shared_settings: sharedSettings,
+                                share_all_data: shareAllData,
+                                updated_at: new Date().toISOString()
+                            };
+                            
+                            const updateResult = await this.queryUpdate(tableName, existingShare.id, updateData);
+                            if (updateResult.error) {
+                                return {
+                                    success: false,
+                                    share: null,
+                                    error: updateResult.error.message || 'Failed to update share'
+                                };
+                            }
+                            share = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : existingShare;
+                            console.log('[DatabaseService] Share updated after duplicate key error');
+                        } else {
+                            return {
+                                success: false,
+                                share: null,
+                                error: result.error.message || 'Failed to create share'
+                            };
+                        }
+                    } else {
+                        return {
+                            success: false,
+                            share: null,
+                            error: result.error.message || 'Failed to create share'
+                        };
+                    }
+                } else {
+                    share = result.data && result.data.length > 0 ? result.data[0] : null;
+                    console.log('[DatabaseService] Share created successfully');
+                }
             }
-            
-            const share = result.data && result.data.length > 0 ? result.data[0] : null;
             
             return {
                 success: true,
@@ -2806,12 +2989,31 @@ const DatabaseService = {
      * @param {Array} sharedMonths - Array of month objects or date ranges
      * @param {boolean} sharedPots - Whether to share pots
      * @param {boolean} sharedSettings - Whether to share settings
+     * @param {boolean} shareAllData - Whether to share all data (optional, defaults to false)
      * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
      */
-    async updateDataShare(shareId, accessLevel, sharedMonths, sharedPots, sharedSettings) {
+    async updateDataShare(shareId, accessLevel, sharedMonths, sharedPots, sharedSettings, shareAllData = false) {
+        console.log('[DatabaseService] ========== updateDataShare() CALLED ==========');
+        console.log('[DatabaseService] Parameters:', {
+            shareId: shareId,
+            shareIdType: typeof shareId,
+            accessLevel: accessLevel,
+            sharedMonthsCount: Array.isArray(sharedMonths) ? sharedMonths.length : 'not an array',
+            sharedMonths: sharedMonths,
+            sharedPots: sharedPots,
+            sharedPotsType: typeof sharedPots,
+            sharedSettings: sharedSettings,
+            sharedSettingsType: typeof sharedSettings,
+            shareAllData: shareAllData,
+            shareAllDataType: typeof shareAllData
+        });
+        
         try {
+            console.log('[DatabaseService] Getting current user ID...');
             const currentUserId = await this._getCurrentUserId();
+            console.log('[DatabaseService] Current user ID:', currentUserId);
             if (!currentUserId) {
+                console.error('[DatabaseService] User not authenticated');
                 return {
                     success: false,
                     share: null,
@@ -2820,21 +3022,46 @@ const DatabaseService = {
             }
             
             const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] Table name:', tableName);
+            
             const updateData = {
                 access_level: accessLevel,
                 shared_months: JSON.stringify(sharedMonths),
                 shared_pots: sharedPots,
-                shared_settings: sharedSettings
+                shared_settings: sharedSettings,
+                share_all_data: shareAllData,
+                updated_at: new Date().toISOString()
             };
+            console.log('[DatabaseService] Update data object:', updateData);
+            console.log('[DatabaseService] Update data JSON stringified months:', updateData.shared_months);
             
+            console.log('[DatabaseService] Calling queryUpdate with:', {
+                tableName: tableName,
+                shareId: shareId,
+                updateData: updateData,
+                filter: { owner_user_id: currentUserId }
+            });
+            
+            const updateStartTime = Date.now();
             const result = await this.queryUpdate(tableName, shareId, updateData, {
                 filter: {
                     owner_user_id: currentUserId
                 }
             });
+            const updateEndTime = Date.now();
+            console.log('[DatabaseService] queryUpdate completed in', (updateEndTime - updateStartTime), 'ms');
+            console.log('[DatabaseService] queryUpdate result:', result);
+            console.log('[DatabaseService] Result has error:', !!result.error);
+            console.log('[DatabaseService] Result has data:', !!result.data);
+            console.log('[DatabaseService] Result data length:', result.data ? (Array.isArray(result.data) ? result.data.length : 'not an array') : 'no data');
             
             if (result.error) {
-                console.error('[DatabaseService] Error updating data share:', result.error);
+                console.error('[DatabaseService] ❌ Error updating data share');
+                console.error('[DatabaseService] Error object:', result.error);
+                console.error('[DatabaseService] Error message:', result.error.message);
+                console.error('[DatabaseService] Error code:', result.error.code);
+                console.error('[DatabaseService] Error details:', result.error.details);
+                console.error('[DatabaseService] Error hint:', result.error.hint);
                 return {
                     success: false,
                     share: null,
@@ -2843,14 +3070,22 @@ const DatabaseService = {
             }
             
             const share = result.data && result.data.length > 0 ? result.data[0] : null;
+            console.log('[DatabaseService] Extracted share from result:', share);
+            console.log('[DatabaseService] Share ID:', share ? share.id : 'no share');
             
+            console.log('[DatabaseService] ✅ updateDataShare SUCCESS');
             return {
                 success: true,
                 share: share,
                 error: null
             };
         } catch (error) {
-            console.error('[DatabaseService] Exception updating data share:', error);
+            console.error('[DatabaseService] ========== EXCEPTION IN updateDataShare ==========');
+            console.error('[DatabaseService] Exception type:', error.constructor.name);
+            console.error('[DatabaseService] Exception message:', error.message);
+            console.error('[DatabaseService] Exception stack:', error.stack);
+            console.error('[DatabaseService] Full error object:', error);
+            console.error('[DatabaseService] ===================================================');
             return {
                 success: false,
                 share: null,

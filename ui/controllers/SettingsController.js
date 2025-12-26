@@ -47,6 +47,26 @@ const SettingsController = {
         try {
             await this.loadDataShares();
             console.log('[SettingsController] Data shares loaded');
+            
+            // Check if we should auto-open share form with month pre-selected
+            const shareMonthYear = sessionStorage.getItem('shareMonthYear');
+            const shareMonthMonth = sessionStorage.getItem('shareMonthMonth');
+            if (shareMonthYear && shareMonthMonth) {
+                sessionStorage.removeItem('shareMonthYear');
+                sessionStorage.removeItem('shareMonthMonth');
+                // Wait a bit for the page to render
+                setTimeout(async () => {
+                    await this.showAddShareFormWithMonth(parseInt(shareMonthYear, 10), parseInt(shareMonthMonth, 10));
+                }, 500);
+            } else if (window.location.hash === '#data-sharing') {
+                // Scroll to data sharing section if hash is present
+                setTimeout(() => {
+                    const dataSharingSection = document.getElementById('data-sharing-section');
+                    if (dataSharingSection) {
+                        dataSharingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 500);
+            }
         } catch (error) {
             console.error('[SettingsController] Error loading data shares:', error);
         }
@@ -503,9 +523,9 @@ const SettingsController = {
             addMonthBtn.addEventListener('click', () => this.addMonthToShare());
         }
         
-        const addMonthRangeBtn = document.getElementById('add-month-range-button');
-        if (addMonthRangeBtn) {
-            addMonthRangeBtn.addEventListener('click', () => this.addMonthRangeToShare());
+        const shareAllDataCheckbox = document.getElementById('share-all-data');
+        if (shareAllDataCheckbox) {
+            shareAllDataCheckbox.addEventListener('change', () => this.handleShareAllDataChange());
         }
     },
 
@@ -1646,28 +1666,33 @@ const SettingsController = {
             return;
         }
         
-        if (!window.SubscriptionGuard) {
-            dataSharingSection.style.display = 'none';
-            return;
+        let hasPremium = false;
+        if (window.SubscriptionGuard) {
+            try {
+                hasPremium = await window.SubscriptionGuard.hasTier('premium');
+            } catch (error) {
+                console.warn('[SettingsController] Error checking premium status:', error);
+            }
         }
         
-        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
-        if (!hasPremium) {
-            dataSharingSection.style.display = 'none';
-            return;
+        const premiumMessage = document.getElementById('premium-required-message');
+        if (premiumMessage) {
+            premiumMessage.style.display = hasPremium ? 'none' : 'block';
         }
-        
-        dataSharingSection.style.display = 'block';
         
         if (!window.DatabaseService) {
             console.error('[SettingsController] DatabaseService not available');
+            const list = document.getElementById('data-shares-list');
+            if (list) {
+                list.innerHTML = '<p>Loading...</p>';
+            }
             return;
         }
         
         try {
             const result = await window.DatabaseService.getDataSharesCreatedByMe();
             if (result.success && result.shares) {
-                this.renderDataShares(result.shares);
+                await this.renderDataShares(result.shares);
             } else {
                 const list = document.getElementById('data-shares-list');
                 if (list) {
@@ -1676,20 +1701,108 @@ const SettingsController = {
             }
         } catch (error) {
             console.error('[SettingsController] Error loading data shares:', error);
+            const list = document.getElementById('data-shares-list');
+            if (list) {
+                list.innerHTML = '<p>Error loading shares. Please try again.</p>';
+            }
             const status = document.getElementById('data-sharing-status');
             if (status) {
                 status.innerHTML = `<p style="color: var(--error-color);">Error loading shares: ${error.message}</p>`;
             }
+        }
+        
+        if (!hasPremium) {
+            this.disableDataSharingInteractions();
+        } else {
+            this.enableDataSharingInteractions();
+        }
+    },
+    
+    /**
+     * Disable all data sharing interactions for non-premium users
+     */
+    disableDataSharingInteractions() {
+        const addShareBtn = document.getElementById('add-share-button');
+        if (addShareBtn) {
+            addShareBtn.disabled = true;
+            addShareBtn.style.opacity = '0.5';
+            addShareBtn.style.cursor = 'not-allowed';
+            addShareBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
+        }
+        
+        const shareItems = document.querySelectorAll('.share-item button');
+        shareItems.forEach(btn => {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
+        });
+        
+        const form = document.getElementById('add-share-form');
+        if (form) {
+            const formElements = form.querySelectorAll('input, select, button, textarea');
+            formElements.forEach(el => {
+                el.disabled = true;
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+                el.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                };
+            });
+        }
+    },
+    
+    /**
+     * Enable all data sharing interactions for premium users
+     */
+    enableDataSharingInteractions() {
+        const addShareBtn = document.getElementById('add-share-button');
+        if (addShareBtn) {
+            addShareBtn.disabled = false;
+            addShareBtn.style.opacity = '';
+            addShareBtn.style.cursor = '';
+        }
+        
+        const shareItems = document.querySelectorAll('.share-item button');
+        shareItems.forEach(btn => {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+        });
+        
+        const form = document.getElementById('add-share-form');
+        if (form) {
+            const formElements = form.querySelectorAll('input, select, button, textarea');
+            formElements.forEach(el => {
+                el.disabled = false;
+                el.style.opacity = '';
+                el.style.cursor = '';
+            });
         }
     },
     
     /**
      * Render data shares list
      */
-    renderDataShares(shares) {
+    async renderDataShares(shares) {
         const list = document.getElementById('data-shares-list');
         if (!list) {
             return;
+        }
+        
+        let hasPremium = false;
+        if (window.SubscriptionGuard) {
+            hasPremium = await window.SubscriptionGuard.hasTier('premium');
         }
         
         if (shares.length === 0) {
@@ -1697,41 +1810,255 @@ const SettingsController = {
             return;
         }
         
-        list.innerHTML = shares.map(share => `
+        const buttonDisabled = hasPremium ? '' : 'disabled style="opacity: 0.5; cursor: not-allowed;"';
+        
+        // Look up emails for all shares
+        const sharesWithEmails = await Promise.all(shares.map(async (share) => {
+            let email = share.shared_with_user_id; // Default to user ID if lookup fails
+            if (window.DatabaseService) {
+                try {
+                    const emailResult = await window.DatabaseService.getUserEmailById(share.shared_with_user_id);
+                    if (emailResult.success && emailResult.email) {
+                        email = emailResult.email;
+                    }
+                } catch (error) {
+                    console.warn('[SettingsController] Error looking up email for user:', share.shared_with_user_id, error);
+                }
+            }
+            return { ...share, displayEmail: email };
+        }));
+        
+        list.innerHTML = sharesWithEmails.map(share => {
+            // Parse shared_months if it's a string
+            let sharedMonths = share.shared_months;
+            if (typeof sharedMonths === 'string') {
+                try {
+                    sharedMonths = JSON.parse(sharedMonths);
+                } catch (e) {
+                    console.warn('[SettingsController] Error parsing shared_months:', e);
+                    sharedMonths = [];
+                }
+            }
+            
+            const shareAllData = share.share_all_data === true || share.share_all_data === 'true';
+            
+            // Format months list
+            let monthsDisplay = 'None';
+            if (shareAllData) {
+                monthsDisplay = 'All months';
+            } else if (sharedMonths && sharedMonths.length > 0) {
+                const monthStrings = sharedMonths.map(monthEntry => {
+                    if (monthEntry.type === 'single') {
+                        const monthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.month) : `Month ${monthEntry.month}`;
+                        return `${monthName} ${monthEntry.year}`;
+                    } else if (monthEntry.type === 'range') {
+                        const startMonthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.startMonth) : `Month ${monthEntry.startMonth}`;
+                        const endMonthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.endMonth) : `Month ${monthEntry.endMonth}`;
+                        return `${startMonthName} ${monthEntry.startYear} - ${endMonthName} ${monthEntry.endYear}`;
+                    }
+                    return '';
+                }).filter(s => s);
+                monthsDisplay = monthStrings.length > 0 ? monthStrings.join(', ') : 'None';
+            }
+            
+            const potsDisplay = shareAllData || share.shared_pots ? 'Yes' : 'No';
+            const settingsDisplay = shareAllData || share.shared_settings ? 'Yes' : 'No';
+            
+            return `
             <div class="share-item" style="padding: var(--spacing-md); margin-bottom: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div>
-                        <strong>Shared with:</strong> ${share.shared_with_user_id}<br>
-                        <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}<br>
-                        <strong>Months:</strong> ${share.shared_months && share.shared_months.length > 0 ? 'Yes' : 'No'}<br>
-                        <strong>Pots:</strong> ${share.shared_pots ? 'Yes' : 'No'}<br>
-                        <strong>Settings:</strong> ${share.shared_settings ? 'Yes' : 'No'}
+                    <div style="flex: 1;">
+                        <div style="margin-bottom: var(--spacing-sm);">
+                            <strong>Shared with:</strong> ${share.displayEmail}
+                        </div>
+                        <div style="margin-bottom: var(--spacing-sm);">
+                            <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                        </div>
+                        ${shareAllData ? `<div style="margin-bottom: var(--spacing-sm);"><strong>Share All Data:</strong> Yes</div>` : ''}
+                        <div style="margin-bottom: var(--spacing-sm);">
+                            <strong>Months:</strong> ${shareAllData || (sharedMonths && sharedMonths.length > 0) ? 'Yes' : 'No'}<br>
+                            <span style="font-size: 0.9em; color: var(--text-color-secondary); margin-left: 1rem;">${monthsDisplay}</span>
+                        </div>
+                        <div style="margin-bottom: var(--spacing-sm);">
+                            <strong>Pots:</strong> ${potsDisplay}
+                        </div>
+                        <div>
+                            <strong>Settings:</strong> ${settingsDisplay}
+                        </div>
                     </div>
-                    <div style="display: flex; gap: var(--spacing-sm);">
-                        <button class="btn btn-action edit-share-btn" data-share-id="${share.id}">Edit</button>
-                        <button class="btn btn-danger delete-share-btn" data-share-id="${share.id}">Delete</button>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-left: var(--spacing-md);">
+                        <button class="btn btn-action edit-share-btn" data-share-id="${share.id}" ${buttonDisabled}>Edit</button>
+                        <button class="btn btn-danger delete-share-btn" data-share-id="${share.id}" ${buttonDisabled}>Delete</button>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         
         list.querySelectorAll('.delete-share-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.handleDeleteShare(btn.dataset.shareId));
+            if (hasPremium) {
+                btn.addEventListener('click', () => this.handleDeleteShare(btn.dataset.shareId));
+            } else {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+            }
         });
         
         list.querySelectorAll('.edit-share-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.handleEditShare(btn.dataset.shareId));
+            if (hasPremium) {
+                btn.addEventListener('click', () => this.handleEditShare(btn.dataset.shareId));
+            } else {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+            }
         });
     },
     
     /**
      * Show add share form
      */
-    showAddShareForm() {
+    async showAddShareForm() {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
+        
         const form = document.getElementById('add-share-form');
         if (form) {
             form.style.display = 'block';
             this.resetShareForm();
+            await this.loadUserMonthsIntoDropdown();
+        }
+    },
+    
+    /**
+     * Show add share form with a specific month pre-selected
+     */
+    async showAddShareFormWithMonth(year, month) {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
+        
+        const form = document.getElementById('add-share-form');
+        if (form) {
+            form.style.display = 'block';
+            this.resetShareForm();
+            await this.loadUserMonthsIntoDropdown();
+            
+            // Pre-select the month in the dropdown and add it
+            const dropdown = document.getElementById('month-selector-dropdown');
+            if (dropdown) {
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                const option = Array.from(dropdown.options).find(opt => opt.value === monthKey);
+                if (option) {
+                    dropdown.value = monthKey;
+                    // Trigger add month
+                    await this.addMonthToShare();
+                }
+            }
+            
+            // Scroll to data sharing section
+            const dataSharingSection = document.getElementById('data-sharing-section');
+            if (dataSharingSection) {
+                dataSharingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    },
+    
+    /**
+     * Load user's months into the dropdown
+     */
+    async loadUserMonthsIntoDropdown() {
+        const dropdown = document.getElementById('month-selector-dropdown');
+        if (!dropdown) {
+            return;
+        }
+        
+        try {
+            if (!window.DatabaseService) {
+                console.error('[SettingsController] DatabaseService not available');
+                return;
+            }
+            
+            const allMonths = await window.DatabaseService.getAllMonths(false, false);
+            const monthKeys = Object.keys(allMonths).sort().reverse();
+            
+            dropdown.innerHTML = '<option value="">Select a month...</option>';
+            
+            monthKeys.forEach(monthKey => {
+                const monthData = allMonths[monthKey];
+                if (monthData && !monthData.isShared) {
+                    const monthName = monthData.monthName || window.DataManager.getMonthName(monthData.month);
+                    const displayText = `${monthName} ${monthData.year}`;
+                    const option = document.createElement('option');
+                    option.value = monthKey;
+                    option.textContent = displayText;
+                    option.dataset.year = monthData.year;
+                    option.dataset.month = monthData.month;
+                    dropdown.appendChild(option);
+                }
+            });
+        } catch (error) {
+            console.error('[SettingsController] Error loading user months:', error);
+        }
+    },
+    
+    /**
+     * Handle share all data checkbox change
+     */
+    async handleShareAllDataChange() {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            const checkbox = document.getElementById('share-all-data');
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            return;
+        }
+        
+        const shareAllData = document.getElementById('share-all-data').checked;
+        const shareMonthsCheckbox = document.getElementById('share-months');
+        const sharePotsCheckbox = document.getElementById('share-pots');
+        const shareSettingsCheckbox = document.getElementById('share-settings');
+        const monthsContainer = document.getElementById('share-months-container');
+        
+        if (shareAllData) {
+            shareMonthsCheckbox.checked = true;
+            sharePotsCheckbox.checked = true;
+            shareSettingsCheckbox.checked = true;
+            shareMonthsCheckbox.disabled = true;
+            sharePotsCheckbox.disabled = true;
+            shareSettingsCheckbox.disabled = true;
+            if (monthsContainer) {
+                monthsContainer.style.display = 'none';
+            }
+            document.getElementById('selected-months-list').innerHTML = '';
+        } else {
+            shareMonthsCheckbox.disabled = false;
+            sharePotsCheckbox.disabled = false;
+            shareSettingsCheckbox.disabled = false;
+            if (monthsContainer) {
+                monthsContainer.style.display = 'block';
+            }
         }
     },
     
@@ -1750,73 +2077,70 @@ const SettingsController = {
      * Reset share form
      */
     resetShareForm() {
-        document.getElementById('share-email').value = '';
+        const emailInput = document.getElementById('share-email');
+        emailInput.value = '';
+        emailInput.readOnly = false;
+        emailInput.title = '';
         document.getElementById('share-access-level').value = 'read';
+        document.getElementById('share-all-data').checked = false;
         document.getElementById('share-months').checked = true;
         document.getElementById('share-pots').checked = false;
         document.getElementById('share-settings').checked = false;
+        document.getElementById('share-months').disabled = false;
+        document.getElementById('share-pots').disabled = false;
+        document.getElementById('share-settings').disabled = false;
         document.getElementById('selected-months-list').innerHTML = '';
         document.getElementById('share-form-status').innerHTML = '';
+        const monthsContainer = document.getElementById('share-months-container');
+        if (monthsContainer) {
+            monthsContainer.style.display = 'block';
+        }
         this.editingShareId = null;
     },
     
     /**
-     * Add month to share
+     * Add month to share from dropdown
      */
-    addMonthToShare() {
-        const year = prompt('Enter year (e.g., 2025):');
-        const month = prompt('Enter month (1-12):');
-        
-        if (!year || !month) {
+    async addMonthToShare() {
+        if (!window.SubscriptionGuard) {
             return;
         }
         
-        const yearNum = parseInt(year, 10);
-        const monthNum = parseInt(month, 10);
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
         
-        if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-            alert('Invalid year or month');
+        const dropdown = document.getElementById('month-selector-dropdown');
+        if (!dropdown || !dropdown.value) {
+            alert('Please select a month from the dropdown');
+            return;
+        }
+        
+        const selectedOption = dropdown.options[dropdown.selectedIndex];
+        const year = parseInt(selectedOption.dataset.year, 10);
+        const month = parseInt(selectedOption.dataset.month, 10);
+        
+        if (isNaN(year) || isNaN(month)) {
+            alert('Invalid month data');
             return;
         }
         
         const list = document.getElementById('selected-months-list');
-        const monthEntry = { type: 'single', year: yearNum, month: monthNum };
-        this.addMonthEntryToList(monthEntry);
-    },
-    
-    /**
-     * Add month range to share
-     */
-    addMonthRangeToShare() {
-        const startYear = prompt('Enter start year (e.g., 2025):');
-        const startMonth = prompt('Enter start month (1-12):');
-        const endYear = prompt('Enter end year (e.g., 2025):');
-        const endMonth = prompt('Enter end month (1-12):');
+        const existingEntries = Array.from(list.children);
+        const alreadyAdded = existingEntries.some(entry => {
+            const entryData = JSON.parse(entry.dataset.monthEntry);
+            return entryData.year === year && entryData.month === month;
+        });
         
-        if (!startYear || !startMonth || !endYear || !endMonth) {
+        if (alreadyAdded) {
+            alert('This month is already added');
             return;
         }
         
-        const startYearNum = parseInt(startYear, 10);
-        const startMonthNum = parseInt(startMonth, 10);
-        const endYearNum = parseInt(endYear, 10);
-        const endMonthNum = parseInt(endMonth, 10);
-        
-        if (isNaN(startYearNum) || isNaN(startMonthNum) || startMonthNum < 1 || startMonthNum > 12 ||
-            isNaN(endYearNum) || isNaN(endMonthNum) || endMonthNum < 1 || endMonthNum > 12) {
-            alert('Invalid year or month');
-            return;
-        }
-        
-        const list = document.getElementById('selected-months-list');
-        const monthEntry = {
-            type: 'range',
-            startYear: startYearNum,
-            startMonth: startMonthNum,
-            endYear: endYearNum,
-            endMonth: endMonthNum
-        };
+        const monthEntry = { type: 'single', year: year, month: month };
         this.addMonthEntryToList(monthEntry);
+        dropdown.value = '';
     },
     
     /**
@@ -1826,12 +2150,8 @@ const SettingsController = {
         const list = document.getElementById('selected-months-list');
         const entryId = `month-entry-${Date.now()}-${Math.random()}`;
         
-        let displayText = '';
-        if (monthEntry.type === 'range') {
-            displayText = `${monthEntry.startYear}-${String(monthEntry.startMonth).padStart(2, '0')} to ${monthEntry.endYear}-${String(monthEntry.endMonth).padStart(2, '0')}`;
-        } else {
-            displayText = `${monthEntry.year}-${String(monthEntry.month).padStart(2, '0')}`;
-        }
+        const monthName = window.DataManager ? window.DataManager.getMonthName(monthEntry.month) : `Month ${monthEntry.month}`;
+        const displayText = `${monthName} ${monthEntry.year}`;
         
         const entryDiv = document.createElement('div');
         entryDiv.id = entryId;
@@ -1867,8 +2187,18 @@ const SettingsController = {
      * Handle add share
      */
     async handleAddShare() {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
+        
         const email = document.getElementById('share-email').value.trim();
         const accessLevel = document.getElementById('share-access-level').value;
+        const shareAllData = document.getElementById('share-all-data').checked;
         const shareMonths = document.getElementById('share-months').checked;
         const sharePots = document.getElementById('share-pots').checked;
         const shareSettings = document.getElementById('share-settings').checked;
@@ -1883,10 +2213,33 @@ const SettingsController = {
             return;
         }
         
-        if (shareMonths) {
-            const selectedMonths = this.getSelectedMonths();
+        let selectedMonths = [];
+        
+        if (shareAllData) {
+            if (!window.DatabaseService) {
+                alert('DatabaseService not available');
+                return;
+            }
+            
+            try {
+                const allMonths = await window.DatabaseService.getAllMonths(false, false);
+                const monthKeys = Object.keys(allMonths);
+                selectedMonths = monthKeys.map(monthKey => {
+                    const monthData = allMonths[monthKey];
+                    if (monthData && !monthData.isShared) {
+                        return { type: 'single', year: monthData.year, month: monthData.month };
+                    }
+                    return null;
+                }).filter(m => m !== null);
+            } catch (error) {
+                console.error('[SettingsController] Error loading all months:', error);
+                alert('Error loading your months. Please try again.');
+                return;
+            }
+        } else if (shareMonths) {
+            selectedMonths = this.getSelectedMonths();
             if (selectedMonths.length === 0) {
-                alert('Please add at least one month or month range');
+                alert('Please add at least one month');
                 return;
             }
         }
@@ -1895,7 +2248,6 @@ const SettingsController = {
         statusDiv.innerHTML = '<p>Saving share...</p>';
         
         try {
-            const selectedMonths = shareMonths ? this.getSelectedMonths() : [];
             let result;
             
             if (this.editingShareId) {
@@ -1907,12 +2259,14 @@ const SettingsController = {
                     shareSettings
                 );
             } else {
+                const shareAllData = document.getElementById('share-all-data').checked;
                 result = await window.DatabaseService.createDataShare(
                     email,
                     accessLevel,
                     selectedMonths,
                     sharePots,
-                    shareSettings
+                    shareSettings,
+                    shareAllData
                 );
             }
             
@@ -1933,6 +2287,15 @@ const SettingsController = {
      * Handle delete share
      */
     async handleDeleteShare(shareId) {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
+        
         if (!confirm('Are you sure you want to delete this share?')) {
             return;
         }
@@ -1954,27 +2317,68 @@ const SettingsController = {
      * Handle edit share
      */
     async handleEditShare(shareId) {
+        if (!window.SubscriptionGuard) {
+            return;
+        }
+        
+        const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+        if (!hasPremium) {
+            return;
+        }
+        
         try {
             const result = await window.DatabaseService.getDataSharesCreatedByMe();
             if (result.success && result.shares) {
                 const share = result.shares.find(s => s.id === parseInt(shareId, 10));
                 if (share) {
                     this.editingShareId = share.id;
-                    document.getElementById('share-email').value = share.shared_with_user_id;
+                    const emailInput = document.getElementById('share-email');
+                    emailInput.value = share.shared_with_user_id;
+                    emailInput.readOnly = true;
+                    emailInput.title = 'User ID (email cannot be changed when editing)';
                     document.getElementById('share-access-level').value = share.access_level;
-                    document.getElementById('share-months').checked = share.shared_months && share.shared_months.length > 0;
-                    document.getElementById('share-pots').checked = share.shared_pots;
-                    document.getElementById('share-settings').checked = share.shared_settings;
+                    
+                    const shareMonths = share.shared_months && share.shared_months.length > 0;
+                    const sharePots = share.shared_pots;
+                    const shareSettings = share.shared_settings;
+                    
+                    if (!window.DatabaseService) {
+                        alert('DatabaseService not available');
+                        return;
+                    }
+                    
+                    const allMonths = await window.DatabaseService.getAllMonths(false, false);
+                    const userMonthKeys = Object.keys(allMonths).filter(key => {
+                        const monthData = allMonths[key];
+                        return monthData && !monthData.isShared;
+                    });
+                    
+                    const isAllMonthsShared = shareMonths && userMonthKeys.length > 0 && 
+                        share.shared_months.length === userMonthKeys.length;
+                    
+                    document.getElementById('share-all-data').checked = isAllMonthsShared && sharePots && shareSettings;
+                    document.getElementById('share-months').checked = shareMonths;
+                    document.getElementById('share-pots').checked = sharePots;
+                    document.getElementById('share-settings').checked = shareSettings;
+                    
+                    if (isAllMonthsShared && sharePots && shareSettings) {
+                        this.handleShareAllDataChange();
+                    }
+                    
+                    await this.loadUserMonthsIntoDropdown();
                     
                     const list = document.getElementById('selected-months-list');
                     list.innerHTML = '';
-                    if (share.shared_months) {
+                    if (share.shared_months && !isAllMonthsShared) {
                         share.shared_months.forEach(monthEntry => {
                             this.addMonthEntryToList(monthEntry);
                         });
                     }
                     
-                    this.showAddShareForm();
+                    const form = document.getElementById('add-share-form');
+                    if (form) {
+                        form.style.display = 'block';
+                    }
                 }
             }
         } catch (error) {
