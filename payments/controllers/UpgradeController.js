@@ -1747,10 +1747,13 @@ const UpgradeController = {
             }
             try {
                 const date = new Date(dateString);
-                const formatted = date.toLocaleDateString('en-GB', { 
+                const formatted = date.toLocaleString('en-GB', { 
                     day: '2-digit', 
                     month: '2-digit', 
-                    year: 'numeric' 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
                 });
                 console.log('[UpgradeController] Date formatted:', { input: dateString, output: formatted });
                 return formatted;
@@ -2252,10 +2255,13 @@ const UpgradeController = {
             if (!dateString) return 'N/A';
             try {
                 const date = new Date(dateString);
-                return date.toLocaleDateString('en-GB', { 
+                return date.toLocaleString('en-GB', { 
                     day: '2-digit', 
                     month: '2-digit', 
-                    year: 'numeric' 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
                 });
             } catch (error) {
                 return 'Invalid Date';
