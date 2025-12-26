@@ -56,8 +56,25 @@ const NotificationsController = {
 
             console.log('[NotificationsController] User authenticated, proceeding with initialization');
             this.setupEventListeners();
-            this.updateFilterDropdown(); // Set initial dropdown value
-            await this.loadNotifications();
+            
+            // Load both notifications and conversations
+            await Promise.all([
+                this.loadNotifications(),
+                this.loadConversations()
+            ]);
+            
+            // If there are conversations but no notifications, switch to messages view
+            if (this.conversations && this.conversations.length > 0 && (!this.notifications || this.notifications.length === 0)) {
+                console.log('[NotificationsController] Found conversations but no notifications, switching to messages view', {
+                    conversationsCount: this.conversations.length,
+                    notificationsCount: this.notifications?.length || 0
+                });
+                this.currentView = 'messages';
+                this.currentCategory = 'messaging';
+                this.switchView('messages');
+            }
+            
+            this.updateFilterDropdown(); // Set initial dropdown value after determining view
         } catch (error) {
             console.error('[NotificationsController] Error initializing:', error);
             alert('Error loading notifications. Please check console for details.');
