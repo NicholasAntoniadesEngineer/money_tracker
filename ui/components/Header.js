@@ -261,35 +261,36 @@ class Header {
             return;
         }
         
-        if (main) {
-            // Insert before main element
-            console.log('[Header] Inserting header before main element');
-            main.insertAdjacentHTML('beforebegin', headerHtml);
-        } else if (body) {
-            // Insert as first child of body
-            console.log('[Header] Inserting header as first child of body');
-            body.insertAdjacentHTML('afterbegin', headerHtml);
-        } else {
-            console.error('[Header] ERROR: Could not find insertion point');
-            return;
-        }
+        try {
+            if (main) {
+                // Insert before main element
+                console.log('[Header] Inserting header before main element');
+                main.insertAdjacentHTML('beforebegin', headerHtml);
+            } else if (body) {
+                // Insert as first child of body
+                console.log('[Header] Inserting header as first child of body');
+                body.insertAdjacentHTML('afterbegin', headerHtml);
+            } else {
+                console.error('[Header] ERROR: Could not find insertion point');
+                return;
+            }
 
-        console.log('[Header] Header rendered, initializing components...');
-        
-        // Initialize hamburger menu functionality
-        this.initHamburgerMenu();
-        
-        // Initialize app title click handler
-        this.initAppTitleClick();
-        
-        // Initialize user menu dropdown
-        this.initUserMenu();
-        
-        // Initialize sign out button
-        this.initSignOutButton();
-        
-        // Note: Notification bell is initialized in updateHeader() after HTML is rendered
-        
+            console.log('[Header] Header rendered, initializing components...');
+            
+            // Initialize hamburger menu functionality
+            this.initHamburgerMenu();
+            
+            // Initialize app title click handler
+            this.initAppTitleClick();
+            
+            // Initialize user menu dropdown (if user menu exists in initial render)
+            this.initUserMenu();
+            
+            // Initialize sign out button (if it exists)
+            this.initSignOutButton();
+            
+            // Note: Notification bell is initialized in updateHeader() after HTML is rendered
+            
             // Listen for auth state changes to update header
             this.setupAuthStateListener();
             
@@ -298,7 +299,26 @@ class Header {
             
             // Update header immediately to show user menu if already authenticated
             console.log('[Header] Updating header with current auth state...');
-            this.updateHeader();
+            try {
+                await this.updateHeader();
+            } catch (error) {
+                console.error('[Header] Error in initial updateHeader call:', error);
+                // Header structure is already rendered, just user menu might be missing
+                // This is acceptable - it will be updated when auth state is ready
+            }
+        } catch (error) {
+            console.error('[Header] Error inserting header HTML:', error);
+            // Try to insert header anyway as fallback
+            if (body) {
+                try {
+                    body.insertAdjacentHTML('afterbegin', headerHtml);
+                    this.initHamburgerMenu();
+                    this.initAppTitleClick();
+                } catch (fallbackError) {
+                    console.error('[Header] Fallback header insertion also failed:', fallbackError);
+                }
+            }
+        }
         
         // Update notification count after a delay to ensure services are loaded
         setTimeout(() => {
@@ -757,15 +777,23 @@ class Header {
             console.log('[Header] auth:signin event received, updating header...');
             // Clear last update state to force update
             this.lastUpdateState = null;
+            // Clear cache to force fresh check
+            this.authStateCache = null;
+            this.authStateCacheTimestamp = null;
             // Longer delay to ensure AuthService state is fully updated
-            setTimeout(() => {
-                this.updateHeader(true); // Force update on sign-in
+            setTimeout(async () => {
+                await this.updateHeader(true); // Force update on sign-in
             }, 300);
         };
         
         this._authSignOutHandler = () => {
             console.log('[Header] auth:signout event received, updating header...');
-            this.updateHeader();
+            // Clear cache on sign out
+            this.authStateCache = null;
+            this.authStateCacheTimestamp = null;
+            this.updateHeader().catch(err => {
+                console.warn('[Header] Error updating header on sign out:', err);
+            });
         };
         
         // Listen for initial session event (only once, with debounce)
@@ -773,10 +801,10 @@ class Header {
             console.log('[Header] auth:initial_session event received');
             // Only update if we haven't updated recently (debounce)
             if (!this.updateInProgress) {
-                setTimeout(() => {
+                setTimeout(async () => {
                     if (!this.updateInProgress) {
                         console.log('[Header] Executing header update after initial_session event (200ms delay)...');
-                        this.updateHeader();
+                        await this.updateHeader();
                     }
                 }, 200);
             }
@@ -828,22 +856,36 @@ class Header {
             let isAuthenticated = false;
             let currentUserEmail = null;
             
-            // Check cache first (if valid)
-            const now = Date.now();
-            if (this.authStateCache && this.authStateCacheTimestamp && 
-                (now - this.authStateCacheTimestamp) < this.AUTH_STATE_CACHE_DURATION && !force) {
-                console.log('[Header] Using cached auth state');
-                isAuthenticated = this.authStateCache.isAuthenticated;
-                currentUserEmail = this.authStateCache.userEmail;
-            } else if (window.AuthService) {
-                // Perform fresh auth check with retry logic
-                const authResult = await this._checkAuthStateWithRetry(force);
-                isAuthenticated = authResult.isAuthenticated;
-                currentUserEmail = authResult.userEmail;
-                
-                // Cache the result
-                this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
-                this.authStateCacheTimestamp = now;
+            try {
+                // Check cache first (if valid)
+                const now = Date.now();
+                if (this.authStateCache && this.authStateCacheTimestamp && 
+                    (now - this.authStateCacheTimestamp) < this.AUTH_STATE_CACHE_DURATION && !force) {
+                    console.log('[Header] Using cached auth state');
+                    isAuthenticated = this.authStateCache.isAuthenticated;
+                    currentUserEmail = this.authStateCache.userEmail;
+                } else if (window.AuthService) {
+                    // Perform fresh auth check with retry logic
+                    const authResult = await this._checkAuthStateWithRetry(force);
+                    isAuthenticated = authResult.isAuthenticated;
+                    currentUserEmail = authResult.userEmail;
+                    
+                    // Cache the result
+                    this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
+                    this.authStateCacheTimestamp = now;
+                }
+            } catch (authError) {
+                console.error('[Header] Error checking auth state:', authError);
+                // Fallback: try simple check
+                if (window.AuthService) {
+                    try {
+                        isAuthenticated = window.AuthService.isAuthenticated();
+                        const user = window.AuthService.getCurrentUser();
+                        currentUserEmail = user?.email || null;
+                    } catch (fallbackError) {
+                        console.warn('[Header] Fallback auth check also failed:', fallbackError);
+                    }
+                }
             }
             
             this._performHeaderUpdate(nav, isAuthenticated, currentUserEmail, force);
@@ -1080,7 +1122,9 @@ class Header {
                         this.authStateCache = null;
                         this.authStateCacheTimestamp = null;
                         // Update header to reflect new auth state
-                        this.updateHeader(true);
+                        this.updateHeader(true).catch(err => {
+                            console.warn('[Header] Error updating header after session validation:', err);
+                        });
                     } else {
                         console.log('[Header] Session validation passed');
                     }
