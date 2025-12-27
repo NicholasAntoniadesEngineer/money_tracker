@@ -672,40 +672,40 @@ const NotificationsController = {
             const readIcon = notification.read ? 'fa-check-circle' : 'fa-circle';
 
             let actionButtons = '';
+            let replyButton = '';
             if (notification.type === 'share_request' && notification.share_id && !notification.read) {
                 actionButtons = `
-                    <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Accept</button>
-                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Decline</button>
-                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}">Block</button>
+                    <div class="notification-actions" style="margin-top: 4px; display: flex; gap: 4px;">
+                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Accept</button>
+                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Decline</button>
+                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Block</button>
                     </div>
                 `;
             } else if (notification.type === 'message_received' && notification.conversation_id) {
-                actionButtons = `
-                    <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                        <button class="btn btn-primary btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}">Reply</button>
-                    </div>
-                `;
+                replyButton = `<button class="btn btn-primary btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem;">Reply</button>`;
             }
 
             const date = new Date(notification.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return `
-                <div class="notification-item ${readClass}" data-notification-id="${notification.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); background: ${notification.read ? 'var(--surface-color)' : 'var(--hover-overlay)'};">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-xs);">
+                <div class="notification-item ${readClass}" data-notification-id="${notification.id}" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs); background: ${notification.read ? 'var(--surface-color)' : 'var(--hover-overlay)'};">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0;">
                         <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: var(--spacing-xs);">
-                                <i class="fa-regular ${readIcon}" style="color: ${notification.read ? 'var(--text-color-secondary)' : 'var(--primary-color)'};"></i>
-                                <strong>${typeName}</strong>
+                            <div style="display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: 2px;">
+                                <i class="fa-regular ${readIcon}" style="color: ${notification.read ? 'var(--text-color-secondary)' : 'var(--primary-color)'}; font-size: 0.85rem;"></i>
+                                <strong style="font-size: 0.9rem;">${typeName}</strong>
                             </div>
-                            <p style="margin: 0; color: var(--text-primary);">From: ${fromUserEmail}</p>
-                            ${notification.message ? `<p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-color-secondary);">${notification.message}</p>` : ''}
+                            <p style="margin: 0; color: var(--text-primary); font-size: 0.85rem; line-height: 1.3;">From: ${fromUserEmail}</p>
+                            ${notification.message ? `<p style="margin: 2px 0 0 0; color: var(--text-color-secondary); font-size: 0.85rem; line-height: 1.3;">${notification.message}</p>` : ''}
                             ${actionButtons}
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: end; gap: var(--spacing-xs);">
-                            <span style="font-size: 0.85rem; color: var(--text-color-secondary);">${dateString}</span>
-                            <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}" style="padding: 2px 8px;">Delete</button>
+                        <div style="display: flex; flex-direction: column; align-items: end; gap: 2px; margin-left: var(--spacing-sm);">
+                            <span style="font-size: 0.75rem; color: var(--text-color-secondary);">${dateString}</span>
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                ${replyButton}
+                                <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1957,16 +1957,85 @@ const NotificationsController = {
                 content
             );
 
-            if (result.success) {
+            if (result.success && result.message) {
                 messageInput.value = '';
-                // Reload messages to show the new one
-                await this.openConversation(this.currentConversationId);
+                
+                // Append the new message to the thread without reloading everything
+                await this.appendMessageToThread(result.message, conversation);
             } else {
                 throw new Error(result.error || 'Failed to send message');
             }
         } catch (error) {
             console.error('[NotificationsController] Error sending message:', error);
             alert(`Error sending message: ${error.message}`);
+        }
+    },
+
+    /**
+     * Append a single message to the thread without reloading everything
+     */
+    async appendMessageToThread(message, conversation) {
+        console.log('[NotificationsController] appendMessageToThread() called', { 
+            messageId: message.id, 
+            conversationId: conversation.id 
+        });
+
+        try {
+            const messageThread = document.getElementById('message-thread');
+            if (!messageThread) {
+                console.warn('[NotificationsController] Message thread container not found, falling back to reload');
+                await this.openConversation(this.currentConversationId);
+                return;
+            }
+
+            const currentUserId = await window.DatabaseService._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[NotificationsController] User not authenticated, falling back to reload');
+                await this.openConversation(this.currentConversationId);
+                return;
+            }
+
+            // Get sender email - if it's our message, use current user email, otherwise use conversation partner email
+            const isOwnMessage = message.sender_id === currentUserId;
+            let senderEmail = 'Unknown';
+            
+            if (isOwnMessage) {
+                // Get current user email
+                const currentUser = await window.AuthService.getCurrentUser();
+                senderEmail = currentUser?.email || 'You';
+            } else {
+                // Use conversation partner email
+                senderEmail = conversation.other_user_email || 'Unknown';
+            }
+
+            const alignClass = isOwnMessage ? 'right' : 'left';
+
+            // Format date
+            const date = new Date(message.created_at);
+            const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Generate HTML for the new message (regular message only, not share requests)
+            const messageHtml = `
+                <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
+                    <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
+                        <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
+                        <div style="white-space: pre-line;">${message.content}</div>
+                        <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                    </div>
+                </div>
+            `;
+
+            // Append to thread
+            messageThread.insertAdjacentHTML('beforeend', messageHtml);
+            
+            // Scroll to bottom
+            messageThread.scrollTop = messageThread.scrollHeight;
+            
+            console.log('[NotificationsController] Message appended to thread successfully');
+        } catch (error) {
+            console.error('[NotificationsController] Error appending message to thread:', error);
+            // Fall back to full reload on error
+            await this.openConversation(this.currentConversationId);
         }
     },
 
