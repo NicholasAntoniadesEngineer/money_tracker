@@ -1522,26 +1522,29 @@ const NotificationsController = {
                     });
                 }
                 
-                // Check for shares without messages and create messages for them (all statuses)
-                // Do this in parallel with rendering if possible, but we need to check first
-                const sharesCreated = await this.createMessagesForShares(conversationId, conversation, messages);
+                // Render messages immediately - don't wait for share message creation
+                await this.renderMessageThread(messages);
                 
-                // Only reload messages if new ones were created
-                let messagesToRender = messages;
-                if (sharesCreated > 0) {
-                    console.log('[NotificationsController] Reloading messages after creating', sharesCreated, 'share messages...');
-                    const updatedResult = await window.DatabaseService.getMessages(conversationId);
-                    if (updatedResult.success && updatedResult.messages) {
-                        messagesToRender = updatedResult.messages;
-                        console.log('[NotificationsController] Reloaded messages:', {
-                            messageCount: messagesToRender.length,
-                            newMessagesCount: messagesToRender.length - messages.length
+                // Create messages for shares in background (non-blocking)
+                // This will update the conversation if new share messages are created
+                this.createMessagesForShares(conversationId, conversation, messages).then(sharesCreated => {
+                    if (sharesCreated > 0) {
+                        // Reload and re-render if new messages were created
+                        window.DatabaseService.getMessages(conversationId).then(updatedResult => {
+                            if (updatedResult.success && updatedResult.messages) {
+                                this.renderMessageThread(updatedResult.messages);
+                            }
+                        }).catch(error => {
+                            if (this.enableVerboseLogging) {
+                                console.warn('[NotificationsController] Error reloading messages after share creation:', error);
+                            }
                         });
                     }
-                }
-                
-                // Render messages immediately
-                await this.renderMessageThread(messagesToRender);
+                }).catch(error => {
+                    if (this.enableVerboseLogging) {
+                        console.warn('[NotificationsController] Error creating share messages:', error);
+                    }
+                });
 
                 // Do all the read/update operations in parallel (non-blocking for UI)
                 Promise.all([
@@ -1694,23 +1697,23 @@ const NotificationsController = {
 
             const allShares = uniqueShares;
 
-            // Update shares that don't have conversation_id set
-            for (const share of allShares) {
-                if (!share.conversation_id || share.conversation_id === null) {
+            // Update shares that don't have conversation_id set (in parallel)
+            const sharesToUpdate = allShares.filter(share => !share.conversation_id || share.conversation_id === null);
+            if (sharesToUpdate.length > 0) {
+                await Promise.all(sharesToUpdate.map(async (share) => {
                     try {
-                        await window.DatabaseService.queryUpdate(tableName, share.id, {
+                        const updateResult = await window.DatabaseService.queryUpdate(tableName, share.id, {
                             conversation_id: conversationId
                         });
                         if (updateResult.success || !updateResult.error) {
                             share.conversation_id = conversationId;
-                            console.log('[NotificationsController] ✅ Updated share conversation_id:', share.id);
-                        } else {
-                            console.warn('[NotificationsController] ⚠️ Failed to update share conversation_id:', updateResult.error);
                         }
                     } catch (error) {
-                        console.warn('[NotificationsController] ⚠️ Error updating share conversation_id:', error);
+                        if (this.enableVerboseLogging) {
+                            console.warn('[NotificationsController] Error updating share conversation_id:', share.id, error);
+                        }
                     }
-                }
+                }));
             }
 
             // Check which shares already have messages
@@ -1726,14 +1729,10 @@ const NotificationsController = {
             });
 
             // Create messages for shares that don't have messages yet (regardless of status)
-            let messagesCreated = 0;
-            let messagesSkipped = 0;
-            for (const share of allShares) {
-                if (!existingShareIds.has(share.id)) {
-                    if (this.enableVerboseLogging) {
-                        console.log('[NotificationsController] Creating message for share:', share.id);
-                    }
-                    
+            // Process in parallel for better performance
+            const sharesToCreateMessages = allShares.filter(share => !existingShareIds.has(share.id));
+            const messagePromises = sharesToCreateMessages.map(async (share) => {
+                try {
                     // Parse shared_months
                     let parsedSharedMonths = [];
                     if (share.shared_months) {
@@ -1741,7 +1740,9 @@ const NotificationsController = {
                             try {
                                 parsedSharedMonths = JSON.parse(share.shared_months);
                             } catch (e) {
-                                console.warn('[NotificationsController] Error parsing shared_months:', e);
+                                if (this.enableVerboseLogging) {
+                                    console.warn('[NotificationsController] Error parsing shared_months:', e);
+                                }
                             }
                         } else {
                             parsedSharedMonths = share.shared_months;
@@ -1780,16 +1781,20 @@ const NotificationsController = {
                             shareMessageContent
                         );
                         
-                        if (messageResult.success) {
-                            messagesCreated++;
-                        } else if (this.enableVerboseLogging) {
-                            console.error('[NotificationsController] Failed to create message for share:', share.id, messageResult.error);
-                        }
+                        return messageResult.success ? 1 : 0;
                     }
-                } else {
-                    messagesSkipped++;
+                    return 0;
+                } catch (error) {
+                    if (this.enableVerboseLogging) {
+                        console.error('[NotificationsController] Error creating message for share:', share.id, error);
+                    }
+                    return 0;
                 }
-            }
+            });
+            
+            const results = await Promise.all(messagePromises);
+            const messagesCreated = results.reduce((sum, count) => sum + count, 0);
+            const messagesSkipped = allShares.length - sharesToCreateMessages.length;
             
             if (this.enableVerboseLogging && messagesCreated > 0) {
                 console.log('[NotificationsController] createMessagesForShares complete:', { created: messagesCreated, skipped: messagesSkipped });

@@ -369,19 +369,64 @@ const MessagingService = {
 
             const conversations = result.data || [];
 
-            // For each conversation, get the other user's email and unread count
-            const conversationsWithDetails = await Promise.all(conversations.map(async (conv) => {
-                const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
-                const emailResult = await databaseService.getUserEmailById(otherUserId);
-                const unreadResult = await this.getUnreadCountForConversation(conv.id, userId);
+            // Batch fetch unread counts for all conversations in a single query
+            // Query all unread messages for this user, then group by conversation_id
+            const unreadCountsMap = new Map();
+            
+            if (conversations.length > 0) {
+                const messagesTableName = this._getTableName('messages');
+                const conversationIds = conversations.map(conv => conv.id);
+                
+                // Use $or to filter by multiple conversation_ids in a single query
+                const unreadResult = await databaseService.querySelect(messagesTableName, {
+                    filter: {
+                        recipient_id: userId,
+                        read: false,
+                        $or: conversationIds.map(id => ({ conversation_id: id }))
+                    }
+                });
 
+                if (unreadResult.success && unreadResult.data) {
+                    // Group unread messages by conversation_id and count
+                    unreadResult.data.forEach(msg => {
+                        const currentCount = unreadCountsMap.get(msg.conversation_id) || 0;
+                        unreadCountsMap.set(msg.conversation_id, currentCount + 1);
+                    });
+                }
+            }
+
+            // Batch fetch all user emails in parallel
+            const otherUserIds = conversations.map(conv => 
+                conv.user1_id === userId ? conv.user2_id : conv.user1_id
+            );
+            const uniqueUserIds = [...new Set(otherUserIds)];
+            
+            // Fetch all emails in parallel
+            const emailResults = await Promise.all(
+                uniqueUserIds.map(userId => 
+                    databaseService.getUserEmailById(userId).then(result => ({
+                        userId,
+                        email: result.success ? result.email : 'Unknown User'
+                    }))
+                )
+            );
+            
+            // Create email map
+            const emailMap = new Map();
+            emailResults.forEach(({ userId, email }) => {
+                emailMap.set(userId, email);
+            });
+
+            // Build conversations with details
+            const conversationsWithDetails = conversations.map(conv => {
+                const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
                 return {
                     ...conv,
                     other_user_id: otherUserId,
-                    other_user_email: emailResult.success ? emailResult.email : 'Unknown User',
-                    unread_count: unreadResult.success ? unreadResult.count : 0
+                    other_user_email: emailMap.get(otherUserId) || 'Unknown User',
+                    unread_count: unreadCountsMap.get(conv.id) || 0
                 };
-            }));
+            });
 
             console.log(`[MessagingService] Found ${conversationsWithDetails.length} conversations`);
             return {
