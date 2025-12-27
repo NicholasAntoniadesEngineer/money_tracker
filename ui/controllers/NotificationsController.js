@@ -729,14 +729,30 @@ const NotificationsController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'accepted');
 
             if (result.success) {
-                // Delete the notification instead of just marking as read
-                if (notificationId && typeof window.NotificationService !== 'undefined') {
-                    const deleteResult = await window.NotificationService.deleteNotification(notificationId);
-                    if (!deleteResult.success) {
-                        console.warn('[NotificationsController] Failed to delete notification after accepting share:', deleteResult.error);
+                // Mark all notifications for this share as read
+                if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
+                    const currentUserId = await window.DatabaseService._getCurrentUserId();
+                    if (currentUserId) {
+                        console.log('[NotificationsController] Marking share notifications as read:', shareId);
+                        const markReadResult = await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
+                        console.log('[NotificationsController] Share notifications marked as read:', markReadResult);
+                    }
+                    
+                    // Also try to delete the specific notification if provided
+                    if (notificationId) {
+                        const deleteResult = await window.NotificationService.deleteNotification(notificationId);
+                        if (!deleteResult.success) {
+                            console.warn('[NotificationsController] Failed to delete notification after accepting share:', deleteResult.error);
+                        }
                     }
                 }
                 await this.loadNotifications();
+                
+                // Update notification count in header
+                if (typeof window.Header !== 'undefined') {
+                    window.Header.updateNotificationCount();
+                }
+                
                 alert('Share accepted successfully');
             } else {
                 throw new Error(result.error || 'Failed to accept share');
@@ -761,14 +777,30 @@ const NotificationsController = {
             const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
 
             if (result.success) {
-                // Delete the notification instead of just marking as read
-                if (notificationId && typeof window.NotificationService !== 'undefined') {
-                    const deleteResult = await window.NotificationService.deleteNotification(notificationId);
-                    if (!deleteResult.success) {
-                        console.warn('[NotificationsController] Failed to delete notification after declining share:', deleteResult.error);
+                // Mark all notifications for this share as read
+                if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
+                    const currentUserId = await window.DatabaseService._getCurrentUserId();
+                    if (currentUserId) {
+                        console.log('[NotificationsController] Marking share notifications as read:', shareId);
+                        const markReadResult = await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
+                        console.log('[NotificationsController] Share notifications marked as read:', markReadResult);
+                    }
+                    
+                    // Also try to delete the specific notification if provided
+                    if (notificationId) {
+                        const deleteResult = await window.NotificationService.deleteNotification(notificationId);
+                        if (!deleteResult.success) {
+                            console.warn('[NotificationsController] Failed to delete notification after declining share:', deleteResult.error);
+                        }
                     }
                 }
                 await this.loadNotifications();
+                
+                // Update notification count in header
+                if (typeof window.Header !== 'undefined') {
+                    window.Header.updateNotificationCount();
+                }
+                
                 alert('Share declined');
             } else {
                 throw new Error(result.error || 'Failed to decline share');
@@ -1108,7 +1140,24 @@ const NotificationsController = {
                 console.log('[NotificationsController] Marking conversation as read:', conversationId);
                 const markReadResult = await window.DatabaseService.markConversationAsRead(conversationId);
                 console.log('[NotificationsController] Mark as read result:', markReadResult);
+                
+                // Mark related notifications as read
+                if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
+                    const currentUserId = await window.DatabaseService._getCurrentUserId();
+                    if (currentUserId) {
+                        console.log('[NotificationsController] Marking conversation notifications as read:', conversationId);
+                        const notificationResult = await window.NotificationService.markConversationNotificationsAsRead(currentUserId, conversationId);
+                        console.log('[NotificationsController] Conversation notifications marked as read:', notificationResult);
+                    }
+                }
+                
                 await this.loadConversations(); // Refresh to update unread counts
+                await this.loadNotifications(); // Refresh notifications to update read status
+                
+                // Update notification count in header
+                if (typeof window.Header !== 'undefined') {
+                    window.Header.updateNotificationCount();
+                }
             } else {
                 console.error('[NotificationsController] Failed to load messages:', result.error);
                 throw new Error(result.error || 'Failed to load messages');

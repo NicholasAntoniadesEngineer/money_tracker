@@ -30,8 +30,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_share RECORD;
-    v_updated_share RECORD;
+    v_share data_shares%ROWTYPE;
+    v_updated_share data_shares%ROWTYPE;
 BEGIN
     -- Validate the new status
     IF p_new_status NOT IN ('accepted', 'declined', 'blocked') THEN
@@ -53,9 +53,31 @@ BEGIN
         RAISE EXCEPTION 'Not authorized to update this share';
     END IF;
 
-    -- Verify the share is pending
-    IF v_share.status != 'pending' THEN
-        RAISE EXCEPTION 'Can only update pending shares';
+    -- Validate state transitions
+    -- Allow: pending -> accepted/declined/blocked
+    -- Allow: accepted -> declined/blocked (revoking access)
+    -- Allow: declined -> accepted (re-accepting)
+    -- Block: blocked -> anything (once blocked, cannot change)
+    IF v_share.status = 'blocked' THEN
+        RAISE EXCEPTION 'Cannot update blocked shares';
+    ELSIF v_share.status = 'pending' THEN
+        -- Pending shares can transition to any valid status
+        IF p_new_status NOT IN ('accepted', 'declined', 'blocked') THEN
+            RAISE EXCEPTION 'Invalid status transition from pending';
+        END IF;
+    ELSIF v_share.status = 'accepted' THEN
+        -- Accepted shares can only be declined or blocked (revoking access)
+        IF p_new_status NOT IN ('declined', 'blocked') THEN
+            RAISE EXCEPTION 'Accepted shares can only be declined or blocked';
+        END IF;
+    ELSIF v_share.status = 'declined' THEN
+        -- Declined shares can be re-accepted
+        IF p_new_status != 'accepted' THEN
+            RAISE EXCEPTION 'Declined shares can only be re-accepted';
+        END IF;
+    ELSE
+        -- Unknown current status
+        RAISE EXCEPTION 'Invalid current share status';
     END IF;
 
     -- Update the share status
@@ -91,5 +113,5 @@ GRANT EXECUTE ON FUNCTION update_share_status TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION update_share_status IS 
-    'Updates share status (accept/decline/block) for recipients. Bypasses RLS using SECURITY DEFINER. Validates that user is the recipient and share is pending.';
+    'Updates share status (accept/decline/block) for recipients. Bypasses RLS using SECURITY DEFINER. Validates that user is the recipient and allows valid state transitions: pending->any, accepted->declined/blocked, declined->accepted. Blocked shares cannot be updated.';
 

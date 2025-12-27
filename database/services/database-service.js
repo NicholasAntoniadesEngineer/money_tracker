@@ -272,34 +272,8 @@ const DatabaseService = {
             url.searchParams.append('select', options.select);
         }
         if (options.filter) {
-            // Handle $or filter for PostgREST
-            if (options.filter.$or && Array.isArray(options.filter.$or)) {
-                // Convert $or array to PostgREST or syntax: or=(condition1,condition2)
-                const orConditions = options.filter.$or.map(condition => {
-                    // Each condition should be an object like { user1_id: userId }
-                    // For PostgREST, each condition in or() should be a single column comparison
-                    const conditionEntries = Object.entries(condition);
-                    if (conditionEntries.length !== 1) {
-                        throw new Error(`Each $or condition must have exactly one key-value pair, got ${conditionEntries.length}`);
-                    }
-                    const [key, value] = conditionEntries[0];
-                    return `${key}.eq.${value}`;
-                });
-                url.searchParams.append('or', `(${orConditions.join(',')})`);
-                console.log('[DatabaseService] querySelect - converted $or filter to PostgREST or syntax:', `or=(${orConditions.join(',')})`);
-                
-                // Also process other filters (if any)
-            Object.entries(options.filter).forEach(([key, value]) => {
-                    if (key !== '$or') {
-                        url.searchParams.append(key, `eq.${value}`);
-                    }
-                });
-            } else {
-                // Regular filters (no $or)
-                Object.entries(options.filter).forEach(([key, value]) => {
-                url.searchParams.append(key, `eq.${value}`);
-            });
-            }
+            console.log('[DatabaseService] querySelect - Applying filters to URL');
+            this._applyFiltersToUrl(url, options.filter);
         }
         if (options.order) {
             options.order.forEach(({ column, ascending }) => {
@@ -772,18 +746,38 @@ const DatabaseService = {
     /**
      * Execute an UPDATE operation
      * @param {string} table - Table name
-     * @param {string|number} id - Record ID to update
+     * @param {string|number|null} id - Record ID to update (null for bulk updates with filter)
      * @param {Object} updateData - Data to update
+     * @param {Object} filter - Optional filter object for bulk updates (when id is null)
      * @returns {Promise<{data: Array|null, error: Object|null}>}
      */
-    async queryUpdate(table, id, updateData) {
+    async queryUpdate(table, id, updateData, filter = null) {
         console.log('[DatabaseService] ========== queryUpdate CALLED ==========');
         console.log('[DatabaseService] queryUpdate - table:', table);
         console.log('[DatabaseService] queryUpdate - id:', id, 'type:', typeof id);
         console.log('[DatabaseService] queryUpdate - updateData:', JSON.stringify(updateData, null, 2));
+        console.log('[DatabaseService] queryUpdate - filter:', filter ? JSON.stringify(filter, null, 2) : 'null');
         
         const updateUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
-        updateUrl.searchParams.append('id', `eq.${id}`);
+        
+        if (id !== null && id !== undefined) {
+            console.log('[DatabaseService] queryUpdate - Using id-based update:', id);
+            updateUrl.searchParams.append('id', `eq.${id}`);
+        } else if (filter) {
+            console.log('[DatabaseService] queryUpdate - Using filter-based bulk update');
+            this._applyFiltersToUrl(updateUrl, filter);
+        } else {
+            console.error('[DatabaseService] queryUpdate - ERROR: Both id and filter are null/undefined. Cannot perform update.');
+            return {
+                data: null,
+                count: null,
+                error: {
+                    message: 'Either id or filter must be provided for update operation',
+                    status: 400
+                }
+            };
+        }
+        
         updateUrl.searchParams.append('select', '*');
         
         console.log('[DatabaseService] queryUpdate - URL:', updateUrl.toString());
@@ -839,6 +833,56 @@ const DatabaseService = {
         console.log('[DatabaseService] ========== queryUpdate COMPLETE ==========');
         
         return result;
+    },
+
+    /**
+     * Apply filters to URL for PostgREST queries
+     * @private
+     * @param {URL} url - URL object to modify
+     * @param {Object} filter - Filter object
+     */
+    _applyFiltersToUrl(url, filter) {
+        console.log('[DatabaseService] _applyFiltersToUrl() called', { filter: JSON.stringify(filter, null, 2) });
+        
+        if (!filter || typeof filter !== 'object') {
+            console.warn('[DatabaseService] _applyFiltersToUrl - Invalid filter provided:', filter);
+            return;
+        }
+        
+        // Handle $or filter for PostgREST
+        if (filter.$or && Array.isArray(filter.$or)) {
+            console.log('[DatabaseService] _applyFiltersToUrl - Processing $or filter');
+            // Convert $or array to PostgREST or syntax: or=(condition1,condition2)
+            const orConditions = filter.$or.map(condition => {
+                // Each condition should be an object like { user1_id: userId }
+                // For PostgREST, each condition in or() should be a single column comparison
+                const conditionEntries = Object.entries(condition);
+                if (conditionEntries.length !== 1) {
+                    throw new Error(`Each $or condition must have exactly one key-value pair, got ${conditionEntries.length}`);
+                }
+                const [key, value] = conditionEntries[0];
+                return `${key}.eq.${value}`;
+            });
+            url.searchParams.append('or', `(${orConditions.join(',')})`);
+            console.log('[DatabaseService] _applyFiltersToUrl - converted $or filter to PostgREST or syntax:', `or=(${orConditions.join(',')})`);
+            
+            // Also process other filters (if any)
+            Object.entries(filter).forEach(([key, value]) => {
+                if (key !== '$or') {
+                    url.searchParams.append(key, `eq.${value}`);
+                    console.log('[DatabaseService] _applyFiltersToUrl - Added filter:', key, '=', value);
+                }
+            });
+        } else {
+            // Regular filters (no $or)
+            console.log('[DatabaseService] _applyFiltersToUrl - Processing regular filters');
+            Object.entries(filter).forEach(([key, value]) => {
+                url.searchParams.append(key, `eq.${value}`);
+                console.log('[DatabaseService] _applyFiltersToUrl - Added filter:', key, '=', value);
+            });
+        }
+        
+        console.log('[DatabaseService] _applyFiltersToUrl - Final URL:', url.toString());
     },
     
     /**

@@ -28,12 +28,15 @@ CREATE POLICY "Owners can manage their shares" ON data_shares
     );
 
 -- Step 3: Drop and recreate the "Shared users can update share status" policy
+-- Note: State transition validation is handled by the update_share_status RPC function
+-- This policy allows recipients to update shares that are pending, accepted, or declined (not blocked)
 DROP POLICY IF EXISTS "Shared users can update share status" ON data_shares;
 CREATE POLICY "Shared users can update share status" ON data_shares
     FOR UPDATE 
     USING (
         shared_with_user_id = auth.uid()
-        AND status = 'pending' -- Can only update pending shares
+        -- Allow updating pending, accepted, or declined shares (not blocked)
+        AND status IN ('pending', 'accepted', 'declined')
     )
     WITH CHECK (
         -- Ensure we're still the recipient
@@ -60,4 +63,4 @@ COMMENT ON POLICY "Owners can manage their shares" ON data_shares IS
     'Allows owners to manage their shares. WITH CHECK allows recipients to update status to avoid policy conflicts.';
 
 COMMENT ON POLICY "Shared users can update share status" ON data_shares IS 
-    'Allows users to update share status (accept/decline/block) for shares where they are the recipient. Only allows updating pending shares to accepted/declined/blocked status.';
+    'Allows users to update share status (accept/decline/block) for shares where they are the recipient. Allows updating pending, accepted, or declined shares. State transition validation is handled by the update_share_status RPC function.';

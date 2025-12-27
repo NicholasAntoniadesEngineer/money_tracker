@@ -441,6 +441,108 @@ const NotificationService = {
     },
 
     /**
+     * Mark all notifications as read for a conversation
+     * @param {string} userId - User ID
+     * @param {number} conversationId - Conversation ID
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async markConversationNotificationsAsRead(userId, conversationId) {
+        try {
+            console.log('[NotificationService] markConversationNotificationsAsRead() called', { userId, conversationId });
+
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const tableName = this._getTableName('notifications');
+
+            const updateResult = await databaseService.queryUpdate(tableName, null, {
+                read: true
+            }, {
+                user_id: userId,
+                conversation_id: conversationId,
+                read: false
+            });
+
+            if (updateResult.error) {
+                console.error('[NotificationService] Error marking conversation notifications as read:', updateResult.error);
+                return {
+                    success: false,
+                    count: 0,
+                    error: updateResult.error.message || 'Failed to mark conversation notifications as read'
+                };
+            }
+
+            const count = updateResult.count || 0;
+            console.log('[NotificationService] Marked', count, 'conversation notifications as read');
+            return {
+                success: true,
+                count: count,
+                error: null
+            };
+        } catch (error) {
+            console.error('[NotificationService] Exception marking conversation notifications as read:', error);
+            return {
+                success: false,
+                count: 0,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark all notifications as read for a share
+     * @param {string} userId - User ID
+     * @param {number} shareId - Share ID
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async markShareNotificationsAsRead(userId, shareId) {
+        try {
+            console.log('[NotificationService] markShareNotificationsAsRead() called', { userId, shareId });
+
+            const databaseService = this._getDatabaseService();
+            if (!databaseService) {
+                throw new Error('DatabaseService not available');
+            }
+
+            const tableName = this._getTableName('notifications');
+
+            const updateResult = await databaseService.queryUpdate(tableName, null, {
+                read: true
+            }, {
+                user_id: userId,
+                share_id: shareId,
+                read: false
+            });
+
+            if (updateResult.error) {
+                console.error('[NotificationService] Error marking share notifications as read:', updateResult.error);
+                return {
+                    success: false,
+                    count: 0,
+                    error: updateResult.error.message || 'Failed to mark share notifications as read'
+                };
+            }
+
+            const count = updateResult.count || 0;
+            console.log('[NotificationService] Marked', count, 'share notifications as read');
+            return {
+                success: true,
+                count: count,
+                error: null
+            };
+        } catch (error) {
+            console.error('[NotificationService] Exception marking share notifications as read:', error);
+            return {
+                success: false,
+                count: 0,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
      * Delete a notification
      * @param {number} notificationId - Notification ID
      * @returns {Promise<{success: boolean, error: string|null}>}
