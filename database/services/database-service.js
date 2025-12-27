@@ -33,6 +33,9 @@ const DatabaseService = {
     getSharedDataWithMeCache: null,
     getSharedDataWithMeCacheTimestamp: null,
     getSharedDataWithMeCachePromise: null,
+    getDataSharesCreatedByMeCache: null,
+    getDataSharesCreatedByMeCacheTimestamp: null,
+    getDataSharesCreatedByMeCachePromise: null,
     CACHE_DURATION_SHORT: 30 * 1000, // 30 seconds for frequently accessed data
     
     /**
@@ -3807,42 +3810,99 @@ const DatabaseService = {
                 };
             }
             
-            const tableName = this._getTableName('dataShares');
-            const result = await this.querySelect(tableName, {
-                filter: {
-                    owner_user_id: currentUserId
-                },
-                order: [{ column: 'created_at', ascending: false }]
-            });
-            
-            if (result.error) {
-                console.error('[DatabaseService] Error getting data shares:', result.error);
-                return {
-                    success: false,
-                    shares: null,
-                    error: result.error.message || 'Failed to get shares'
-                };
-            }
-            
-            const shares = result.data || [];
-            
-            for (const share of shares) {
-                if (typeof share.shared_months === 'string') {
-                    try {
-                        share.shared_months = JSON.parse(share.shared_months);
-                    } catch (e) {
-                        share.shared_months = [];
-                    }
+            // Check cache first
+            if (this.getDataSharesCreatedByMeCache && this.getDataSharesCreatedByMeCacheTimestamp) {
+                const cacheAge = Date.now() - this.getDataSharesCreatedByMeCacheTimestamp;
+                if (cacheAge < this.CACHE_DURATION_SHORT) {
+                    console.log(`[DatabaseService] Returning cached getDataSharesCreatedByMe() result (age: ${cacheAge}ms)`);
+                    return this.getDataSharesCreatedByMeCache;
+                } else {
+                    console.log(`[DatabaseService] Cache for getDataSharesCreatedByMe() expired (age: ${cacheAge}ms)`);
+                    this.getDataSharesCreatedByMeCache = null; // Invalidate expired cache
                 }
             }
             
-            return {
-                success: true,
-                shares: shares,
-                error: null
-            };
+            // If a fetch is already in progress, return that promise
+            if (this.getDataSharesCreatedByMeCachePromise) {
+                console.log('[DatabaseService] getDataSharesCreatedByMe() fetch already in progress, waiting...');
+                return await this.getDataSharesCreatedByMeCachePromise;
+            }
+            
+            // Create a new fetch promise
+            this.getDataSharesCreatedByMeCachePromise = (async () => {
+                try {
+                    const tableName = this._getTableName('dataShares');
+                    const result = await this.querySelect(tableName, {
+                        filter: {
+                            owner_user_id: currentUserId
+                        },
+                        order: [{ column: 'created_at', ascending: false }]
+                    });
+                    
+                    if (result.error) {
+                        console.error('[DatabaseService] Error getting data shares:', result.error);
+                        // If database fetch fails, try to use cache as fallback
+                        if (this.getDataSharesCreatedByMeCache) {
+                            console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
+                            return this.getDataSharesCreatedByMeCache;
+                        }
+                        return {
+                            success: false,
+                            shares: null,
+                            error: result.error.message || 'Failed to get shares'
+                        };
+                    }
+                    
+                    const shares = result.data || [];
+                    
+                    for (const share of shares) {
+                        if (typeof share.shared_months === 'string') {
+                            try {
+                                share.shared_months = JSON.parse(share.shared_months);
+                            } catch (e) {
+                                share.shared_months = [];
+                            }
+                        }
+                    }
+                    
+                    const finalResult = {
+                        success: true,
+                        shares: shares,
+                        error: null
+                    };
+                    
+                    // Update cache
+                    this.getDataSharesCreatedByMeCache = finalResult;
+                    this.getDataSharesCreatedByMeCacheTimestamp = Date.now();
+                    
+                    return finalResult;
+                } catch (error) {
+                    console.error('[DatabaseService] Exception getting data shares:', error);
+                    // If database fetch fails, try to use cache as fallback
+                    if (this.getDataSharesCreatedByMeCache) {
+                        console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
+                        return this.getDataSharesCreatedByMeCache;
+                    }
+                    return {
+                        success: false,
+                        shares: null,
+                        error: error.message || 'An unexpected error occurred'
+                    };
+                } finally {
+                    // Clear the promise so future calls can fetch fresh data
+                    this.getDataSharesCreatedByMeCachePromise = null;
+                }
+            })();
+            
+            return await this.getDataSharesCreatedByMeCachePromise;
         } catch (error) {
-            console.error('[DatabaseService] Exception getting data shares:', error);
+            // If we get here, the promise creation failed
+            console.error('[DatabaseService] Error in getDataSharesCreatedByMe promise creation:', error);
+            // If database fetch fails, try to use cache as fallback
+            if (this.getDataSharesCreatedByMeCache) {
+                console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
+                return this.getDataSharesCreatedByMeCache;
+            }
             return {
                 success: false,
                 shares: null,
