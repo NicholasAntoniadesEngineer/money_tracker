@@ -210,8 +210,12 @@ const NotificationsController = {
         // Back to conversations button
         const backToConversationsButton = document.getElementById('back-to-conversations');
         if (backToConversationsButton) {
-            backToConversationsButton.addEventListener('click', () => {
-                this.handleBackToConversations();
+            backToConversationsButton.addEventListener('click', async () => {
+                try {
+                    await this.handleBackToConversations();
+                } catch (error) {
+                    console.error('[NotificationsController] Error in handleBackToConversations:', error);
+                }
             });
         }
 
@@ -928,10 +932,8 @@ const NotificationsController = {
 
             if (result.success) {
                 alert('User blocked successfully');
-                // Go back to conversations list
-                this.handleBackToConversations();
-                // Reload conversations to refresh the list
-                await this.loadConversations();
+                // Go back to conversations list and refresh
+                await this.handleBackToConversations();
             } else {
                 throw new Error(result.error || 'Failed to block user');
             }
@@ -1083,11 +1085,13 @@ const NotificationsController = {
     /**
      * Handle back to conversations button click
      */
-    handleBackToConversations() {
+    async handleBackToConversations() {
         console.log('[NotificationsController] handleBackToConversations() called');
+        
         const conversationsList = document.getElementById('conversations-list');
         const messageThreadContainer = document.getElementById('message-thread-container');
 
+        // Hide message thread, show conversations list
         if (conversationsList) {
             conversationsList.style.display = 'block';
         }
@@ -1103,6 +1107,40 @@ const NotificationsController = {
         if (messageInput) {
             messageInput.value = '';
         }
+
+        // Reset filter state to 'all' view
+        this.currentFilter = 'all';
+        this.currentCategory = null;
+        this.currentView = 'notifications';
+        
+        // Update filter dropdown to 'all'
+        const filterDropdown = document.getElementById('filter-dropdown');
+        if (filterDropdown) {
+            filterDropdown.value = 'all';
+        }
+
+        // Switch to notifications view
+        console.log('[NotificationsController] Switching back to notifications view');
+        this.switchView('notifications');
+
+        // Reload conversations to get fresh data
+        console.log('[NotificationsController] Reloading conversations...');
+        await this.loadConversations();
+
+        // Reload notifications to ensure everything is fresh
+        console.log('[NotificationsController] Reloading notifications...');
+        await this.loadNotifications();
+
+        // Explicitly render the all view to ensure it's displayed
+        console.log('[NotificationsController] Rendering all view...');
+        this.renderAllView();
+
+        // Update notification count in header
+        if (typeof window.Header !== 'undefined') {
+            window.Header.updateNotificationCount();
+        }
+
+        console.log('[NotificationsController] handleBackToConversations() complete - view refreshed');
     },
 
     /**
