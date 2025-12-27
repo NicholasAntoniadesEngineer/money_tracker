@@ -4471,6 +4471,8 @@ const MonthlyBudgetController = {
 
     /**
      * Render shared from section
+     * Only shows accepted shares that include the current month
+     * Share requests are handled in the notifications/conversations section
      */
     async renderSharedFromSection(sharedData) {
         console.log('[MonthlyBudgetController] renderSharedFromSection() called', sharedData);
@@ -4481,19 +4483,16 @@ const MonthlyBudgetController = {
             return;
         }
 
-        const pending = sharedData.pending || [];
         const accepted = sharedData.accepted || [];
-        const declined = sharedData.declined || [];
 
         // Filter accepted shares to only show those that include the current month
         const filteredAccepted = this.currentMonthKey 
             ? accepted.filter(share => this.shareIncludesCurrentMonth(share))
             : [];
 
-        // Always show pending shares (so users can accept/decline them)
         // Only show accepted shares that include the current month
-        // Don't show declined shares (they're not relevant)
-        if (pending.length === 0 && filteredAccepted.length === 0) {
+        // Don't show pending or declined shares (they're handled in notifications)
+        if (filteredAccepted.length === 0) {
             section.style.display = 'none';
             return;
         }
@@ -4502,23 +4501,19 @@ const MonthlyBudgetController = {
 
         let html = '';
 
-        if (pending.length > 0) {
-            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Pending</h3>';
-            html += await this.renderSharedMonthsList(pending, 'pending');
-        }
-
         if (filteredAccepted.length > 0) {
-            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Accepted</h3>';
+            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Shared Data</h3>';
             html += await this.renderSharedMonthsList(filteredAccepted, 'accepted');
         }
 
         content.innerHTML = html;
 
-        this.setupSharedFromListeners();
+        // No need for listeners since we're only showing accepted shares (no action buttons)
     },
 
     /**
-     * Render shared months list for a status
+     * Render shared months list for accepted shares
+     * Only shows accepted shares with "Shared from: [email]" prominently displayed
      */
     async renderSharedMonthsList(shares, status) {
         const monthsHtml = await Promise.all(
@@ -4540,25 +4535,14 @@ const MonthlyBudgetController = {
                     }
                 }).join(', ') || 'All months';
 
-                let actionsHtml = '';
-                if (status === 'pending') {
-                    actionsHtml = `
-                        <div style="display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs);">
-                            <button class="btn btn-sm btn-primary accept-share-btn" data-share-id="${share.id}">Accept</button>
-                            <button class="btn btn-sm btn-secondary decline-share-btn" data-share-id="${share.id}">Decline</button>
-                            <button class="btn btn-sm btn-danger block-user-btn" data-user-id="${share.owner_user_id}">Block</button>
-                        </div>
-                    `;
-                }
-
+                // Only render accepted shares - no action buttons needed
                 return `
                     <div class="shared-month-item" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
-                        <div><strong>From:</strong> ${ownerEmail}</div>
+                        <div style="margin-bottom: var(--spacing-xs);"><strong>Shared from:</strong> ${ownerEmail}</div>
                         <div><strong>Access Level:</strong> ${share.access_level}</div>
                         <div><strong>Months:</strong> ${monthsList}</div>
                         ${share.shared_pots || share.share_all_data ? '<div><strong>Pots:</strong> Yes</div>' : ''}
                         ${share.shared_settings || share.share_all_data ? '<div><strong>Settings:</strong> Yes</div>' : ''}
-                        ${actionsHtml}
                     </div>
                 `;
             })

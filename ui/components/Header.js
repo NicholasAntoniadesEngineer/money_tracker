@@ -307,13 +307,29 @@ class Header {
 
         // Update notification count when page becomes visible (user switches back to tab)
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && window.AuthService && window.AuthService.isAuthenticated()) {
-                console.log('[Header] Page became visible, updating notification count...');
+            if (!document.hidden && window.AuthService) {
+                console.log('[Header] Page became visible, checking auth state and updating...');
+                // Refresh header to ensure user icon is still visible
+                this.updateHeader();
                 this.updateNotificationCount().catch(err => {
                     console.warn('[Header] Failed to update notification count on visibility change:', err);
                 });
             }
         });
+        
+        // Periodic session check to prevent user icon from disappearing
+        // Check every 30 seconds if user appears to be authenticated
+        setInterval(() => {
+            if (window.AuthService && window.AuthService.currentUser && window.AuthService.session) {
+                // User appears authenticated, verify and refresh header if needed
+                const nav = document.querySelector('.main-navigation');
+                const userMenu = nav?.querySelector('.header-user-menu');
+                if (!userMenu) {
+                    console.log('[Header] User menu missing but user appears authenticated, refreshing header...');
+                    this.updateHeader(true);
+                }
+            }
+        }, 30000); // Check every 30 seconds
         
         this.initialized = true;
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
@@ -786,7 +802,7 @@ class Header {
      * Update header to reflect current auth state
      * @param {boolean} force - Force update even if state appears unchanged
      */
-    static updateHeader(force = false) {
+    static async updateHeader(force = false) {
         console.log('[Header] ========== UPDATE HEADER CALLED ==========', { force });
         
         if (this.updateInProgress && !force) {
@@ -821,22 +837,53 @@ class Header {
             let isAuthenticated = false;
             let currentUserEmail = null;
             if (window.AuthService) {
-                // Check both the method and direct state to handle timeout scenarios
-                const methodCheck = window.AuthService.isAuthenticated();
-                const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
-                isAuthenticated = methodCheck || directCheck;
-                const user = window.AuthService.getCurrentUser();
-                currentUserEmail = user?.email || null;
-                
-                // If still not authenticated on force update, wait a bit and retry (for sign-in timing issues)
-                if (!isAuthenticated && force) {
-                    console.log('[Header] Auth check failed on force update, retrying after delay...');
-                    this.updateInProgress = false; // Reset to allow retry
-                    setTimeout(() => {
-                        // Recursively call updateHeader with force to retry
-                        this.updateHeader(true);
-                    }, 300);
-                    return;
+                try {
+                    // Check both the method and direct state to handle timeout scenarios
+                    const methodCheck = window.AuthService.isAuthenticated();
+                    const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+                    
+                    // If method check fails but direct check passes, try refreshing session
+                    if (!methodCheck && directCheck) {
+                        console.log('[Header] Method check failed but session exists, attempting session refresh...');
+                        try {
+                            // Try to refresh the session check
+                            const sessionResult = await window.AuthService.client?.auth?.getSession();
+                            if (sessionResult?.data?.session) {
+                                console.log('[Header] Session refresh successful, user is authenticated');
+                                isAuthenticated = true;
+                            } else {
+                                console.log('[Header] Session refresh found no session');
+                                isAuthenticated = false;
+                            }
+                        } catch (sessionError) {
+                            console.warn('[Header] Session refresh failed, using direct check:', sessionError);
+                            // Fall back to direct check if session refresh fails
+                            isAuthenticated = directCheck;
+                        }
+                    } else {
+                        isAuthenticated = methodCheck || directCheck;
+                    }
+                    
+                    const user = window.AuthService.getCurrentUser() || window.AuthService.currentUser;
+                    currentUserEmail = user?.email || null;
+                    
+                    // If still not authenticated on force update, wait a bit and retry (for sign-in timing issues)
+                    if (!isAuthenticated && force) {
+                        console.log('[Header] Auth check failed on force update, retrying after delay...');
+                        this.updateInProgress = false; // Reset to allow retry
+                        setTimeout(() => {
+                            // Recursively call updateHeader with force to retry
+                            this.updateHeader(true);
+                        }, 300);
+                        return;
+                    }
+                } catch (authError) {
+                    console.error('[Header] Error checking authentication state:', authError);
+                    // On error, try to use cached state or direct check as fallback
+                    const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+                    isAuthenticated = directCheck;
+                    const user = window.AuthService.currentUser;
+                    currentUserEmail = user?.email || null;
                 }
             }
             
@@ -884,7 +931,14 @@ class Header {
             
             // Add user menu if authenticated
             if (isAuthenticated) {
-                const user = window.AuthService.getCurrentUser();
+                // Get user info with fallback to direct access
+                const user = window.AuthService.getCurrentUser() || window.AuthService.currentUser;
+                if (!user) {
+                    console.warn('[Header] User appears authenticated but user object is null, skipping user menu');
+                    this.updateInProgress = false;
+                    return;
+                }
+                
                 const userEmail = user?.email || 'User';
                 const userInitials = this.getUserInitials(userEmail);
                 const basePath = this.getBasePath();

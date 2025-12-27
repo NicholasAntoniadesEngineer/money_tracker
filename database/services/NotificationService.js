@@ -444,11 +444,12 @@ const NotificationService = {
      * Mark all notifications as read for a conversation
      * @param {string} userId - User ID
      * @param {number} conversationId - Conversation ID
+     * @param {string|null} fromUserId - Optional: User ID of the conversation partner (to mark their message notifications even without conversation_id)
      * @returns {Promise<{success: boolean, count: number, error: string|null}>}
      */
-    async markConversationNotificationsAsRead(userId, conversationId) {
+    async markConversationNotificationsAsRead(userId, conversationId, fromUserId = null) {
         try {
-            console.log('[NotificationService] markConversationNotificationsAsRead() called', { userId, conversationId });
+            console.log('[NotificationService] markConversationNotificationsAsRead() called', { userId, conversationId, fromUserId });
 
             const databaseService = this._getDatabaseService();
             if (!databaseService) {
@@ -456,8 +457,11 @@ const NotificationService = {
             }
 
             const tableName = this._getTableName('notifications');
+            let totalCount = 0;
 
-            const updateResult = await databaseService.queryUpdate(tableName, null, {
+            // First, mark notifications with conversation_id matching
+            console.log('[NotificationService] Marking notifications with conversation_id:', conversationId);
+            const updateResult1 = await databaseService.queryUpdate(tableName, null, {
                 read: true
             }, {
                 user_id: userId,
@@ -465,20 +469,39 @@ const NotificationService = {
                 read: false
             });
 
-            if (updateResult.error) {
-                console.error('[NotificationService] Error marking conversation notifications as read:', updateResult.error);
-                return {
-                    success: false,
-                    count: 0,
-                    error: updateResult.error.message || 'Failed to mark conversation notifications as read'
-                };
+            if (updateResult1.error) {
+                console.error('[NotificationService] Error marking conversation notifications as read (by conversation_id):', updateResult1.error);
+            } else {
+                const count1 = updateResult1.count || 0;
+                totalCount += count1;
+                console.log('[NotificationService] Marked', count1, 'notifications as read (by conversation_id)');
             }
 
-            const count = updateResult.count || 0;
-            console.log('[NotificationService] Marked', count, 'conversation notifications as read');
+            // Also mark message_received notifications from the conversation partner (even if they don't have conversation_id)
+            if (fromUserId) {
+                console.log('[NotificationService] Marking message_received notifications from user:', fromUserId);
+                const updateResult2 = await databaseService.queryUpdate(tableName, null, {
+                    read: true
+                }, {
+                    user_id: userId,
+                    from_user_id: fromUserId,
+                    type: 'message_received',
+                    read: false
+                });
+
+                if (updateResult2.error) {
+                    console.error('[NotificationService] Error marking message notifications as read (by from_user_id):', updateResult2.error);
+                } else {
+                    const count2 = updateResult2.count || 0;
+                    totalCount += count2;
+                    console.log('[NotificationService] Marked', count2, 'message notifications as read (by from_user_id)');
+                }
+            }
+
+            console.log('[NotificationService] Total marked', totalCount, 'conversation notifications as read');
             return {
                 success: true,
-                count: count,
+                count: totalCount,
                 error: null
             };
         } catch (error) {

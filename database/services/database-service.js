@@ -3209,6 +3209,22 @@ const DatabaseService = {
             
             const tableName = this._getTableName('dataShares');
             
+            // Get or create conversation between owner and recipient for share requests
+            let conversationId = null;
+            if (typeof window.MessagingService !== 'undefined') {
+                console.log('[DatabaseService] Getting or creating conversation for share request');
+                const conversationResult = await window.MessagingService.getOrCreateConversation(currentUserId, userResult.userId);
+                if (conversationResult.success && conversationResult.conversation) {
+                    conversationId = conversationResult.conversation.id;
+                    console.log('[DatabaseService] Conversation ID for share:', conversationId);
+                } else {
+                    console.warn('[DatabaseService] Failed to get/create conversation:', conversationResult.error);
+                    // Continue without conversation_id - share can still be created
+                }
+            } else {
+                console.warn('[DatabaseService] MessagingService not available, cannot link share to conversation');
+            }
+            
             // Check if a share already exists for this owner-user pair
             console.log('[DatabaseService] Checking for existing share between owner:', currentUserId, 'and user:', userResult.userId);
             const existingShareResult = await this.querySelect(tableName, {
@@ -3252,6 +3268,11 @@ const DatabaseService = {
                     updated_at: new Date().toISOString()
                 };
                 
+                // Include conversation_id if available
+                if (conversationId !== null) {
+                    updateData.conversation_id = conversationId;
+                }
+                
                 console.log('[DatabaseService] Updating existing share with data:', updateData);
                 const updateResult = await this.queryUpdate(tableName, shareId, updateData);
                 
@@ -3279,6 +3300,11 @@ const DatabaseService = {
                     share_all_data: shareAllData,
                     status: shareStatus
                 };
+                
+                // Include conversation_id if available
+                if (conversationId !== null) {
+                    shareData.conversation_id = conversationId;
+                }
                 
                 const result = await this.queryInsert(tableName, shareData);
                 
@@ -3319,6 +3345,11 @@ const DatabaseService = {
                                 status: shareStatus,
                                 updated_at: new Date().toISOString()
                             };
+                            
+                            // Include conversation_id if available
+                            if (conversationId !== null) {
+                                updateData.conversation_id = conversationId;
+                            }
                             
                             const updateResult = await this.queryUpdate(tableName, existingShare.id, updateData);
                             if (updateResult.error) {
@@ -3371,6 +3402,69 @@ const DatabaseService = {
                 shouldCreateNotification = true;
             }
             
+            // Create a message in the conversation for share requests
+            if (share && share.status === 'pending' && conversationId && typeof window.MessagingService !== 'undefined') {
+                console.log('[DatabaseService] ========== Creating share request message in conversation ==========');
+                console.log('[DatabaseService] Message details:', {
+                    conversationId: conversationId,
+                    senderId: currentUserId,
+                    recipientId: userResult.userId,
+                    shareId: share.id
+                });
+                
+                try {
+                    // Parse shared_months from share if it's a string
+                    let parsedSharedMonths = sharedMonths || [];
+                    if (share.shared_months) {
+                        if (typeof share.shared_months === 'string') {
+                            try {
+                                parsedSharedMonths = JSON.parse(share.shared_months);
+                            } catch (e) {
+                                console.warn('[DatabaseService] Error parsing shared_months from share:', e);
+                                parsedSharedMonths = [];
+                            }
+                        } else {
+                            parsedSharedMonths = share.shared_months;
+                        }
+                    }
+                    
+                    // Format share details for the message
+                    const monthsList = parsedSharedMonths.map(m => {
+                        if (m.type === 'range') {
+                            return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
+                        } else {
+                            return `${m.month}/${m.year}`;
+                        }
+                    }).join(', ') || (share.share_all_data || shareAllData ? 'All months' : 'None');
+                    
+                    const shareMessageContent = `📤 Share Request\n\n` +
+                        `Access Level: ${share.access_level || accessLevel}\n` +
+                        `Months: ${monthsList}\n` +
+                        `${(share.shared_pots || sharedPots || share.share_all_data || shareAllData) ? 'Pots: Yes\n' : ''}` +
+                        `${(share.shared_settings || sharedSettings || share.share_all_data || shareAllData) ? 'Settings: Yes\n' : ''}` +
+                        `\nShare ID: ${share.id}`;
+                    
+                    const messageResult = await window.MessagingService.sendMessage(
+                        conversationId,
+                        currentUserId,
+                        userResult.userId,
+                        shareMessageContent
+                    );
+                    
+                    if (messageResult.success) {
+                        console.log('[DatabaseService] ✅ Share request message created successfully in conversation');
+                    } else {
+                        console.error('[DatabaseService] ❌ Failed to create share request message:', messageResult.error);
+                    }
+                } catch (messageError) {
+                    console.error('[DatabaseService] ❌ Exception creating share request message:', {
+                        error: messageError.message,
+                        stack: messageError.stack
+                    });
+                }
+            }
+            
+            // Still create notification for share requests (for badge count, etc.)
             if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
                 console.log('[DatabaseService] ========== Creating notification for share request ==========');
                 console.log('[DatabaseService] Notification details:', {
@@ -3388,7 +3482,9 @@ const DatabaseService = {
                         'share_request',
                         share.id,
                         currentUserId,
-                        null
+                        null,
+                        {},
+                        conversationId
                     );
                     console.log('[DatabaseService] Notification creation result:', {
                         success: notificationResult.success,
