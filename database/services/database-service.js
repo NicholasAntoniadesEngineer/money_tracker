@@ -272,9 +272,8 @@ const DatabaseService = {
             url.searchParams.append('select', options.select);
         }
         if (options.filter) {
-            Object.entries(options.filter).forEach(([key, value]) => {
-                url.searchParams.append(key, `eq.${value}`);
-            });
+            console.log('[DatabaseService] querySelect - Applying filters to URL');
+            this._applyFiltersToUrl(url, options.filter);
         }
         if (options.order) {
             options.order.forEach(({ column, ascending }) => {
@@ -303,6 +302,7 @@ const DatabaseService = {
             console.error('[DatabaseService] querySelect - header error stack:', headerError.stack);
             return {
                 data: null,
+                count: null,
                 error: {
                     message: `Failed to get auth headers: ${headerError.message}`,
                     code: 'AUTH_HEADERS_FAILED',
@@ -361,6 +361,7 @@ const DatabaseService = {
         console.log('[DatabaseService] querySelect - response headers:', {
             contentType: response.headers.get('content-type'),
             contentLength: response.headers.get('content-length'),
+            contentRange: response.headers.get('content-range'),
             status: response.status,
             statusText: response.statusText,
             ok: response.ok
@@ -651,24 +652,237 @@ const DatabaseService = {
     },
     
     /**
+     * Execute an RPC (Remote Procedure Call) to a database function
+     * @param {string} functionName - Function name
+     * @param {Object} params - Function parameters
+     * @returns {Promise<{data: any|null, error: Object|null}>}
+     */
+    async queryRpc(functionName, params = {}) {
+        console.log('[DatabaseService] ========== queryRpc CALLED ==========');
+        console.log('[DatabaseService] queryRpc - function:', functionName);
+        console.log('[DatabaseService] queryRpc - params:', JSON.stringify(params));
+
+        if (!this.client) {
+            console.log('[DatabaseService] Client not initialized, initializing...');
+            await this.initialize();
+        }
+
+        if (!this.client || !this.client.supabaseUrl) {
+            return {
+                data: null,
+                error: {
+                    message: 'Database client not initialized',
+                    status: 500
+                }
+            };
+        }
+
+        const rpcUrl = new URL(`${this.client.supabaseUrl}/rest/v1/rpc/${functionName}`);
+        console.log('[DatabaseService] queryRpc URL:', rpcUrl.toString());
+
+        const authHeaders = this._getAuthHeaders();
+        console.log('[DatabaseService] queryRpc - calling fetch()...');
+
+        try {
+            const response = await fetch(rpcUrl.toString(), {
+                method: 'POST',
+                headers: {
+                    ...authHeaders,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            });
+
+            const responseText = await response.text();
+            console.log('[DatabaseService] queryRpc response status:', response.status, response.statusText);
+            console.log('[DatabaseService] queryRpc response body:', responseText.substring(0, 200));
+
+            if (!response.ok) {
+                let errorObj;
+                try {
+                    errorObj = JSON.parse(responseText);
+                } catch {
+                    errorObj = { message: responseText };
+                }
+                return {
+                    data: null,
+                    error: {
+                        message: errorObj.message || responseText,
+                        code: errorObj.code,
+                        details: errorObj.details,
+                        hint: errorObj.hint,
+                        status: response.status
+                    }
+                };
+            }
+
+            let data = null;
+            if (responseText && responseText.trim() !== '') {
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.warn('[DatabaseService] queryRpc response not JSON:', responseText.substring(0, 100));
+                    data = responseText;
+                }
+            }
+
+            console.log('[DatabaseService] ========== queryRpc COMPLETE ==========');
+            return {
+                data: data,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception in queryRpc:', error);
+            return {
+                data: null,
+                error: {
+                    message: error.message || 'An unexpected error occurred',
+                    status: 500
+                }
+            };
+        }
+    },
+
+    /**
      * Execute an UPDATE operation
      * @param {string} table - Table name
-     * @param {string|number} id - Record ID to update
+     * @param {string|number|null} id - Record ID to update (null for bulk updates with filter)
      * @param {Object} updateData - Data to update
+     * @param {Object} filter - Optional filter object for bulk updates (when id is null)
      * @returns {Promise<{data: Array|null, error: Object|null}>}
      */
-    async queryUpdate(table, id, updateData) {
+    async queryUpdate(table, id, updateData, filter = null) {
+        console.log('[DatabaseService] ========== queryUpdate CALLED ==========');
+        console.log('[DatabaseService] queryUpdate - table:', table);
+        console.log('[DatabaseService] queryUpdate - id:', id, 'type:', typeof id);
+        console.log('[DatabaseService] queryUpdate - updateData:', JSON.stringify(updateData, null, 2));
+        console.log('[DatabaseService] queryUpdate - filter:', filter ? JSON.stringify(filter, null, 2) : 'null');
+        
         const updateUrl = new URL(`${this.client.supabaseUrl}/rest/v1/${table}`);
-        updateUrl.searchParams.append('id', `eq.${id}`);
+        
+        if (id !== null && id !== undefined) {
+            console.log('[DatabaseService] queryUpdate - Using id-based update:', id);
+            updateUrl.searchParams.append('id', `eq.${id}`);
+        } else if (filter) {
+            console.log('[DatabaseService] queryUpdate - Using filter-based bulk update');
+            this._applyFiltersToUrl(updateUrl, filter);
+        } else {
+            console.error('[DatabaseService] queryUpdate - ERROR: Both id and filter are null/undefined. Cannot perform update.');
+            return {
+                data: null,
+                count: null,
+                error: {
+                    message: 'Either id or filter must be provided for update operation',
+                    status: 400
+                }
+            };
+        }
+        
         updateUrl.searchParams.append('select', '*');
         
-        const response = await fetch(updateUrl.toString(), {
-            method: 'PATCH',
-            headers: this._getAuthHeaders(),
-            body: JSON.stringify(updateData)
+        console.log('[DatabaseService] queryUpdate - URL:', updateUrl.toString());
+        
+        const authHeaders = this._getAuthHeaders();
+        const headers = {
+            ...authHeaders,
+            'Prefer': 'return=representation' // This is required for Supabase to return the updated rows
+        };
+        
+        console.log('[DatabaseService] queryUpdate - headers:', {
+            hasApikey: !!headers.apikey,
+            hasAuthorization: !!headers.Authorization,
+            hasPrefer: !!headers.Prefer,
+            preferValue: headers.Prefer
         });
         
-        return await this._handleResponse(response);
+        console.log('[DatabaseService] queryUpdate - calling fetch()...');
+        const fetchStartTime = Date.now();
+        const response = await fetch(updateUrl.toString(), {
+            method: 'PATCH',
+            headers: headers,
+            body: JSON.stringify(updateData)
+        });
+        const fetchDuration = Date.now() - fetchStartTime;
+        
+        console.log(`[DatabaseService] queryUpdate - fetch() completed in ${fetchDuration}ms`);
+        console.log('[DatabaseService] queryUpdate - response status:', response.status, response.statusText);
+        console.log('[DatabaseService] queryUpdate - response headers:', {
+            contentType: response.headers.get('content-type'),
+            contentRange: response.headers.get('content-range'),
+            contentLength: response.headers.get('content-length')
+        });
+        
+        // Clone response for logging (can only read body once)
+        const responseClone = response.clone();
+        try {
+            const responseText = await responseClone.text();
+            console.log('[DatabaseService] queryUpdate - response body (first 500 chars):', responseText.substring(0, 500));
+        } catch (e) {
+            console.warn('[DatabaseService] queryUpdate - Could not read response body for logging:', e.message);
+        }
+        
+        const result = await this._handleResponse(response);
+        
+        console.log('[DatabaseService] queryUpdate - result:', {
+            hasError: !!result.error,
+            error: result.error,
+            hasData: !!result.data,
+            dataLength: result.data?.length || 0,
+            dataType: Array.isArray(result.data) ? 'array' : typeof result.data
+        });
+        console.log('[DatabaseService] ========== queryUpdate COMPLETE ==========');
+        
+        return result;
+    },
+
+    /**
+     * Apply filters to URL for PostgREST queries
+     * @private
+     * @param {URL} url - URL object to modify
+     * @param {Object} filter - Filter object
+     */
+    _applyFiltersToUrl(url, filter) {
+        console.log('[DatabaseService] _applyFiltersToUrl() called', { filter: JSON.stringify(filter, null, 2) });
+        
+        if (!filter || typeof filter !== 'object') {
+            console.warn('[DatabaseService] _applyFiltersToUrl - Invalid filter provided:', filter);
+            return;
+        }
+        
+        // Handle $or filter for PostgREST
+        if (filter.$or && Array.isArray(filter.$or)) {
+            console.log('[DatabaseService] _applyFiltersToUrl - Processing $or filter');
+            // Convert $or array to PostgREST or syntax: or=(condition1,condition2)
+            const orConditions = filter.$or.map(condition => {
+                // Each condition should be an object like { user1_id: userId }
+                // For PostgREST, each condition in or() should be a single column comparison
+                const conditionEntries = Object.entries(condition);
+                if (conditionEntries.length !== 1) {
+                    throw new Error(`Each $or condition must have exactly one key-value pair, got ${conditionEntries.length}`);
+                }
+                const [key, value] = conditionEntries[0];
+                return `${key}.eq.${value}`;
+            });
+            url.searchParams.append('or', `(${orConditions.join(',')})`);
+            console.log('[DatabaseService] _applyFiltersToUrl - converted $or filter to PostgREST or syntax:', `or=(${orConditions.join(',')})`);
+            
+            // Also process other filters (if any)
+            Object.entries(filter).forEach(([key, value]) => {
+                if (key !== '$or') {
+                    url.searchParams.append(key, `eq.${value}`);
+                    console.log('[DatabaseService] _applyFiltersToUrl - Added filter:', key, '=', value);
+                }
+            });
+        } else {
+            // Regular filters (no $or)
+            console.log('[DatabaseService] _applyFiltersToUrl - Processing regular filters');
+            Object.entries(filter).forEach(([key, value]) => {
+                url.searchParams.append(key, `eq.${value}`);
+                console.log('[DatabaseService] _applyFiltersToUrl - Added filter:', key, '=', value);
+            });
+        }
+        
+        console.log('[DatabaseService] _applyFiltersToUrl - Final URL:', url.toString());
     },
     
     /**
@@ -686,6 +900,7 @@ const DatabaseService = {
             }
             return {
                 data: null,
+                count: null,
                 error: {
                     message: errorObj.message || errorText,
                     code: errorObj.code,
@@ -696,21 +911,41 @@ const DatabaseService = {
             };
         }
         
+        // Extract count from Content-Range header if present (for count: 'exact' queries)
+        let count = null;
+        const contentRange = response.headers.get('content-range');
+        if (contentRange) {
+            // Content-Range format: "0-4/5" where 5 is the total count
+            const match = contentRange.match(/\/(\d+)$/);
+            if (match) {
+                count = parseInt(match[1], 10);
+                console.log('[DatabaseService] _handleResponse - Extracted count from Content-Range header:', {
+                    contentRange: contentRange,
+                    extractedCount: count
+                });
+            }
+        }
+        
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             const text = await response.text();
             if (!text || text.trim() === '') {
-                return { data: null, error: null };
+                return { data: null, count: count || 0, error: null };
             }
             try {
                 const data = JSON.parse(text);
-                return { data, error: null };
+                // If count wasn't extracted from header but we have data, use data length as fallback
+                if (count === null && Array.isArray(data)) {
+                    count = data.length;
+                    console.log('[DatabaseService] _handleResponse - Using data length as count:', count);
+                }
+                return { data, count: count || (Array.isArray(data) ? data.length : null), error: null };
             } catch (e) {
-                return { data: null, error: { message: 'Invalid JSON response', status: response.status } };
+                return { data: null, count: null, error: { message: 'Invalid JSON response', status: response.status } };
             }
         }
         
-        return { data: null, error: null };
+        return { data: null, count: null, error: null };
     },
     
     /**
@@ -1505,6 +1740,145 @@ const DatabaseService = {
                 });
             }
             
+            // Add shared months
+            if (currentUserId && window.DataSharingService) {
+                try {
+                    console.log('[DatabaseService] Fetching shared months...');
+                    const sharedSharesResult = await this.getDataSharesSharedWithMe();
+                    if (sharedSharesResult.success && sharedSharesResult.shares) {
+                        for (const share of sharedSharesResult.shares) {
+                            if (share.status !== 'accepted') {
+                                console.log(`[DatabaseService] Skipping share ${share.id} - status: ${share.status}`);
+                                continue;
+                            }
+                            
+                            console.log(`[DatabaseService] Processing accepted share ${share.id} from owner ${share.owner_user_id}`, {
+                                shareAllData: share.share_all_data,
+                                sharedMonthsCount: share.shared_months?.length || 0
+                            });
+                            
+                            // Fetch owner email once per share (more efficient)
+                            let ownerEmail = 'Unknown User';
+                            try {
+                                const ownerEmailResult = await this.getUserEmailById(share.owner_user_id);
+                                if (ownerEmailResult.success && ownerEmailResult.email) {
+                                    ownerEmail = ownerEmailResult.email;
+                                    console.log(`[DatabaseService] Owner email for share ${share.id}: ${ownerEmail}`);
+                                }
+                            } catch (emailError) {
+                                console.warn('[DatabaseService] Error fetching owner email for share:', emailError);
+                            }
+                            
+                            // If share_all_data is true, fetch all months from the owner
+                            if (share.share_all_data) {
+                                console.log(`[DatabaseService] Share ${share.id} has share_all_data=true, fetching all months from owner ${share.owner_user_id}`);
+                                const ownerMonthsResult = await this.querySelect(this._getTableName('userMonths'), {
+                                    select: '*',
+                                    filter: { user_id: share.owner_user_id },
+                                    order: [{ column: 'year', ascending: false }, { column: 'month', ascending: false }]
+                                });
+                                
+                                if (ownerMonthsResult.data && ownerMonthsResult.data.length > 0) {
+                                    console.log(`[DatabaseService] Found ${ownerMonthsResult.data.length} months from owner ${share.owner_user_id}`);
+                                    for (const monthRecord of ownerMonthsResult.data) {
+                                        const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                                        if (!monthsObject[monthKey]) {
+                                            const transformedMonth = this.transformMonthFromDatabase(monthRecord);
+                                            transformedMonth.isShared = true;
+                                            transformedMonth.sharedOwnerId = share.owner_user_id;
+                                            transformedMonth.sharedAccessLevel = share.access_level;
+                                            transformedMonth.sharedOwnerEmail = ownerEmail;
+                                            
+                                            monthsObject[monthKey] = transformedMonth;
+                                            console.log(`[DatabaseService] Added shared month (all data): ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
+                                        }
+                                    }
+                                } else {
+                                    console.log(`[DatabaseService] No months found for owner ${share.owner_user_id} (share_all_data=true)`);
+                                }
+                                continue; // Skip the shared_months loop since we've already loaded all months
+                            }
+                            
+                            // Otherwise, process only the specified months
+                            const sharedMonths = share.shared_months || [];
+                            console.log(`[DatabaseService] Processing ${sharedMonths.length} specific months for share ${share.id}`);
+                            for (const monthEntry of sharedMonths) {
+                                let year, month;
+                                
+                                if (monthEntry.type === 'range') {
+                                    const startYear = parseInt(monthEntry.startYear, 10);
+                                    const endYear = parseInt(monthEntry.endYear, 10);
+                                    const startMonth = parseInt(monthEntry.startMonth, 10);
+                                    const endMonth = parseInt(monthEntry.endMonth, 10);
+                                    
+                                    for (let y = startYear; y <= endYear; y++) {
+                                        const monthStart = (y === startYear) ? startMonth : 1;
+                                        const monthEnd = (y === endYear) ? endMonth : 12;
+                                        for (let m = monthStart; m <= monthEnd; m++) {
+                                            year = y;
+                                            month = m;
+                                            const monthKey = this.generateMonthKey(year, month);
+                                            if (!monthsObject[monthKey]) {
+                                                const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
+                                                    select: '*',
+                                                    filter: {
+                                                        user_id: share.owner_user_id,
+                                                        year: year,
+                                                        month: month
+                                                    },
+                                                    limit: 1
+                                                });
+                                                
+                                                if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
+                                                    const monthRecord = sharedMonthResult.data[0];
+                                                    const transformedMonth = this.transformMonthFromDatabase(monthRecord);
+                                                    transformedMonth.isShared = true;
+                                                    transformedMonth.sharedOwnerId = share.owner_user_id;
+                                                    transformedMonth.sharedAccessLevel = share.access_level;
+                                                    transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
+                                                    
+                                                    monthsObject[monthKey] = transformedMonth;
+                                                    console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    year = parseInt(monthEntry.year, 10);
+                                    month = parseInt(monthEntry.month, 10);
+                                    const monthKey = this.generateMonthKey(year, month);
+                                    if (!monthsObject[monthKey]) {
+                                        const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
+                                            select: '*',
+                                            filter: {
+                                                user_id: share.owner_user_id,
+                                                year: year,
+                                                month: month
+                                            },
+                                            limit: 1
+                                        });
+                                        
+                                        if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
+                                            const monthRecord = sharedMonthResult.data[0];
+                                            const transformedMonth = this.transformMonthFromDatabase(monthRecord);
+                                            transformedMonth.isShared = true;
+                                            transformedMonth.sharedOwnerId = share.owner_user_id;
+                                            transformedMonth.sharedAccessLevel = share.access_level;
+                                            transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
+                                            
+                                            monthsObject[monthKey] = transformedMonth;
+                                            console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (sharedError) {
+                    console.warn('[DatabaseService] Error fetching shared months:', sharedError);
+                }
+            }
+            
             console.log(`[DatabaseService] getAllMonths() completed. Total months: ${Object.keys(monthsObject).length}`);
             console.log('[DatabaseService] Month keys:', Object.keys(monthsObject));
             
@@ -1596,14 +1970,83 @@ const DatabaseService = {
                     data = userFetchResult.data[0];
                     console.log(`[DatabaseService] Found month ${monthKey} in user_months table`);
                 } else if (userFetchResult.error && (userFetchResult.error.code === 'PGRST116' || userFetchResult.error.status === 404)) {
-                    console.log(`[DatabaseService] Month ${monthKey} not found in either table`);
-                    return null; // Not found in either table
+                    // Not found in user's own months, check shared months
+                    console.log(`[DatabaseService] Month ${monthKey} not found in user's months, checking shared months...`);
+                    if (window.DataSharingService) {
+                        const sharedSharesResult = await this.getDataSharesSharedWithMe();
+                        if (sharedSharesResult.success && sharedSharesResult.shares) {
+                            for (const share of sharedSharesResult.shares) {
+                                if (share.status !== 'accepted') {
+                                    continue;
+                                }
+                                const sharedMonths = share.shared_months || [];
+                                const isMonthShared = window.DataSharingService._isMonthInSharedList(year, month, sharedMonths);
+                                if (isMonthShared) {
+                                    const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
+                                        select: '*',
+                                        filter: {
+                                            user_id: share.owner_user_id,
+                                            year: year,
+                                            month: month
+                                        },
+                                        limit: 1
+                                    });
+                                    
+                                    if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
+                                        data = sharedMonthResult.data[0];
+                                        const transformedMonth = this.transformMonthFromDatabase(data);
+                                        transformedMonth.isShared = true;
+                                        transformedMonth.sharedOwnerId = share.owner_user_id;
+                                        transformedMonth.sharedAccessLevel = share.access_level;
+                                        console.log(`[DatabaseService] Found month ${monthKey} in shared months from user ${share.owner_user_id}`);
+                                        return transformedMonth;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    console.log(`[DatabaseService] Month ${monthKey} not found in either table or shared months`);
+                    return null;
                 } else if (userFetchResult.error) {
                     console.error(`[DatabaseService] Error fetching from user_months:`, userFetchResult.error);
                     error = userFetchResult.error;
                 } else if (!userFetchResult.data || (Array.isArray(userFetchResult.data) && userFetchResult.data.length === 0)) {
-                    // Empty result from user_months too
-                    console.log(`[DatabaseService] Month ${monthKey} not found in either table (both returned empty)`);
+                    // Empty result from user_months too, check shared months
+                    console.log(`[DatabaseService] Month ${monthKey} not found in user's months, checking shared months...`);
+                    if (window.DataSharingService) {
+                        const sharedSharesResult = await this.getDataSharesSharedWithMe();
+                        if (sharedSharesResult.success && sharedSharesResult.shares) {
+                            for (const share of sharedSharesResult.shares) {
+                                if (share.status !== 'accepted') {
+                                    continue;
+                                }
+                                const sharedMonths = share.shared_months || [];
+                                const isMonthShared = window.DataSharingService._isMonthInSharedList(year, month, sharedMonths);
+                                if (isMonthShared) {
+                                    const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
+                                        select: '*',
+                                        filter: {
+                                            user_id: share.owner_user_id,
+                                            year: year,
+                                            month: month
+                                        },
+                                        limit: 1
+                                    });
+                                    
+                                    if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
+                                        data = sharedMonthResult.data[0];
+                                        const transformedMonth = this.transformMonthFromDatabase(data);
+                                        transformedMonth.isShared = true;
+                                        transformedMonth.sharedOwnerId = share.owner_user_id;
+                                        transformedMonth.sharedAccessLevel = share.access_level;
+                                        console.log(`[DatabaseService] Found month ${monthKey} in shared months from user ${share.owner_user_id}`);
+                                        return transformedMonth;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    console.log(`[DatabaseService] Month ${monthKey} not found in either table or shared months (both returned empty)`);
                     return null;
                 }
                 
@@ -1684,6 +2127,25 @@ const DatabaseService = {
                     throw new Error('User not authenticated - cannot save to user_months without authentication');
                 }
                 console.log(`[DatabaseService] User ID for user_months: ${userId}`);
+                
+                // Check if this is shared data - if so, verify write permission
+                if (monthData.isShared && monthData.sharedOwnerId && monthData.sharedOwnerId !== userId) {
+                    if (!window.DataSharingService) {
+                        throw new Error('Cannot save shared data - DataSharingService not available');
+                    }
+                    const canWrite = await window.DataSharingService.canWrite(
+                        monthData.sharedOwnerId,
+                        'month',
+                        monthKey,
+                        { year: year, month: month }
+                    );
+                    if (!canWrite) {
+                        throw new Error('You do not have write permission for this shared month');
+                    }
+                    // For shared data, we need to save to the owner's user_id
+                    userId = monthData.sharedOwnerId;
+                    console.log(`[DatabaseService] Saving shared month - using owner user_id: ${userId}`);
+                }
             }
             
             const monthRecord = this.transformMonthToDatabase(monthData, year, month, userId);
@@ -1808,6 +2270,31 @@ const DatabaseService = {
             }
             console.log(`[DatabaseService] User ID for deletion: ${userId}`);
             
+            // Check if this is shared data - if so, verify delete permission
+            const monthData = await this.getMonth(monthKey);
+            if (monthData && monthData.isShared && monthData.sharedOwnerId && monthData.sharedOwnerId !== userId) {
+                if (!window.DataSharingService) {
+                    throw new Error('Cannot delete shared data - DataSharingService not available');
+                }
+                const canDelete = await window.DataSharingService.canDelete(
+                    monthData.sharedOwnerId,
+                    'month',
+                    monthKey,
+                    { year: year, month: month }
+                );
+                if (!canDelete) {
+                    throw new Error('You do not have delete permission for this shared month');
+                }
+                // For shared data deletion, we need to delete from owner's data
+                const ownerUserId = monthData.sharedOwnerId;
+                console.log(`[DatabaseService] Deleting shared month - using owner user_id: ${ownerUserId}`);
+                const deleteResult = await this.queryDelete(this._getTableName('userMonths'), { year, month, user_id: ownerUserId });
+                if (deleteResult.error) {
+                    throw deleteResult.error;
+                }
+                return true;
+            }
+            
             // Only delete from user_months (never from example_months) using centralized query interface
             // Include user_id in filter to ensure we only delete the current user's records
             console.log(`[DatabaseService] Deleting from user_months table...`);
@@ -1850,7 +2337,7 @@ const DatabaseService = {
     },
     
     /**
-     * Get all pots from database
+     * Get all pots from database (including shared pots)
      * @returns {Promise<Object>} Pots data object
      */
     async getAllPots() {
@@ -1859,20 +2346,60 @@ const DatabaseService = {
                 await this.initialize();
             }
             
-            const { data, error } = await this.client
-                .from('pots')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {};
+            }
             
-            if (error) {
-                throw error;
+            const result = await this.querySelect('pots', {
+                select: '*',
+                filter: { user_id: currentUserId },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+            
+            if (result.error) {
+                throw result.error;
             }
             
             const potsObject = {};
-            if (data && Array.isArray(data)) {
-                data.forEach(pot => {
+            const potsData = result.data || [];
+            if (Array.isArray(potsData)) {
+                potsData.forEach(pot => {
                     potsObject[pot.id] = this.transformPotFromDatabase(pot);
                 });
+            }
+            
+            // Add shared pots
+            if (window.DataSharingService) {
+                try {
+                    const sharedSharesResult = await this.getDataSharesSharedWithMe();
+                    if (sharedSharesResult.success && sharedSharesResult.shares) {
+                        for (const share of sharedSharesResult.shares) {
+                            if (share.status !== 'accepted') {
+                                continue;
+                            }
+                            if (share.shared_pots || share.share_all_data) {
+                                const sharedPotsResult = await this.querySelect('pots', {
+                                    select: '*',
+                                    filter: { user_id: share.owner_user_id },
+                                    order: [{ column: 'created_at', ascending: false }]
+                                });
+                                
+                                if (sharedPotsResult.data && Array.isArray(sharedPotsResult.data)) {
+                                    sharedPotsResult.data.forEach(pot => {
+                                        const transformedPot = this.transformPotFromDatabase(pot);
+                                        transformedPot.isShared = true;
+                                        transformedPot.sharedOwnerId = share.owner_user_id;
+                                        transformedPot.sharedAccessLevel = share.access_level;
+                                        potsObject[`shared_${share.owner_user_id}_${pot.id}`] = transformedPot;
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (sharedError) {
+                    console.warn('[DatabaseService] Error fetching shared pots:', sharedError);
+                }
             }
             
             return potsObject;
@@ -2411,6 +2938,1946 @@ const DatabaseService = {
         } catch (error) {
             console.error('[DatabaseService] Error clearing user tables:', error);
             throw error;
+        }
+    },
+    
+    /**
+     * ============================================================================
+     * DATA SHARING METHODS
+     * ============================================================================
+     */
+    
+    /**
+     * Find user by email address
+     * Note: This requires a Supabase Edge Function or admin API access
+     * For now, this is a placeholder that will need to be implemented via Edge Function
+     * @param {string} email - Email address to search for
+     * @returns {Promise<{success: boolean, userId: string|null, error: string|null}>}
+     */
+    async findUserByEmail(email) {
+        try {
+            if (!email || typeof email !== 'string') {
+                return {
+                    success: false,
+                    userId: null,
+                    error: 'Email is required'
+                };
+            }
+            
+            if (!this.client || !this.client.supabaseUrl) {
+                throw new Error('DatabaseService client not available');
+            }
+            
+            const functionUrl = `${this.client.supabaseUrl}/functions/v1/find-user-by-email`;
+            const authHeaders = this._getAuthHeaders();
+            const edgeFunctionHeaders = {
+                'apikey': authHeaders.apikey,
+                'Authorization': authHeaders.Authorization,
+                'Content-Type': 'application/json'
+            };
+            
+            console.log('[DatabaseService] Calling find-user-by-email Edge Function:', { functionUrl, email });
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: edgeFunctionHeaders,
+                body: JSON.stringify({ email: email })
+            });
+            
+            console.log('[DatabaseService] find-user-by-email response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { error: errorText || 'Failed to find user' };
+                }
+                console.error('[DatabaseService] find-user-by-email error:', { status: response.status, errorData, errorText });
+                
+                if (response.status === 404) {
+                    return {
+                        success: false,
+                        userId: null,
+                        error: 'User not found. Please make sure the user has signed up for an account.'
+                    };
+                }
+                
+                return {
+                    success: false,
+                    userId: null,
+                    error: errorData.error || errorData.message || `Failed to find user (HTTP ${response.status})`
+                };
+            }
+            
+            const data = await response.json();
+            
+            if (!data.userId) {
+                return {
+                    success: false,
+                    userId: null,
+                    error: 'User not found'
+                };
+            }
+            
+            return {
+                success: true,
+                userId: data.userId,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception finding user by email:', error);
+            return {
+                success: false,
+                userId: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Get user email by user ID
+     * Note: This requires a Supabase Edge Function or admin API access
+     * @param {string} userId - User ID to look up
+     * @returns {Promise<{success: boolean, email: string|null, error: string|null}>}
+     */
+    async getUserEmailById(userId) {
+        try {
+            if (!userId || typeof userId !== 'string') {
+                return {
+                    success: false,
+                    email: null,
+                    error: 'User ID is required'
+                };
+            }
+            
+            if (!this.client || !this.client.supabaseUrl) {
+                throw new Error('DatabaseService client not available');
+            }
+            
+            const functionUrl = `${this.client.supabaseUrl}/functions/v1/get-user-email-by-id`;
+            const authHeaders = this._getAuthHeaders();
+            const edgeFunctionHeaders = {
+                'apikey': authHeaders.apikey,
+                'Authorization': authHeaders.Authorization,
+                'Content-Type': 'application/json'
+            };
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: edgeFunctionHeaders,
+                body: JSON.stringify({ userId: userId })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                return {
+                    success: false,
+                    email: null,
+                    error: errorData.error || errorData.message || 'Failed to get user email'
+                };
+            }
+            
+            const data = await response.json();
+            
+            if (!data.email) {
+                return {
+                    success: false,
+                    email: null,
+                    error: 'Email not found'
+                };
+            }
+            
+            return {
+                success: true,
+                email: data.email,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting user email by ID:', error);
+            return {
+                success: false,
+                email: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Create a data share
+     * @param {string} sharedWithEmail - Email of user to share with
+     * @param {string} accessLevel - Access level: 'read', 'read_write', or 'read_write_delete'
+     * @param {Array} sharedMonths - Array of month objects or date ranges
+     * @param {boolean} sharedPots - Whether to share pots
+     * @param {boolean} sharedSettings - Whether to share settings
+     * @param {boolean} shareAllData - Whether to share all data (optional, defaults to false)
+     * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
+     */
+    async createDataShare(sharedWithEmail, accessLevel, sharedMonths, sharedPots, sharedSettings, shareAllData = false) {
+        console.log('[DatabaseService] createDataShare() called');
+        console.log('[DatabaseService] Parameters:', { 
+            sharedWithEmail, 
+            accessLevel, 
+            sharedMonthsCount: sharedMonths?.length || 0, 
+            sharedPots, 
+            sharedSettings 
+        });
+        
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                console.error('[DatabaseService] User not authenticated');
+                return {
+                    success: false,
+                    share: null,
+                    error: 'User not authenticated'
+                };
+            }
+            
+            console.log('[DatabaseService] Current user ID:', currentUserId);
+            
+            if (!window.SubscriptionGuard) {
+                console.error('[DatabaseService] SubscriptionGuard not available');
+                return {
+                    success: false,
+                    share: null,
+                    error: 'SubscriptionGuard not available'
+                };
+            }
+            
+            const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+            console.log('[DatabaseService] Premium status:', hasPremium);
+            
+            if (!hasPremium) {
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Premium subscription required to create shares'
+                };
+            }
+            
+            console.log('[DatabaseService] Looking up user by email:', sharedWithEmail);
+            const userResult = await this.findUserByEmail(sharedWithEmail);
+            console.log('[DatabaseService] findUserByEmail result:', userResult);
+            
+            if (!userResult.success || !userResult.userId) {
+                return {
+                    success: false,
+                    share: null,
+                    error: userResult.error || 'User not found'
+                };
+            }
+            
+            if (userResult.userId === currentUserId) {
+                console.warn('[DatabaseService] Attempted to share with self');
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Cannot share data with yourself'
+                };
+            }
+
+            if (typeof window.DataSharingService !== 'undefined') {
+                const blockedResult = await window.DataSharingService.checkIfBlocked(currentUserId, userResult.userId);
+                if (blockedResult.isBlocked) {
+                    console.warn('[DatabaseService] User is blocked');
+                    return {
+                        success: false,
+                        share: null,
+                        error: 'Cannot share data with this user - they have blocked you'
+                    };
+                }
+            }
+
+            let shareStatus = 'pending';
+            let shouldCreateNotification = true;
+
+            if (typeof window.NotificationPreferenceService !== 'undefined') {
+                const preferencesResult = await window.NotificationPreferenceService.getPreferences(userResult.userId);
+                if (preferencesResult.success && preferencesResult.preferences) {
+                    const preferences = preferencesResult.preferences;
+                    if (preferences.auto_accept_shares) {
+                        shareStatus = 'accepted';
+                        shouldCreateNotification = false;
+                        console.log('[DatabaseService] Auto-accept enabled, setting status to accepted');
+                    } else if (preferences.auto_decline_shares) {
+                        shareStatus = 'declined';
+                        shouldCreateNotification = false;
+                        console.log('[DatabaseService] Auto-decline enabled, setting status to declined');
+                    }
+                }
+            }
+            
+            const tableName = this._getTableName('dataShares');
+            
+            // Get or create conversation between owner and recipient for share requests
+            let conversationId = null;
+            if (typeof window.MessagingService !== 'undefined') {
+                console.log('[DatabaseService] Getting or creating conversation for share request');
+                const conversationResult = await window.MessagingService.getOrCreateConversation(currentUserId, userResult.userId);
+                if (conversationResult.success && conversationResult.conversation) {
+                    conversationId = conversationResult.conversation.id;
+                    console.log('[DatabaseService] Conversation ID for share:', conversationId);
+                } else {
+                    console.warn('[DatabaseService] Failed to get/create conversation:', conversationResult.error);
+                    // Continue without conversation_id - share can still be created
+                }
+            } else {
+                console.warn('[DatabaseService] MessagingService not available, cannot link share to conversation');
+            }
+            
+            // Check if a share already exists for this owner-user pair
+            console.log('[DatabaseService] Checking for existing share between owner:', currentUserId, 'and user:', userResult.userId);
+            const existingShareResult = await this.querySelect(tableName, {
+                filter: {
+                    owner_user_id: currentUserId,
+                    shared_with_user_id: userResult.userId
+                },
+                limit: 1
+            });
+            
+            let share;
+            
+            if (existingShareResult.data && existingShareResult.data.length > 0) {
+                // Share already exists, update it
+                console.log('[DatabaseService] Existing share found, updating share ID:', existingShareResult.data[0].id);
+                const existingShare = existingShareResult.data[0];
+                const shareId = existingShare.id;
+                
+                // If updating to pending status, we should create a notification
+                // (unless auto_accept/decline is enabled, which is already handled above)
+                // Also create notification if share is already pending but being updated (e.g., new months added)
+                if (shareStatus === 'pending') {
+                    if (existingShare.status !== 'pending') {
+                        console.log('[DatabaseService] Share status changed to pending, will create notification');
+                        shouldCreateNotification = true;
+                    } else {
+                        // Share is already pending, but we're updating it (e.g., adding months, changing access level)
+                        // Create a notification to alert the recipient of the update
+                        console.log('[DatabaseService] Share is already pending but being updated, will create notification');
+                        shouldCreateNotification = true;
+                    }
+                }
+                
+                const updateData = {
+                    access_level: accessLevel,
+                    shared_months: JSON.stringify(sharedMonths),
+                    shared_pots: sharedPots,
+                    shared_settings: sharedSettings,
+                    share_all_data: shareAllData,
+                    status: shareStatus,
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Include conversation_id if available
+                if (conversationId !== null) {
+                    updateData.conversation_id = conversationId;
+                }
+                
+                console.log('[DatabaseService] Updating existing share with data:', updateData);
+                const updateResult = await this.queryUpdate(tableName, shareId, updateData);
+                
+                if (updateResult.error) {
+                    console.error('[DatabaseService] Error updating data share:', updateResult.error);
+                    return {
+                        success: false,
+                        share: null,
+                        error: updateResult.error.message || 'Failed to update share'
+                    };
+                }
+                
+                share = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : existingShare;
+                console.log('[DatabaseService] Share updated successfully');
+            } else {
+                // No existing share, create new one
+                console.log('[DatabaseService] No existing share found, creating new share');
+                const shareData = {
+                    owner_user_id: currentUserId,
+                    shared_with_user_id: userResult.userId,
+                    access_level: accessLevel,
+                    shared_months: JSON.stringify(sharedMonths),
+                    shared_pots: sharedPots,
+                    shared_settings: sharedSettings,
+                    share_all_data: shareAllData,
+                    status: shareStatus
+                };
+                
+                // Include conversation_id if available
+                if (conversationId !== null) {
+                    shareData.conversation_id = conversationId;
+                }
+                
+                const result = await this.queryInsert(tableName, shareData);
+                
+                if (result.error) {
+                    console.error('[DatabaseService] Error creating data share:', result.error);
+                    // Check if it's a duplicate key error
+                    if (result.error.code === '23505' || result.error.message?.includes('duplicate key')) {
+                        console.log('[DatabaseService] Duplicate key error detected, attempting to update existing share');
+                        // Try to find and update the existing share
+                        const retryResult = await this.querySelect(tableName, {
+                            filter: {
+                                owner_user_id: currentUserId,
+                                shared_with_user_id: userResult.userId
+                            },
+                            limit: 1
+                        });
+                        
+                        if (retryResult.data && retryResult.data.length > 0) {
+                            const existingShare = retryResult.data[0];
+                            
+                            // If updating to pending status, ensure notification is created
+                            if (shareStatus === 'pending') {
+                                if (existingShare.status !== 'pending') {
+                                    console.log('[DatabaseService] Share status changed to pending (duplicate key path), will create notification');
+                                    shouldCreateNotification = true;
+                                } else {
+                                    console.log('[DatabaseService] Share is already pending but being updated (duplicate key path), will create notification');
+                                    shouldCreateNotification = true;
+                                }
+                            }
+                            
+                            const updateData = {
+                                access_level: accessLevel,
+                                shared_months: JSON.stringify(sharedMonths),
+                                shared_pots: sharedPots,
+                                shared_settings: sharedSettings,
+                                share_all_data: shareAllData,
+                                status: shareStatus,
+                                updated_at: new Date().toISOString()
+                            };
+                            
+                            // Include conversation_id if available
+                            if (conversationId !== null) {
+                                updateData.conversation_id = conversationId;
+                            }
+                            
+                            const updateResult = await this.queryUpdate(tableName, existingShare.id, updateData);
+                            if (updateResult.error) {
+                                return {
+                                    success: false,
+                                    share: null,
+                                    error: updateResult.error.message || 'Failed to update share'
+                                };
+                            }
+                            share = updateResult.data && updateResult.data.length > 0 ? updateResult.data[0] : existingShare;
+                            console.log('[DatabaseService] Share updated after duplicate key error');
+                        } else {
+                            return {
+                                success: false,
+                                share: null,
+                                error: result.error.message || 'Failed to create share'
+                            };
+                        }
+                    } else {
+                        return {
+                            success: false,
+                            share: null,
+                            error: result.error.message || 'Failed to create share'
+                        };
+                    }
+                } else {
+                    share = result.data && result.data.length > 0 ? result.data[0] : null;
+                    console.log('[DatabaseService] Share created successfully');
+                }
+            }
+
+            console.log('[DatabaseService] ========== NOTIFICATION CREATION CHECK ==========');
+            console.log('[DatabaseService] Pre-check values:', {
+                shouldCreateNotification: shouldCreateNotification,
+                hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
+                hasShare: !!share,
+                shareStatus: share?.status,
+                shareId: share?.id,
+                recipientUserId: userResult.userId,
+                recipientEmail: sharedWithEmail,
+                shareCreated: !!share,
+                shareIdValue: share?.id,
+                shareStatusValue: share?.status
+            });
+            
+            // Always create notification for pending shares, regardless of other conditions
+            // This ensures recipients always get notified of share requests
+            if (share && share.status === 'pending' && typeof window.NotificationProcessor !== 'undefined') {
+                console.log('[DatabaseService] ========== FORCING notification creation for pending share ==========');
+                shouldCreateNotification = true;
+            }
+            
+            // Create a message in the conversation for share requests
+            if (share && share.status === 'pending' && conversationId && typeof window.MessagingService !== 'undefined') {
+                console.log('[DatabaseService] ========== Creating share request message in conversation ==========');
+                console.log('[DatabaseService] Message details:', {
+                    conversationId: conversationId,
+                    senderId: currentUserId,
+                    recipientId: userResult.userId,
+                    shareId: share.id
+                });
+                
+                try {
+                    // Parse shared_months from share if it's a string
+                    let parsedSharedMonths = sharedMonths || [];
+                    if (share.shared_months) {
+                        if (typeof share.shared_months === 'string') {
+                            try {
+                                parsedSharedMonths = JSON.parse(share.shared_months);
+                            } catch (e) {
+                                console.warn('[DatabaseService] Error parsing shared_months from share:', e);
+                                parsedSharedMonths = [];
+                            }
+                        } else {
+                            parsedSharedMonths = share.shared_months;
+                        }
+                    }
+                    
+                    // Format share details for the message
+                    const monthsList = parsedSharedMonths.map(m => {
+                        if (m.type === 'range') {
+                            return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
+                        } else {
+                            return `${m.month}/${m.year}`;
+                        }
+                    }).join(', ') || (share.share_all_data || shareAllData ? 'All months' : 'None');
+                    
+                    const shareMessageContent = `📤 Share Request\n\n` +
+                        `Access Level: ${share.access_level || accessLevel}\n` +
+                        `Months: ${monthsList}\n` +
+                        `${(share.shared_pots || sharedPots || share.share_all_data || shareAllData) ? 'Pots: Yes\n' : ''}` +
+                        `${(share.shared_settings || sharedSettings || share.share_all_data || shareAllData) ? 'Settings: Yes\n' : ''}` +
+                        `\nShare ID: ${share.id}`;
+                    
+                    const messageResult = await window.MessagingService.sendMessage(
+                        conversationId,
+                        currentUserId,
+                        userResult.userId,
+                        shareMessageContent
+                    );
+                    
+                    if (messageResult.success) {
+                        console.log('[DatabaseService] ✅ Share request message created successfully in conversation');
+                    } else {
+                        console.error('[DatabaseService] ❌ Failed to create share request message:', messageResult.error);
+                    }
+                } catch (messageError) {
+                    console.error('[DatabaseService] ❌ Exception creating share request message:', {
+                        error: messageError.message,
+                        stack: messageError.stack
+                    });
+                }
+            }
+            
+            // Still create notification for share requests (for badge count, etc.)
+            if (shouldCreateNotification && typeof window.NotificationProcessor !== 'undefined' && share) {
+                console.log('[DatabaseService] ========== Creating notification for share request ==========');
+                console.log('[DatabaseService] Notification details:', {
+                    recipientUserId: userResult.userId,
+                    recipientEmail: sharedWithEmail,
+                    sharerUserId: currentUserId,
+                    shareId: share.id,
+                    notificationType: 'share_request',
+                    shareStatus: share.status
+                });
+                
+                try {
+                    const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                        userResult.userId,
+                        'share_request',
+                        share.id,
+                        currentUserId,
+                        null,
+                        {},
+                        conversationId
+                    );
+                    console.log('[DatabaseService] Notification creation result:', {
+                        success: notificationResult.success,
+                        notificationId: notificationResult.notification?.id,
+                        error: notificationResult.error,
+                        notification: notificationResult.notification
+                    });
+                    if (notificationResult.success) {
+                        console.log('[DatabaseService] ✅ Notification created successfully for recipient:', userResult.userId);
+                        const updateResult = await this.queryUpdate(tableName, share.id, {
+                            notification_sent_at: new Date().toISOString()
+                        });
+                        if (updateResult.error) {
+                            console.warn('[DatabaseService] Failed to update notification_sent_at:', updateResult.error);
+                        } else {
+                            console.log('[DatabaseService] notification_sent_at updated successfully');
+                        }
+                    } else {
+                        console.error('[DatabaseService] ❌ Failed to create notification for recipient:', notificationResult.error);
+                    }
+                } catch (notificationError) {
+                    console.error('[DatabaseService] ❌ Exception creating notification:', {
+                        error: notificationError.message,
+                        stack: notificationError.stack
+                    });
+                }
+            } else {
+                console.log('[DatabaseService] ========== SKIPPING notification creation ==========');
+                console.log('[DatabaseService] Skip reasons:', {
+                    shouldCreateNotification: shouldCreateNotification,
+                    hasNotificationProcessor: typeof window.NotificationProcessor !== 'undefined',
+                    hasShare: !!share,
+                    shareStatus: share?.status,
+                    shareId: share?.id,
+                    recipientUserId: userResult.userId
+                });
+            }
+            
+            return {
+                success: true,
+                share: share,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception creating data share:', error);
+            return {
+                success: false,
+                share: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Update a data share
+     * @param {number} shareId - Share ID to update
+     * @param {string} accessLevel - Access level: 'read', 'read_write', or 'read_write_delete'
+     * @param {Array} sharedMonths - Array of month objects or date ranges
+     * @param {boolean} sharedPots - Whether to share pots
+     * @param {boolean} sharedSettings - Whether to share settings
+     * @param {boolean} shareAllData - Whether to share all data (optional, defaults to false)
+     * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
+     */
+    async updateDataShare(shareId, accessLevel, sharedMonths, sharedPots, sharedSettings, shareAllData = false) {
+        console.log('[DatabaseService] ========== updateDataShare() CALLED ==========');
+        console.log('[DatabaseService] Parameters:', {
+            shareId: shareId,
+            shareIdType: typeof shareId,
+            accessLevel: accessLevel,
+            sharedMonthsCount: Array.isArray(sharedMonths) ? sharedMonths.length : 'not an array',
+            sharedMonths: sharedMonths,
+            sharedPots: sharedPots,
+            sharedPotsType: typeof sharedPots,
+            sharedSettings: sharedSettings,
+            sharedSettingsType: typeof sharedSettings,
+            shareAllData: shareAllData,
+            shareAllDataType: typeof shareAllData
+        });
+        
+        try {
+            console.log('[DatabaseService] Getting current user ID...');
+            const currentUserId = await this._getCurrentUserId();
+            console.log('[DatabaseService] Current user ID:', currentUserId);
+            if (!currentUserId) {
+                console.error('[DatabaseService] User not authenticated');
+                return {
+                    success: false,
+                    share: null,
+                    error: 'User not authenticated'
+                };
+            }
+            
+            const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] Table name:', tableName);
+            
+            const updateData = {
+                access_level: accessLevel,
+                shared_months: JSON.stringify(sharedMonths),
+                shared_pots: sharedPots,
+                shared_settings: sharedSettings,
+                share_all_data: shareAllData,
+                updated_at: new Date().toISOString()
+            };
+            console.log('[DatabaseService] Update data object:', updateData);
+            console.log('[DatabaseService] Update data JSON stringified months:', updateData.shared_months);
+            
+            console.log('[DatabaseService] Calling queryUpdate with:', {
+                tableName: tableName,
+                shareId: shareId,
+                updateData: updateData,
+                filter: { owner_user_id: currentUserId }
+            });
+            
+            const updateStartTime = Date.now();
+            const result = await this.queryUpdate(tableName, shareId, updateData, {
+                filter: {
+                    owner_user_id: currentUserId
+                }
+            });
+            const updateEndTime = Date.now();
+            console.log('[DatabaseService] queryUpdate completed in', (updateEndTime - updateStartTime), 'ms');
+            console.log('[DatabaseService] queryUpdate result:', result);
+            console.log('[DatabaseService] Result has error:', !!result.error);
+            console.log('[DatabaseService] Result has data:', !!result.data);
+            console.log('[DatabaseService] Result data length:', result.data ? (Array.isArray(result.data) ? result.data.length : 'not an array') : 'no data');
+            
+            if (result.error) {
+                console.error('[DatabaseService] ❌ Error updating data share');
+                console.error('[DatabaseService] Error object:', result.error);
+                console.error('[DatabaseService] Error message:', result.error.message);
+                console.error('[DatabaseService] Error code:', result.error.code);
+                console.error('[DatabaseService] Error details:', result.error.details);
+                console.error('[DatabaseService] Error hint:', result.error.hint);
+                return {
+                    success: false,
+                    share: null,
+                    error: result.error.message || 'Failed to update share'
+                };
+            }
+            
+            const share = result.data && result.data.length > 0 ? result.data[0] : null;
+            console.log('[DatabaseService] Extracted share from result:', share);
+            console.log('[DatabaseService] Share ID:', share ? share.id : 'no share');
+            
+            console.log('[DatabaseService] ✅ updateDataShare SUCCESS');
+            return {
+                success: true,
+                share: share,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] ========== EXCEPTION IN updateDataShare ==========');
+            console.error('[DatabaseService] Exception type:', error.constructor.name);
+            console.error('[DatabaseService] Exception message:', error.message);
+            console.error('[DatabaseService] Exception stack:', error.stack);
+            console.error('[DatabaseService] Full error object:', error);
+            console.error('[DatabaseService] ===================================================');
+            return {
+                success: false,
+                share: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Delete a data share
+     * @param {number} shareId - Share ID to delete
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async deleteDataShare(shareId) {
+        console.log('[DatabaseService] deleteDataShare() called', { shareId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[DatabaseService] deleteDataShare: User not authenticated');
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+            
+            const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] deleteDataShare: Calling queryDelete', { 
+                tableName, 
+                shareId, 
+                ownerUserId: currentUserId 
+            });
+            
+            // queryDelete expects a flat filter object, not nested in 'filter'
+            const result = await this.queryDelete(tableName, {
+                id: shareId,
+                owner_user_id: currentUserId
+            });
+            
+            console.log('[DatabaseService] deleteDataShare: queryDelete result', { 
+                success: !result.error, 
+                error: result.error,
+                deletedCount: result.data?.length || 0
+            });
+            
+            if (result.error) {
+                console.error('[DatabaseService] Error deleting data share:', result.error);
+                return {
+                    success: false,
+                    error: result.error.message || 'Failed to delete share'
+                };
+            }
+            
+            console.log('[DatabaseService] deleteDataShare: Successfully deleted share', shareId);
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception deleting data share:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Get all data shares created by current user
+     * @returns {Promise<{success: boolean, shares: Array|null, error: string|null}>}
+     */
+    async getDataSharesCreatedByMe() {
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    shares: null,
+                    error: 'User not authenticated'
+                };
+            }
+            
+            const tableName = this._getTableName('dataShares');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    owner_user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+            
+            if (result.error) {
+                console.error('[DatabaseService] Error getting data shares:', result.error);
+                return {
+                    success: false,
+                    shares: null,
+                    error: result.error.message || 'Failed to get shares'
+                };
+            }
+            
+            const shares = result.data || [];
+            
+            for (const share of shares) {
+                if (typeof share.shared_months === 'string') {
+                    try {
+                        share.shared_months = JSON.parse(share.shared_months);
+                    } catch (e) {
+                        share.shared_months = [];
+                    }
+                }
+            }
+            
+            return {
+                success: true,
+                shares: shares,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting data shares:', error);
+            return {
+                success: false,
+                shares: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+    
+    /**
+     * Get all data shares shared with current user
+     * @returns {Promise<{success: boolean, shares: Array|null, error: string|null}>}
+     */
+    async getDataSharesSharedWithMe() {
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    shares: null,
+                    error: 'User not authenticated'
+                };
+            }
+            
+            const tableName = this._getTableName('dataShares');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    shared_with_user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+            
+            if (result.error) {
+                console.error('[DatabaseService] Error getting shared data shares:', result.error);
+                return {
+                    success: false,
+                    shares: null,
+                    error: result.error.message || 'Failed to get shares'
+                };
+            }
+            
+            const shares = result.data || [];
+            
+            console.log('[DatabaseService] getDataSharesSharedWithMe - Raw shares from database:', shares.map(s => ({
+                id: s.id,
+                status: s.status,
+                owner_user_id: s.owner_user_id,
+                shared_with_user_id: s.shared_with_user_id,
+                responded_at: s.responded_at,
+                updated_at: s.updated_at
+            })));
+            
+            for (const share of shares) {
+                if (typeof share.shared_months === 'string') {
+                    try {
+                        share.shared_months = JSON.parse(share.shared_months);
+                    } catch (e) {
+                        share.shared_months = [];
+                    }
+                }
+            }
+            
+            console.log('[DatabaseService] getDataSharesSharedWithMe - Returning shares:', shares.map(s => ({
+                id: s.id,
+                status: s.status,
+                shareAllData: s.share_all_data
+            })));
+            
+            return {
+                success: true,
+                shares: shares,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting shared data shares:', error);
+            return {
+                success: false,
+                shares: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Update share status (accept, decline, block)
+     * @param {number} shareId - Share ID
+     * @param {string} status - New status: 'accepted', 'declined', or 'blocked'
+     * @returns {Promise<{success: boolean, share: Object|null, error: string|null}>}
+     */
+    async updateShareStatus(shareId, status) {
+        try {
+            console.log('[DatabaseService] ========== updateShareStatus() CALLED ==========');
+            console.log('[DatabaseService] updateShareStatus() - Start time:', new Date().toISOString());
+            console.log('[DatabaseService] updateShareStatus() - Parameters:', { 
+                shareId, 
+                status, 
+                shareIdType: typeof shareId, 
+                statusType: typeof status 
+            });
+
+            const currentUserId = await this._getCurrentUserId();
+            console.log('[DatabaseService] updateShareStatus() - Current user ID:', currentUserId, 'Type:', typeof currentUserId);
+            
+            if (!currentUserId) {
+                console.error('[DatabaseService] updateShareStatus() - User not authenticated');
+                return {
+                    success: false,
+                    share: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (!['accepted', 'declined', 'blocked'].includes(status)) {
+                console.error('[DatabaseService] updateShareStatus() - Invalid status:', status);
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Invalid status. Must be accepted, declined, or blocked'
+                };
+            }
+
+            const tableName = this._getTableName('dataShares');
+            console.log('[DatabaseService] updateShareStatus() - Table name:', tableName);
+
+            console.log('[DatabaseService] updateShareStatus() - Fetching share from database...');
+            const shareResult = await this.querySelect(tableName, {
+                filter: { id: shareId },
+                limit: 1
+            });
+
+            console.log('[DatabaseService] updateShareStatus() - Share query result:', {
+                hasError: !!shareResult.error,
+                error: shareResult.error,
+                hasData: !!shareResult.data,
+                dataLength: shareResult.data?.length || 0,
+                dataType: Array.isArray(shareResult.data) ? 'array' : typeof shareResult.data
+            });
+
+            if (shareResult.error || !shareResult.data || shareResult.data.length === 0) {
+                console.error('[DatabaseService] updateShareStatus() - Share not found:', {
+                    hasError: !!shareResult.error,
+                    error: shareResult.error,
+                    hasData: !!shareResult.data,
+                    dataLength: shareResult.data?.length || 0
+                });
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Share not found'
+                };
+            }
+
+            const share = shareResult.data[0];
+            console.log('[DatabaseService] updateShareStatus() - Share found:', {
+                shareId: share.id,
+                ownerUserId: share.owner_user_id,
+                sharedWithUserId: share.shared_with_user_id,
+                currentStatus: share.status,
+                accessLevel: share.access_level,
+                shareAllData: share.share_all_data,
+                sharedMonths: share.shared_months,
+                createdAt: share.created_at,
+                updatedAt: share.updated_at
+            });
+
+            console.log('[DatabaseService] updateShareStatus() - Authorization check:', {
+                sharedWithUserId: share.shared_with_user_id,
+                currentUserId: currentUserId,
+                areEqual: share.shared_with_user_id === currentUserId,
+                sharedWithType: typeof share.shared_with_user_id,
+                currentType: typeof currentUserId,
+                sharedWithString: String(share.shared_with_user_id),
+                currentString: String(currentUserId)
+            });
+
+            if (share.shared_with_user_id !== currentUserId) {
+                console.error('[DatabaseService] updateShareStatus() - Not authorized to update this share:', {
+                    shareSharedWithUserId: share.shared_with_user_id,
+                    currentUserId: currentUserId,
+                    match: share.shared_with_user_id === currentUserId
+                });
+                return {
+                    success: false,
+                    share: null,
+                    error: 'Not authorized to update this share'
+                };
+            }
+
+            const updateData = {
+                status: status,
+                responded_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            console.log('[DatabaseService] updateShareStatus() - ========== PREPARING UPDATE ==========');
+            console.log('[DatabaseService] updateShareStatus() - Update details:', {
+                shareId: shareId,
+                tableName: tableName,
+                updateData: updateData,
+                currentStatus: share.status,
+                newStatus: status,
+                ownerUserId: share.owner_user_id,
+                sharedWithUserId: share.shared_with_user_id,
+                currentUserId: currentUserId,
+                isRecipient: share.shared_with_user_id === currentUserId,
+                isOwner: share.owner_user_id === currentUserId
+            });
+
+            // Use RPC function to bypass RLS (similar to notification creation)
+            // This avoids policy conflicts and ensures the update succeeds
+            console.log('[DatabaseService] updateShareStatus() - Using RPC function to bypass RLS...');
+            const rpcParams = {
+                p_share_id: shareId,
+                p_new_status: status,
+                p_user_id: currentUserId
+            };
+            
+            console.log('[DatabaseService] updateShareStatus() - RPC parameters:', JSON.stringify(rpcParams, null, 2));
+            console.log('[DatabaseService] updateShareStatus() - Calling queryRpc("update_share_status", ...)');
+            const updateStartTime = Date.now();
+            const rpcResult = await this.queryRpc('update_share_status', rpcParams);
+            const updateDuration = Date.now() - updateStartTime;
+            console.log(`[DatabaseService] updateShareStatus() - queryRpc completed in ${updateDuration}ms`);
+            
+            console.log('[DatabaseService] updateShareStatus() - RPC result:', {
+                hasError: !!rpcResult.error,
+                error: rpcResult.error,
+                hasData: rpcResult.data !== null && rpcResult.data !== undefined,
+                data: rpcResult.data,
+                dataType: typeof rpcResult.data
+            });
+
+            if (rpcResult.error) {
+                console.error('[DatabaseService] updateShareStatus() - RPC error:', rpcResult.error);
+                return {
+                    success: false,
+                    share: null,
+                    error: rpcResult.error.message || 'Failed to update share status'
+                };
+            }
+
+            // Extract the updated share from the RPC result
+            // The function returns a table, so we get an array with one row
+            let updatedShare = null;
+            if (Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
+                updatedShare = rpcResult.data[0];
+                console.log('[DatabaseService] updateShareStatus() - Extracted share from RPC result:', updatedShare);
+            } else if (rpcResult.data && typeof rpcResult.data === 'object' && !Array.isArray(rpcResult.data)) {
+                updatedShare = rpcResult.data;
+                console.log('[DatabaseService] updateShareStatus() - Using RPC result as share object:', updatedShare);
+            } else {
+                console.warn('[DatabaseService] updateShareStatus() - Unexpected RPC result format, using original share');
+                updatedShare = share;
+            }
+
+            // Create a result object that matches the expected format
+            const updateResult = {
+                error: null,
+                data: updatedShare ? [updatedShare] : []
+            };
+
+            console.log('[DatabaseService] updateShareStatus() - ========== UPDATE RESULT ==========');
+            console.log('[DatabaseService] updateShareStatus() - Update result:', {
+                hasError: !!updateResult.error,
+                error: updateResult.error,
+                hasData: !!updateResult.data,
+                dataLength: updateResult.data?.length || 0,
+                dataType: Array.isArray(updateResult.data) ? 'array' : typeof updateResult.data,
+                returnedData: updateResult.data
+            });
+
+            if (updateResult.error) {
+                console.error('[DatabaseService] updateShareStatus() - ========== UPDATE FAILED ==========');
+                console.error('[DatabaseService] updateShareStatus() - Error details:', {
+                    message: updateResult.error.message,
+                    fullError: JSON.stringify(updateResult.error, null, 2)
+                });
+                return {
+                    success: false,
+                    share: null,
+                    error: updateResult.error.message || 'Failed to update share status'
+                };
+            }
+
+            // updatedShare is already extracted from RPC result above
+            if (!updatedShare) {
+                console.warn('[DatabaseService] updateShareStatus() - No share returned from RPC, using original share');
+                updatedShare = share;
+            }
+            
+            console.log('[DatabaseService] updateShareStatus() - ========== UPDATE SUCCESS ==========');
+            console.log('[DatabaseService] updateShareStatus() - Share status updated successfully:', {
+                shareId: shareId,
+                oldStatus: share.status,
+                newStatus: updatedShare.status,
+                updatedShare: updatedShare,
+                respondedAt: updatedShare.responded_at,
+                updatedAt: updatedShare.updated_at
+            });
+            
+            // No need to verify - the RPC function already returns the updated share
+
+            if (typeof window.NotificationProcessor !== 'undefined') {
+                const notificationType = status === 'accepted' ? 'share_accepted' : 
+                                       status === 'declined' ? 'share_declined' : 'share_blocked';
+                
+                console.log('[DatabaseService] ========== Creating notification for share status update ==========');
+                console.log('[DatabaseService] Notification details:', {
+                    notificationType: notificationType,
+                    targetUserId: share.owner_user_id,
+                    fromUserId: currentUserId,
+                    shareId: shareId,
+                    shareStatus: status
+                });
+                console.log('[DatabaseService] User ID comparison:', {
+                    ownerUserId: share.owner_user_id,
+                    currentUserId: currentUserId,
+                    areEqual: share.owner_user_id === currentUserId,
+                    ownerType: typeof share.owner_user_id,
+                    currentType: typeof currentUserId
+                });
+                
+                const notificationResult = await window.NotificationProcessor.createAndDeliver(
+                    share.owner_user_id,
+                    notificationType,
+                    shareId,
+                    currentUserId,
+                    null
+                );
+                if (notificationResult.success) {
+                    console.log('[DatabaseService] Notification created successfully for share status update');
+                } else {
+                    console.error('[DatabaseService] Failed to create notification:', notificationResult.error);
+                }
+            } else {
+                console.warn('[DatabaseService] NotificationProcessor not available, skipping notification creation');
+            }
+
+            if (status === 'blocked') {
+                await this.blockUser(share.owner_user_id);
+            }
+
+            return {
+                success: true,
+                share: updatedShare,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] updateShareStatus() - ========== EXCEPTION IN updateShareStatus() ==========');
+            console.error('[DatabaseService] updateShareStatus() - Exception details:', {
+                errorMessage: error.message,
+                errorStack: error.stack,
+                errorName: error.name,
+                errorType: typeof error,
+                fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            });
+            return {
+                success: false,
+                share: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Block a user (add to blocked list and decline all pending shares from them)
+     * @param {string} userIdToBlock - User ID to block
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async blockUser(userIdToBlock) {
+        try {
+            console.log('[DatabaseService] blockUser() called', { userIdToBlock });
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (userIdToBlock === currentUserId) {
+                return {
+                    success: false,
+                    error: 'Cannot block yourself'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    blocked_user_id: userIdToBlock
+                },
+                limit: 1
+            });
+
+            if (existingResult.data && existingResult.data.length > 0) {
+                console.log('[DatabaseService] User already blocked');
+                return {
+                    success: true,
+                    error: null
+                };
+            }
+
+            const insertResult = await this.queryInsert(tableName, {
+                user_id: currentUserId,
+                blocked_user_id: userIdToBlock
+            });
+
+            if (insertResult.error) {
+                console.error('[DatabaseService] Error blocking user:', insertResult.error);
+                return {
+                    success: false,
+                    error: insertResult.error.message || 'Failed to block user'
+                };
+            }
+
+            const sharesTableName = this._getTableName('dataShares');
+            const pendingSharesResult = await this.querySelect(sharesTableName, {
+                filter: {
+                    owner_user_id: userIdToBlock,
+                    shared_with_user_id: currentUserId,
+                    status: 'pending'
+                }
+            });
+
+            if (pendingSharesResult.data && pendingSharesResult.data.length > 0) {
+                for (const share of pendingSharesResult.data) {
+                    await this.queryUpdate(sharesTableName, share.id, {
+                        status: 'declined',
+                        responded_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                console.log(`[DatabaseService] Declined ${pendingSharesResult.data.length} pending shares from blocked user`);
+            }
+
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception blocking user:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Unblock a user (remove from blocked list)
+     * @param {string} userIdToUnblock - User ID to unblock
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async unblockUser(userIdToUnblock) {
+        try {
+            console.log('[DatabaseService] unblockUser() called', { userIdToUnblock });
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    blocked_user_id: userIdToUnblock
+                },
+                limit: 1
+            });
+
+            if (!existingResult.data || existingResult.data.length === 0) {
+                return {
+                    success: true,
+                    error: null
+                };
+            }
+
+            const blockId = existingResult.data[0].id;
+            const deleteResult = await this.queryDelete(tableName, blockId);
+
+            if (deleteResult.error) {
+                console.error('[DatabaseService] Error unblocking user:', deleteResult.error);
+                return {
+                    success: false,
+                    error: deleteResult.error.message || 'Failed to unblock user'
+                };
+            }
+
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception unblocking user:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Add a user to friends list
+     * @param {string} friendUserId - User ID to add as friend
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async addFriend(friendUserId) {
+        console.log('[DatabaseService] addFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (friendUserId === currentUserId) {
+                return {
+                    success: false,
+                    error: 'Cannot add yourself as a friend'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            
+            // Check if already friends
+            const existingResult = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    friend_user_id: friendUserId
+                },
+                limit: 1
+            });
+
+            if (existingResult.error) {
+                console.error('[DatabaseService] Error checking existing friend:', existingResult.error);
+                return {
+                    success: false,
+                    error: existingResult.error.message || 'Failed to check existing friend'
+                };
+            }
+
+            if (existingResult.data && existingResult.data.length > 0) {
+                return {
+                    success: true,
+                    error: null // Already friends, return success
+                };
+            }
+
+            const insertResult = await this.queryInsert(tableName, {
+                user_id: currentUserId,
+                friend_user_id: friendUserId
+            });
+
+            if (insertResult.error) {
+                console.error('[DatabaseService] Error adding friend:', insertResult.error);
+                return {
+                    success: false,
+                    error: insertResult.error.message || 'Failed to add friend'
+                };
+            }
+
+            console.log('[DatabaseService] Friend added successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception adding friend:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Remove a user from friends list
+     * @param {string} friendUserId - User ID to remove from friends
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async removeFriend(friendUserId) {
+        console.log('[DatabaseService] removeFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const deleteResult = await this.queryDelete(tableName, {
+                user_id: currentUserId,
+                friend_user_id: friendUserId
+            });
+
+            if (deleteResult.error) {
+                console.error('[DatabaseService] Error removing friend:', deleteResult.error);
+                return {
+                    success: false,
+                    error: deleteResult.error.message || 'Failed to remove friend'
+                };
+            }
+
+            console.log('[DatabaseService] Friend removed successfully');
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception removing friend:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get list of friends
+     * @returns {Promise<{success: boolean, friends: Array, error: string|null}>}
+     */
+    async getFriends() {
+        console.log('[DatabaseService] getFriends() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    friends: [],
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error getting friends:', result.error);
+                return {
+                    success: false,
+                    friends: [],
+                    error: result.error.message || 'Failed to get friends'
+                };
+            }
+
+            return {
+                success: true,
+                friends: result.data || [],
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting friends:', error);
+            return {
+                success: false,
+                friends: [],
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Check if a user is in friends list
+     * @param {string} friendUserId - User ID to check
+     * @returns {Promise<{success: boolean, isFriend: boolean, error: string|null}>}
+     */
+    async isFriend(friendUserId) {
+        console.log('[DatabaseService] isFriend() called', { friendUserId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    isFriend: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('friends');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId,
+                    friend_user_id: friendUserId
+                },
+                limit: 1
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error checking if friend:', result.error);
+                return {
+                    success: false,
+                    isFriend: false,
+                    error: result.error.message || 'Failed to check if friend'
+                };
+            }
+
+            return {
+                success: true,
+                isFriend: result.data && result.data.length > 0,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception checking if friend:', error);
+            return {
+                success: false,
+                isFriend: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get list of blocked users
+     * @returns {Promise<{success: boolean, blockedUsers: Array, error: string|null}>}
+     */
+    async getBlockedUsers() {
+        try {
+            console.log('[DatabaseService] getBlockedUsers() called');
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    blockedUsers: [],
+                    error: 'User not authenticated'
+                };
+            }
+
+            const tableName = this._getTableName('blockedUsers');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+
+            if (result.error) {
+                console.error('[DatabaseService] Error getting blocked users:', result.error);
+                return {
+                    success: false,
+                    blockedUsers: [],
+                    error: result.error.message || 'Failed to get blocked users'
+                };
+            }
+
+            return {
+                success: true,
+                blockedUsers: result.data || [],
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting blocked users:', error);
+            return {
+                success: false,
+                blockedUsers: [],
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get all data shared with current user, grouped by status
+     * @returns {Promise<{success: boolean, data: Object, error: string|null}>}
+     */
+    async getSharedDataWithMe() {
+        try {
+            console.log('[DatabaseService] getSharedDataWithMe() called');
+
+            const sharesResult = await this.getDataSharesSharedWithMe();
+            if (!sharesResult.success) {
+                return sharesResult;
+            }
+
+            const shares = sharesResult.shares || [];
+            const grouped = {
+                pending: [],
+                accepted: [],
+                declined: [],
+                blocked: []
+            };
+
+            for (const share of shares) {
+                const status = share.status || 'pending';
+                if (grouped[status]) {
+                    grouped[status].push(share);
+                }
+            }
+
+            return {
+                success: true,
+                data: grouped,
+                error: null
+            };
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting shared data:', error);
+            return {
+                success: false,
+                data: { pending: [], accepted: [], declined: [], blocked: [] },
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get user's notification preferences
+     * @returns {Promise<{success: boolean, preferences: Object|null, error: string|null}>}
+     */
+    async getNotificationPreferences() {
+        try {
+            if (typeof window.NotificationPreferenceService === 'undefined') {
+                throw new Error('NotificationPreferenceService not available');
+            }
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    preferences: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            return await window.NotificationPreferenceService.getPreferences(currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting notification preferences:', error);
+            return {
+                success: false,
+                preferences: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Update user's notification preferences
+     * @param {Object} preferences - Preferences to update
+     * @returns {Promise<{success: boolean, preferences: Object|null, error: string|null}>}
+     */
+    async updateNotificationPreferences(preferences) {
+        try {
+            if (typeof window.NotificationPreferenceService === 'undefined') {
+                throw new Error('NotificationPreferenceService not available');
+            }
+
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    preferences: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            return await window.NotificationPreferenceService.updatePreferences(currentUserId, preferences);
+        } catch (error) {
+            console.error('[DatabaseService] Exception updating notification preferences:', error);
+            return {
+                success: false,
+                preferences: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Send a message to another user
+     * @param {string} recipientEmail - Email of the recipient
+     * @param {string} content - Message content
+     * @returns {Promise<{success: boolean, message: Object|null, error: string|null}>}
+     */
+    async sendMessage(recipientEmail, content) {
+        console.log('[DatabaseService] sendMessage() called', { recipientEmail, contentLength: content?.length });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    message: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            // Find recipient user by email
+            console.log('[DatabaseService] Looking up recipient user by email:', recipientEmail);
+            const userResult = await this.findUserByEmail(recipientEmail);
+            if (!userResult.success || !userResult.userId) {
+                console.error('[DatabaseService] Recipient user not found:', recipientEmail);
+                return {
+                    success: false,
+                    message: null,
+                    error: `User with email ${recipientEmail} not found`
+                };
+            }
+
+            const recipientId = userResult.userId;
+            console.log('[DatabaseService] Recipient user found:', { recipientId, recipientEmail });
+
+            // Get or create conversation
+            console.log('[DatabaseService] Getting or creating conversation between:', { currentUserId, recipientId });
+            const conversationResult = await window.MessagingService.getOrCreateConversation(currentUserId, recipientId);
+            if (!conversationResult.success) {
+                console.error('[DatabaseService] Failed to get or create conversation:', conversationResult.error);
+                return {
+                    success: false,
+                    message: null,
+                    error: conversationResult.error || 'Failed to get or create conversation'
+                };
+            }
+
+            const conversation = conversationResult.conversation;
+            if (!conversation || !conversation.id) {
+                console.error('[DatabaseService] Conversation missing or missing ID:', conversationResult);
+                return {
+                    success: false,
+                    message: null,
+                    error: 'Failed to get conversation ID. ' + (conversationResult.error || 'Unknown error')
+                };
+            }
+            console.log('[DatabaseService] Conversation ready:', { conversationId: conversation.id });
+
+            // Send message
+            console.log('[DatabaseService] Sending message via MessagingService');
+            const sendResult = await window.MessagingService.sendMessage(conversation.id, currentUserId, recipientId, content);
+            console.log('[DatabaseService] Message send result:', { success: sendResult.success, messageId: sendResult.message?.id, error: sendResult.error });
+            return sendResult;
+        } catch (error) {
+            console.error('[DatabaseService] Exception sending message:', error);
+            return {
+                success: false,
+                message: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get all conversations for the current user
+     * @returns {Promise<{success: boolean, conversations: Array|null, error: string|null}>}
+     */
+    async getConversations() {
+        console.log('[DatabaseService] getConversations() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                console.warn('[DatabaseService] User not authenticated for getConversations');
+                return {
+                    success: false,
+                    conversations: null,
+                    error: 'User not authenticated'
+                };
+            }
+
+            console.log('[DatabaseService] Getting conversations for user:', currentUserId);
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            const result = await window.MessagingService.getConversations(currentUserId);
+            console.log('[DatabaseService] getConversations result:', { 
+                success: result.success, 
+                conversationCount: result.conversations?.length || 0,
+                error: result.error 
+            });
+            return result;
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting conversations:', {
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+            return {
+                success: false,
+                conversations: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get messages in a conversation
+     * @param {number} conversationId - Conversation ID
+     * @param {Object} options - Query options (limit, offset)
+     * @returns {Promise<{success: boolean, messages: Array|null, error: string|null}>}
+     */
+    async getMessages(conversationId, options = {}) {
+        console.log('[DatabaseService] getMessages() called', { conversationId, options });
+        try {
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            const result = await window.MessagingService.getMessages(conversationId, options);
+            console.log('[DatabaseService] getMessages result:', { 
+                success: result.success, 
+                messageCount: result.messages?.length || 0,
+                error: result.error 
+            });
+            return result;
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting messages:', {
+                conversationId,
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+            return {
+                success: false,
+                messages: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark a message as read
+     * @param {number} messageId - Message ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markMessageAsRead(messageId) {
+        console.log('[DatabaseService] markMessageAsRead() called', { messageId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.markMessageAsRead(messageId, currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception marking message as read:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Mark all messages in a conversation as read
+     * @param {number} conversationId - Conversation ID
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async markConversationAsRead(conversationId) {
+        console.log('[DatabaseService] markConversationAsRead() called', { conversationId });
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.markConversationAsRead(conversationId, currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception marking conversation as read:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Get unread message count for the current user
+     * @returns {Promise<{success: boolean, count: number, error: string|null}>}
+     */
+    async getUnreadMessageCount() {
+        console.log('[DatabaseService] getUnreadMessageCount() called');
+        try {
+            const currentUserId = await this._getCurrentUserId();
+            if (!currentUserId) {
+                return {
+                    success: false,
+                    count: 0,
+                    error: 'User not authenticated'
+                };
+            }
+
+            if (typeof window.MessagingService === 'undefined') {
+                throw new Error('MessagingService not available');
+            }
+
+            return await window.MessagingService.getUnreadCount(currentUserId);
+        } catch (error) {
+            console.error('[DatabaseService] Exception getting unread message count:', error);
+            return {
+                success: false,
+                count: 0,
+                error: error.message || 'An unexpected error occurred'
+            };
         }
     }
 };

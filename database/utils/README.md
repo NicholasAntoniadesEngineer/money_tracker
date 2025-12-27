@@ -34,6 +34,22 @@ Run this script **only if** you want to allow anonymous/public access without au
 
 **Note:** The default schema setup uses authenticated user access. Only use this script if you're not using Supabase authentication.
 
+### 4. Subscription Plans Setup
+**Files:** `04-populate-subscription-plans.sql` through `08-setup-free-and-premium-plans.sql`
+
+Run these scripts to set up subscription plans and related functionality.
+
+### 5. Data Sharing Feature
+**File:** `09-add-data-sharing.sql`
+
+Run this script to add data sharing and field-level locking capabilities.
+
+This script creates:
+- `data_shares` - Tracks which users have access to which data (includes `share_all_data` column)
+- `field_locks` - Prevents concurrent edits to the same field
+- RLS policies for shared data access
+- Functions and triggers for lock management
+
 ## Troubleshooting
 
 If you encounter signup errors or authentication issues, you may need to:

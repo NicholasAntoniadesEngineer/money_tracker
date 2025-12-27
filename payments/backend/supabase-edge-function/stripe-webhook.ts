@@ -368,6 +368,23 @@ async function handleCheckoutSessionCompleted(session: any) {
       })
     }
 
+    // Create notification
+    const planName = planId ? `Plan ${planId}` : "Monthly Subscription"
+    await createNotification(
+      userId,
+      "checkout_completed",
+      userId, // System notification, fromUserId = userId
+      `Your checkout has been completed successfully.`,
+      { subscription_id: userId }
+    )
+    await createNotification(
+      userId,
+      "subscription_created",
+      userId,
+      `Your subscription has been created: ${planName}.`,
+      { subscription_id: userId }
+    )
+
     return { success: true, message: "Checkout session processed" }
   } catch (error) {
     console.error("[stripe-webhook] Error handling checkout session:", error)
@@ -447,6 +464,34 @@ async function handleSubscriptionUpdated(subscription: any) {
     }
 
     console.log("[stripe-webhook] ✅ Subscription updated")
+
+    // Create notification based on subscription status
+    if (subscription.status === "canceled" || subscription.status === "cancelled") {
+      await createNotification(
+        userId,
+        "subscription_cancelled",
+        userId,
+        "Your subscription has been cancelled.",
+        { subscription_id: userId }
+      )
+    } else if (subscription.status === "active") {
+      await createNotification(
+        userId,
+        "subscription_updated",
+        userId,
+        "Your subscription has been updated.",
+        { subscription_id: userId }
+      )
+    } else if (subscription.status === "past_due" || subscription.status === "unpaid") {
+      await createNotification(
+        userId,
+        "subscription_expired",
+        userId,
+        "Your subscription has expired. Please update your payment method.",
+        { subscription_id: userId }
+      )
+    }
+
     return { success: true, message: "Subscription updated" }
   } catch (error) {
     console.error("[stripe-webhook] Error handling subscription update:", error)
@@ -643,6 +688,32 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
       })
     }
 
+    // Get payment record ID for notification
+    const paymentRecordResponse = await fetch(`${supabaseClient.url}/rest/v1/payment_history?user_id=eq.${userId}&stripe_invoice_id=eq.${invoice.id}&order=created_at.desc&limit=1`, {
+      headers: {
+        "apikey": supabaseClient.key,
+        "Authorization": `Bearer ${supabaseClient.key}`
+      }
+    })
+    const paymentRecords = await paymentRecordResponse.json()
+    const paymentId = paymentRecords?.[0]?.id || null
+
+    // Create notifications
+    await createNotification(
+      userId,
+      "invoice_paid",
+      userId,
+      `Your invoice has been paid: $${amount.toFixed(2)} ${currency.toUpperCase()}.`,
+      { payment_id: paymentId, subscription_id: userId, invoice_id: invoice.id }
+    )
+    await createNotification(
+      userId,
+      "payment_succeeded",
+      userId,
+      `Your payment was successful: $${amount.toFixed(2)} ${currency.toUpperCase()}.`,
+      { payment_id: paymentId, subscription_id: userId }
+    )
+
     console.log("[stripe-webhook] ✅ Invoice payment recorded")
     return { success: true, message: "Invoice payment processed" }
   } catch (error) {
@@ -704,6 +775,25 @@ async function handleInvoicePaymentFailed(invoice: any) {
         invoiceId: invoice.id
       })
     }
+
+    // Get payment record ID for notification
+    const paymentRecordResponse = await fetch(`${supabaseClient.url}/rest/v1/payment_history?user_id=eq.${userId}&stripe_invoice_id=eq.${invoice.id}&order=created_at.desc&limit=1`, {
+      headers: {
+        "apikey": supabaseClient.key,
+        "Authorization": `Bearer ${supabaseClient.key}`
+      }
+    })
+    const paymentRecords = await paymentRecordResponse.json()
+    const paymentId = paymentRecords?.[0]?.id || null
+
+    // Create notification
+    await createNotification(
+      userId,
+      "payment_failed",
+      userId,
+      `Your payment failed. Please update your payment method to continue your subscription.`,
+      { payment_id: paymentId, subscription_id: userId, invoice_id: invoice.id }
+    )
 
     console.log("[stripe-webhook] ✅ Payment failure recorded")
     return { success: true, message: "Payment failure processed" }
@@ -822,5 +912,103 @@ function getEmailSubject(type: string): string {
     payment_failed: "Payment failed - Action required"
   }
   return subjects[type] || "Money Tracker Notification"
+}
+
+/**
+ * Create a notification for a user
+ * @param {string} userId - User ID
+ * @param {string} type - Notification type
+ * @param {string} fromUserId - User/system that triggered the notification (use userId for system notifications)
+ * @param {string} message - Notification message
+ * @param {Object} metadata - Optional metadata (payment_id, subscription_id, invoice_id)
+ */
+async function createNotification(
+  userId: string,
+  type: string,
+  fromUserId: string,
+  message: string,
+  metadata: {
+    payment_id?: number | null,
+    subscription_id?: string | null,
+    invoice_id?: string | null
+  } = {}
+) {
+  try {
+    console.log("[stripe-webhook] ========== CREATING NOTIFICATION ==========")
+    console.log("[stripe-webhook] Notification details:", { 
+      userId, 
+      type, 
+      fromUserId,
+      messageLength: message?.length,
+      hasPaymentId: !!metadata.payment_id,
+      hasSubscriptionId: !!metadata.subscription_id,
+      hasInvoiceId: !!metadata.invoice_id,
+      metadata
+    })
+
+    const notificationData: any = {
+      user_id: userId,
+      type: type,
+      from_user_id: fromUserId,
+      message: message,
+      read: false
+    }
+
+    if (metadata.payment_id) {
+      notificationData.payment_id = metadata.payment_id
+      console.log("[stripe-webhook] Added payment_id to notification:", metadata.payment_id)
+    }
+    if (metadata.subscription_id) {
+      notificationData.subscription_id = metadata.subscription_id
+      console.log("[stripe-webhook] Added subscription_id to notification:", metadata.subscription_id)
+    }
+    if (metadata.invoice_id) {
+      notificationData.invoice_id = metadata.invoice_id
+      console.log("[stripe-webhook] Added invoice_id to notification:", metadata.invoice_id)
+    }
+
+    console.log("[stripe-webhook] Sending notification to database:", {
+      url: `${supabaseClient.url}/rest/v1/notifications`,
+      notificationDataKeys: Object.keys(notificationData)
+    })
+
+    const response = await fetch(`${supabaseClient.url}/rest/v1/notifications`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseClient.key,
+        "Authorization": `Bearer ${supabaseClient.key}`,
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify(notificationData)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("[stripe-webhook] ❌ Failed to create notification:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      return { success: false, error: errorText }
+    }
+
+    const notification = await response.json()
+    console.log("[stripe-webhook] ✅ Notification created successfully:", {
+      notificationId: notification[0]?.id,
+      type: notification[0]?.type,
+      userId: notification[0]?.user_id
+    })
+    console.log("[stripe-webhook] ========== NOTIFICATION CREATION COMPLETE ==========")
+    return { success: true, notification: notification[0] }
+  } catch (error) {
+    console.error("[stripe-webhook] ========== NOTIFICATION CREATION ERROR ==========")
+    console.error("[stripe-webhook] Exception details:", {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      errorName: error.name
+    })
+    return { success: false, error: error.message }
+  }
 }
 

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Money Tracker</title>
+    <link rel="stylesheet" href="../vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
+        (function() {
+            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
+            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            
+            // Sync with database once services are available
+            async function syncFontSizeFromDatabase() {
+                try {
+                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
+                        const settings = await window.DatabaseService.getSettings();
+                        if (settings && settings.fontSize) {
+                            const fontSize = settings.fontSize;
+                            document.documentElement.style.fontSize = fontSize + 'px';
+                            localStorage.setItem('money_tracker_fontSize', fontSize);
+                        }
+                    } else if (document.readyState !== 'complete') {
+                        setTimeout(syncFontSizeFromDatabase, 100);
+                    }
+                } catch (error) {
+                    // Silently fail - use cached value
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
+            } else {
+                syncFontSizeFromDatabase();
+            }
+        })();
+    </script>
+</head>
+<body>
+    <!-- Header will be injected by Header.js -->
+
+    <main class="notifications-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Notifications</h2>
+        </section>
+
+        <section class="notifications-section form-section">
+            <div class="notifications-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
+                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; flex: 1 1 auto; min-width: 0;">
+                    <label for="filter-dropdown" class="form-label" style="margin: 0;">Filter:</label>
+                    <select id="filter-dropdown" class="form-input" style="min-width: 150px; max-width: 100%;">
+                        <option value="all">All</option>
+                        <option value="unread">Unread</option>
+                        <option value="sharing">Sharing</option>
+                        <option value="payments">Payments</option>
+                        <option value="messaging">Messages</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; max-width: 100%;">
+                    <button id="new-message-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">New Message</button>
+                    <button id="mark-all-read-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Mark All as Read</button>
+                </div>
+            </div>
+
+            <div id="notifications-view" style="display: block;">
+                <div id="notifications-list" class="notifications-list">
+                    <p>Loading notifications...</p>
+                </div>
+            </div>
+
+            <div id="messages-view" style="display: none;">
+                <div id="conversations-list" class="conversations-list">
+                    <p>Loading conversations...</p>
+                </div>
+                <div id="message-thread-container" style="display: none;">
+                    <button id="back-to-conversations" class="btn btn-secondary" style="margin-bottom: var(--spacing-md);">← Back to Conversations</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
+                        <h3 id="conversation-partner-name" style="margin: 0; flex: 1 1 auto; min-width: 0;"> </h3>
+                        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
+                            <button id="add-friend-conversation-btn" class="btn btn-action btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Add to Friends</button>
+                            <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block User</button>
+                        </div>
+                    </div>
+                    <div id="message-thread" class="message-thread">
+                        <p>Loading messages...</p>
+                    </div>
+                    <div id="message-input-container" class="message-input-container">
+                        <textarea id="message-input" class="form-input" placeholder="Type your message..." rows="3"></textarea>
+                        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
+                            <button id="share-data-button" class="btn btn-secondary" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;" title="Share data with this user">Share Data</button>
+                            <button id="send-message-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- New Message Modal -->
+    <div id="new-message-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                <h3 style="margin: 0;">Send New Message</h3>
+                <button id="close-new-message-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label for="recipient-email-input" class="form-label">Recipient Email:</label>
+                    <input type="email" id="recipient-email-input" class="form-input" placeholder="Enter recipient email address" autocomplete="email">
+                </div>
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label for="new-message-content" class="form-label">Message:</label>
+                    <textarea id="new-message-content" class="form-input" placeholder="Type your message..." rows="5"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                <button id="cancel-new-message-button" class="btn btn-secondary">Cancel</button>
+                <button id="send-new-message-button" class="btn btn-action">Send Message</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Data Modal -->
+    <div id="share-data-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                <h3 style="margin: 0;">Share Data</h3>
+                <button id="close-share-data-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label for="share-data-email" class="form-label">User Email:</label>
+                    <input type="email" id="share-data-email" class="form-input" placeholder="user@example.com" autocomplete="email" required readonly>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label for="share-data-access-level" class="form-label">Access Level:</label>
+                    <select id="share-data-access-level" class="form-select">
+                        <option value="read">Read Only</option>
+                        <option value="read_write">Read/Write</option>
+                        <option value="read_write_delete">Read/Write/Delete</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <input type="checkbox" id="share-data-all-data">
+                        <span><strong>Share All Data</strong></span>
+                    </label>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label class="form-label">Share Options:</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-data-months" checked>
+                            <span>Months</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-data-pots">
+                            <span>Pots</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" id="share-data-settings">
+                            <span>Settings</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="share-data-months-container" style="margin-top: var(--spacing-md);">
+                    <label class="form-label">Select Months:</label>
+                    <div id="share-data-months-checkboxes" style="display: flex; flex-direction: column; gap: var(--spacing-sm); max-height: 200px; overflow-y: auto; padding: var(--spacing-sm); background: rgba(255, 255, 255, 0.5); border-radius: var(--border-radius);">
+                        <!-- Month checkboxes will be added here -->
+                    </div>
+                </div>
+                
+                <div id="share-data-form-status" style="margin-top: var(--spacing-md);"></div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                <button id="cancel-share-data-button" class="btn btn-secondary">Cancel</button>
+                <button id="save-share-data-button" class="btn btn-action">Share Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../services/AuthService.js"></script>
+    <script src="../../database/config/database-config-base.js"></script>
+    <script src="../../database/config/money-tracker-database-config.js"></script>
+    <script src="../../database/utils/database-config-helper.js"></script>
+    <script src="../../database/database-module.js"></script>
+    
+    <!-- Database Service -->
+    <script src="../../database/services/database-service.js"></script>
+    <script src="../../database/services/DataSharingService.js"></script>
+    <script src="../../database/services/FieldLockingService.js"></script>
+    
+    <!-- Notification Services -->
+    <script src="../../database/services/NotificationTypeRegistry.js"></script>
+    <script src="../../database/services/NotificationService.js"></script>
+    <script src="../../database/services/NotificationPreferenceService.js"></script>
+    <script src="../../database/services/NotificationChannelService.js"></script>
+    <script src="../../database/services/NotificationProcessor.js"></script>
+    
+    <!-- Messaging Service -->
+    <script src="../../database/services/MessagingService.js"></script>
+    
+    <!-- Initialize Database Module -->
+    <script src="../../database/init-database.js"></script>
+    
+    <!-- Payments Module Configuration -->
+    <script src="../../payments/config/payments-config-base.js"></script>
+    <script src="../../payments/config/money-tracker-config.js"></script>
+    <script src="../../payments/utils/config-helper.js"></script>
+    <script src="../../payments/payments-module.js"></script>
+    
+    <!-- Payments Services -->
+    <script src="../../payments/services/StripeService.js"></script>
+    <script src="../../payments/services/PaymentService.js"></script>
+    <script src="../../payments/services/SubscriptionService.js"></script>
+    <script src="../../payments/utils/subscription-checker.js"></script>
+    
+    <!-- Initialize Payments Module -->
+    <script src="../../payments/init-payments.js"></script>
+    <script src="../../payments/utils/wait-for-payments-init.js"></script>
+    <script src="../utils/subscription-guard.js"></script>
+    
+    <!-- Header Component -->
+    <script>
+        console.log('[NotificationsPage] Loading Header.js script...');
+        const headerScriptStart = Date.now();
+    </script>
+    <script src="../components/Header.js" onload="console.log('[NotificationsPage] Header.js loaded in', Date.now() - headerScriptStart, 'ms'); console.log('[NotificationsPage] window.Header after load:', typeof window.Header);" onerror="console.error('[NotificationsPage] ERROR loading Header.js');"></script>
+    
+    <!-- Notifications Controller -->
+    <script>
+        console.log('[NotificationsPage] Loading NotificationsController.js script...');
+        const controllerScriptStart = Date.now();
+    </script>
+    <script src="../controllers/NotificationsController.js" onload="console.log('[NotificationsPage] NotificationsController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[NotificationsPage] window.NotificationsController after load:', typeof window.NotificationsController);" onerror="console.error('[NotificationsPage] ERROR loading NotificationsController.js');"></script>
+
+    <script>
+        // Wait for scripts to load with detailed logging
+        function waitFor(condition, name, timeout = 5000) {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+                let checkCount = 0;
+                const check = () => {
+                    checkCount++;
+                    const elapsed = Date.now() - startTime;
+                    const isAvailable = condition();
+                    
+                    // Log every 10 checks (every second) or on first check
+                    if (checkCount === 1 || checkCount % 10 === 0) {
+                        console.log(`[NotificationsPage] Waiting for ${name}... (check ${checkCount}, ${elapsed}ms elapsed)`);
+                        console.log(`[NotificationsPage] Current window state:`, {
+                            hasHeader: typeof window.Header !== 'undefined',
+                            hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+                            headerType: typeof window.Header,
+                            notificationsControllerType: typeof window.NotificationsController,
+                            windowKeys: Object.keys(window).filter(k => k.includes('Header') || k.includes('Notification'))
+                        });
+                    }
+                    
+                    if (isAvailable) {
+                        const totalTime = Date.now() - startTime;
+                        console.log(`[NotificationsPage] ✅ ${name} is now available after ${totalTime}ms (${checkCount} checks)`);
+                        resolve();
+                    } else if (elapsed > timeout) {
+                        const totalTime = Date.now() - startTime;
+                        console.error(`[NotificationsPage] ❌ Timeout waiting for ${name} after ${totalTime}ms (${checkCount} checks)`);
+                        console.error(`[NotificationsPage] Final window state:`, {
+                            hasHeader: typeof window.Header !== 'undefined',
+                            hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+                            headerType: typeof window.Header,
+                            notificationsControllerType: typeof window.NotificationsController,
+                            allWindowKeys: Object.keys(window).slice(0, 50) // First 50 keys for debugging
+                        });
+                        reject(new Error(`Timeout waiting for ${name} after ${totalTime}ms`));
+                    } else {
+                        setTimeout(check, 100);
+                    }
+                };
+                check();
+            });
+        }
+
+        // Log script loading progress
+        document.addEventListener('readystatechange', () => {
+            console.log('[NotificationsPage] Document readyState changed to:', document.readyState);
+            console.log('[NotificationsPage] Window state at readyState change:', {
+                hasHeader: typeof window.Header !== 'undefined',
+                hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+                headerType: typeof window.Header,
+                notificationsControllerType: typeof window.NotificationsController
+            });
+        });
+
+        // Log immediately when this script executes
+        console.log('[NotificationsPage] ========== INITIALIZATION SCRIPT EXECUTING ==========');
+        console.log('[NotificationsPage] Current readyState:', document.readyState);
+        console.log('[NotificationsPage] Window state at script execution:', {
+            hasHeader: typeof window.Header !== 'undefined',
+            hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+            headerType: typeof window.Header,
+            notificationsControllerType: typeof window.NotificationsController,
+            allWindowKeys: Object.keys(window).filter(k => k.includes('Header') || k.includes('Notification') || k.includes('Database') || k.includes('Auth'))
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[NotificationsPage] ========== DOMContentLoaded FIRED ==========');
+            console.log('[NotificationsPage] Document ready state:', document.readyState);
+            console.log('[NotificationsPage] Script loading status:', {
+                totalScripts: document.scripts.length,
+                loadedScripts: Array.from(document.scripts).map(s => ({
+                    src: s.src || 'inline',
+                    readyState: s.readyState,
+                    async: s.async,
+                    defer: s.defer
+                }))
+            });
+            console.log('[NotificationsPage] Initial window state check:', {
+                hasHeader: typeof window.Header !== 'undefined',
+                hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+                headerType: typeof window.Header,
+                notificationsControllerType: typeof window.NotificationsController,
+                headerConstructor: window.Header ? window.Header.constructor.name : 'N/A',
+                headerMethods: window.Header ? Object.getOwnPropertyNames(window.Header).filter(n => typeof window.Header[n] === 'function') : []
+            });
+            
+            // Check if all scripts have loaded
+            const allScriptsLoaded = Array.from(document.scripts).every(s => {
+                return !s.src || s.readyState === 'complete' || s.readyState === 'loaded';
+            });
+            console.log('[NotificationsPage] All scripts loaded check:', {
+                allLoaded: allScriptsLoaded,
+                scriptStates: Array.from(document.scripts).map(s => ({
+                    src: s.src ? s.src.split('/').pop() : 'inline',
+                    readyState: s.readyState
+                }))
+            });
+
+            try {
+                console.log('[NotificationsPage] Step 1: Waiting for Header to be available...');
+                const headerWaitStart = Date.now();
+                await waitFor(() => typeof window.Header !== 'undefined', 'Header', 10000);
+                const headerWaitTime = Date.now() - headerWaitStart;
+                console.log(`[NotificationsPage] Header wait completed in ${headerWaitTime}ms`);
+                
+                console.log('[NotificationsPage] Step 2: Checking Header availability and initializing...');
+                console.log('[NotificationsPage] Header object:', {
+                    exists: window.Header !== undefined,
+                    type: typeof window.Header,
+                    hasInit: window.Header && typeof window.Header.init === 'function',
+                    hasStaticInit: window.Header && typeof window.Header.init === 'function',
+                    constructor: window.Header ? window.Header.constructor.name : 'N/A'
+                });
+                
+                // Initialize Header first (it may have already auto-initialized, but init() is idempotent)
+                if (window.Header && typeof window.Header.init === 'function') {
+                    console.log('[NotificationsPage] Calling Header.init()...');
+                    const headerInitStart = Date.now();
+                    await window.Header.init();
+                    const headerInitTime = Date.now() - headerInitStart;
+                    console.log(`[NotificationsPage] ✅ Header.init() completed in ${headerInitTime}ms`);
+                } else {
+                    console.warn('[NotificationsPage] ⚠️ Header.init() is not available:', {
+                        hasHeader: window.Header !== undefined,
+                        headerType: typeof window.Header,
+                        hasInitMethod: window.Header && typeof window.Header.init
+                    });
+                }
+
+                console.log('[NotificationsPage] Step 3: Waiting for NotificationsController to be available...');
+                const controllerWaitStart = Date.now();
+                await waitFor(() => typeof window.NotificationsController !== 'undefined', 'NotificationsController', 10000);
+                const controllerWaitTime = Date.now() - controllerWaitStart;
+                console.log(`[NotificationsPage] NotificationsController wait completed in ${controllerWaitTime}ms`);
+
+                console.log('[NotificationsPage] Step 4: Checking NotificationsController availability and initializing...');
+                console.log('[NotificationsPage] NotificationsController object:', {
+                    exists: window.NotificationsController !== undefined,
+                    type: typeof window.NotificationsController,
+                    hasInit: window.NotificationsController && typeof window.NotificationsController.init === 'function'
+                });
+
+                // Initialize NotificationsController
+                if (window.NotificationsController && typeof window.NotificationsController.init === 'function') {
+                    console.log('[NotificationsPage] Calling NotificationsController.init()...');
+                    const controllerInitStart = Date.now();
+                    await window.NotificationsController.init();
+                    const controllerInitTime = Date.now() - controllerInitStart;
+                    console.log(`[NotificationsPage] ✅ NotificationsController.init() completed in ${controllerInitTime}ms`);
+                    console.log('[NotificationsPage] ========== INITIALIZATION COMPLETE ==========');
+                } else {
+                    console.error('[NotificationsPage] ❌ NotificationsController.init() is not available:', {
+                        hasController: window.NotificationsController !== undefined,
+                        controllerType: typeof window.NotificationsController,
+                        hasInitMethod: window.NotificationsController && typeof window.NotificationsController.init
+                    });
+                    throw new Error('NotificationsController.init() is not available');
+                }
+            } catch (error) {
+                console.error('[NotificationsPage] ========== INITIALIZATION ERROR ==========');
+                console.error('[NotificationsPage] Error type:', error.constructor.name);
+                console.error('[NotificationsPage] Error message:', error.message);
+                console.error('[NotificationsPage] Error stack:', error.stack);
+                console.error('[NotificationsPage] Final window state at error:', {
+                    hasHeader: typeof window.Header !== 'undefined',
+                    hasNotificationsController: typeof window.NotificationsController !== 'undefined',
+                    headerType: typeof window.Header,
+                    notificationsControllerType: typeof window.NotificationsController
+                });
+                alert('Error initializing notifications page. Please check console for details.');
+            }
+        });
+    </script>
+</body>
+</html>
+

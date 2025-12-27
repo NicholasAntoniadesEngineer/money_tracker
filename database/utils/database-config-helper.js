@@ -117,6 +117,18 @@ const DatabaseConfigHelper = {
     getLoggingConfig(serviceInstance) {
         const config = this.getConfig(serviceInstance);
         return config.logging || { verbose: false, prefix: '[Database]' };
+    },
+    
+    /**
+     * Get the database service
+     * @param {Object} serviceInstance - The service instance calling this method
+     * @returns {Object} Database service
+     */
+    getDatabaseService(serviceInstance) {
+        if (typeof window !== 'undefined' && window.DatabaseService) {
+            return window.DatabaseService;
+        }
+        throw new Error('DatabaseConfigHelper: DatabaseService not available. Ensure database-service.js is loaded.');
     }
 };
 
