@@ -24,19 +24,6 @@ const DatabaseService = {
     settingsCache: null,
     settingsCacheUserId: null,
     settingsCachePromise: null,
-    getAllMonthsCache: null,
-    getAllMonthsCacheTimestamp: null,
-    getAllMonthsCachePromise: null,
-    getMonthCache: new Map(),
-    getMonthCacheTimestamps: new Map(),
-    getMonthCachePromises: new Map(),
-    getSharedDataWithMeCache: null,
-    getSharedDataWithMeCacheTimestamp: null,
-    getSharedDataWithMeCachePromise: null,
-    getDataSharesCreatedByMeCache: null,
-    getDataSharesCreatedByMeCacheTimestamp: null,
-    getDataSharesCreatedByMeCachePromise: null,
-    CACHE_DURATION_SHORT: 30 * 1000, // 30 seconds for frequently accessed data
     
     /**
      * ============================================================================
@@ -1560,36 +1547,19 @@ const DatabaseService = {
         try {
             console.log('[DatabaseService] getAllMonths() called, forceRefresh:', forceRefresh, 'includeExampleData:', includeExampleData);
             
-            // Check cache first (unless forceRefresh is true)
-            if (!forceRefresh && this.getAllMonthsCache && this.getAllMonthsCacheTimestamp) {
-                const cacheAge = Date.now() - this.getAllMonthsCacheTimestamp;
-                if (cacheAge < this.CACHE_DURATION_SHORT) {
-                    console.log(`[DatabaseService] Returning cached getAllMonths() result (age: ${cacheAge}ms)`);
-                    return this.getAllMonthsCache;
-                }
+            if (!this.client) {
+                console.log('[DatabaseService] Client not initialized, initializing...');
+                await this.initialize();
             }
             
-            // If a fetch is already in progress, return that promise
-            if (this.getAllMonthsCachePromise) {
-                console.log('[DatabaseService] getAllMonths() fetch already in progress, waiting...');
-                return await this.getAllMonthsCachePromise;
-            }
+            // Always fetch fresh from database - no caching
+            console.log('[DatabaseService] Fetching months from database...');
             
-            // Create a new fetch promise
-            this.getAllMonthsCachePromise = (async () => {
-                try {
-                    if (!this.client) {
-                        console.log('[DatabaseService] Client not initialized, initializing...');
-                        await this.initialize();
-                    }
-                    
-                    console.log('[DatabaseService] Fetching months from database...');
-                    
-                    // Fetch user months using centralized query interface
-                    console.log('[DatabaseService] Querying user_months table...');
-                    
-                    // Get current user ID for filtering (validates session)
-                    const currentUserId = await this._getCurrentUserId();
+            // Fetch user months using centralized query interface
+            console.log('[DatabaseService] Querying user_months table...');
+            
+            // Get current user ID for filtering (validates session)
+            const currentUserId = await this._getCurrentUserId();
             if (!currentUserId) {
                 console.warn('[DatabaseService] No authenticated user - skipping user_months query');
                 // Return empty array for user months, but still process example months if enabled
@@ -1894,52 +1864,33 @@ const DatabaseService = {
                 }
             }
             
-                    console.log(`[DatabaseService] getAllMonths() completed. Total months: ${Object.keys(monthsObject).length}`);
-                    console.log('[DatabaseService] Month keys:', Object.keys(monthsObject));
-                    
-                    // Update in-memory cache for current session only (not persisted)
-                    this.monthsCache = monthsObject;
-                    this.cacheTimestamp = Date.now();
-                    
-                    // Update getAllMonths cache
-                    this.getAllMonthsCache = monthsObject;
-                    this.getAllMonthsCacheTimestamp = Date.now();
-                    
-                    // Don't save to localStorage - always fetch fresh from database
-                    // Only save cache to storage for example data clearing functionality
-                    // User data is always loaded fresh from user_months table
-                    
-                    return monthsObject;
-                } catch (error) {
-                    console.error('[DatabaseService] Error getting all months:', error);
-                    console.error('[DatabaseService] Error details:', {
-                        message: error.message,
-                        code: error.code,
-                        details: error.details,
-                        hint: error.hint
-                    });
-                    
-                    // If database fetch fails, try to use cache as fallback
-                    if (this.getAllMonthsCache) {
-                        console.warn('[DatabaseService] Database fetch failed, using getAllMonthsCache as fallback');
-                        return { ...this.getAllMonthsCache };
-                    }
-                    if (this.monthsCache) {
-                        console.warn('[DatabaseService] Database fetch failed, using monthsCache as fallback');
-                        return { ...this.monthsCache };
-                    }
-                    
-                    throw error;
-                } finally {
-                    // Clear the promise so future calls can fetch fresh data
-                    this.getAllMonthsCachePromise = null;
-                }
-            })();
+            console.log(`[DatabaseService] getAllMonths() completed. Total months: ${Object.keys(monthsObject).length}`);
+            console.log('[DatabaseService] Month keys:', Object.keys(monthsObject));
             
-            return await this.getAllMonthsCachePromise;
+            // Update in-memory cache for current session only (not persisted)
+            this.monthsCache = monthsObject;
+            this.cacheTimestamp = Date.now();
+            
+            // Don't save to localStorage - always fetch fresh from database
+            // Only save cache to storage for example data clearing functionality
+            // User data is always loaded fresh from user_months table
+            
+            return monthsObject;
         } catch (error) {
-            // If we get here, the promise creation failed
-            console.error('[DatabaseService] Error in getAllMonths promise creation:', error);
+            console.error('[DatabaseService] Error getting all months:', error);
+            console.error('[DatabaseService] Error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            
+            // If database fetch fails, try to use cache as fallback
+            if (this.monthsCache) {
+                console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
+                return { ...this.monthsCache };
+            }
+            
             throw error;
         }
     },
@@ -1958,58 +1909,40 @@ const DatabaseService = {
                 throw new Error('Month key is required');
             }
             
-            // Check cache first (unless forceRefresh is true)
-            if (!forceRefresh && this.getMonthCache.has(monthKey) && this.getMonthCacheTimestamps.has(monthKey)) {
-                const cacheAge = Date.now() - this.getMonthCacheTimestamps.get(monthKey);
-                if (cacheAge < this.CACHE_DURATION_SHORT) {
-                    console.log(`[DatabaseService] Returning cached getMonth() result for ${monthKey} (age: ${cacheAge}ms)`);
-                    return this.getMonthCache.get(monthKey);
+            if (!this.client) {
+                console.log('[DatabaseService] Client not initialized, initializing...');
+                await this.initialize();
+            }
+            
+            // Always fetch fresh from database - check both tables using direct fetch
+            const { year, month } = this.parseMonthKey(monthKey);
+            console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
+            
+            // First check example_months using centralized query interface
+            console.log(`[DatabaseService] Checking example_months for ${year}-${month}...`);
+            let fetchResult = await this.querySelect(this._getTableName('exampleMonths'), {
+                select: '*',
+                filter: { year: year, month: month },
+                limit: 1
+            });
+            
+            let data = null;
+            let error = null;
+            
+            // Check if we got data from example_months
+            if (fetchResult.data && Array.isArray(fetchResult.data) && fetchResult.data.length > 0) {
+                data = fetchResult.data[0];
+                console.log(`[DatabaseService] Found month ${monthKey} in example_months table`);
+            } else {
+                // Not found in example_months (empty array or error), check user_months
+                console.log(`[DatabaseService] Not found in example_months (empty or error), checking user_months...`);
+                
+                // Get current user ID for filtering (validates session)
+                const currentUserId = await this._getCurrentUserId();
+                if (!currentUserId) {
+                    console.log(`[DatabaseService] No authenticated user - skipping user_months query`);
+                    return null;
                 }
-            }
-            
-            // If a fetch is already in progress for this month, return that promise
-            if (this.getMonthCachePromises.has(monthKey)) {
-                console.log(`[DatabaseService] getMonth() fetch already in progress for ${monthKey}, waiting...`);
-                return await this.getMonthCachePromises.get(monthKey);
-            }
-            
-            // Create a new fetch promise
-            const fetchPromise = (async () => {
-                try {
-                    if (!this.client) {
-                        console.log('[DatabaseService] Client not initialized, initializing...');
-                        await this.initialize();
-                    }
-                    
-                    // Always fetch fresh from database - check both tables using direct fetch
-                    const { year, month } = this.parseMonthKey(monthKey);
-                    console.log(`[DatabaseService] Parsed monthKey: year=${year}, month=${month}`);
-            
-                    // First check example_months using centralized query interface
-                    console.log(`[DatabaseService] Checking example_months for ${year}-${month}...`);
-                    let fetchResult = await this.querySelect(this._getTableName('exampleMonths'), {
-                        select: '*',
-                        filter: { year: year, month: month },
-                        limit: 1
-                    });
-                    
-                    let data = null;
-                    let error = null;
-                    
-                    // Check if we got data from example_months
-                    if (fetchResult.data && Array.isArray(fetchResult.data) && fetchResult.data.length > 0) {
-                        data = fetchResult.data[0];
-                        console.log(`[DatabaseService] Found month ${monthKey} in example_months table`);
-                    } else {
-                        // Not found in example_months (empty array or error), check user_months
-                        console.log(`[DatabaseService] Not found in example_months (empty or error), checking user_months...`);
-                        
-                        // Get current user ID for filtering (validates session)
-                        const currentUserId = await this._getCurrentUserId();
-                        if (!currentUserId) {
-                            console.log(`[DatabaseService] No authenticated user - skipping user_months query`);
-                            return null;
-                        }
                 
                 const userFetchFilter = { year: year, month: month, user_id: currentUserId };
                 const userFetchResult = await this.querySelect(this._getTableName('userMonths'), {
@@ -2051,9 +1984,6 @@ const DatabaseService = {
                                         transformedMonth.sharedOwnerId = share.owner_user_id;
                                         transformedMonth.sharedAccessLevel = share.access_level;
                                         console.log(`[DatabaseService] Found month ${monthKey} in shared months from user ${share.owner_user_id}`);
-                                        // Update cache
-                                        this.getMonthCache.set(monthKey, transformedMonth);
-                                        this.getMonthCacheTimestamps.set(monthKey, Date.now());
                                         return transformedMonth;
                                     }
                                 }
@@ -2095,9 +2025,6 @@ const DatabaseService = {
                                         transformedMonth.sharedOwnerId = share.owner_user_id;
                                         transformedMonth.sharedAccessLevel = share.access_level;
                                         console.log(`[DatabaseService] Found month ${monthKey} in shared months from user ${share.owner_user_id}`);
-                                        // Update cache
-                                        this.getMonthCache.set(monthKey, transformedMonth);
-                                        this.getMonthCacheTimestamps.set(monthKey, Date.now());
                                         return transformedMonth;
                                     }
                                 }
@@ -2125,43 +2052,19 @@ const DatabaseService = {
             const monthData = data ? this.transformMonthFromDatabase(data) : null;
             console.log(`[DatabaseService] getMonth() completed for ${monthKey}:`, monthData ? 'Found' : 'Not found');
             
-            // Update cache
-            if (monthData) {
-                this.getMonthCache.set(monthKey, monthData);
-                this.getMonthCacheTimestamps.set(monthKey, Date.now());
-            }
-            
+            // No caching - always return fresh data from database
             return monthData;
-                } catch (error) {
-                    console.error(`[DatabaseService] Error getting month ${monthKey}:`, error);
-                    console.error('[DatabaseService] Error details:', {
-                        message: error.message,
-                        code: error.code,
-                        details: error.details,
-                        hint: error.hint,
-                        status: error.status
-                    });
-                    
-                    // Return cached data if available (even if stale)
-                    if (this.getMonthCache.has(monthKey)) {
-                        console.log(`[DatabaseService] Returning stale getMonth cache for ${monthKey} due to error`);
-                        return this.getMonthCache.get(monthKey);
-                    }
-                    
-                    throw error;
-                } finally {
-                    // Clear the promise so future calls can fetch fresh data
-                    this.getMonthCachePromises.delete(monthKey);
-                }
-            })();
-            
-            // Store the promise
-            this.getMonthCachePromises.set(monthKey, fetchPromise);
-            
-            return await fetchPromise;
         } catch (error) {
-            // If we get here, the promise creation failed
-            console.error(`[DatabaseService] Error in getMonth promise creation for ${monthKey}:`, error);
+            console.error(`[DatabaseService] Error getting month ${monthKey}:`, error);
+            console.error('[DatabaseService] Error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint,
+                status: error.status
+            });
+            
+            // No fallback to cache - fail hard to ensure data accuracy
             throw error;
         }
     },
@@ -3805,99 +3708,42 @@ const DatabaseService = {
                 };
             }
             
-            // Check cache first
-            if (this.getDataSharesCreatedByMeCache && this.getDataSharesCreatedByMeCacheTimestamp) {
-                const cacheAge = Date.now() - this.getDataSharesCreatedByMeCacheTimestamp;
-                if (cacheAge < this.CACHE_DURATION_SHORT) {
-                    console.log(`[DatabaseService] Returning cached getDataSharesCreatedByMe() result (age: ${cacheAge}ms)`);
-                    return this.getDataSharesCreatedByMeCache;
-                } else {
-                    console.log(`[DatabaseService] Cache for getDataSharesCreatedByMe() expired (age: ${cacheAge}ms)`);
-                    this.getDataSharesCreatedByMeCache = null; // Invalidate expired cache
+            const tableName = this._getTableName('dataShares');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    owner_user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
+            
+            if (result.error) {
+                console.error('[DatabaseService] Error getting data shares:', result.error);
+                return {
+                    success: false,
+                    shares: null,
+                    error: result.error.message || 'Failed to get shares'
+                };
+            }
+            
+            const shares = result.data || [];
+            
+            for (const share of shares) {
+                if (typeof share.shared_months === 'string') {
+                    try {
+                        share.shared_months = JSON.parse(share.shared_months);
+                    } catch (e) {
+                        share.shared_months = [];
+                    }
                 }
             }
             
-            // If a fetch is already in progress, return that promise
-            if (this.getDataSharesCreatedByMeCachePromise) {
-                console.log('[DatabaseService] getDataSharesCreatedByMe() fetch already in progress, waiting...');
-                return await this.getDataSharesCreatedByMeCachePromise;
-            }
-            
-            // Create a new fetch promise
-            this.getDataSharesCreatedByMeCachePromise = (async () => {
-                try {
-                    const tableName = this._getTableName('dataShares');
-                    const result = await this.querySelect(tableName, {
-                        filter: {
-                            owner_user_id: currentUserId
-                        },
-                        order: [{ column: 'created_at', ascending: false }]
-                    });
-                    
-                    if (result.error) {
-                        console.error('[DatabaseService] Error getting data shares:', result.error);
-                        // If database fetch fails, try to use cache as fallback
-                        if (this.getDataSharesCreatedByMeCache) {
-                            console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
-                            return this.getDataSharesCreatedByMeCache;
-                        }
-                        return {
-                            success: false,
-                            shares: null,
-                            error: result.error.message || 'Failed to get shares'
-                        };
-                    }
-                    
-                    const shares = result.data || [];
-                    
-                    for (const share of shares) {
-                        if (typeof share.shared_months === 'string') {
-                            try {
-                                share.shared_months = JSON.parse(share.shared_months);
-                            } catch (e) {
-                                share.shared_months = [];
-                            }
-                        }
-                    }
-                    
-                    const finalResult = {
-                        success: true,
-                        shares: shares,
-                        error: null
-                    };
-                    
-                    // Update cache
-                    this.getDataSharesCreatedByMeCache = finalResult;
-                    this.getDataSharesCreatedByMeCacheTimestamp = Date.now();
-                    
-                    return finalResult;
-                } catch (error) {
-                    console.error('[DatabaseService] Exception getting data shares:', error);
-                    // If database fetch fails, try to use cache as fallback
-                    if (this.getDataSharesCreatedByMeCache) {
-                        console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
-                        return this.getDataSharesCreatedByMeCache;
-                    }
-                    return {
-                        success: false,
-                        shares: null,
-                        error: error.message || 'An unexpected error occurred'
-                    };
-                } finally {
-                    // Clear the promise so future calls can fetch fresh data
-                    this.getDataSharesCreatedByMeCachePromise = null;
-                }
-            })();
-            
-            return await this.getDataSharesCreatedByMeCachePromise;
+            return {
+                success: true,
+                shares: shares,
+                error: null
+            };
         } catch (error) {
-            // If we get here, the promise creation failed
-            console.error('[DatabaseService] Error in getDataSharesCreatedByMe promise creation:', error);
-            // If database fetch fails, try to use cache as fallback
-            if (this.getDataSharesCreatedByMeCache) {
-                console.warn('[DatabaseService] Database fetch failed, using cached data as fallback');
-                return this.getDataSharesCreatedByMeCache;
-            }
+            console.error('[DatabaseService] Exception getting data shares:', error);
             return {
                 success: false,
                 shares: null,
@@ -3921,31 +3767,13 @@ const DatabaseService = {
                 };
             }
             
-            // Check cache first
-            if (this.getSharedDataWithMeCache && this.getSharedDataWithMeCacheTimestamp) {
-                const cacheAge = Date.now() - this.getSharedDataWithMeCacheTimestamp;
-                if (cacheAge < this.CACHE_DURATION_SHORT) {
-                    console.log(`[DatabaseService] Returning cached getDataSharesSharedWithMe() result (age: ${cacheAge}ms)`);
-                    return this.getSharedDataWithMeCache;
-                }
-            }
-            
-            // If a fetch is already in progress, return that promise
-            if (this.getSharedDataWithMeCachePromise) {
-                console.log('[DatabaseService] getDataSharesSharedWithMe() fetch already in progress, waiting...');
-                return await this.getSharedDataWithMeCachePromise;
-            }
-            
-            // Create a new fetch promise
-            this.getSharedDataWithMeCachePromise = (async () => {
-                try {
-                    const tableName = this._getTableName('dataShares');
-                    const result = await this.querySelect(tableName, {
-                        filter: {
-                            shared_with_user_id: currentUserId
-                        },
-                        order: [{ column: 'created_at', ascending: false }]
-                    });
+            const tableName = this._getTableName('dataShares');
+            const result = await this.querySelect(tableName, {
+                filter: {
+                    shared_with_user_id: currentUserId
+                },
+                order: [{ column: 'created_at', ascending: false }]
+            });
             
             if (result.error) {
                 console.error('[DatabaseService] Error getting shared data shares:', result.error);
@@ -3977,47 +3805,19 @@ const DatabaseService = {
                 }
             }
             
-                    console.log('[DatabaseService] getDataSharesSharedWithMe - Returning shares:', shares.map(s => ({
-                        id: s.id,
-                        status: s.status,
-                        shareAllData: s.share_all_data
-                    })));
-                    
-                    const result = {
-                        success: true,
-                        shares: shares,
-                        error: null
-                    };
-                    
-                    // Update cache
-                    this.getSharedDataWithMeCache = result;
-                    this.getSharedDataWithMeCacheTimestamp = Date.now();
-                    
-                    return result;
-                } catch (error) {
-                    console.error('[DatabaseService] Exception getting shared data shares:', error);
-                    
-                    // Return cached data if available (even if stale)
-                    if (this.getSharedDataWithMeCache) {
-                        console.log('[DatabaseService] Returning stale getSharedDataWithMe cache due to error');
-                        return this.getSharedDataWithMeCache;
-                    }
-                    
-                    return {
-                        success: false,
-                        shares: null,
-                        error: error.message || 'An unexpected error occurred'
-                    };
-                } finally {
-                    // Clear the promise so future calls can fetch fresh data
-                    this.getSharedDataWithMeCachePromise = null;
-                }
-            })();
+            console.log('[DatabaseService] getDataSharesSharedWithMe - Returning shares:', shares.map(s => ({
+                id: s.id,
+                status: s.status,
+                shareAllData: s.share_all_data
+            })));
             
-            return await this.getSharedDataWithMeCachePromise;
+            return {
+                success: true,
+                shares: shares,
+                error: null
+            };
         } catch (error) {
-            // If we get here, the promise creation failed
-            console.error('[DatabaseService] Error in getDataSharesSharedWithMe promise creation:', error);
+            console.error('[DatabaseService] Exception getting shared data shares:', error);
             return {
                 success: false,
                 shares: null,
