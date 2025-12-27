@@ -352,8 +352,18 @@ const NotificationsController = {
 
         let filteredNotifications = this.notifications;
 
+        // Filter out share_request notifications that have a conversation_id
+        // These are shown as messages in the conversation thread instead
+        filteredNotifications = filteredNotifications.filter(n => {
+            if (n.type === 'share_request' && n.conversation_id) {
+                console.log('[NotificationsController] Filtering out share_request notification with conversation_id:', n.id, 'conversation_id:', n.conversation_id);
+                return false;
+            }
+            return true;
+        });
+
         if (this.currentFilter === 'unread') {
-            filteredNotifications = this.notifications.filter(n => !n.read);
+            filteredNotifications = filteredNotifications.filter(n => !n.read);
         }
 
         // Filter by category if specified
@@ -412,6 +422,16 @@ const NotificationsController = {
             currentFilter: this.currentFilter,
             notificationTypes: filteredNotifications.map(n => n.type),
             shareRequestCount: filteredNotifications.filter(n => n.type === 'share_request').length
+        });
+        
+        // Filter out share_request notifications that have a conversation_id
+        // These are shown as messages in the conversation thread instead
+        filteredNotifications = filteredNotifications.filter(n => {
+            if (n.type === 'share_request' && n.conversation_id) {
+                console.log('[NotificationsController] Filtering out share_request notification with conversation_id:', n.id, 'conversation_id:', n.conversation_id);
+                return false;
+            }
+            return true;
         });
         
         if (this.currentFilter === 'unread') {
@@ -1218,15 +1238,26 @@ const NotificationsController = {
                 console.log('[NotificationsController] Loaded messages:', { 
                     conversationId, 
                     messageCount: messages.length,
-                    messageIds: messages.map(m => m.id)
+                    messageIds: messages.map(m => m.id),
+                    messageTypes: messages.map(m => m.content?.startsWith('📤 Share Request') ? 'share_request' : 'regular')
                 });
                 
-                // Check for pending shares without messages and create messages for them
-                await this.createMessagesForPendingShares(conversationId, conversation, messages);
+                // Check for shares without messages and create messages for them (all statuses)
+                console.log('[NotificationsController] ========== CALLING createMessagesForShares() ==========');
+                await this.createMessagesForShares(conversationId, conversation, messages);
+                console.log('[NotificationsController] ========== createMessagesForShares() RETURNED ==========');
                 
                 // Reload messages after potentially creating new ones
+                console.log('[NotificationsController] Reloading messages after potential share message creation...');
                 const updatedResult = await window.DatabaseService.getMessages(conversationId);
                 const updatedMessages = updatedResult.success ? (updatedResult.messages || []) : messages;
+                console.log('[NotificationsController] Reloaded messages:', {
+                    success: updatedResult.success,
+                    messageCount: updatedMessages.length,
+                    messageIds: updatedMessages.map(m => m.id),
+                    messageTypes: updatedMessages.map(m => m.content?.startsWith('📤 Share Request') ? 'share_request' : 'regular'),
+                    newMessagesCount: updatedMessages.length - messages.length
+                });
                 
                 await this.renderMessageThread(updatedMessages);
 
@@ -1265,16 +1296,31 @@ const NotificationsController = {
     },
 
     /**
-     * Create messages for pending shares that don't have messages yet
+     * Create messages for shares that don't have messages yet
+     * This includes all shares (pending, accepted, declined) to show full history
      */
-    async createMessagesForPendingShares(conversationId, conversation, existingMessages) {
+    async createMessagesForShares(conversationId, conversation, existingMessages) {
+        console.log('[NotificationsController] ========== createMessagesForShares() STARTED ==========');
+        console.log('[NotificationsController] Parameters:', {
+            conversationId,
+            conversation: {
+                id: conversation.id,
+                other_user_id: conversation.other_user_id,
+                other_user_email: conversation.other_user_email
+            },
+            existingMessagesCount: existingMessages.length,
+            existingMessageIds: existingMessages.map(m => m.id)
+        });
+        
         try {
             if (typeof window.DatabaseService === 'undefined') {
+                console.warn('[NotificationsController] DatabaseService not available');
                 return;
             }
 
             const currentUserId = await window.DatabaseService._getCurrentUserId();
             if (!currentUserId) {
+                console.warn('[NotificationsController] Current user ID not available');
                 return;
             }
 
@@ -1284,76 +1330,118 @@ const NotificationsController = {
                 return;
             }
 
-            // Find all pending shares between current user and other user
+            console.log('[NotificationsController] User IDs:', {
+                currentUserId,
+                otherUserId,
+                conversationId
+            });
+
+            // Find all shares between current user and other user (regardless of status)
             // This includes shares that might not have conversation_id set yet
             const tableName = window.DatabaseService._getTableName('dataShares');
+            console.log('[NotificationsController] Data shares table name:', tableName);
             
-            // Query for shares with conversation_id matching
+            // Query for shares with conversation_id matching (all statuses)
+            console.log('[NotificationsController] Query 1: Finding shares with conversation_id:', conversationId);
             const sharesResult1 = await window.DatabaseService.querySelect(tableName, {
                 filter: {
-                    conversation_id: conversationId,
-                    status: 'pending'
+                    conversation_id: conversationId
                 }
+            });
+            console.log('[NotificationsController] Query 1 result:', {
+                success: sharesResult1.success,
+                hasError: !!sharesResult1.error,
+                error: sharesResult1.error,
+                hasData: !!sharesResult1.data,
+                count: sharesResult1.data?.length || 0,
+                shares: sharesResult1.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
             });
 
             // Query for shares where current user is owner and other user is recipient (without conversation_id)
+            console.log('[NotificationsController] Query 2: Finding shares where current user is owner');
             const sharesResult2 = await window.DatabaseService.querySelect(tableName, {
                 filter: {
                     owner_user_id: currentUserId,
-                    shared_with_user_id: otherUserId,
-                    status: 'pending'
+                    shared_with_user_id: otherUserId
                 }
+            });
+            console.log('[NotificationsController] Query 2 result:', {
+                success: sharesResult2.success,
+                hasError: !!sharesResult2.error,
+                error: sharesResult2.error,
+                hasData: !!sharesResult2.data,
+                count: sharesResult2.data?.length || 0,
+                shares: sharesResult2.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
             });
 
             // Query for shares where other user is owner and current user is recipient (without conversation_id)
+            console.log('[NotificationsController] Query 3: Finding shares where other user is owner');
             const sharesResult3 = await window.DatabaseService.querySelect(tableName, {
                 filter: {
                     owner_user_id: otherUserId,
-                    shared_with_user_id: currentUserId,
-                    status: 'pending'
+                    shared_with_user_id: currentUserId
                 }
+            });
+            console.log('[NotificationsController] Query 3 result:', {
+                success: sharesResult3.success,
+                hasError: !!sharesResult3.error,
+                error: sharesResult3.error,
+                hasData: !!sharesResult3.data,
+                count: sharesResult3.data?.length || 0,
+                shares: sharesResult3.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
             });
 
             // Combine results and filter for shares without conversation_id (to avoid duplicates)
-            let allPendingShares = [];
-            if (sharesResult1.success && sharesResult1.data) {
-                allPendingShares = [...allPendingShares, ...sharesResult1.data];
+            let allRawShares = [];
+            if (sharesResult1.data && !sharesResult1.error) {
+                console.log('[NotificationsController] Adding', sharesResult1.data.length, 'shares from query 1');
+                allRawShares = [...allRawShares, ...sharesResult1.data];
             }
-            if (sharesResult2.success && sharesResult2.data) {
+            if (sharesResult2.data && !sharesResult2.error) {
                 // Only include shares that don't have conversation_id (to avoid duplicates with sharesResult1)
                 const sharesWithoutConversationId = sharesResult2.data.filter(share => 
                     !share.conversation_id || share.conversation_id === null
                 );
-                allPendingShares = [...allPendingShares, ...sharesWithoutConversationId];
+                console.log('[NotificationsController] Adding', sharesWithoutConversationId.length, 'shares from query 2 (without conversation_id)');
+                allRawShares = [...allRawShares, ...sharesWithoutConversationId];
             }
-            if (sharesResult3.success && sharesResult3.data) {
+            if (sharesResult3.data && !sharesResult3.error) {
                 // Only include shares that don't have conversation_id (to avoid duplicates with sharesResult1)
                 const sharesWithoutConversationId = sharesResult3.data.filter(share => 
                     !share.conversation_id || share.conversation_id === null
                 );
-                allPendingShares = [...allPendingShares, ...sharesWithoutConversationId];
+                console.log('[NotificationsController] Adding', sharesWithoutConversationId.length, 'shares from query 3 (without conversation_id)');
+                allRawShares = [...allRawShares, ...sharesWithoutConversationId];
             }
+
+            console.log('[NotificationsController] Total shares before deduplication:', allRawShares.length);
 
             // Remove duplicates based on share.id
             const uniqueShares = [];
             const seenIds = new Set();
-            for (const share of allPendingShares) {
+            for (const share of allRawShares) {
                 if (!seenIds.has(share.id)) {
                     seenIds.add(share.id);
                     uniqueShares.push(share);
+                } else {
+                    console.log('[NotificationsController] Skipping duplicate share:', share.id);
                 }
             }
 
-            const pendingShares = uniqueShares;
-            console.log('[NotificationsController] Found pending shares for conversation:', pendingShares.length, {
-                conversationId,
-                currentUserId,
-                otherUserId,
-                shares: pendingShares.map(s => ({ id: s.id, conversation_id: s.conversation_id, owner: s.owner_user_id, recipient: s.shared_with_user_id }))
-            });
+            const allShares = uniqueShares;
+            console.log('[NotificationsController] ========== SHARES FOUND ==========');
+            console.log('[NotificationsController] Total unique shares:', allShares.length);
+            console.log('[NotificationsController] Share details:', allShares.map(s => ({
+                id: s.id,
+                conversation_id: s.conversation_id,
+                status: s.status,
+                owner: s.owner_user_id,
+                recipient: s.shared_with_user_id,
+                access_level: s.access_level
+            })));
 
             // Update shares that don't have conversation_id set
-            for (const share of pendingShares) {
+            for (const share of allShares) {
                 if (!share.conversation_id || share.conversation_id === null) {
                     console.log('[NotificationsController] Updating share to set conversation_id:', share.id);
                     try {
@@ -1373,20 +1461,37 @@ const NotificationsController = {
             }
 
             // Check which shares already have messages
+            console.log('[NotificationsController] ========== CHECKING EXISTING MESSAGES ==========');
+            console.log('[NotificationsController] Existing messages count:', existingMessages.length);
             const existingShareIds = new Set();
             existingMessages.forEach(msg => {
                 if (msg.content && msg.content.startsWith('📤 Share Request')) {
                     const shareIdMatch = msg.content.match(/Share ID: (\d+)/);
                     if (shareIdMatch) {
-                        existingShareIds.add(parseInt(shareIdMatch[1], 10));
+                        const shareId = parseInt(shareIdMatch[1], 10);
+                        existingShareIds.add(shareId);
+                        console.log('[NotificationsController] Found existing share request message for share ID:', shareId);
                     }
                 }
             });
+            console.log('[NotificationsController] Share IDs that already have messages:', Array.from(existingShareIds));
 
-            // Create messages for shares that don't have messages yet
-            for (const share of pendingShares) {
+            // Create messages for shares that don't have messages yet (regardless of status)
+            console.log('[NotificationsController] ========== CREATING MESSAGES FOR SHARES ==========');
+            let messagesCreated = 0;
+            let messagesSkipped = 0;
+            for (const share of allShares) {
                 if (!existingShareIds.has(share.id)) {
-                    console.log('[NotificationsController] Creating message for pending share:', share.id);
+                    console.log('[NotificationsController] ========== CREATING MESSAGE FOR SHARE ==========');
+                    console.log('[NotificationsController] Share details:', {
+                        id: share.id,
+                        status: share.status,
+                        conversation_id: share.conversation_id,
+                        owner: share.owner_user_id,
+                        recipient: share.shared_with_user_id,
+                        access_level: share.access_level,
+                        share_all_data: share.share_all_data
+                    });
                     
                     // Parse shared_months
                     let parsedSharedMonths = [];
@@ -1411,18 +1516,27 @@ const NotificationsController = {
                         }
                     }).join(', ') || (share.share_all_data ? 'All months' : 'None');
                     
+                    // Include status in message if not pending
+                    const statusText = share.status !== 'pending' ? `\nStatus: ${share.status.charAt(0).toUpperCase() + share.status.slice(1)}` : '';
+                    
                     const shareMessageContent = `📤 Share Request\n\n` +
                         `Access Level: ${share.access_level}\n` +
                         `Months: ${monthsList}\n` +
                         `${(share.shared_pots || share.share_all_data) ? 'Pots: Yes\n' : ''}` +
                         `${(share.shared_settings || share.share_all_data) ? 'Settings: Yes\n' : ''}` +
+                        `${statusText}\n` +
                         `\nShare ID: ${share.id}`;
                     
                     // Determine sender and recipient
                     const senderId = share.owner_user_id;
                     const recipientId = share.shared_with_user_id;
                     
+                    console.log('[NotificationsController] Message content preview:', shareMessageContent.substring(0, 100) + '...');
+                    console.log('[NotificationsController] Sender ID:', senderId);
+                    console.log('[NotificationsController] Recipient ID:', recipientId);
+                    
                     if (typeof window.MessagingService !== 'undefined') {
+                        console.log('[NotificationsController] Calling MessagingService.sendMessage()...');
                         const messageResult = await window.MessagingService.sendMessage(
                             conversationId,
                             senderId,
@@ -1431,15 +1545,35 @@ const NotificationsController = {
                         );
                         
                         if (messageResult.success) {
-                            console.log('[NotificationsController] ✅ Created message for pending share:', share.id);
+                            messagesCreated++;
+                            console.log('[NotificationsController] ✅ SUCCESS: Created message for share:', share.id, 'status:', share.status);
+                            console.log('[NotificationsController] Message result:', {
+                                success: messageResult.success,
+                                messageId: messageResult.message?.id,
+                                error: messageResult.error
+                            });
                         } else {
-                            console.error('[NotificationsController] ❌ Failed to create message for share:', messageResult.error);
+                            console.error('[NotificationsController] ❌ FAILED: Failed to create message for share:', share.id);
+                            console.error('[NotificationsController] Error details:', messageResult.error);
                         }
+                    } else {
+                        console.error('[NotificationsController] ❌ MessagingService not available');
                     }
+                } else {
+                    messagesSkipped++;
+                    console.log('[NotificationsController] ⏭️ SKIPPED: Share', share.id, 'already has a message');
                 }
             }
+            
+            console.log('[NotificationsController] ========== MESSAGE CREATION SUMMARY ==========');
+            console.log('[NotificationsController] Total shares processed:', allShares.length);
+            console.log('[NotificationsController] Messages created:', messagesCreated);
+            console.log('[NotificationsController] Messages skipped (already exist):', messagesSkipped);
+            console.log('[NotificationsController] ========== createMessagesForShares() COMPLETE ==========');
         } catch (error) {
-            console.error('[NotificationsController] Error creating messages for pending shares:', error);
+            console.error('[NotificationsController] ========== ERROR in createMessagesForShares() ==========');
+            console.error('[NotificationsController] Error:', error);
+            console.error('[NotificationsController] Error stack:', error.stack);
         }
     },
 
@@ -1465,7 +1599,11 @@ const NotificationsController = {
         console.log('[NotificationsController] Sorted messages (oldest first):', sortedMessages.length);
 
         // Render messages - detect share request messages and render them specially
-        const itemsHtmlPromises = sortedMessages.map(async (msg) => {
+        console.log('[NotificationsController] ========== RENDERING MESSAGES ==========');
+        let shareRequestMessageCount = 0;
+        let regularMessageCount = 0;
+        
+        const itemsHtmlPromises = sortedMessages.map(async (msg, index) => {
             const isOwnMessage = msg.sender_id === currentUserId;
             const alignClass = isOwnMessage ? 'right' : 'left';
             const date = new Date(msg.created_at);
@@ -1475,22 +1613,52 @@ const NotificationsController = {
             const isShareRequest = msg.content && msg.content.startsWith('📤 Share Request');
             
             if (isShareRequest) {
+                shareRequestMessageCount++;
+                console.log('[NotificationsController] ========== RENDERING SHARE REQUEST MESSAGE ==========');
+                console.log('[NotificationsController] Message index:', index);
+                console.log('[NotificationsController] Message ID:', msg.id);
+                console.log('[NotificationsController] Message content preview:', msg.content.substring(0, 150));
+                
                 // Parse share ID from message content
                 const shareIdMatch = msg.content.match(/Share ID: (\d+)/);
                 const shareId = shareIdMatch ? parseInt(shareIdMatch[1], 10) : null;
+                console.log('[NotificationsController] Extracted share ID:', shareId);
                 
                 let share = null;
                 let actionButtons = '';
                 
                 if (shareId && typeof window.DatabaseService !== 'undefined') {
                     try {
+                        console.log('[NotificationsController] Loading share details from database for share ID:', shareId);
                         const tableName = window.DatabaseService._getTableName('dataShares');
                         const shareResult = await window.DatabaseService.querySelect(tableName, {
                             filter: { id: shareId },
                             limit: 1
                         });
-                        if (shareResult.success && shareResult.data && shareResult.data.length > 0) {
+                        console.log('[NotificationsController] Share query result:', {
+                            success: shareResult.success,
+                            hasError: !!shareResult.error,
+                            error: shareResult.error,
+                            hasData: !!shareResult.data,
+                            found: shareResult.data?.length > 0,
+                            share: shareResult.data?.[0] ? {
+                                id: shareResult.data[0].id,
+                                status: shareResult.data[0].status,
+                                conversation_id: shareResult.data[0].conversation_id
+                            } : null
+                        });
+                        
+                        if (shareResult.data && shareResult.data.length > 0 && !shareResult.error) {
                             share = shareResult.data[0];
+                            console.log('[NotificationsController] Share loaded:', {
+                                id: share.id,
+                                status: share.status,
+                                owner: share.owner_user_id,
+                                recipient: share.shared_with_user_id,
+                                currentUserId: currentUserId,
+                                isRecipient: share.shared_with_user_id === currentUserId
+                            });
+                            
                             // Parse shared_months if it's a string
                             if (typeof share.shared_months === 'string') {
                                 try {
@@ -1503,6 +1671,7 @@ const NotificationsController = {
                             
                             // Show action buttons if share is pending and current user is recipient
                             if (share.status === 'pending' && share.shared_with_user_id === currentUserId) {
+                                console.log('[NotificationsController] Adding action buttons (pending share, user is recipient)');
                                 actionButtons = `
                                     <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
                                         <button class="btn btn-sm btn-primary accept-share-conversation-btn" data-share-id="${share.id}">Accept</button>
@@ -1513,27 +1682,41 @@ const NotificationsController = {
                             } else if (share.status !== 'pending') {
                                 // Show status for non-pending shares
                                 const statusText = share.status === 'accepted' ? 'Accepted' : share.status === 'declined' ? 'Declined' : share.status;
+                                console.log('[NotificationsController] Adding status display (non-pending share):', statusText);
                                 actionButtons = `<div style="margin-top: var(--spacing-sm); color: var(--text-color-secondary);"><strong>Status:</strong> ${statusText}</div>`;
+                            } else {
+                                console.log('[NotificationsController] No action buttons (share is pending but user is not recipient)');
                             }
+                        } else {
+                            console.warn('[NotificationsController] Share not found in database for share ID:', shareId);
                         }
                     } catch (error) {
-                        console.warn('[NotificationsController] Error loading share details:', error);
+                        console.error('[NotificationsController] Error loading share details:', error);
+                        console.error('[NotificationsController] Error stack:', error.stack);
                     }
+                } else {
+                    console.warn('[NotificationsController] Cannot load share details:', {
+                        hasShareId: !!shareId,
+                        hasDatabaseService: typeof window.DatabaseService !== 'undefined'
+                    });
                 }
                 
                 // Render share request as a special message
-                return `
+                console.log('[NotificationsController] Rendering share request message HTML for share ID:', shareId);
+                const shareRequestHtml = `
                     <div class="message-item share-request-message ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 80%; padding: var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--hover-overlay)'}; border: 2px solid ${isOwnMessage ? 'rgba(255,255,255,0.3)' : 'var(--primary-color)'}; border-radius: var(--border-radius); color: ${isOwnMessage ? 'white' : 'var(--text-color)'};">
-                            <div style="font-size: 0.9rem; margin-bottom: var(--spacing-xs); font-weight: bold;">📤 Share Request</div>
                             <div style="white-space: pre-line; font-size: 0.9rem;">${msg.content.replace(/Share ID: \d+/, '').trim()}</div>
                             ${actionButtons}
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-sm); opacity: 0.7;">${dateString}</div>
                         </div>
                     </div>
                 `;
+                console.log('[NotificationsController] ✅ Share request message HTML generated');
+                return shareRequestHtml;
             } else {
                 // Regular message
+                regularMessageCount++;
                 return `
                     <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
@@ -1546,16 +1729,29 @@ const NotificationsController = {
             }
         });
         
+        console.log('[NotificationsController] ========== GENERATING HTML FOR ALL MESSAGES ==========');
         const itemsHtml = await Promise.all(itemsHtmlPromises);
+        console.log('[NotificationsController] HTML generation complete:', {
+            totalItems: itemsHtml.length,
+            shareRequestMessages: shareRequestMessageCount,
+            regularMessages: regularMessageCount
+        });
 
+        console.log('[NotificationsController] ========== INSERTING HTML INTO DOM ==========');
         messageThread.innerHTML = itemsHtml.join('');
         messageThread.scrollTop = messageThread.scrollHeight;
+        console.log('[NotificationsController] HTML inserted, scroll position set');
         
         // Setup event listeners for share action buttons
+        console.log('[NotificationsController] Setting up share request listeners...');
         this.setupShareRequestListeners();
+        console.log('[NotificationsController] Share request listeners set up');
         
-        console.log('[NotificationsController] Message thread rendered:', { 
+        console.log('[NotificationsController] ========== MESSAGE THREAD RENDERING COMPLETE ==========');
+        console.log('[NotificationsController] Final render summary:', { 
             itemCount: itemsHtml.length,
+            shareRequestCount: shareRequestMessageCount,
+            regularMessageCount: regularMessageCount,
             scrollPosition: messageThread.scrollTop,
             scrollHeight: messageThread.scrollHeight
         });
