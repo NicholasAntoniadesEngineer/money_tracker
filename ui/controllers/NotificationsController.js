@@ -19,14 +19,28 @@ const NotificationsController = {
     isLoadingNotifications: false,
     conversationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
     notificationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
+    isOpeningConversation: false, // Guard to prevent multiple simultaneous opens
+    openingConversationId: null, // Track which conversation is being opened
+    conversationListenersAttached: false, // Track if conversation item listeners are attached
 
     /**
      * Initialize the notifications page
      */
     async init() {
-        console.log('[NotificationsController] init() called');
+        // Guard: Prevent multiple initializations
+        if (this.isInitializing) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] init() - already initializing, ignoring duplicate call');
+            }
+            return;
+        }
+        this.isInitializing = true;
 
         try {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] init() called');
+            }
+
             // Wait for AuthService to be available and initialized
             if (!window.AuthService) {
                 console.warn('[NotificationsController] AuthService not available, waiting...');
@@ -87,6 +101,8 @@ const NotificationsController = {
         } catch (error) {
             console.error('[NotificationsController] Error initializing:', error);
             alert('Error loading notifications. Please check console for details.');
+        } finally {
+            this.isInitializing = false;
         }
     },
 
@@ -1309,8 +1325,12 @@ const NotificationsController = {
 
         list.innerHTML = conversationsHtml.join('');
 
-        // Setup click listeners
-        list.querySelectorAll('.conversation-item').forEach(item => {
+        // Setup click listeners (clone and replace to remove old listeners)
+        const newList = list.cloneNode(true);
+        list.parentNode.replaceChild(newList, list);
+        
+        // Attach listeners to the new list
+        newList.querySelectorAll('.conversation-item').forEach(item => {
             item.addEventListener('click', () => {
                 const conversationId = parseInt(item.dataset.conversationId, 10);
                 this.openConversation(conversationId);
@@ -1322,8 +1342,6 @@ const NotificationsController = {
      * Handle back to conversations button click
      */
     async handleBackToConversations() {
-        console.log('[NotificationsController] handleBackToConversations() called');
-        
         const conversationsList = document.getElementById('conversations-list');
         const messageThreadContainer = document.getElementById('message-thread-container');
 
@@ -1362,66 +1380,80 @@ const NotificationsController = {
         }
 
         // Switch to notifications view
-        console.log('[NotificationsController] Switching back to notifications view');
         this.switchView('notifications');
 
-        // Reload conversations to get fresh data
-        console.log('[NotificationsController] Reloading conversations...');
-        await this.loadConversations();
-
-        // Reload notifications to ensure everything is fresh
-        console.log('[NotificationsController] Reloading notifications...');
-        await this.loadNotifications();
+        // Reload both in parallel (guards prevent duplicates)
+        await Promise.all([
+            this.loadConversations(),
+            this.loadNotifications()
+        ]);
 
         // Explicitly render the all view to ensure it's displayed
-        console.log('[NotificationsController] Rendering all view...');
         this.renderAllView();
 
         // Update notification count in header
         if (typeof window.Header !== 'undefined') {
             window.Header.updateNotificationCount();
         }
-
-        console.log('[NotificationsController] handleBackToConversations() complete - view refreshed');
     },
 
     /**
      * Open a conversation thread
      */
     async openConversation(conversationId) {
-        if (this.enableVerboseLogging) {
-            console.log('[NotificationsController] openConversation() called', { 
-                conversationId,
-                previousConversationId: this.currentConversationId,
-                currentView: this.currentView
-            });
-        }
-        this.currentConversationId = conversationId;
-        
-        // Ensure we're in messages view when opening a conversation
-        if (this.currentView !== 'messages') {
-            console.log('[NotificationsController] Setting currentView to messages for conversation');
-            this.currentView = 'messages';
+        // Guard: Prevent multiple simultaneous opens
+        if (this.isOpeningConversation) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] openConversation() - already opening, ignoring duplicate call');
+            }
+            return;
         }
 
-        const conversationsList = document.getElementById('conversations-list');
-        const messageThreadContainer = document.getElementById('message-thread-container');
-        const messageThread = document.getElementById('message-thread');
-
-        if (!messageThreadContainer || !messageThread) return;
-
-        // Hide conversations list, show message thread
-        if (conversationsList) conversationsList.style.display = 'none';
-        messageThreadContainer.style.display = 'block';
-        messageThread.innerHTML = '<p>Loading messages...</p>';
-
-        // Show share data button
-        const shareDataButton = document.getElementById('share-data-button');
-        if (shareDataButton) {
-            shareDataButton.style.display = 'inline-block';
+        // Guard: If already opening the same conversation, ignore
+        if (this.openingConversationId === conversationId && this.currentConversationId === conversationId) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] openConversation() - already open, ignoring');
+            }
+            return;
         }
+
+        this.isOpeningConversation = true;
+        this.openingConversationId = conversationId;
 
         try {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] openConversation() called', { 
+                    conversationId,
+                    previousConversationId: this.currentConversationId,
+                    currentView: this.currentView
+                });
+            }
+            this.currentConversationId = conversationId;
+            
+            // Ensure we're in messages view when opening a conversation
+            if (this.currentView !== 'messages') {
+                this.currentView = 'messages';
+            }
+
+            const conversationsList = document.getElementById('conversations-list');
+            const messageThreadContainer = document.getElementById('message-thread-container');
+            const messageThread = document.getElementById('message-thread');
+
+            if (!messageThreadContainer || !messageThread) {
+                return;
+            }
+
+            // Hide conversations list, show message thread
+            if (conversationsList) conversationsList.style.display = 'none';
+            messageThreadContainer.style.display = 'block';
+            messageThread.innerHTML = '<p>Loading messages...</p>';
+
+            // Show share data button
+            const shareDataButton = document.getElementById('share-data-button');
+            if (shareDataButton) {
+                shareDataButton.style.display = 'inline-block';
+            }
+
             if (typeof window.DatabaseService === 'undefined') {
                 throw new Error('DatabaseService not available');
             }
@@ -1544,17 +1576,19 @@ const NotificationsController = {
                     console.warn('[NotificationsController] Error in parallel operations:', error);
                 });
                 
-                // Refresh conversations and notifications in background (non-blocking)
-                Promise.all([
-                    this.loadConversations(),
-                    this.loadNotifications()
-                ]).then(() => {
+                // Only refresh if conversations list might have changed (e.g., new messages)
+                // Skip if we just loaded - avoid unnecessary refresh
+                // The conversations list is already up to date from the initial load
+                // Only refresh notifications to update unread counts
+                this.loadNotifications().then(() => {
                     // Update notification count in header after refresh
                     if (typeof window.Header !== 'undefined') {
                         window.Header.updateNotificationCount();
                     }
                 }).catch(error => {
-                    console.warn('[NotificationsController] Error refreshing conversations/notifications:', error);
+                    if (this.enableVerboseLogging) {
+                        console.warn('[NotificationsController] Error refreshing notifications:', error);
+                    }
                 });
             } else {
                 console.error('[NotificationsController] Failed to load messages:', result.error);
@@ -1562,7 +1596,14 @@ const NotificationsController = {
             }
         } catch (error) {
             console.error('[NotificationsController] Error opening conversation:', error);
-            messageThread.innerHTML = `<p style="color: var(--danger-color);">Error loading messages: ${error.message}</p>`;
+            const messageThread = document.getElementById('message-thread');
+            if (messageThread) {
+                messageThread.innerHTML = `<p style="color: var(--danger-color);">Error loading messages: ${error.message}</p>`;
+            }
+        } finally {
+            // Clear opening guard
+            this.isOpeningConversation = false;
+            this.openingConversationId = null;
         }
     },
 
