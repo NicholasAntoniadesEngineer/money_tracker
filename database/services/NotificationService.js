@@ -581,7 +581,8 @@ const NotificationService = {
 
             const tableName = this._getTableName('notifications');
 
-            const result = await databaseService.queryDelete(tableName, notificationId);
+            // queryDelete expects a filter object, not just the ID
+            const result = await databaseService.queryDelete(tableName, { id: notificationId });
 
             if (result.error) {
                 console.error('[NotificationService] Error deleting notification:', result.error);

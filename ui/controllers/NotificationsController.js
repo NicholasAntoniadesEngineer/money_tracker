@@ -63,12 +63,15 @@ const NotificationsController = {
             this.currentView = 'notifications';
             
             // Load both notifications and conversations
+            // Note: loadConversations() won't call renderConversations() when currentView is 'notifications'
+            // so we need to call renderAllView() after both complete
             await Promise.all([
                 this.loadNotifications(),
                 this.loadConversations()
             ]);
             
             // Render the combined 'all' view (notifications + conversations)
+            // This must be called after loadConversations() completes to ensure conversations are available
             this.renderAllView();
             
             this.updateFilterDropdown(); // Set initial dropdown value to 'all'
@@ -1029,7 +1032,7 @@ const NotificationsController = {
      * Load conversations for the current user
      */
     async loadConversations() {
-        console.log('[NotificationsController] loadConversations() called');
+        console.log('[NotificationsController] loadConversations() called', { currentView: this.currentView });
         try {
             if (typeof window.DatabaseService === 'undefined') {
                 throw new Error('DatabaseService not available');
@@ -1038,15 +1041,27 @@ const NotificationsController = {
             const result = await window.DatabaseService.getConversations();
             if (result.success) {
                 this.conversations = result.conversations || [];
-                this.renderConversations();
+                console.log('[NotificationsController] Conversations loaded:', { count: this.conversations.length, currentView: this.currentView });
+                
+                // Only render conversations list if we're in the messages view
+                // Otherwise, let the caller handle rendering via renderAllView()
+                if (this.currentView === 'messages') {
+                    console.log('[NotificationsController] Rendering conversations list (messages view)');
+                    this.renderConversations();
+                } else {
+                    console.log('[NotificationsController] Skipping renderConversations() - will be handled by renderAllView()');
+                }
             } else {
                 throw new Error(result.error || 'Failed to load conversations');
             }
         } catch (error) {
             console.error('[NotificationsController] Error loading conversations:', error);
-            const list = document.getElementById('conversations-list');
-            if (list) {
-                list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
+            // Only show error in conversations-list if we're in messages view
+            if (this.currentView === 'messages') {
+                const list = document.getElementById('conversations-list');
+                if (list) {
+                    list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
+                }
             }
         }
     },
@@ -1169,9 +1184,16 @@ const NotificationsController = {
     async openConversation(conversationId) {
         console.log('[NotificationsController] openConversation() called', { 
             conversationId,
-            previousConversationId: this.currentConversationId
+            previousConversationId: this.currentConversationId,
+            currentView: this.currentView
         });
         this.currentConversationId = conversationId;
+        
+        // Ensure we're in messages view when opening a conversation
+        if (this.currentView !== 'messages') {
+            console.log('[NotificationsController] Setting currentView to messages for conversation');
+            this.currentView = 'messages';
+        }
 
         const conversationsList = document.getElementById('conversations-list');
         const messageThreadContainer = document.getElementById('message-thread-container');
