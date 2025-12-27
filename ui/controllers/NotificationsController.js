@@ -14,6 +14,11 @@ const NotificationsController = {
     enableVerboseLogging: false, // Set to true for debugging
     notifications: [],
     conversations: [],
+    // Loading guards to prevent duplicate concurrent calls
+    isLoadingConversations: false,
+    isLoadingNotifications: false,
+    conversationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
+    notificationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
 
     /**
      * Initialize the notifications page
@@ -331,61 +336,75 @@ const NotificationsController = {
 
     /**
      * Load notifications from database
+     * Prevents duplicate concurrent calls by reusing the same promise
      */
     async loadNotifications() {
-        console.log('[NotificationsController] loadNotifications() called');
-
-        try {
-            if (typeof window.NotificationService === 'undefined') {
-                throw new Error('NotificationService not available');
+        // If already loading, return the existing promise
+        if (this.notificationsLoadPromise) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] loadNotifications() - reusing existing promise');
             }
-
-            if (typeof window.DatabaseService === 'undefined') {
-                throw new Error('DatabaseService not available');
-            }
-
-            const currentUserId = await window.DatabaseService._getCurrentUserId();
-            if (!currentUserId) {
-                throw new Error('User not authenticated');
-            }
-
-            const result = await window.NotificationService.getNotifications(currentUserId, {
-                unreadOnly: false,
-                orderBy: 'created_at',
-                ascending: false
-            });
-
-            if (result.success) {
-                this.notifications = result.notifications || [];
-                console.log('[NotificationsController] Loaded', this.notifications.length, 'notifications');
-                console.log('[NotificationsController] Notification types:', this.notifications.map(n => ({
-                    id: n.id,
-                    type: n.type,
-                    read: n.read,
-                    share_id: n.share_id,
-                    from_user_id: n.from_user_id
-                })));
-                console.log('[NotificationsController] Share request notifications:', this.notifications.filter(n => n.type === 'share_request').map(n => ({
-                    id: n.id,
-                    share_id: n.share_id,
-                    read: n.read,
-                    message: n.message
-                })));
-                if (this.currentFilter === 'all' && !this.currentCategory) {
-                    this.renderAllView();
-                } else {
-                    this.renderNotifications();
-                }
-            } else {
-                throw new Error(result.error || 'Failed to load notifications');
-            }
-        } catch (error) {
-            console.error('[NotificationsController] Error loading notifications:', error);
-            const list = document.getElementById('notifications-list');
-            if (list) {
-                list.innerHTML = `<p style="color: var(--danger-color);">Error loading notifications: ${error.message}</p>`;
-            }
+            return this.notificationsLoadPromise;
         }
+
+        // If currently loading, wait for it to complete
+        if (this.isLoadingNotifications) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] loadNotifications() - waiting for existing load');
+            }
+            while (this.isLoadingNotifications && this.notificationsLoadPromise) {
+                await this.notificationsLoadPromise;
+            }
+            return;
+        }
+
+        // Start loading
+        this.isLoadingNotifications = true;
+        this.notificationsLoadPromise = (async () => {
+            try {
+                if (typeof window.NotificationService === 'undefined') {
+                    throw new Error('NotificationService not available');
+                }
+
+                if (typeof window.DatabaseService === 'undefined') {
+                    throw new Error('DatabaseService not available');
+                }
+
+                const currentUserId = await window.DatabaseService._getCurrentUserId();
+                if (!currentUserId) {
+                    throw new Error('User not authenticated');
+                }
+
+                const result = await window.NotificationService.getNotifications(currentUserId, {
+                    unreadOnly: false,
+                    orderBy: 'created_at',
+                    ascending: false
+                });
+
+                if (result.success) {
+                    this.notifications = result.notifications || [];
+                    if (this.currentFilter === 'all' && !this.currentCategory) {
+                        this.renderAllView();
+                    } else {
+                        this.renderNotifications();
+                    }
+                } else {
+                    throw new Error(result.error || 'Failed to load notifications');
+                }
+            } catch (error) {
+                console.error('[NotificationsController] Error loading notifications:', error);
+                const list = document.getElementById('notifications-list');
+                if (list) {
+                    list.innerHTML = `<p style="color: var(--danger-color);">Error loading notifications: ${error.message}</p>`;
+                }
+            } finally {
+                // Clear loading state
+                this.isLoadingNotifications = false;
+                this.notificationsLoadPromise = null;
+            }
+        })();
+
+        return this.notificationsLoadPromise;
     },
 
     /**
@@ -1185,50 +1204,77 @@ const NotificationsController = {
 
     /**
      * Load conversations for the current user
+     * Prevents duplicate concurrent calls by reusing the same promise
      */
     async loadConversations() {
-        console.log('[NotificationsController] loadConversations() called', { currentView: this.currentView });
-        try {
-            if (typeof window.DatabaseService === 'undefined') {
-                throw new Error('DatabaseService not available');
+        // If already loading, return the existing promise
+        if (this.conversationsLoadPromise) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] loadConversations() - reusing existing promise');
             }
-
-            const result = await window.DatabaseService.getConversations();
-            if (result.success) {
-                this.conversations = result.conversations || [];
-                console.log('[NotificationsController] Conversations loaded:', { count: this.conversations.length, currentView: this.currentView });
-                
-                // Only render conversations list if we're in the messages view
-                // Otherwise, let the caller handle rendering via renderAllView()
-                if (this.currentView === 'messages') {
-                    console.log('[NotificationsController] Rendering conversations list (messages view)');
-                    this.renderConversations();
-                } else {
-                    console.log('[NotificationsController] Skipping renderConversations() - will be handled by renderAllView()');
-                }
-            } else {
-                throw new Error(result.error || 'Failed to load conversations');
-            }
-        } catch (error) {
-            console.error('[NotificationsController] Error loading conversations:', error);
-            // Only show error in conversations-list if we're in messages view
-            if (this.currentView === 'messages') {
-                const list = document.getElementById('conversations-list');
-                if (list) {
-                    list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
-                }
-            }
+            return this.conversationsLoadPromise;
         }
+
+        // If currently loading, wait for it to complete
+        if (this.isLoadingConversations) {
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] loadConversations() - waiting for existing load');
+            }
+            while (this.isLoadingConversations && this.conversationsLoadPromise) {
+                await this.conversationsLoadPromise;
+            }
+            return;
+        }
+
+        // Start loading
+        this.isLoadingConversations = true;
+        this.conversationsLoadPromise = (async () => {
+            try {
+                if (typeof window.DatabaseService === 'undefined') {
+                    throw new Error('DatabaseService not available');
+                }
+
+                const result = await window.DatabaseService.getConversations();
+                if (result.success) {
+                    this.conversations = result.conversations || [];
+                    
+                    // Only render conversations list if we're in the messages view
+                    // Otherwise, let the caller handle rendering via renderAllView()
+                    if (this.currentView === 'messages') {
+                        this.renderConversations();
+                    }
+                } else {
+                    throw new Error(result.error || 'Failed to load conversations');
+                }
+            } catch (error) {
+                console.error('[NotificationsController] Error loading conversations:', error);
+                // Only show error in conversations-list if we're in messages view
+                if (this.currentView === 'messages') {
+                    const list = document.getElementById('conversations-list');
+                    if (list) {
+                        list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
+                    }
+                }
+            } finally {
+                // Clear loading state
+                this.isLoadingConversations = false;
+                this.conversationsLoadPromise = null;
+            }
+        })();
+
+        return this.conversationsLoadPromise;
     },
 
     /**
      * Render conversations list
      */
     renderConversations() {
-        console.log('[NotificationsController] renderConversations() called', { 
-            count: this.conversations.length,
-            conversations: this.conversations.map(c => ({ id: c.id, other_user_email: c.other_user_email, unread_count: c.unread_count }))
-        });
+        if (this.enableVerboseLogging) {
+            console.log('[NotificationsController] renderConversations() called', { 
+                count: this.conversations.length,
+                conversations: this.conversations.map(c => ({ id: c.id, other_user_email: c.other_user_email, unread_count: c.unread_count }))
+            });
+        }
         const list = document.getElementById('conversations-list');
         if (!list) {
             console.warn('[NotificationsController] conversations-list element not found');
@@ -1343,11 +1389,13 @@ const NotificationsController = {
      * Open a conversation thread
      */
     async openConversation(conversationId) {
-        console.log('[NotificationsController] openConversation() called', { 
-            conversationId,
-            previousConversationId: this.currentConversationId,
-            currentView: this.currentView
-        });
+        if (this.enableVerboseLogging) {
+            console.log('[NotificationsController] openConversation() called', { 
+                conversationId,
+                previousConversationId: this.currentConversationId,
+                currentView: this.currentView
+            });
+        }
         this.currentConversationId = conversationId;
         
         // Ensure we're in messages view when opening a conversation
@@ -1427,16 +1475,20 @@ const NotificationsController = {
                 })();
             }
 
-            console.log('[NotificationsController] Fetching messages for conversation:', conversationId);
+            if (this.enableVerboseLogging) {
+                console.log('[NotificationsController] Fetching messages for conversation:', conversationId);
+            }
             const result = await window.DatabaseService.getMessages(conversationId);
             if (result.success) {
                 const messages = result.messages || [];
-                console.log('[NotificationsController] Loaded messages:', { 
-                    conversationId, 
-                    messageCount: messages.length,
-                    messageIds: messages.map(m => m.id),
-                    messageTypes: messages.map(m => m.content?.startsWith('📤 Share Request') ? 'share_request' : 'regular')
-                });
+                if (this.enableVerboseLogging) {
+                    console.log('[NotificationsController] Loaded messages:', { 
+                        conversationId, 
+                        messageCount: messages.length,
+                        messageIds: messages.map(m => m.id),
+                        messageTypes: messages.map(m => m.content?.startsWith('📤 Share Request') ? 'share_request' : 'regular')
+                    });
+                }
                 
                 // Check for shares without messages and create messages for them (all statuses)
                 // Do this in parallel with rendering if possible, but we need to check first
@@ -1464,7 +1516,9 @@ const NotificationsController = {
                     // Mark conversation as read
                     (async () => {
                         try {
-                            console.log('[NotificationsController] Marking conversation as read:', conversationId);
+                            if (this.enableVerboseLogging) {
+                                console.log('[NotificationsController] Marking conversation as read:', conversationId);
+                            }
                             await window.DatabaseService.markConversationAsRead(conversationId);
                         } catch (error) {
                             console.warn('[NotificationsController] Error marking conversation as read:', error);
@@ -1619,8 +1673,6 @@ const NotificationsController = {
             }
 
             // Check which shares already have messages
-            console.log('[NotificationsController] ========== CHECKING EXISTING MESSAGES ==========');
-            console.log('[NotificationsController] Existing messages count:', existingMessages.length);
             const existingShareIds = new Set();
             existingMessages.forEach(msg => {
                 if (msg.content && msg.content.startsWith('📤 Share Request')) {
@@ -1628,28 +1680,18 @@ const NotificationsController = {
                     if (shareIdMatch) {
                         const shareId = parseInt(shareIdMatch[1], 10);
                         existingShareIds.add(shareId);
-                        console.log('[NotificationsController] Found existing share request message for share ID:', shareId);
                     }
                 }
             });
-            console.log('[NotificationsController] Share IDs that already have messages:', Array.from(existingShareIds));
 
             // Create messages for shares that don't have messages yet (regardless of status)
-            console.log('[NotificationsController] ========== CREATING MESSAGES FOR SHARES ==========');
             let messagesCreated = 0;
             let messagesSkipped = 0;
             for (const share of allShares) {
                 if (!existingShareIds.has(share.id)) {
-                    console.log('[NotificationsController] ========== CREATING MESSAGE FOR SHARE ==========');
-                    console.log('[NotificationsController] Share details:', {
-                        id: share.id,
-                        status: share.status,
-                        conversation_id: share.conversation_id,
-                        owner: share.owner_user_id,
-                        recipient: share.shared_with_user_id,
-                        access_level: share.access_level,
-                        share_all_data: share.share_all_data
-                    });
+                    if (this.enableVerboseLogging) {
+                        console.log('[NotificationsController] Creating message for share:', share.id);
+                    }
                     
                     // Parse shared_months
                     let parsedSharedMonths = [];
