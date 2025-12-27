@@ -541,12 +541,12 @@ const NotificationsController = {
             : '';
         
         return `
-            <div class="notification-item conversation-item" data-conversation-id="${conversation.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                <div>
+            <div class="notification-item conversation-item" data-conversation-id="${conversation.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm);">
+                <div style="flex: 1 1 auto; min-width: 0; max-width: 100%;">
                     <strong>${conversation.other_user_email || 'Unknown User'}</strong>${unreadBadge}
-                    ${conversation.last_message ? `<div style="color: var(--text-color-secondary); font-size: 0.9em; margin-top: var(--spacing-xs);">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</div>` : ''}
+                    ${conversation.last_message ? `<div style="color: var(--text-color-secondary); font-size: 0.9em; margin-top: var(--spacing-xs); word-wrap: break-word;">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</div>` : ''}
                 </div>
-                <div style="color: var(--text-color-secondary); font-size: 0.85em;">
+                <div style="color: var(--text-color-secondary); font-size: 0.85em; flex-shrink: 0;">
                     ${conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleDateString() : ''}
                 </div>
             </div>
@@ -675,14 +675,14 @@ const NotificationsController = {
             let replyButton = '';
             if (notification.type === 'share_request' && notification.share_id && !notification.read) {
                 actionButtons = `
-                    <div class="notification-actions" style="margin-top: 4px; display: flex; gap: 4px;">
-                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Accept</button>
-                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Decline</button>
-                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem;">Block</button>
+                    <div class="notification-actions" style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 100%;">
+                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Accept</button>
+                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Decline</button>
+                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block</button>
                     </div>
                 `;
             } else if (notification.type === 'message_received' && notification.conversation_id) {
-                replyButton = `<button class="btn btn-primary btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem;">Reply</button>`;
+                replyButton = `<button class="btn btn-primary btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Reply</button>`;
             }
 
             const date = new Date(notification.created_at);
@@ -700,11 +700,11 @@ const NotificationsController = {
                             ${notification.message ? `<p style="margin: 2px 0 0 0; color: var(--text-color-secondary); font-size: 0.85rem; line-height: 1.3;">${notification.message}</p>` : ''}
                             ${actionButtons}
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: end; gap: 2px; margin-left: var(--spacing-sm);">
+                        <div style="display: flex; flex-direction: column; align-items: end; gap: 2px; margin-left: var(--spacing-sm); flex-shrink: 0;">
                             <span style="font-size: 0.75rem; color: var(--text-color-secondary);">${dateString}</span>
-                            <div style="display: flex; gap: 4px; align-items: center;">
+                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap; max-width: 100%;">
                                 ${replyButton}
-                                <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                                <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Delete</button>
                             </div>
                         </div>
                     </div>
@@ -1355,25 +1355,32 @@ const NotificationsController = {
                 blockButton.dataset.userEmail = conversation.other_user_email || 'Unknown User';
             }
             
-            // Check if user is already a friend and update button accordingly
+            // Start friend check in parallel (non-blocking)
+            let friendCheckPromise = Promise.resolve();
             if (addFriendButton && conversation.other_user_id) {
                 addFriendButton.style.display = 'inline-block';
                 addFriendButton.dataset.userId = conversation.other_user_id;
                 addFriendButton.dataset.userEmail = conversation.other_user_email || 'Unknown User';
                 
-                // Check if already a friend
-                if (window.DatabaseService) {
-                    const isFriendResult = await window.DatabaseService.isFriend(conversation.other_user_id);
-                    if (isFriendResult.success && isFriendResult.isFriend) {
-                        addFriendButton.textContent = 'Remove from Friends';
-                        addFriendButton.classList.remove('btn-action');
-                        addFriendButton.classList.add('btn-secondary');
-                    } else {
-                        addFriendButton.textContent = 'Add to Friends';
-                        addFriendButton.classList.remove('btn-secondary');
-                        addFriendButton.classList.add('btn-action');
+                // Check if already a friend (non-blocking - will update button after messages load)
+                friendCheckPromise = (async () => {
+                    if (window.DatabaseService) {
+                        try {
+                            const isFriendResult = await window.DatabaseService.isFriend(conversation.other_user_id);
+                            if (isFriendResult.success && isFriendResult.isFriend) {
+                                addFriendButton.textContent = 'Remove from Friends';
+                                addFriendButton.classList.remove('btn-action');
+                                addFriendButton.classList.add('btn-secondary');
+                            } else {
+                                addFriendButton.textContent = 'Add to Friends';
+                                addFriendButton.classList.remove('btn-secondary');
+                                addFriendButton.classList.add('btn-action');
+                            }
+                        } catch (error) {
+                            console.warn('[NotificationsController] Error checking friend status:', error);
+                        }
                     }
-                }
+                })();
             }
 
             console.log('[NotificationsController] Fetching messages for conversation:', conversationId);
@@ -1388,48 +1395,71 @@ const NotificationsController = {
                 });
                 
                 // Check for shares without messages and create messages for them (all statuses)
+                // Do this in parallel with rendering if possible, but we need to check first
                 console.log('[NotificationsController] ========== CALLING createMessagesForShares() ==========');
-                await this.createMessagesForShares(conversationId, conversation, messages);
+                const sharesCreated = await this.createMessagesForShares(conversationId, conversation, messages);
                 console.log('[NotificationsController] ========== createMessagesForShares() RETURNED ==========');
                 
-                // Reload messages after potentially creating new ones
-                console.log('[NotificationsController] Reloading messages after potential share message creation...');
-                const updatedResult = await window.DatabaseService.getMessages(conversationId);
-                const updatedMessages = updatedResult.success ? (updatedResult.messages || []) : messages;
-                console.log('[NotificationsController] Reloaded messages:', {
-                    success: updatedResult.success,
-                    messageCount: updatedMessages.length,
-                    messageIds: updatedMessages.map(m => m.id),
-                    messageTypes: updatedMessages.map(m => m.content?.startsWith('📤 Share Request') ? 'share_request' : 'regular'),
-                    newMessagesCount: updatedMessages.length - messages.length
-                });
-                
-                await this.renderMessageThread(updatedMessages);
-
-                // Mark conversation as read
-                console.log('[NotificationsController] Marking conversation as read:', conversationId);
-                const markReadResult = await window.DatabaseService.markConversationAsRead(conversationId);
-                console.log('[NotificationsController] Mark as read result:', markReadResult);
-                
-                // Mark related notifications as read
-                if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
-                    const currentUserId = await window.DatabaseService._getCurrentUserId();
-                    if (currentUserId) {
-                        console.log('[NotificationsController] Marking conversation notifications as read:', conversationId);
-                        const otherUserId = conversation.other_user_id;
-                        console.log('[NotificationsController] Conversation partner user ID:', otherUserId);
-                        const notificationResult = await window.NotificationService.markConversationNotificationsAsRead(currentUserId, conversationId, otherUserId);
-                        console.log('[NotificationsController] Conversation notifications marked as read:', notificationResult);
+                // Only reload messages if new ones were created
+                let messagesToRender = messages;
+                if (sharesCreated > 0) {
+                    console.log('[NotificationsController] Reloading messages after creating', sharesCreated, 'share messages...');
+                    const updatedResult = await window.DatabaseService.getMessages(conversationId);
+                    if (updatedResult.success && updatedResult.messages) {
+                        messagesToRender = updatedResult.messages;
+                        console.log('[NotificationsController] Reloaded messages:', {
+                            messageCount: messagesToRender.length,
+                            newMessagesCount: messagesToRender.length - messages.length
+                        });
                     }
                 }
                 
-                await this.loadConversations(); // Refresh to update unread counts
-                await this.loadNotifications(); // Refresh notifications to update read status
+                // Render messages immediately
+                await this.renderMessageThread(messagesToRender);
+
+                // Do all the read/update operations in parallel (non-blocking for UI)
+                Promise.all([
+                    // Mark conversation as read
+                    (async () => {
+                        try {
+                            console.log('[NotificationsController] Marking conversation as read:', conversationId);
+                            await window.DatabaseService.markConversationAsRead(conversationId);
+                        } catch (error) {
+                            console.warn('[NotificationsController] Error marking conversation as read:', error);
+                        }
+                    })(),
+                    // Mark related notifications as read
+                    (async () => {
+                        try {
+                            if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
+                                const currentUserId = await window.DatabaseService._getCurrentUserId();
+                                if (currentUserId) {
+                                    const otherUserId = conversation.other_user_id;
+                                    await window.NotificationService.markConversationNotificationsAsRead(currentUserId, conversationId, otherUserId);
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('[NotificationsController] Error marking notifications as read:', error);
+                        }
+                    })(),
+                    // Update friend button (already started)
+                    friendCheckPromise
+                ]).catch(error => {
+                    console.warn('[NotificationsController] Error in parallel operations:', error);
+                });
                 
-                // Update notification count in header
-                if (typeof window.Header !== 'undefined') {
-                    window.Header.updateNotificationCount();
-                }
+                // Refresh conversations and notifications in background (non-blocking)
+                Promise.all([
+                    this.loadConversations(),
+                    this.loadNotifications()
+                ]).then(() => {
+                    // Update notification count in header after refresh
+                    if (typeof window.Header !== 'undefined') {
+                        window.Header.updateNotificationCount();
+                    }
+                }).catch(error => {
+                    console.warn('[NotificationsController] Error refreshing conversations/notifications:', error);
+                });
             } else {
                 console.error('[NotificationsController] Failed to load messages:', result.error);
                 throw new Error(result.error || 'Failed to load messages');
@@ -1460,19 +1490,19 @@ const NotificationsController = {
         try {
             if (typeof window.DatabaseService === 'undefined') {
                 console.warn('[NotificationsController] DatabaseService not available');
-                return;
+                return 0;
             }
 
             const currentUserId = await window.DatabaseService._getCurrentUserId();
             if (!currentUserId) {
                 console.warn('[NotificationsController] Current user ID not available');
-                return;
+                return 0;
             }
 
             const otherUserId = conversation.other_user_id;
             if (!otherUserId) {
                 console.warn('[NotificationsController] No other_user_id in conversation');
-                return;
+                return 0;
             }
 
             console.log('[NotificationsController] User IDs:', {
@@ -1486,55 +1516,66 @@ const NotificationsController = {
             const tableName = window.DatabaseService._getTableName('dataShares');
             console.log('[NotificationsController] Data shares table name:', tableName);
             
-            // Query for shares with conversation_id matching (all statuses)
-            console.log('[NotificationsController] Query 1: Finding shares with conversation_id:', conversationId);
-            const sharesResult1 = await window.DatabaseService.querySelect(tableName, {
-                filter: {
-                    conversation_id: conversationId
-                }
-            });
-            console.log('[NotificationsController] Query 1 result:', {
-                success: sharesResult1.success,
-                hasError: !!sharesResult1.error,
-                error: sharesResult1.error,
-                hasData: !!sharesResult1.data,
-                count: sharesResult1.data?.length || 0,
-                shares: sharesResult1.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
-            });
-
-            // Query for shares where current user is owner and other user is recipient (without conversation_id)
-            console.log('[NotificationsController] Query 2: Finding shares where current user is owner');
-            const sharesResult2 = await window.DatabaseService.querySelect(tableName, {
-                filter: {
-                    owner_user_id: currentUserId,
-                    shared_with_user_id: otherUserId
-                }
-            });
-            console.log('[NotificationsController] Query 2 result:', {
-                success: sharesResult2.success,
-                hasError: !!sharesResult2.error,
-                error: sharesResult2.error,
-                hasData: !!sharesResult2.data,
-                count: sharesResult2.data?.length || 0,
-                shares: sharesResult2.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
-            });
-
-            // Query for shares where other user is owner and current user is recipient (without conversation_id)
-            console.log('[NotificationsController] Query 3: Finding shares where other user is owner');
-            const sharesResult3 = await window.DatabaseService.querySelect(tableName, {
-                filter: {
-                    owner_user_id: otherUserId,
-                    shared_with_user_id: currentUserId
-                }
-            });
-            console.log('[NotificationsController] Query 3 result:', {
-                success: sharesResult3.success,
-                hasError: !!sharesResult3.error,
-                error: sharesResult3.error,
-                hasData: !!sharesResult3.data,
-                count: sharesResult3.data?.length || 0,
-                shares: sharesResult3.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
-            });
+            // Run all three queries in parallel for better performance
+            console.log('[NotificationsController] Running share queries in parallel...');
+            const [sharesResult1, sharesResult2, sharesResult3] = await Promise.all([
+                // Query for shares with conversation_id matching (all statuses)
+                (async () => {
+                    console.log('[NotificationsController] Query 1: Finding shares with conversation_id:', conversationId);
+                    const result = await window.DatabaseService.querySelect(tableName, {
+                        filter: {
+                            conversation_id: conversationId
+                        }
+                    });
+                    console.log('[NotificationsController] Query 1 result:', {
+                        success: result.success,
+                        hasError: !!result.error,
+                        error: result.error,
+                        hasData: !!result.data,
+                        count: result.data?.length || 0,
+                        shares: result.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
+                    });
+                    return result;
+                })(),
+                // Query for shares where current user is owner and other user is recipient (without conversation_id)
+                (async () => {
+                    console.log('[NotificationsController] Query 2: Finding shares where current user is owner');
+                    const result = await window.DatabaseService.querySelect(tableName, {
+                        filter: {
+                            owner_user_id: currentUserId,
+                            shared_with_user_id: otherUserId
+                        }
+                    });
+                    console.log('[NotificationsController] Query 2 result:', {
+                        success: result.success,
+                        hasError: !!result.error,
+                        error: result.error,
+                        hasData: !!result.data,
+                        count: result.data?.length || 0,
+                        shares: result.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
+                    });
+                    return result;
+                })(),
+                // Query for shares where other user is owner and current user is recipient (without conversation_id)
+                (async () => {
+                    console.log('[NotificationsController] Query 3: Finding shares where other user is owner');
+                    const result = await window.DatabaseService.querySelect(tableName, {
+                        filter: {
+                            owner_user_id: otherUserId,
+                            shared_with_user_id: currentUserId
+                        }
+                    });
+                    console.log('[NotificationsController] Query 3 result:', {
+                        success: result.success,
+                        hasError: !!result.error,
+                        error: result.error,
+                        hasData: !!result.data,
+                        count: result.data?.length || 0,
+                        shares: result.data?.map(s => ({ id: s.id, status: s.status, conversation_id: s.conversation_id })) || []
+                    });
+                    return result;
+                })()
+            ]);
 
             // Combine results and filter for shares without conversation_id (to avoid duplicates)
             let allRawShares = [];
@@ -1715,10 +1756,12 @@ const NotificationsController = {
             console.log('[NotificationsController] Messages created:', messagesCreated);
             console.log('[NotificationsController] Messages skipped (already exist):', messagesSkipped);
             console.log('[NotificationsController] ========== createMessagesForShares() COMPLETE ==========');
+            return messagesCreated;
         } catch (error) {
             console.error('[NotificationsController] ========== ERROR in createMessagesForShares() ==========');
             console.error('[NotificationsController] Error:', error);
             console.error('[NotificationsController] Error stack:', error.stack);
+            return 0;
         }
     },
 
@@ -1818,10 +1861,10 @@ const NotificationsController = {
                             if (share.status === 'pending' && share.shared_with_user_id === currentUserId) {
                                 console.log('[NotificationsController] Adding action buttons (pending share, user is recipient)');
                                 actionButtons = `
-                                    <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                                        <button class="btn btn-sm btn-primary accept-share-conversation-btn" data-share-id="${share.id}">Accept</button>
-                                        <button class="btn btn-sm btn-secondary decline-share-conversation-btn" data-share-id="${share.id}">Decline</button>
-                                        <button class="btn btn-sm btn-danger block-user-conversation-share-btn" data-user-id="${share.owner_user_id}">Block</button>
+                                    <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs); flex-wrap: wrap; max-width: 100%;">
+                                        <button class="btn btn-sm btn-primary accept-share-conversation-btn" data-share-id="${share.id}" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Accept</button>
+                                        <button class="btn btn-sm btn-secondary decline-share-conversation-btn" data-share-id="${share.id}" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Decline</button>
+                                        <button class="btn btn-sm btn-danger block-user-conversation-share-btn" data-user-id="${share.owner_user_id}" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Block</button>
                                     </div>
                                 `;
                             } else if (share.status !== 'pending') {

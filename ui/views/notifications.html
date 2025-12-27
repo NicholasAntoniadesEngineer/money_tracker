@@ -48,9 +48,9 @@
 
         <section class="notifications-section form-section">
             <div class="notifications-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
-                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap;">
+                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; flex: 1 1 auto; min-width: 0;">
                     <label for="filter-dropdown" class="form-label" style="margin: 0;">Filter:</label>
-                    <select id="filter-dropdown" class="form-input" style="min-width: 150px;">
+                    <select id="filter-dropdown" class="form-input" style="min-width: 150px; max-width: 100%;">
                         <option value="all">All</option>
                         <option value="unread">Unread</option>
                         <option value="sharing">Sharing</option>
@@ -58,9 +58,9 @@
                         <option value="messaging">Messages</option>
                     </select>
                 </div>
-                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
-                    <button id="new-message-button" class="btn btn-action">New Message</button>
-                    <button id="mark-all-read-button" class="btn btn-action">Mark All as Read</button>
+                <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; max-width: 100%;">
+                    <button id="new-message-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">New Message</button>
+                    <button id="mark-all-read-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Mark All as Read</button>
                 </div>
             </div>
 
@@ -76,11 +76,11 @@
                 </div>
                 <div id="message-thread-container" style="display: none;">
                     <button id="back-to-conversations" class="btn btn-secondary" style="margin-bottom: var(--spacing-md);">← Back to Conversations</button>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
-                        <h3 id="conversation-partner-name" style="margin: 0;"></h3>
-                        <div style="display: flex; gap: var(--spacing-sm);">
-                            <button id="add-friend-conversation-btn" class="btn btn-action btn-sm" style="display: none;">Add to Friends</button>
-                            <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none;">Block User</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
+                        <h3 id="conversation-partner-name" style="margin: 0; flex: 1 1 auto; min-width: 0;"> </h3>
+                        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
+                            <button id="add-friend-conversation-btn" class="btn btn-action btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Add to Friends</button>
+                            <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block User</button>
                         </div>
                     </div>
                     <div id="message-thread" class="message-thread">
@@ -88,9 +88,9 @@
                     </div>
                     <div id="message-input-container" class="message-input-container">
                         <textarea id="message-input" class="form-input" placeholder="Type your message..." rows="3"></textarea>
-                        <div style="display: flex; gap: var(--spacing-sm);">
-                            <button id="share-data-button" class="btn btn-secondary" style="display: none;" title="Share data with this user">Share Data</button>
-                            <button id="send-message-button" class="btn btn-action">Send</button>
+                        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
+                            <button id="share-data-button" class="btn btn-secondary" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;" title="Share data with this user">Share Data</button>
+                            <button id="send-message-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Send</button>
                         </div>
                     </div>
                 </div>
