@@ -4467,9 +4467,14 @@ const MonthlyBudgetController = {
             return false;
         }
 
-        // If share_all_data is true, it includes all months (handle both snake_case and camelCase)
+        // If share_all_data is true, check if the current month is actually shared from this owner
+        // We verify by checking if currentMonthData has sharedOwnerId matching this share's owner
         if (share.share_all_data || share.shareAllData) {
-            return true;
+            if (this.currentMonthData && this.currentMonthData.sharedOwnerId) {
+                const ownerUserId = share.owner_user_id || share.ownerUserId;
+                return this.currentMonthData.sharedOwnerId === ownerUserId;
+            }
+            return false;
         }
 
         // Parse current month key (format: "YYYY-MM")
