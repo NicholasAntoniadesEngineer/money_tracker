@@ -7,8 +7,6 @@ const MonthlyBudgetController = {
     currentMonthData: null,
     currentMonthKey: null,
     editingShareId: null,
-    premiumStatusCache: null,
-    premiumStatusCacheTime: null,
 
     /**
      * Calculate the number of weeks in a month
@@ -341,6 +339,9 @@ const MonthlyBudgetController = {
         // Load variable costs with normalized data
         this.loadVariableCosts(normalizedVariableCosts, false); // Allow rebuild to ensure proper display
         
+        // Reload shared from data to show only shares relevant to this month
+        await this.loadSharedFromData();
+        
         // Explicitly update current month data to ensure it's in sync (matching copyVariableCostsFromMonth pattern)
         this.currentMonthData.variableCosts = normalizedVariableCosts;
         
@@ -379,32 +380,20 @@ const MonthlyBudgetController = {
         if (noMonthMessage) noMonthMessage.style.display = 'none';
         if (deleteMonthButton) deleteMonthButton.style.display = 'block';
 
+        // Populate copy month selectors
+        this.populateCopyMonthSelectors();
+
         // Automatically copy variable costs from the selected month to ensure table updates correctly
         // This uses the same logic as the copy button which works reliably
         this.copyVariableCostsFromMonthInternal(monthKey);
 
         this.updateCalculations();
         
-        // Parallelize independent operations that don't depend on each other
-        // Load all months once for both populateCopyMonthSelectors and getAllMonths operations
-        const allMonthsPromise = DataManager.getAllMonths(false, true);
+        // Show share button if user has premium
+        this.updateShareButtonVisibility();
         
-        // Run these operations in parallel
-        await Promise.all([
-            // Reload shared from data to show only shares relevant to this month
-            this.loadSharedFromData(),
-            // Update sharing indicators (queries shares created by user)
-            this.updateSharingIndicators(),
-            // Populate copy month selectors (uses getAllMonths)
-            allMonthsPromise.then(allMonths => {
-                this.populateCopyMonthSelectorsWithData(allMonths);
-            })
-        ]);
-        
-        // Show share button if user has premium (non-blocking, can run in background)
-        this.updateShareButtonVisibility().catch(err => {
-            console.warn('[MonthlyBudgetController] Error updating share button visibility:', err);
-        });
+        // Update sharing indicators
+        await this.updateSharingIndicators();
         
         console.log('[MonthlyBudgetController] loadMonth() completed for:', monthKey);
     },
@@ -413,31 +402,28 @@ const MonthlyBudgetController = {
      * Update share button visibility based on premium status and month loaded
      */
     async updateShareButtonVisibility() {
+        console.log('[MonthlyBudgetController] updateShareButtonVisibility() called');
+        
         const shareBtn = document.getElementById('share-month-button');
         const indicator = document.getElementById('month-sharing-indicator');
         
         if (!shareBtn) {
+            console.warn('[MonthlyBudgetController] share-month-button not found');
             return;
         }
         
         if (!this.currentMonthKey || !this.currentMonthData) {
+            console.log('[MonthlyBudgetController] No current month, hiding share button');
             shareBtn.style.display = 'none';
             if (indicator) indicator.style.display = 'none';
             return;
         }
         
-        // Check if user has premium subscription (with caching)
+        // Check if user has premium subscription
         if (window.SubscriptionGuard) {
             try {
-                // Use cached premium status if available and less than 5 minutes old
-                const cacheAge = this.premiumStatusCacheTime ? Date.now() - this.premiumStatusCacheTime : Infinity;
-                let hasPremium = this.premiumStatusCache;
-                
-                if (hasPremium === null || cacheAge > 300000) { // 5 minutes cache
-                    hasPremium = await window.SubscriptionGuard.hasTier('premium');
-                    this.premiumStatusCache = hasPremium;
-                    this.premiumStatusCacheTime = Date.now();
-                }
+                const hasPremium = await window.SubscriptionGuard.hasTier('premium');
+                console.log('[MonthlyBudgetController] Premium status:', hasPremium);
                 
                 if (hasPremium) {
                     shareBtn.style.display = 'inline-block';
@@ -3564,15 +3550,6 @@ const MonthlyBudgetController = {
 
         // Load user months + enabled example data only
         const allMonths = await DataManager.getAllMonths(false, true);
-        this.populateCopyMonthSelectorsWithData(allMonths);
-    },
-
-    /**
-     * Populate copy month selectors with provided months data (avoids redundant getAllMonths call)
-     */
-    populateCopyMonthSelectorsWithData(allMonths) {
-        if (!this.currentMonthKey || !allMonths) return;
-
         const monthKeys = Object.keys(allMonths)
             .filter(key => key !== this.currentMonthKey)
             .sort()
