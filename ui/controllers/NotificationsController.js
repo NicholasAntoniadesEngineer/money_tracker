@@ -511,46 +511,6 @@ const NotificationsController = {
     },
 
     /**
-     * Setup event listeners for share request buttons in conversation view
-     */
-    setupConversationShareRequestListeners() {
-        const messageThread = document.getElementById('message-thread');
-        if (!messageThread) {
-            return;
-        }
-
-        messageThread.addEventListener('click', async (e) => {
-            const target = e.target;
-            
-            if (target.classList.contains('accept-share-conversation-btn')) {
-                e.stopPropagation();
-                const shareId = parseInt(target.dataset.shareId, 10);
-                const notificationId = parseInt(target.dataset.notificationId, 10);
-                if (shareId && notificationId) {
-                    await this.handleAcceptShare(shareId, notificationId);
-                    // Reload conversation to update share request status
-                    if (this.currentConversationId) {
-                        await this.openConversation(this.currentConversationId);
-                    }
-                }
-            }
-
-            if (target.classList.contains('decline-share-conversation-btn')) {
-                e.stopPropagation();
-                const shareId = parseInt(target.dataset.shareId, 10);
-                const notificationId = parseInt(target.dataset.notificationId, 10);
-                if (shareId && notificationId) {
-                    await this.handleDeclineShare(shareId, notificationId);
-                    // Reload conversation to update share request status
-                    if (this.currentConversationId) {
-                        await this.openConversation(this.currentConversationId);
-                    }
-                }
-            }
-        });
-    },
-
-    /**
      * Setup event listeners for notification items
      */
     setupNotificationItemListeners() {
@@ -618,15 +578,6 @@ const NotificationsController = {
                     await this.openConversation(conversationId);
                 }
             }
-
-            if (target.classList.contains('view-share-conversation-btn')) {
-                e.stopPropagation();
-                const conversationId = parseInt(target.dataset.conversationId, 10);
-                const notificationId = parseInt(target.dataset.notificationId, 10);
-                if (conversationId) {
-                    await this.handleShareRequestClick(conversationId, notificationId);
-                }
-            }
         });
     },
 
@@ -653,23 +604,13 @@ const NotificationsController = {
 
             let actionButtons = '';
             if (notification.type === 'share_request' && notification.share_id && !notification.read) {
-                if (notification.conversation_id) {
-                    // Share request has a conversation - show "View Conversation" button
-                    actionButtons = `
-                        <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                            <button class="btn btn-primary btn-sm view-share-conversation-btn" data-conversation-id="${notification.conversation_id}" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">View Conversation</button>
-                        </div>
-                    `;
-                } else {
-                    // No conversation yet - show accept/decline/block buttons
-                    actionButtons = `
-                        <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                            <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Accept</button>
-                            <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Decline</button>
-                            <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}">Block</button>
-                        </div>
-                    `;
-                }
+                actionButtons = `
+                    <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
+                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Accept</button>
+                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Decline</button>
+                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}">Block</button>
+                    </div>
+                `;
             } else if (notification.type === 'message_received' && notification.conversation_id) {
                 actionButtons = `
                     <div class="notification-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
@@ -835,31 +776,6 @@ const NotificationsController = {
         } catch (error) {
             console.error('[NotificationsController] Error declining share:', error);
             alert('Error declining share: ' + error.message);
-        }
-    },
-
-    /**
-     * Handle share request click - opens conversation view
-     */
-    async handleShareRequestClick(conversationId, notificationId) {
-        console.log('[NotificationsController] handleShareRequestClick() called', { conversationId, notificationId });
-
-        try {
-            // Mark notification as read if provided
-            if (notificationId && typeof window.NotificationService !== 'undefined') {
-                await window.NotificationService.markAsRead(notificationId);
-            }
-
-            // Switch to messages view and open the conversation
-            this.currentView = 'messages';
-            this.currentCategory = 'messaging';
-            this.switchView('messages');
-            this.updateFilterDropdown();
-            await this.loadConversations();
-            await this.openConversation(conversationId);
-        } catch (error) {
-            console.error('[NotificationsController] Error handling share request click:', error);
-            alert('Error opening conversation: ' + error.message);
         }
     },
 
@@ -1186,27 +1102,7 @@ const NotificationsController = {
                     messageCount: messages.length,
                     messageIds: messages.map(m => m.id)
                 });
-                
-                // Load share_request notifications for this conversation
-                let shareRequests = [];
-                if (typeof window.NotificationService !== 'undefined') {
-                    const currentUserId = await window.DatabaseService._getCurrentUserId();
-                    if (currentUserId) {
-                        const notificationsResult = await window.NotificationService.getNotifications(currentUserId, { unreadOnly: false });
-                        if (notificationsResult.success && notificationsResult.notifications) {
-                            shareRequests = notificationsResult.notifications.filter(n => 
-                                n.type === 'share_request' && n.conversation_id === conversationId
-                            );
-                            console.log('[NotificationsController] Loaded share requests for conversation:', {
-                                conversationId,
-                                shareRequestCount: shareRequests.length,
-                                shareRequestIds: shareRequests.map(sr => sr.id)
-                            });
-                        }
-                    }
-                }
-                
-                await this.renderMessageThread(messages, shareRequests);
+                await this.renderMessageThread(messages);
 
                 // Mark conversation as read
                 console.log('[NotificationsController] Marking conversation as read:', conversationId);
@@ -1226,11 +1122,10 @@ const NotificationsController = {
     /**
      * Render message thread
      */
-    async renderMessageThread(messages, shareRequests = []) {
+    async renderMessageThread(messages) {
         console.log('[NotificationsController] renderMessageThread() called', { 
             messageCount: messages.length,
-            messageIds: messages.map(m => m.id),
-            shareRequestCount: shareRequests.length
+            messageIds: messages.map(m => m.id)
         });
         const messageThread = document.getElementById('message-thread');
         if (!messageThread) {
@@ -1238,144 +1133,34 @@ const NotificationsController = {
             return;
         }
 
+        // Reverse messages to show oldest first
+        const sortedMessages = [...messages].reverse();
+        console.log('[NotificationsController] Sorted messages (oldest first):', sortedMessages.length);
+
         const currentUserId = await window.DatabaseService?._getCurrentUserId?.() || null;
         console.log('[NotificationsController] Current user ID for message rendering:', currentUserId);
 
-        // Combine messages and share requests into a single timeline
-        const timelineItems = [];
-        
-        // Add messages
-        messages.forEach(msg => {
-            timelineItems.push({
-                type: 'message',
-                data: msg,
-                timestamp: new Date(msg.created_at).getTime()
-            });
-        });
-        
-        // Add share requests (load share details in parallel)
-        const shareDetailsPromises = shareRequests.map(async (shareRequest) => {
-            let shareDetails = null;
-            if (shareRequest.share_id && typeof window.DatabaseService !== 'undefined') {
-                try {
-                    const tableName = window.DatabaseService._getTableName('dataShares');
-                    const shareResult = await window.DatabaseService.querySelect(tableName, {
-                        filter: { id: shareRequest.share_id },
-                        limit: 1
-                    });
-                    if (shareResult.success && shareResult.data && shareResult.data.length > 0) {
-                        shareDetails = shareResult.data[0];
-                        // Parse shared_months if it's a string
-                        if (typeof shareDetails.shared_months === 'string') {
-                            try {
-                                shareDetails.shared_months = JSON.parse(shareDetails.shared_months);
-                            } catch (e) {
-                                console.warn('[NotificationsController] Error parsing shared_months:', e);
-                                shareDetails.shared_months = [];
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.warn('[NotificationsController] Error loading share details:', error);
-                }
-            }
-            return { shareRequest, shareDetails };
-        });
-        
-        const shareDetailsResults = await Promise.all(shareDetailsPromises);
-        shareDetailsResults.forEach(({ shareRequest, shareDetails }) => {
-            timelineItems.push({
-                type: 'share_request',
-                data: shareRequest,
-                shareDetails: shareDetails,
-                timestamp: new Date(shareRequest.created_at).getTime()
-            });
-        });
-        
-        // Sort by timestamp (oldest first)
-        timelineItems.sort((a, b) => a.timestamp - b.timestamp);
-        
-        const itemsHtml = timelineItems.map(item => {
-            if (item.type === 'message') {
-                const msg = item.data;
-                const isOwnMessage = msg.sender_id === currentUserId;
-                const alignClass = isOwnMessage ? 'right' : 'left';
-                const date = new Date(msg.created_at);
-                const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const messagesHtml = sortedMessages.map(msg => {
+            const isOwnMessage = msg.sender_id === currentUserId;
+            const alignClass = isOwnMessage ? 'right' : 'left';
+            const date = new Date(msg.created_at);
+            const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                return `
-                    <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
-                        <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
-                            <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${msg.sender_email}</div>
-                            <div>${msg.content}</div>
-                            <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
-                        </div>
+            return `
+                <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
+                    <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
+                        <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${msg.sender_email}</div>
+                        <div>${msg.content}</div>
+                        <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
                     </div>
-                `;
-            } else if (item.type === 'share_request') {
-                const notification = item.data;
-                const share = item.shareDetails;
-                const date = new Date(notification.created_at);
-                const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                let shareInfoHtml = '';
-                if (share) {
-                    const sharedMonths = share.shared_months || [];
-                    const monthsList = sharedMonths.map(m => {
-                        if (m.type === 'range') {
-                            return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
-                        } else {
-                            return `${m.month}/${m.year}`;
-                        }
-                    }).join(', ') || 'All months';
-                    
-                    shareInfoHtml = `
-                        <div style="margin-top: var(--spacing-xs); padding-top: var(--spacing-xs); border-top: 1px solid rgba(255,255,255,0.2);">
-                            <div><strong>Access Level:</strong> ${share.access_level}</div>
-                            <div><strong>Months:</strong> ${monthsList}</div>
-                            ${share.shared_pots || share.share_all_data ? '<div><strong>Pots:</strong> Yes</div>' : ''}
-                            ${share.shared_settings || share.share_all_data ? '<div><strong>Settings:</strong> Yes</div>' : ''}
-                        </div>
-                    `;
-                }
-                
-                let actionButtons = '';
-                if (!notification.read && share && share.status === 'pending') {
-                    actionButtons = `
-                        <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
-                            <button class="btn btn-primary btn-sm accept-share-conversation-btn" data-share-id="${share.id}" data-notification-id="${notification.id}">Accept</button>
-                            <button class="btn btn-secondary btn-sm decline-share-conversation-btn" data-share-id="${share.id}" data-notification-id="${notification.id}">Decline</button>
-                        </div>
-                    `;
-                }
-                
-                return `
-                    <div class="share-request-item" style="margin-bottom: var(--spacing-md); text-align: center;">
-                        <div style="display: inline-block; max-width: 80%; padding: var(--spacing-md); background: var(--warning-color); color: white; border-radius: var(--border-radius);">
-                            <div style="font-size: 0.9rem; margin-bottom: var(--spacing-xs);">
-                                <i class="fa-solid fa-share-nodes"></i> <strong>Share Request</strong>
-                            </div>
-                            <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs);">${notification.message || 'Data share request'}</div>
-                            ${shareInfoHtml}
-                            ${actionButtons}
-                            <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.8;">${dateString}</div>
-                        </div>
-                    </div>
-                `;
-            }
-            return '';
+                </div>
+            `;
         });
 
-        messageThread.innerHTML = itemsHtml.join('');
+        messageThread.innerHTML = messagesHtml.join('');
         messageThread.scrollTop = messageThread.scrollHeight;
-        
-        // Setup event listeners for share request buttons in conversation
-        this.setupConversationShareRequestListeners();
-        
         console.log('[NotificationsController] Message thread rendered:', { 
-            messageCount: timelineItems.filter(i => i.type === 'message').length,
-            shareRequestCount: timelineItems.filter(i => i.type === 'share_request').length,
-            totalItems: timelineItems.length,
+            messageCount: messagesHtml.length,
             scrollPosition: messageThread.scrollTop,
             scrollHeight: messageThread.scrollHeight
         });

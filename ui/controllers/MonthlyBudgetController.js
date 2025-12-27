@@ -4481,16 +4481,19 @@ const MonthlyBudgetController = {
             return;
         }
 
+        const pending = sharedData.pending || [];
         const accepted = sharedData.accepted || [];
+        const declined = sharedData.declined || [];
 
         // Filter accepted shares to only show those that include the current month
         const filteredAccepted = this.currentMonthKey 
             ? accepted.filter(share => this.shareIncludesCurrentMonth(share))
             : [];
 
+        // Always show pending shares (so users can accept/decline them)
         // Only show accepted shares that include the current month
-        // Share requests are handled in notifications/conversations
-        if (filteredAccepted.length === 0) {
+        // Don't show declined shares (they're not relevant)
+        if (pending.length === 0 && filteredAccepted.length === 0) {
             section.style.display = 'none';
             return;
         }
@@ -4498,6 +4501,11 @@ const MonthlyBudgetController = {
         section.style.display = 'block';
 
         let html = '';
+
+        if (pending.length > 0) {
+            html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Pending</h3>';
+            html += await this.renderSharedMonthsList(pending, 'pending');
+        }
 
         if (filteredAccepted.length > 0) {
             html += '<h3 style="margin-top: var(--spacing-md) 0 var(--spacing-sm) 0;">Accepted</h3>';
@@ -4532,6 +4540,17 @@ const MonthlyBudgetController = {
                     }
                 }).join(', ') || 'All months';
 
+                let actionsHtml = '';
+                if (status === 'pending') {
+                    actionsHtml = `
+                        <div style="display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs);">
+                            <button class="btn btn-sm btn-primary accept-share-btn" data-share-id="${share.id}">Accept</button>
+                            <button class="btn btn-sm btn-secondary decline-share-btn" data-share-id="${share.id}">Decline</button>
+                            <button class="btn btn-sm btn-danger block-user-btn" data-user-id="${share.owner_user_id}">Block</button>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="shared-month-item" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
                         <div><strong>From:</strong> ${ownerEmail}</div>
@@ -4557,7 +4576,28 @@ const MonthlyBudgetController = {
             return;
         }
 
-        // Event listeners removed - share requests are now handled in notifications/conversations
+        content.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('accept-share-btn')) {
+                const shareId = parseInt(e.target.dataset.shareId, 10);
+                if (shareId) {
+                    await this.handleAcceptShare(shareId);
+                }
+            }
+
+            if (e.target.classList.contains('decline-share-btn')) {
+                const shareId = parseInt(e.target.dataset.shareId, 10);
+                if (shareId) {
+                    await this.handleDeclineShare(shareId);
+                }
+            }
+
+            if (e.target.classList.contains('block-user-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId) {
+                    await this.handleBlockUser(userId);
+                }
+            }
+        });
     },
 
     /**

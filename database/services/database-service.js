@@ -768,7 +768,7 @@ const DatabaseService = {
             };
         }
     },
-    
+
     /**
      * Execute an UPDATE operation
      * @param {string} table - Table name
@@ -3144,22 +3144,6 @@ const DatabaseService = {
                 }
             }
 
-            // Create or get conversation between sharer and recipient
-            let conversationId = null;
-            if (typeof window.MessagingService !== 'undefined') {
-                console.log('[DatabaseService] Creating/getting conversation between users:', { currentUserId, recipientUserId: userResult.userId });
-                const conversationResult = await window.MessagingService.getOrCreateConversation(currentUserId, userResult.userId);
-                if (conversationResult.success && conversationResult.conversation) {
-                    conversationId = conversationResult.conversation.id;
-                    console.log('[DatabaseService] Conversation created/found:', conversationId);
-                } else {
-                    console.warn('[DatabaseService] Failed to create/get conversation:', conversationResult.error);
-                    // Continue without conversation_id - share can still be created
-                }
-            } else {
-                console.warn('[DatabaseService] MessagingService not available, proceeding without conversation_id');
-            }
-
             let shareStatus = 'pending';
             let shouldCreateNotification = true;
 
@@ -3221,7 +3205,6 @@ const DatabaseService = {
                     shared_settings: sharedSettings,
                     share_all_data: shareAllData,
                     status: shareStatus,
-                    conversation_id: conversationId,
                     updated_at: new Date().toISOString()
                 };
                 
@@ -3250,8 +3233,7 @@ const DatabaseService = {
                     shared_pots: sharedPots,
                     shared_settings: sharedSettings,
                     share_all_data: shareAllData,
-                    status: shareStatus,
-                    conversation_id: conversationId
+                    status: shareStatus
                 };
                 
                 const result = await this.queryInsert(tableName, shareData);
@@ -3291,7 +3273,6 @@ const DatabaseService = {
                                 shared_settings: sharedSettings,
                                 share_all_data: shareAllData,
                                 status: shareStatus,
-                                conversation_id: conversationId,
                                 updated_at: new Date().toISOString()
                             };
                             
@@ -3363,9 +3344,7 @@ const DatabaseService = {
                         'share_request',
                         share.id,
                         currentUserId,
-                        null,
-                        {},
-                        conversationId
+                        null
                     );
                     console.log('[DatabaseService] Notification creation result:', {
                         success: notificationResult.success,

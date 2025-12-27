@@ -7,11 +7,6 @@ class Header {
     static updateInProgress = false;
     static lastUpdateState = null;
     static initialized = false;
-    static sessionValidationInterval = null;
-    static authStateCache = null;
-    static authStateCacheTimestamp = null;
-    static AUTH_STATE_CACHE_DURATION = 30000; // 30 seconds
-    static SESSION_VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 minutes
     
     /**
      * Check if we're on the auth page
@@ -261,64 +256,41 @@ class Header {
             return;
         }
         
-        try {
-            if (main) {
-                // Insert before main element
-                console.log('[Header] Inserting header before main element');
-                main.insertAdjacentHTML('beforebegin', headerHtml);
-            } else if (body) {
-                // Insert as first child of body
-                console.log('[Header] Inserting header as first child of body');
-                body.insertAdjacentHTML('afterbegin', headerHtml);
-            } else {
-                console.error('[Header] ERROR: Could not find insertion point');
-                return;
-            }
-
-            console.log('[Header] Header rendered, initializing components...');
-            
-            // Initialize hamburger menu functionality
-            this.initHamburgerMenu();
-            
-            // Initialize app title click handler
-            this.initAppTitleClick();
-            
-            // Initialize user menu dropdown (if user menu exists in initial render)
-            this.initUserMenu();
-            
-            // Initialize sign out button (if it exists)
-            this.initSignOutButton();
-            
-            // Note: Notification bell is initialized in updateHeader() after HTML is rendered
-            
-            // Listen for auth state changes to update header
-            this.setupAuthStateListener();
-            
-            // Setup periodic session validation
-            this.setupSessionValidation();
-            
-            // Update header immediately to show user menu if already authenticated
-            console.log('[Header] Updating header with current auth state...');
-            try {
-                await this.updateHeader();
-            } catch (error) {
-                console.error('[Header] Error in initial updateHeader call:', error);
-                // Header structure is already rendered, just user menu might be missing
-                // This is acceptable - it will be updated when auth state is ready
-            }
-        } catch (error) {
-            console.error('[Header] Error inserting header HTML:', error);
-            // Try to insert header anyway as fallback
-            if (body) {
-                try {
-                    body.insertAdjacentHTML('afterbegin', headerHtml);
-                    this.initHamburgerMenu();
-                    this.initAppTitleClick();
-                } catch (fallbackError) {
-                    console.error('[Header] Fallback header insertion also failed:', fallbackError);
-                }
-            }
+        if (main) {
+            // Insert before main element
+            console.log('[Header] Inserting header before main element');
+            main.insertAdjacentHTML('beforebegin', headerHtml);
+        } else if (body) {
+            // Insert as first child of body
+            console.log('[Header] Inserting header as first child of body');
+            body.insertAdjacentHTML('afterbegin', headerHtml);
+        } else {
+            console.error('[Header] ERROR: Could not find insertion point');
+            return;
         }
+
+        console.log('[Header] Header rendered, initializing components...');
+        
+        // Initialize hamburger menu functionality
+        this.initHamburgerMenu();
+        
+        // Initialize app title click handler
+        this.initAppTitleClick();
+        
+        // Initialize user menu dropdown
+        this.initUserMenu();
+        
+        // Initialize sign out button
+        this.initSignOutButton();
+        
+        // Note: Notification bell is initialized in updateHeader() after HTML is rendered
+        
+        // Listen for auth state changes to update header
+        this.setupAuthStateListener();
+        
+        // Update header immediately to show user menu if already authenticated
+        console.log('[Header] Updating header with current auth state...');
+        this.updateHeader();
         
         // Update notification count after a delay to ensure services are loaded
         setTimeout(() => {
@@ -777,23 +749,15 @@ class Header {
             console.log('[Header] auth:signin event received, updating header...');
             // Clear last update state to force update
             this.lastUpdateState = null;
-            // Clear cache to force fresh check
-            this.authStateCache = null;
-            this.authStateCacheTimestamp = null;
             // Longer delay to ensure AuthService state is fully updated
-            setTimeout(async () => {
-                await this.updateHeader(true); // Force update on sign-in
+            setTimeout(() => {
+                this.updateHeader(true); // Force update on sign-in
             }, 300);
         };
         
         this._authSignOutHandler = () => {
             console.log('[Header] auth:signout event received, updating header...');
-            // Clear cache on sign out
-            this.authStateCache = null;
-            this.authStateCacheTimestamp = null;
-            this.updateHeader().catch(err => {
-                console.warn('[Header] Error updating header on sign out:', err);
-            });
+            this.updateHeader();
         };
         
         // Listen for initial session event (only once, with debounce)
@@ -801,10 +765,10 @@ class Header {
             console.log('[Header] auth:initial_session event received');
             // Only update if we haven't updated recently (debounce)
             if (!this.updateInProgress) {
-                setTimeout(async () => {
+                setTimeout(() => {
                     if (!this.updateInProgress) {
                         console.log('[Header] Executing header update after initial_session event (200ms delay)...');
-                        await this.updateHeader();
+                        this.updateHeader();
                     }
                 }, 200);
             }
@@ -822,7 +786,7 @@ class Header {
      * Update header to reflect current auth state
      * @param {boolean} force - Force update even if state appears unchanged
      */
-    static async updateHeader(force = false) {
+    static updateHeader(force = false) {
         console.log('[Header] ========== UPDATE HEADER CALLED ==========', { force });
         
         if (this.updateInProgress && !force) {
@@ -852,39 +816,27 @@ class Header {
                 return;
             }
             
-            // Check authentication status with caching and retry logic
+            // Check authentication status
+            // Be more resilient - check both isAuthenticated() and direct session/user state
             let isAuthenticated = false;
             let currentUserEmail = null;
-            
-            try {
-                // Check cache first (if valid)
-                const now = Date.now();
-                if (this.authStateCache && this.authStateCacheTimestamp && 
-                    (now - this.authStateCacheTimestamp) < this.AUTH_STATE_CACHE_DURATION && !force) {
-                    console.log('[Header] Using cached auth state');
-                    isAuthenticated = this.authStateCache.isAuthenticated;
-                    currentUserEmail = this.authStateCache.userEmail;
-                } else if (window.AuthService) {
-                    // Perform fresh auth check with retry logic
-                    const authResult = await this._checkAuthStateWithRetry(force);
-                    isAuthenticated = authResult.isAuthenticated;
-                    currentUserEmail = authResult.userEmail;
-                    
-                    // Cache the result
-                    this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
-                    this.authStateCacheTimestamp = now;
-                }
-            } catch (authError) {
-                console.error('[Header] Error checking auth state:', authError);
-                // Fallback: try simple check
-                if (window.AuthService) {
-                    try {
-                        isAuthenticated = window.AuthService.isAuthenticated();
-                        const user = window.AuthService.getCurrentUser();
-                        currentUserEmail = user?.email || null;
-                    } catch (fallbackError) {
-                        console.warn('[Header] Fallback auth check also failed:', fallbackError);
-                    }
+            if (window.AuthService) {
+                // Check both the method and direct state to handle timeout scenarios
+                const methodCheck = window.AuthService.isAuthenticated();
+                const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+                isAuthenticated = methodCheck || directCheck;
+                const user = window.AuthService.getCurrentUser();
+                currentUserEmail = user?.email || null;
+                
+                // If still not authenticated on force update, wait a bit and retry (for sign-in timing issues)
+                if (!isAuthenticated && force) {
+                    console.log('[Header] Auth check failed on force update, retrying after delay...');
+                    this.updateInProgress = false; // Reset to allow retry
+                    setTimeout(() => {
+                        // Recursively call updateHeader with force to retry
+                        this.updateHeader(true);
+                    }, 300);
+                    return;
                 }
             }
             
@@ -924,37 +876,6 @@ class Header {
                 userEmail: currentUserEmail
             });
             
-            // Fallback: if isAuthenticated is false but session exists, try one more validation
-            if (!isAuthenticated && window.AuthService && 
-                (window.AuthService.currentUser !== null || window.AuthService.session !== null)) {
-                console.log('[Header] Fallback: isAuthenticated is false but session exists, attempting validation...');
-                try {
-                    if (window.AuthService.validateSession) {
-                        const validationResult = await window.AuthService.validateSession();
-                        if (validationResult.valid) {
-                            console.log('[Header] Fallback validation succeeded, updating auth state');
-                            isAuthenticated = true;
-                            const user = window.AuthService.getCurrentUser();
-                            currentUserEmail = user?.email || null;
-                            // Update cache
-                            this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
-                            this.authStateCacheTimestamp = Date.now();
-                        } else {
-                            console.log('[Header] Fallback validation failed, clearing session state');
-                            // Clear invalid session state
-                            if (window.AuthService.currentUser) {
-                                window.AuthService.currentUser = null;
-                            }
-                            if (window.AuthService.session) {
-                                window.AuthService.session = null;
-                            }
-                        }
-                    }
-                } catch (validationError) {
-                    console.warn('[Header] Fallback validation error:', validationError);
-                }
-            }
-
             const oldUserMenu = nav.querySelector('.header-user-menu');
             if (oldUserMenu) {
                 console.log('[Header] Removing existing user menu');
@@ -1035,106 +956,6 @@ class Header {
             console.error('[Header] Error in _performHeaderUpdate:', error);
             this.updateInProgress = false;
         }
-    }
-
-    /**
-     * Check auth state with retry logic and fallback checks
-     * @private
-     */
-    static async _checkAuthStateWithRetry(force = false, retryCount = 0, maxRetries = 3) {
-        try {
-            if (!window.AuthService) {
-                return { isAuthenticated: false, userEmail: null };
-            }
-
-            // Check both the method and direct state to handle timeout scenarios
-            const methodCheck = window.AuthService.isAuthenticated();
-            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
-            
-            let isAuthenticated = methodCheck || directCheck;
-            let user = window.AuthService.getCurrentUser();
-            let currentUserEmail = user?.email || null;
-
-            // Fallback: if methodCheck is false but we have session/user, try to validate session
-            if (!methodCheck && directCheck && window.AuthService.validateSession) {
-                console.log('[Header] Method check failed but session exists, validating session...');
-                try {
-                    const validationResult = await window.AuthService.validateSession();
-                    if (validationResult.valid) {
-                        console.log('[Header] Session validation succeeded');
-                        isAuthenticated = true;
-                        user = window.AuthService.getCurrentUser();
-                        currentUserEmail = user?.email || null;
-                    } else {
-                        console.log('[Header] Session validation failed:', validationResult.error);
-                        // Clear invalid session state
-                        if (window.AuthService.currentUser) {
-                            window.AuthService.currentUser = null;
-                        }
-                        if (window.AuthService.session) {
-                            window.AuthService.session = null;
-                        }
-                    }
-                } catch (validationError) {
-                    console.warn('[Header] Session validation error:', validationError);
-                }
-            }
-
-            // If still not authenticated and we should retry, do so with exponential backoff
-            if (!isAuthenticated && force && retryCount < maxRetries) {
-                const delay = Math.min(300 * Math.pow(2, retryCount), 2000); // Max 2 seconds
-                console.log(`[Header] Auth check failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                return this._checkAuthStateWithRetry(force, retryCount + 1, maxRetries);
-            }
-
-            return { isAuthenticated, userEmail: currentUserEmail };
-        } catch (error) {
-            console.error('[Header] Error in _checkAuthStateWithRetry:', error);
-            return { isAuthenticated: false, userEmail: null };
-        }
-    }
-
-    /**
-     * Setup periodic session validation
-     */
-    static setupSessionValidation() {
-        // Clear existing interval if any
-        if (this.sessionValidationInterval) {
-            clearInterval(this.sessionValidationInterval);
-        }
-
-        // Validate session periodically
-        this.sessionValidationInterval = setInterval(async () => {
-            try {
-                if (!window.AuthService || !window.AuthService.isAuthenticated()) {
-                    return;
-                }
-
-                console.log('[Header] Periodic session validation check...');
-                
-                // Validate session
-                if (window.AuthService.validateSession) {
-                    const validationResult = await window.AuthService.validateSession();
-                    if (!validationResult.valid) {
-                        console.log('[Header] Session validation failed, updating header...');
-                        // Clear cache to force fresh check
-                        this.authStateCache = null;
-                        this.authStateCacheTimestamp = null;
-                        // Update header to reflect new auth state
-                        this.updateHeader(true).catch(err => {
-                            console.warn('[Header] Error updating header after session validation:', err);
-                        });
-                    } else {
-                        console.log('[Header] Session validation passed');
-                    }
-                }
-            } catch (error) {
-                console.error('[Header] Error in periodic session validation:', error);
-            }
-        }, this.SESSION_VALIDATION_INTERVAL);
-
-        console.log('[Header] Periodic session validation set up (interval: ' + this.SESSION_VALIDATION_INTERVAL + 'ms)');
     }
 }
 

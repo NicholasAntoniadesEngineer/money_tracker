@@ -64,26 +64,25 @@ BEGIN
         status = p_new_status,
         responded_at = NOW(),
         updated_at = NOW()
-    WHERE data_shares.id = p_share_id;
+    WHERE data_shares.id = p_share_id
+    RETURNING * INTO v_updated_share;
 
-    -- Return the updated share by querying it directly
+    -- Return the updated share
     RETURN QUERY
     SELECT 
-        data_shares.id,
-        data_shares.owner_user_id,
-        data_shares.shared_with_user_id,
-        data_shares.access_level,
-        data_shares.shared_months,
-        data_shares.shared_pots,
-        data_shares.shared_settings,
-        data_shares.share_all_data,
-        data_shares.status,
-        data_shares.notification_sent_at,
-        data_shares.responded_at,
-        data_shares.created_at,
-        data_shares.updated_at
-    FROM data_shares
-    WHERE data_shares.id = p_share_id;
+        (v_updated_share).id,
+        (v_updated_share).owner_user_id,
+        (v_updated_share).shared_with_user_id,
+        (v_updated_share).access_level,
+        (v_updated_share).shared_months,
+        (v_updated_share).shared_pots,
+        (v_updated_share).shared_settings,
+        (v_updated_share).share_all_data,
+        (v_updated_share).status,
+        (v_updated_share).notification_sent_at,
+        (v_updated_share).responded_at,
+        (v_updated_share).created_at,
+        (v_updated_share).updated_at;
 END;
 $$;
 
