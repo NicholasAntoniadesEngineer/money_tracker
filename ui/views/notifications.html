@@ -261,19 +261,6 @@
             });
 
             try {
-                // Check authentication first before initializing anything
-                console.log('[NotificationsPage] Step 0: Checking authentication...');
-                if (window.AuthGuard) {
-                    const isAuthenticated = await window.AuthGuard.checkAuth();
-                    if (!isAuthenticated) {
-                        console.log('[NotificationsPage] User not authenticated, redirecting...');
-                        return; // AuthGuard.checkAuth() already redirected
-                    }
-                    console.log('[NotificationsPage] User authenticated, proceeding...');
-                } else {
-                    console.warn('[NotificationsPage] AuthGuard not available, cannot check authentication');
-                }
-                
                 console.log('[NotificationsPage] Step 1: Waiting for Header to be available...');
                 const headerWaitStart = Date.now();
                 await waitFor(() => typeof window.Header !== 'undefined', 'Header', 10000);

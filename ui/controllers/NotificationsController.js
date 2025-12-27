@@ -50,12 +50,7 @@ const NotificationsController = {
 
             if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                 console.warn('[NotificationsController] User not authenticated after waiting, redirecting to auth');
-                if (window.AuthGuard && window.AuthGuard.redirectToAuth) {
-                    window.AuthGuard.redirectToAuth();
-                } else {
-                    // Fallback redirect if AuthGuard not available
-                    window.location.href = '../views/auth.html';
-                }
+                window.location.href = '../views/auth.html';
                 return;
             }
 

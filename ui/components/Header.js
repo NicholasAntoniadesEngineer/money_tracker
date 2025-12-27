@@ -898,18 +898,13 @@ class Header {
                             this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
                             this.authStateCacheTimestamp = Date.now();
                         } else {
-                            console.log('[Header] Fallback validation failed, clearing session state and redirecting');
+                            console.log('[Header] Fallback validation failed, clearing session state');
                             // Clear invalid session state
                             if (window.AuthService.currentUser) {
                                 window.AuthService.currentUser = null;
                             }
                             if (window.AuthService.session) {
                                 window.AuthService.session = null;
-                            }
-                            // Redirect to auth page if not already there
-                            const currentPath = window.location.pathname;
-                            if (!currentPath.includes('auth.html') && window.AuthGuard && window.AuthGuard.redirectToAuth) {
-                                window.AuthGuard.redirectToAuth();
                             }
                         }
                     }
@@ -1037,11 +1032,6 @@ class Header {
                         if (window.AuthService.session) {
                             window.AuthService.session = null;
                         }
-                        // Redirect to auth page if not already there
-                        const currentPath = window.location.pathname;
-                        if (!currentPath.includes('auth.html') && window.AuthGuard && window.AuthGuard.redirectToAuth) {
-                            window.AuthGuard.redirectToAuth();
-                        }
                     }
                 } catch (validationError) {
                     console.warn('[Header] Session validation error:', validationError);
@@ -1085,38 +1075,12 @@ class Header {
                 if (window.AuthService.validateSession) {
                     const validationResult = await window.AuthService.validateSession();
                     if (!validationResult.valid) {
-                        console.log('[Header] Session validation failed, redirecting to auth page...');
+                        console.log('[Header] Session validation failed, updating header...');
                         // Clear cache to force fresh check
                         this.authStateCache = null;
                         this.authStateCacheTimestamp = null;
-                        // Clear session state
-                        if (window.AuthService.currentUser) {
-                            window.AuthService.currentUser = null;
-                        }
-                        if (window.AuthService.session) {
-                            window.AuthService.session = null;
-                        }
-                        // Redirect to auth page
-                        if (window.AuthGuard && window.AuthGuard.redirectToAuth) {
-                            window.AuthGuard.redirectToAuth();
-                        } else {
-                            // Fallback redirect if AuthGuard not available
-                            const currentPath = window.location.pathname;
-                            if (!currentPath.includes('auth.html')) {
-                                const baseUrl = window.location.origin;
-                                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                                let basePathParts = [];
-                                for (let i = 0; i < pathParts.length; i++) {
-                                    if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
-                                        break;
-                                    }
-                                    basePathParts.push(pathParts[i]);
-                                }
-                                const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-                                const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
-                                window.location.href = authUrl;
-                            }
-                        }
+                        // Update header to reflect new auth state
+                        this.updateHeader(true);
                     } else {
                         console.log('[Header] Session validation passed');
                     }
