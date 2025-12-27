@@ -2118,20 +2118,20 @@ const DatabaseService = {
                 }
             }
             
-                        if (error) {
-                            throw error;
-                        }
-                        
-                        const monthData = data ? this.transformMonthFromDatabase(data) : null;
-                    console.log(`[DatabaseService] getMonth() completed for ${monthKey}:`, monthData ? 'Found' : 'Not found');
-                    
-                    // Update cache
-                    if (monthData) {
-                        this.getMonthCache.set(monthKey, monthData);
-                        this.getMonthCacheTimestamps.set(monthKey, Date.now());
-                    }
-                    
-                    return monthData;
+            if (error) {
+                throw error;
+            }
+            
+            const monthData = data ? this.transformMonthFromDatabase(data) : null;
+            console.log(`[DatabaseService] getMonth() completed for ${monthKey}:`, monthData ? 'Found' : 'Not found');
+            
+            // Update cache
+            if (monthData) {
+                this.getMonthCache.set(monthKey, monthData);
+                this.getMonthCacheTimestamps.set(monthKey, Date.now());
+            }
+            
+            return monthData;
                 } catch (error) {
                     console.error(`[DatabaseService] Error getting month ${monthKey}:`, error);
                     console.error('[DatabaseService] Error details:', {
