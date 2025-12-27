@@ -7,6 +7,11 @@ class Header {
     static updateInProgress = false;
     static lastUpdateState = null;
     static initialized = false;
+    static sessionValidationInterval = null;
+    static authStateCache = null;
+    static authStateCacheTimestamp = null;
+    static AUTH_STATE_CACHE_DURATION = 30000; // 30 seconds
+    static SESSION_VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 minutes
     
     /**
      * Check if we're on the auth page
@@ -285,12 +290,15 @@ class Header {
         
         // Note: Notification bell is initialized in updateHeader() after HTML is rendered
         
-        // Listen for auth state changes to update header
-        this.setupAuthStateListener();
-        
-        // Update header immediately to show user menu if already authenticated
-        console.log('[Header] Updating header with current auth state...');
-        this.updateHeader();
+            // Listen for auth state changes to update header
+            this.setupAuthStateListener();
+            
+            // Setup periodic session validation
+            this.setupSessionValidation();
+            
+            // Update header immediately to show user menu if already authenticated
+            console.log('[Header] Updating header with current auth state...');
+            this.updateHeader();
         
         // Update notification count after a delay to ensure services are loaded
         setTimeout(() => {
@@ -786,7 +794,7 @@ class Header {
      * Update header to reflect current auth state
      * @param {boolean} force - Force update even if state appears unchanged
      */
-    static updateHeader(force = false) {
+    static async updateHeader(force = false) {
         console.log('[Header] ========== UPDATE HEADER CALLED ==========', { force });
         
         if (this.updateInProgress && !force) {
@@ -816,28 +824,26 @@ class Header {
                 return;
             }
             
-            // Check authentication status
-            // Be more resilient - check both isAuthenticated() and direct session/user state
+            // Check authentication status with caching and retry logic
             let isAuthenticated = false;
             let currentUserEmail = null;
-            if (window.AuthService) {
-                // Check both the method and direct state to handle timeout scenarios
-                const methodCheck = window.AuthService.isAuthenticated();
-                const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
-                isAuthenticated = methodCheck || directCheck;
-                const user = window.AuthService.getCurrentUser();
-                currentUserEmail = user?.email || null;
+            
+            // Check cache first (if valid)
+            const now = Date.now();
+            if (this.authStateCache && this.authStateCacheTimestamp && 
+                (now - this.authStateCacheTimestamp) < this.AUTH_STATE_CACHE_DURATION && !force) {
+                console.log('[Header] Using cached auth state');
+                isAuthenticated = this.authStateCache.isAuthenticated;
+                currentUserEmail = this.authStateCache.userEmail;
+            } else if (window.AuthService) {
+                // Perform fresh auth check with retry logic
+                const authResult = await this._checkAuthStateWithRetry(force);
+                isAuthenticated = authResult.isAuthenticated;
+                currentUserEmail = authResult.userEmail;
                 
-                // If still not authenticated on force update, wait a bit and retry (for sign-in timing issues)
-                if (!isAuthenticated && force) {
-                    console.log('[Header] Auth check failed on force update, retrying after delay...');
-                    this.updateInProgress = false; // Reset to allow retry
-                    setTimeout(() => {
-                        // Recursively call updateHeader with force to retry
-                        this.updateHeader(true);
-                    }, 300);
-                    return;
-                }
+                // Cache the result
+                this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
+                this.authStateCacheTimestamp = now;
             }
             
             this._performHeaderUpdate(nav, isAuthenticated, currentUserEmail, force);
@@ -876,6 +882,42 @@ class Header {
                 userEmail: currentUserEmail
             });
             
+            // Fallback: if isAuthenticated is false but session exists, try one more validation
+            if (!isAuthenticated && window.AuthService && 
+                (window.AuthService.currentUser !== null || window.AuthService.session !== null)) {
+                console.log('[Header] Fallback: isAuthenticated is false but session exists, attempting validation...');
+                try {
+                    if (window.AuthService.validateSession) {
+                        const validationResult = await window.AuthService.validateSession();
+                        if (validationResult.valid) {
+                            console.log('[Header] Fallback validation succeeded, updating auth state');
+                            isAuthenticated = true;
+                            const user = window.AuthService.getCurrentUser();
+                            currentUserEmail = user?.email || null;
+                            // Update cache
+                            this.authStateCache = { isAuthenticated, userEmail: currentUserEmail };
+                            this.authStateCacheTimestamp = Date.now();
+                        } else {
+                            console.log('[Header] Fallback validation failed, clearing session state and redirecting');
+                            // Clear invalid session state
+                            if (window.AuthService.currentUser) {
+                                window.AuthService.currentUser = null;
+                            }
+                            if (window.AuthService.session) {
+                                window.AuthService.session = null;
+                            }
+                            // Redirect to auth page if not already there
+                            const currentPath = window.location.pathname;
+                            if (!currentPath.includes('auth.html') && window.AuthGuard && window.AuthGuard.redirectToAuth) {
+                                window.AuthGuard.redirectToAuth();
+                            }
+                        }
+                    }
+                } catch (validationError) {
+                    console.warn('[Header] Fallback validation error:', validationError);
+                }
+            }
+
             const oldUserMenu = nav.querySelector('.header-user-menu');
             if (oldUserMenu) {
                 console.log('[Header] Removing existing user menu');
@@ -956,6 +998,135 @@ class Header {
             console.error('[Header] Error in _performHeaderUpdate:', error);
             this.updateInProgress = false;
         }
+    }
+
+    /**
+     * Check auth state with retry logic and fallback checks
+     * @private
+     */
+    static async _checkAuthStateWithRetry(force = false, retryCount = 0, maxRetries = 3) {
+        try {
+            if (!window.AuthService) {
+                return { isAuthenticated: false, userEmail: null };
+            }
+
+            // Check both the method and direct state to handle timeout scenarios
+            const methodCheck = window.AuthService.isAuthenticated();
+            const directCheck = window.AuthService.currentUser !== null && window.AuthService.session !== null;
+            
+            let isAuthenticated = methodCheck || directCheck;
+            let user = window.AuthService.getCurrentUser();
+            let currentUserEmail = user?.email || null;
+
+            // Fallback: if methodCheck is false but we have session/user, try to validate session
+            if (!methodCheck && directCheck && window.AuthService.validateSession) {
+                console.log('[Header] Method check failed but session exists, validating session...');
+                try {
+                    const validationResult = await window.AuthService.validateSession();
+                    if (validationResult.valid) {
+                        console.log('[Header] Session validation succeeded');
+                        isAuthenticated = true;
+                        user = window.AuthService.getCurrentUser();
+                        currentUserEmail = user?.email || null;
+                    } else {
+                        console.log('[Header] Session validation failed:', validationResult.error);
+                        // Clear invalid session state
+                        if (window.AuthService.currentUser) {
+                            window.AuthService.currentUser = null;
+                        }
+                        if (window.AuthService.session) {
+                            window.AuthService.session = null;
+                        }
+                        // Redirect to auth page if not already there
+                        const currentPath = window.location.pathname;
+                        if (!currentPath.includes('auth.html') && window.AuthGuard && window.AuthGuard.redirectToAuth) {
+                            window.AuthGuard.redirectToAuth();
+                        }
+                    }
+                } catch (validationError) {
+                    console.warn('[Header] Session validation error:', validationError);
+                }
+            }
+
+            // If still not authenticated and we should retry, do so with exponential backoff
+            if (!isAuthenticated && force && retryCount < maxRetries) {
+                const delay = Math.min(300 * Math.pow(2, retryCount), 2000); // Max 2 seconds
+                console.log(`[Header] Auth check failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return this._checkAuthStateWithRetry(force, retryCount + 1, maxRetries);
+            }
+
+            return { isAuthenticated, userEmail: currentUserEmail };
+        } catch (error) {
+            console.error('[Header] Error in _checkAuthStateWithRetry:', error);
+            return { isAuthenticated: false, userEmail: null };
+        }
+    }
+
+    /**
+     * Setup periodic session validation
+     */
+    static setupSessionValidation() {
+        // Clear existing interval if any
+        if (this.sessionValidationInterval) {
+            clearInterval(this.sessionValidationInterval);
+        }
+
+        // Validate session periodically
+        this.sessionValidationInterval = setInterval(async () => {
+            try {
+                if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                    return;
+                }
+
+                console.log('[Header] Periodic session validation check...');
+                
+                // Validate session
+                if (window.AuthService.validateSession) {
+                    const validationResult = await window.AuthService.validateSession();
+                    if (!validationResult.valid) {
+                        console.log('[Header] Session validation failed, redirecting to auth page...');
+                        // Clear cache to force fresh check
+                        this.authStateCache = null;
+                        this.authStateCacheTimestamp = null;
+                        // Clear session state
+                        if (window.AuthService.currentUser) {
+                            window.AuthService.currentUser = null;
+                        }
+                        if (window.AuthService.session) {
+                            window.AuthService.session = null;
+                        }
+                        // Redirect to auth page
+                        if (window.AuthGuard && window.AuthGuard.redirectToAuth) {
+                            window.AuthGuard.redirectToAuth();
+                        } else {
+                            // Fallback redirect if AuthGuard not available
+                            const currentPath = window.location.pathname;
+                            if (!currentPath.includes('auth.html')) {
+                                const baseUrl = window.location.origin;
+                                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+                                let basePathParts = [];
+                                for (let i = 0; i < pathParts.length; i++) {
+                                    if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                                        break;
+                                    }
+                                    basePathParts.push(pathParts[i]);
+                                }
+                                const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+                                const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                                window.location.href = authUrl;
+                            }
+                        }
+                    } else {
+                        console.log('[Header] Session validation passed');
+                    }
+                }
+            } catch (error) {
+                console.error('[Header] Error in periodic session validation:', error);
+            }
+        }, this.SESSION_VALIDATION_INTERVAL);
+
+        console.log('[Header] Periodic session validation set up (interval: ' + this.SESSION_VALIDATION_INTERVAL + 'ms)');
     }
 }
 
