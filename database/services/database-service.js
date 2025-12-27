@@ -2165,11 +2165,6 @@ const DatabaseService = {
             throw error;
         }
     },
-            
-            // No fallback to cache - fail hard to ensure data accuracy
-            throw error;
-        }
-    },
     
     /**
      * Save a month to database
