@@ -4475,8 +4475,18 @@ const MonthlyBudgetController = {
         // Parse current month key (format: "YYYY-MM")
         const [currentYear, currentMonth] = this.currentMonthKey.split('-').map(Number);
 
+        // Parse shared_months if it's a string (from database)
+        let sharedMonths = share.shared_months || [];
+        if (typeof sharedMonths === 'string') {
+            try {
+                sharedMonths = JSON.parse(sharedMonths);
+            } catch (e) {
+                console.warn('[MonthlyBudgetController] Error parsing shared_months:', e);
+                sharedMonths = [];
+            }
+        }
+
         // Check shared_months array
-        const sharedMonths = share.shared_months || [];
         for (const monthData of sharedMonths) {
             if (monthData.type === 'single') {
                 if (monthData.year === currentYear && monthData.month === currentMonth) {
@@ -4506,8 +4516,6 @@ const MonthlyBudgetController = {
      * Share requests are handled in the notifications/conversations section
      */
     async renderSharedFromSection(sharedData) {
-        console.log('[MonthlyBudgetController] renderSharedFromSection() called', sharedData);
-
         const section = document.getElementById('shared-from-section');
         const content = document.getElementById('shared-from-content');
         if (!section || !content) {
@@ -4525,6 +4533,7 @@ const MonthlyBudgetController = {
         // Don't show pending or declined shares (they're handled in notifications)
         if (filteredAccepted.length === 0) {
             section.style.display = 'none';
+            content.innerHTML = '';
             return;
         }
 
@@ -4557,7 +4566,17 @@ const MonthlyBudgetController = {
                     }
                 }
 
-                const sharedMonths = share.shared_months || [];
+                // Parse shared_months if it's a string (from database)
+                let sharedMonths = share.shared_months || [];
+                if (typeof sharedMonths === 'string') {
+                    try {
+                        sharedMonths = JSON.parse(sharedMonths);
+                    } catch (e) {
+                        console.warn('[MonthlyBudgetController] Error parsing shared_months in render:', e);
+                        sharedMonths = [];
+                    }
+                }
+                
                 const monthsList = sharedMonths.map(m => {
                     if (m.type === 'range') {
                         return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
