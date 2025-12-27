@@ -89,10 +89,15 @@ const NotificationsController = {
         const markAllRead = document.getElementById('mark-all-read-button');
         const newMessageButton = document.getElementById('new-message-button');
         const sendMessageButton = document.getElementById('send-message-button');
+        const shareDataButton = document.getElementById('share-data-button');
         const newMessageModal = document.getElementById('new-message-modal');
         const closeNewMessageModal = document.getElementById('close-new-message-modal');
         const cancelNewMessageButton = document.getElementById('cancel-new-message-button');
         const sendNewMessageButton = document.getElementById('send-new-message-button');
+        const shareDataModal = document.getElementById('share-data-modal');
+        const closeShareDataModal = document.getElementById('close-share-data-modal');
+        const cancelShareDataButton = document.getElementById('cancel-share-data-button');
+        const saveShareDataButton = document.getElementById('save-share-data-button');
 
         // Filter dropdown
         if (filterDropdown) {
@@ -174,6 +179,43 @@ const NotificationsController = {
         if (sendMessageButton) {
             sendMessageButton.addEventListener('click', () => {
                 this.handleSendMessage();
+            });
+        }
+
+        // Share data button
+        if (shareDataButton) {
+            shareDataButton.addEventListener('click', () => {
+                this.handleShareDataClick();
+            });
+        }
+
+        // Share data modal
+        if (closeShareDataModal) {
+            closeShareDataModal.addEventListener('click', () => {
+                this.hideShareDataModal();
+            });
+        }
+
+        if (cancelShareDataButton) {
+            cancelShareDataButton.addEventListener('click', () => {
+                this.hideShareDataModal();
+            });
+        }
+
+        if (saveShareDataButton) {
+            saveShareDataButton.addEventListener('click', () => {
+                this.handleSaveShareData();
+            });
+        }
+
+        // Share all data checkbox - toggle month selection
+        const shareAllDataCheckbox = document.getElementById('share-data-all-data');
+        if (shareAllDataCheckbox) {
+            shareAllDataCheckbox.addEventListener('change', (e) => {
+                const monthsContainer = document.getElementById('share-data-months-container');
+                if (monthsContainer) {
+                    monthsContainer.style.display = e.target.checked ? 'none' : 'block';
+                }
             });
         }
 
@@ -1143,6 +1185,12 @@ const NotificationsController = {
             messageInput.value = '';
         }
 
+        // Hide share data button
+        const shareDataButton = document.getElementById('share-data-button');
+        if (shareDataButton) {
+            shareDataButton.style.display = 'none';
+        }
+
         // Reset filter state to 'all' view
         this.currentFilter = 'all';
         this.currentCategory = null;
@@ -1205,6 +1253,12 @@ const NotificationsController = {
         if (conversationsList) conversationsList.style.display = 'none';
         messageThreadContainer.style.display = 'block';
         messageThread.innerHTML = '<p>Loading messages...</p>';
+
+        // Show share data button
+        const shareDataButton = document.getElementById('share-data-button');
+        if (shareDataButton) {
+            shareDataButton.style.display = 'inline-block';
+        }
 
         try {
             if (typeof window.DatabaseService === 'undefined') {
@@ -1949,6 +2003,303 @@ const NotificationsController = {
         } catch (error) {
             console.error('[NotificationsController] Error sending new message:', error);
             alert(`Error: ${error.message}`);
+        }
+    },
+
+    /**
+     * Handle share data button click
+     */
+    async handleShareDataClick() {
+        console.log('[NotificationsController] handleShareDataClick() called');
+        
+        if (!this.currentConversationId) {
+            console.warn('[NotificationsController] No conversation open, cannot share data');
+            return;
+        }
+
+        const conversation = this.conversations.find(c => c.id === this.currentConversationId);
+        if (!conversation) {
+            console.error('[NotificationsController] Conversation not found');
+            return;
+        }
+
+        const otherUserEmail = conversation.other_user_email;
+        if (!otherUserEmail) {
+            console.error('[NotificationsController] No email found for conversation partner');
+            return;
+        }
+
+        // Set email in modal (readonly since it's from the conversation)
+        const emailInput = document.getElementById('share-data-email');
+        if (emailInput) {
+            emailInput.value = otherUserEmail;
+        }
+
+        // Load months for selection
+        await this.loadShareDataMonths();
+
+        // Show modal
+        this.showShareDataModal();
+    },
+
+    /**
+     * Load months for share data modal
+     */
+    async loadShareDataMonths() {
+        console.log('[NotificationsController] loadShareDataMonths() called');
+        
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                console.error('[NotificationsController] DatabaseService not available');
+                return;
+            }
+
+            const allMonths = await window.DatabaseService.getAllMonths(false, false);
+            const monthKeys = Object.keys(allMonths).sort((a, b) => {
+                const [yearA, monthA] = a.split('-').map(Number);
+                const [yearB, monthB] = b.split('-').map(Number);
+                if (yearA !== yearB) return yearB - yearA;
+                return monthB - monthA;
+            });
+
+            const monthsContainer = document.getElementById('share-data-months-checkboxes');
+            if (!monthsContainer) {
+                console.warn('[NotificationsController] share-data-months-checkboxes container not found');
+                return;
+            }
+
+            monthsContainer.innerHTML = '';
+
+            monthKeys.forEach(monthKey => {
+                const monthData = allMonths[monthKey];
+                if (monthData && !monthData.isShared) {
+                    const monthName = new Date(monthData.year, monthData.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    const checkbox = document.createElement('label');
+                    checkbox.style.display = 'flex';
+                    checkbox.style.alignItems = 'center';
+                    checkbox.style.gap = 'var(--spacing-sm)';
+                    checkbox.innerHTML = `
+                        <input type="checkbox" class="share-month-checkbox" data-year="${monthData.year}" data-month="${monthData.month}">
+                        <span>${monthName}</span>
+                    `;
+                    monthsContainer.appendChild(checkbox);
+                }
+            });
+
+            console.log('[NotificationsController] Loaded', monthKeys.length, 'months for sharing');
+        } catch (error) {
+            console.error('[NotificationsController] Error loading months for sharing:', error);
+        }
+    },
+
+    /**
+     * Get selected months from share data modal
+     */
+    getSelectedShareDataMonths() {
+        const checkboxes = document.querySelectorAll('.share-month-checkbox:checked');
+        return Array.from(checkboxes).map(checkbox => ({
+            type: 'single',
+            year: parseInt(checkbox.dataset.year, 10),
+            month: parseInt(checkbox.dataset.month, 10)
+        }));
+    },
+
+    /**
+     * Show share data modal
+     */
+    showShareDataModal() {
+        const modal = document.getElementById('share-data-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    },
+
+    /**
+     * Hide share data modal
+     */
+    hideShareDataModal() {
+        const modal = document.getElementById('share-data-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
+    /**
+     * Handle save share data
+     */
+    async handleSaveShareData() {
+        console.log('[NotificationsController] handleSaveShareData() called');
+
+        if (!this.currentConversationId) {
+            console.error('[NotificationsController] No conversation open');
+            alert('No conversation open');
+            return;
+        }
+
+        // Wait for payments module and SubscriptionGuard to be available
+        if (window.waitForPaymentsInit) {
+            console.log('[NotificationsController] Waiting for payments module initialization...');
+            try {
+                await window.waitForPaymentsInit();
+                console.log('[NotificationsController] Payments module initialized');
+            } catch (error) {
+                console.warn('[NotificationsController] Payments module initialization failed:', error);
+            }
+        }
+
+        // Wait for SubscriptionGuard to be available
+        if (!window.SubscriptionGuard) {
+            console.warn('[NotificationsController] SubscriptionGuard not available, waiting...');
+            let waitCount = 0;
+            const maxWait = 50; // Wait up to 5 seconds
+            while (!window.SubscriptionGuard && waitCount < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            if (!window.SubscriptionGuard) {
+                console.error('[NotificationsController] SubscriptionGuard not available after waiting');
+                alert('Subscription service not available. Please refresh the page.');
+                return;
+            }
+        }
+
+        const conversation = this.conversations.find(c => c.id === this.currentConversationId);
+        if (!conversation) {
+            console.error('[NotificationsController] Conversation not found');
+            return;
+        }
+
+        const emailInput = document.getElementById('share-data-email');
+        const accessLevelSelect = document.getElementById('share-data-access-level');
+        const shareAllDataCheckbox = document.getElementById('share-data-all-data');
+        const shareMonthsCheckbox = document.getElementById('share-data-months');
+        const sharePotsCheckbox = document.getElementById('share-data-pots');
+        const shareSettingsCheckbox = document.getElementById('share-data-settings');
+        const statusDiv = document.getElementById('share-data-form-status');
+
+        if (!emailInput || !accessLevelSelect) {
+            console.error('[NotificationsController] Share form elements not found');
+            return;
+        }
+
+        const email = emailInput.value.trim();
+        const accessLevel = accessLevelSelect.value;
+        const shareAllData = shareAllDataCheckbox ? shareAllDataCheckbox.checked : false;
+        const shareMonths = shareMonthsCheckbox ? shareMonthsCheckbox.checked : false;
+        const sharePots = sharePotsCheckbox ? sharePotsCheckbox.checked : false;
+        const shareSettings = shareSettingsCheckbox ? shareSettingsCheckbox.checked : false;
+
+        if (!email) {
+            alert('Email is required');
+            return;
+        }
+
+        if (!shareMonths && !sharePots && !shareSettings && !shareAllData) {
+            alert('Please select at least one thing to share');
+            return;
+        }
+
+        let selectedMonths = [];
+
+        if (shareAllData) {
+            if (typeof window.DatabaseService === 'undefined') {
+                alert('DatabaseService not available');
+                return;
+            }
+            
+            try {
+                const allMonths = await window.DatabaseService.getAllMonths(false, false);
+                const monthKeys = Object.keys(allMonths);
+                selectedMonths = monthKeys.map(monthKey => {
+                    const monthData = allMonths[monthKey];
+                    if (monthData && !monthData.isShared) {
+                        return { type: 'single', year: monthData.year, month: monthData.month };
+                    }
+                    return null;
+                }).filter(m => m !== null);
+            } catch (error) {
+                console.error('[NotificationsController] Error loading all months:', error);
+                alert('Error loading your months. Please try again.');
+                return;
+            }
+        } else if (shareMonths) {
+            selectedMonths = this.getSelectedShareDataMonths();
+            if (selectedMonths.length === 0) {
+                alert('Please select at least one month');
+                return;
+            }
+        }
+
+        if (statusDiv) {
+            statusDiv.innerHTML = '<p>Saving share...</p>';
+        }
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            console.log('[NotificationsController] Creating data share:', {
+                email,
+                accessLevel,
+                selectedMonthsCount: selectedMonths.length,
+                sharePots,
+                shareSettings,
+                shareAllData,
+                conversationId: this.currentConversationId
+            });
+
+            const result = await window.DatabaseService.createDataShare(
+                email,
+                accessLevel,
+                selectedMonths,
+                sharePots,
+                shareSettings,
+                shareAllData
+            );
+
+            if (result.success && result.share) {
+                // Link the share to the conversation
+                const tableName = window.DatabaseService._getTableName('dataShares');
+                const updateResult = await window.DatabaseService.queryUpdate(
+                    tableName,
+                    result.share.id,
+                    { conversation_id: this.currentConversationId }
+                );
+
+                if (updateResult.error) {
+                    console.warn('[NotificationsController] Failed to link share to conversation:', updateResult.error);
+                } else {
+                    console.log('[NotificationsController] Share linked to conversation:', this.currentConversationId);
+                }
+
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<p style="color: var(--success-color);">Share created successfully!</p>';
+                }
+
+                // Close modal after a short delay
+                setTimeout(() => {
+                    this.hideShareDataModal();
+                    // Reload messages to show the share request message
+                    if (this.currentConversationId) {
+                        this.openConversation(this.currentConversationId);
+                    }
+                }, 1500);
+            } else {
+                const errorMessage = result.error || 'Failed to create share';
+                if (statusDiv) {
+                    statusDiv.innerHTML = `<p style="color: var(--error-color);">Error: ${errorMessage}</p>`;
+                } else {
+                    alert(`Error: ${errorMessage}`);
+                }
+            }
+        } catch (error) {
+            console.error('[NotificationsController] Error saving share:', error);
+            if (statusDiv) {
+                statusDiv.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+            } else {
+                alert(`Error: ${error.message}`);
+            }
         }
     }
 };

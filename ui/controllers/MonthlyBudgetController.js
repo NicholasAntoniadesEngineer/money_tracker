@@ -1303,20 +1303,51 @@ const MonthlyBudgetController = {
                 const monthNum = parseInt(month, 10);
                 
                 // Find shares that include this month
+                // Include shares with share_all_data=true OR shares that explicitly include this month
                 const monthShares = result.shares.filter(share => {
-                    if (!share.shared_months || share.shared_months.length === 0) {
+                    // If share_all_data is true, include all shares
+                    if (share.share_all_data === true) {
+                        console.log('[MonthlyBudgetController] Including share with share_all_data=true:', share.id);
+                        return true;
+                    }
+                    
+                    // Parse shared_months if it's still a string (defensive)
+                    let sharedMonths = share.shared_months;
+                    if (typeof sharedMonths === 'string') {
+                        try {
+                            sharedMonths = JSON.parse(sharedMonths);
+                        } catch (e) {
+                            console.warn('[MonthlyBudgetController] Error parsing shared_months for share', share.id, ':', e);
+                            sharedMonths = [];
+                        }
+                    }
+                    
+                    // Otherwise, check if this month is in shared_months
+                    if (!sharedMonths || sharedMonths.length === 0) {
                         return false;
                     }
                     
-                    return share.shared_months.some(monthEntry => {
+                    return sharedMonths.some(monthEntry => {
                         if (monthEntry.type === 'single') {
                             return monthEntry.year === yearNum && monthEntry.month === monthNum;
+                        } else if (monthEntry.type === 'range') {
+                            // Check if current month falls within the range
+                            const currentDate = new Date(yearNum, monthNum - 1);
+                            const startDate = new Date(monthEntry.startYear, monthEntry.startMonth - 1);
+                            const endDate = new Date(monthEntry.endYear, monthEntry.endMonth - 1);
+                            return currentDate >= startDate && currentDate <= endDate;
                         }
                         return false;
                     });
                 });
                 
                 console.log('[MonthlyBudgetController] Found', monthShares.length, 'shares for current month');
+                console.log('[MonthlyBudgetController] Share details:', monthShares.map(s => ({ 
+                    id: s.id, 
+                    share_all_data: s.share_all_data, 
+                    shared_months_count: s.shared_months?.length || 0,
+                    shared_with_user_id: s.shared_with_user_id
+                })));
                 
                 // Update sharing indicator next to Share Month button
                 await this.updateMonthSharingIndicator(monthShares);
