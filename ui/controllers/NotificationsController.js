@@ -891,6 +891,41 @@ const NotificationsController = {
                 throw new Error('DatabaseService not available');
             }
 
+            // First, check the current share status to prevent invalid transitions
+            const tableName = window.DatabaseService._getTableName('dataShares');
+            const shareResult = await window.DatabaseService.querySelect(tableName, {
+                filter: { id: shareId },
+                limit: 1
+            });
+
+            if (shareResult.error || !shareResult.data || shareResult.data.length === 0) {
+                throw new Error('Share not found');
+            }
+
+            const share = shareResult.data[0];
+            console.log('[NotificationsController] Current share status:', share.status);
+
+            // Check if share is already declined
+            if (share.status === 'declined') {
+                alert('This share has already been declined. You can only re-accept it.');
+                // Reload to update the UI
+                await this.loadNotifications();
+                if (this.currentView === 'messages') {
+                    await this.loadConversations();
+                }
+                return;
+            }
+
+            // Check if share is blocked
+            if (share.status === 'blocked') {
+                alert('This share has been blocked and cannot be updated.');
+                await this.loadNotifications();
+                if (this.currentView === 'messages') {
+                    await this.loadConversations();
+                }
+                return;
+            }
+
             const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
 
             if (result.success) {
@@ -918,13 +953,47 @@ const NotificationsController = {
                     window.Header.updateNotificationCount();
                 }
                 
+                // Reload conversations if in messages view
+                if (this.currentView === 'messages') {
+                    await this.loadConversations();
+                }
+                
                 alert('Share declined');
             } else {
-                throw new Error(result.error || 'Failed to decline share');
+                // Handle specific error messages
+                const errorMessage = result.error || 'Failed to decline share';
+                if (errorMessage.includes('Declined shares can only be re-accepted')) {
+                    alert('This share has already been declined. You can only re-accept it.');
+                } else if (errorMessage.includes('Cannot update blocked shares')) {
+                    alert('This share has been blocked and cannot be updated.');
+                } else {
+                    throw new Error(errorMessage);
+                }
+                
+                // Reload to update the UI
+                await this.loadNotifications();
+                if (this.currentView === 'messages') {
+                    await this.loadConversations();
+                }
             }
         } catch (error) {
             console.error('[NotificationsController] Error declining share:', error);
-            alert('Error declining share: ' + error.message);
+            const errorMessage = error.message || 'Unknown error';
+            if (errorMessage.includes('Declined shares can only be re-accepted')) {
+                alert('This share has already been declined. You can only re-accept it.');
+            } else {
+                alert('Error declining share: ' + errorMessage);
+            }
+            
+            // Reload to update the UI even on error
+            try {
+                await this.loadNotifications();
+                if (this.currentView === 'messages') {
+                    await this.loadConversations();
+                }
+            } catch (reloadError) {
+                console.error('[NotificationsController] Error reloading after decline error:', reloadError);
+            }
         }
     },
 

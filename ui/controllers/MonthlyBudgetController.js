@@ -4675,6 +4675,35 @@ const MonthlyBudgetController = {
                 throw new Error('DatabaseService not available');
             }
 
+            // First, check the current share status to prevent invalid transitions
+            const tableName = window.DatabaseService._getTableName('dataShares');
+            const shareResult = await window.DatabaseService.querySelect(tableName, {
+                filter: { id: shareId },
+                limit: 1
+            });
+
+            if (shareResult.error || !shareResult.data || shareResult.data.length === 0) {
+                throw new Error('Share not found');
+            }
+
+            const share = shareResult.data[0];
+            console.log('[MonthlyBudgetController] Current share status:', share.status);
+
+            // Check if share is already declined
+            if (share.status === 'declined') {
+                alert('This share has already been declined. You can only re-accept it.');
+                // Reload to update the UI
+                await this.loadSharedFromData();
+                return;
+            }
+
+            // Check if share is blocked
+            if (share.status === 'blocked') {
+                alert('This share has been blocked and cannot be updated.');
+                await this.loadSharedFromData();
+                return;
+            }
+
             const result = await window.DatabaseService.updateShareStatus(shareId, 'declined');
 
             if (result.success) {
@@ -4701,11 +4730,34 @@ const MonthlyBudgetController = {
                 await this.loadSharedFromData();
                 alert('Share declined');
             } else {
-                throw new Error(result.error || 'Failed to decline share');
+                // Handle specific error messages
+                const errorMessage = result.error || 'Failed to decline share';
+                if (errorMessage.includes('Declined shares can only be re-accepted')) {
+                    alert('This share has already been declined. You can only re-accept it.');
+                } else if (errorMessage.includes('Cannot update blocked shares')) {
+                    alert('This share has been blocked and cannot be updated.');
+                } else {
+                    throw new Error(errorMessage);
+                }
+                
+                // Reload to update the UI
+                await this.loadSharedFromData();
             }
         } catch (error) {
             console.error('[MonthlyBudgetController] Error declining share:', error);
-            alert('Error declining share: ' + error.message);
+            const errorMessage = error.message || 'Unknown error';
+            if (errorMessage.includes('Declined shares can only be re-accepted')) {
+                alert('This share has already been declined. You can only re-accept it.');
+            } else {
+                alert('Error declining share: ' + errorMessage);
+            }
+            
+            // Reload to update the UI even on error
+            try {
+                await this.loadSharedFromData();
+            } catch (reloadError) {
+                console.error('[MonthlyBudgetController] Error reloading after decline error:', reloadError);
+            }
         }
     },
 
