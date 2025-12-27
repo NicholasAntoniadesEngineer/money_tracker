@@ -1802,9 +1802,10 @@ const DatabaseService = {
                             // Otherwise, process only the specified months
                             const sharedMonths = share.shared_months || [];
                             console.log(`[DatabaseService] Processing ${sharedMonths.length} specific months for share ${share.id}`);
+                            
+                            // Collect all month keys that need to be fetched
+                            const monthKeysToFetch = new Set();
                             for (const monthEntry of sharedMonths) {
-                                let year, month;
-                                
                                 if (monthEntry.type === 'range') {
                                     const startYear = parseInt(monthEntry.startYear, 10);
                                     const endYear = parseInt(monthEntry.endYear, 10);
@@ -1815,56 +1816,40 @@ const DatabaseService = {
                                         const monthStart = (y === startYear) ? startMonth : 1;
                                         const monthEnd = (y === endYear) ? endMonth : 12;
                                         for (let m = monthStart; m <= monthEnd; m++) {
-                                            year = y;
-                                            month = m;
-                                            const monthKey = this.generateMonthKey(year, month);
+                                            const monthKey = this.generateMonthKey(y, m);
                                             if (!monthsObject[monthKey]) {
-                                                const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
-                                                    select: '*',
-                                                    filter: {
-                                                        user_id: share.owner_user_id,
-                                                        year: year,
-                                                        month: month
-                                                    },
-                                                    limit: 1
-                                                });
-                                                
-                                                if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
-                                                    const monthRecord = sharedMonthResult.data[0];
-                                                    const transformedMonth = this.transformMonthFromDatabase(monthRecord);
-                                                    transformedMonth.isShared = true;
-                                                    transformedMonth.sharedOwnerId = share.owner_user_id;
-                                                    transformedMonth.sharedAccessLevel = share.access_level;
-                                                    transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
-                                                    
-                                                    monthsObject[monthKey] = transformedMonth;
-                                                    console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
-                                                }
+                                                monthKeysToFetch.add(monthKey);
                                             }
                                         }
                                     }
                                 } else {
-                                    year = parseInt(monthEntry.year, 10);
-                                    month = parseInt(monthEntry.month, 10);
+                                    const year = parseInt(monthEntry.year, 10);
+                                    const month = parseInt(monthEntry.month, 10);
                                     const monthKey = this.generateMonthKey(year, month);
                                     if (!monthsObject[monthKey]) {
-                                        const sharedMonthResult = await this.querySelect(this._getTableName('userMonths'), {
-                                            select: '*',
-                                            filter: {
-                                                user_id: share.owner_user_id,
-                                                year: year,
-                                                month: month
-                                            },
-                                            limit: 1
-                                        });
-                                        
-                                        if (sharedMonthResult.data && sharedMonthResult.data.length > 0) {
-                                            const monthRecord = sharedMonthResult.data[0];
+                                        monthKeysToFetch.add(monthKey);
+                                    }
+                                }
+                            }
+                            
+                            // Batch fetch all months for this owner if we have months to fetch
+                            if (monthKeysToFetch.size > 0) {
+                                // Fetch all months from this owner in one query, then filter to only the ones we need
+                                const ownerMonthsResult = await this.querySelect(this._getTableName('userMonths'), {
+                                    select: '*',
+                                    filter: { user_id: share.owner_user_id },
+                                    order: [{ column: 'year', ascending: false }, { column: 'month', ascending: false }]
+                                });
+                                
+                                if (ownerMonthsResult.data && ownerMonthsResult.data.length > 0) {
+                                    for (const monthRecord of ownerMonthsResult.data) {
+                                        const monthKey = this.generateMonthKey(monthRecord.year, monthRecord.month);
+                                        if (monthKeysToFetch.has(monthKey) && !monthsObject[monthKey]) {
                                             const transformedMonth = this.transformMonthFromDatabase(monthRecord);
                                             transformedMonth.isShared = true;
                                             transformedMonth.sharedOwnerId = share.owner_user_id;
                                             transformedMonth.sharedAccessLevel = share.access_level;
-                                            transformedMonth.sharedOwnerEmail = ownerEmail; // Use pre-fetched email
+                                            transformedMonth.sharedOwnerEmail = ownerEmail;
                                             
                                             monthsObject[monthKey] = transformedMonth;
                                             console.log(`[DatabaseService] Added shared month: ${monthKey} from user ${share.owner_user_id} (${ownerEmail})`);
