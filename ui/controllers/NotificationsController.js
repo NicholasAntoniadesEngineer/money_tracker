@@ -142,9 +142,9 @@ const NotificationsController = {
                     this.renderNotifications();
                 } else if (value === 'messaging') {
                     // Navigate to messenger view instead of showing messages in notifications
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
+                    const basePath = window.Header && typeof window.Header.getMessagingBasePath === 'function' 
+                        ? window.Header.getMessagingBasePath() 
+                        : '../../messaging/views/';
                     const messengerUrl = basePath + 'messenger.html';
                     window.location.href = messengerUrl;
                 }
@@ -578,9 +578,9 @@ const NotificationsController = {
                 const conversationId = parseInt(conversationItem.dataset.conversationId, 10);
                 if (conversationId) {
                     // Navigate to messenger view with conversation ID
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
+                    const basePath = window.Header && typeof window.Header.getMessagingBasePath === 'function' 
+                        ? window.Header.getMessagingBasePath() 
+                        : '../../messaging/views/';
                     const messengerUrl = basePath + 'messenger.html?conversationId=' + conversationId;
                     window.location.href = messengerUrl;
                 }
@@ -649,9 +649,9 @@ const NotificationsController = {
                 if (conversationId && notificationId) {
                     await this.handleNotificationClick(notificationId);
                     // Navigate to messenger view with conversation ID
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
+                    const basePath = window.Header && typeof window.Header.getMessagingBasePath === 'function' 
+                        ? window.Header.getMessagingBasePath() 
+                        : '../../messaging/views/';
                     const messengerUrl = basePath + 'messenger.html?conversationId=' + conversationId;
                     window.location.href = messengerUrl;
                 }

@@ -509,11 +509,20 @@ const SettingsController = {
         const refreshSubscriptionBtn = document.getElementById('refresh-subscription-button');
         
         if (startSubscriptionBtn) {
-            startSubscriptionBtn.addEventListener('click', () => this.handleStartSubscription());
+            startSubscriptionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleStartSubscription();
+            });
         }
         
         if (refreshSubscriptionBtn) {
-            refreshSubscriptionBtn.addEventListener('click', () => this.loadSubscriptionStatus());
+            refreshSubscriptionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.loadSubscriptionStatus();
+            });
+        } else {
+            console.warn('[SettingsController] refresh-subscription-button not found');
         }
         
         // Data sharing event listeners
