@@ -5,6 +5,10 @@
 
 class Header {
     static updateInProgress = false;
+    static notificationCountUpdateInProgress = false;
+    static notificationCountUpdateTimeout = null;
+    static notificationSubscriptionSetup = false;
+    static messageSubscriptionSetup = false;
     static lastUpdateState = null;
     static initialized = false;
     
@@ -487,10 +491,26 @@ class Header {
      * Checks both notifications and unread messages
      */
     static async updateNotificationCount() {
-        console.log('[Header] ========== updateNotificationCount() CALLED ==========');
-        console.log('[Header] updateNotificationCount() - Start time:', new Date().toISOString());
-        
+        // Clear any pending debounced call
+        if (this.notificationCountUpdateTimeout) {
+            clearTimeout(this.notificationCountUpdateTimeout);
+            this.notificationCountUpdateTimeout = null;
+        }
+
+        // If an update is already in progress, debounce this call
+        if (this.notificationCountUpdateInProgress) {
+            this.notificationCountUpdateTimeout = setTimeout(() => {
+                this.updateNotificationCount();
+            }, 500);
+            return;
+        }
+
+        // Mark as in progress
+        this.notificationCountUpdateInProgress = true;
+
         try {
+            console.log('[Header] ========== updateNotificationCount() CALLED ==========');
+            console.log('[Header] updateNotificationCount() - Start time:', new Date().toISOString());
             console.log('[Header] Checking authentication status...');
             if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                 console.log('[Header] User not authenticated, skipping notification count update');
@@ -613,6 +633,9 @@ class Header {
             }
         } catch (error) {
             console.error('[Header] Error updating notification count:', error);
+        } finally {
+            // Mark as complete
+            this.notificationCountUpdateInProgress = false;
         }
     }
 
@@ -620,6 +643,11 @@ class Header {
      * Setup real-time notification subscription
      */
     static async setupNotificationSubscription() {
+        // Prevent duplicate subscriptions
+        if (this.notificationSubscriptionSetup) {
+            return;
+        }
+
         try {
             if (typeof window.NotificationService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
                 return;
@@ -637,13 +665,18 @@ class Header {
 
             if (result.success) {
                 console.log('[Header] Real-time notification subscription established');
+                this.notificationSubscriptionSetup = true;
             } else {
                 console.warn('[Header] Real-time subscription not available, will poll instead');
-                setInterval(() => this.updateNotificationCount(), 30000);
+                if (!this._notificationPollInterval) {
+                    this._notificationPollInterval = setInterval(() => this.updateNotificationCount(), 30000);
+                }
             }
         } catch (error) {
             console.error('[Header] Error setting up notification subscription:', error);
-            setInterval(() => this.updateNotificationCount(), 30000);
+            if (!this._notificationPollInterval) {
+                this._notificationPollInterval = setInterval(() => this.updateNotificationCount(), 30000);
+            }
         }
     }
 
@@ -651,6 +684,11 @@ class Header {
      * Setup real-time message subscription to update notification count when new messages arrive
      */
     static async setupMessageSubscription() {
+        // Prevent duplicate subscriptions
+        if (this.messageSubscriptionSetup) {
+            return;
+        }
+
         try {
             if (typeof window.MessagingService === 'undefined' || !window.AuthService || !window.AuthService.isAuthenticated()) {
                 return;
@@ -673,6 +711,7 @@ class Header {
 
             if (result.success) {
                 console.log('[Header] Real-time message subscription established');
+                this.messageSubscriptionSetup = true;
             } else {
                 console.warn('[Header] Real-time message subscription not available');
             }
@@ -981,19 +1020,15 @@ class Header {
                 this.initSignOutButton();
                 this.initNotificationBell(); // Initialize notifications button click handler
                 
+                // Note: updateNotificationCount and subscriptions are already set up in init()
+                // Only set up subscriptions if they haven't been set up yet
                 try {
-                    // Update notification count and set up subscriptions
-                    setTimeout(() => {
-                        this.updateNotificationCount().catch(err => {
-                            console.warn('[Header] Failed to update notification count in updateHeader:', err);
-                        });
-                        this.setupNotificationSubscription().catch(err => {
-                            console.warn('[Header] Failed to setup notification subscription in updateHeader:', err);
-                        });
-                        this.setupMessageSubscription().catch(err => {
-                            console.warn('[Header] Failed to setup message subscription in updateHeader:', err);
-                        });
-                    }, 500);
+                    this.setupNotificationSubscription().catch(err => {
+                        console.warn('[Header] Failed to setup notification subscription in updateHeader:', err);
+                    });
+                    this.setupMessageSubscription().catch(err => {
+                        console.warn('[Header] Failed to setup message subscription in updateHeader:', err);
+                    });
                 } catch (error) {
                     console.error('[Header] Error initializing notification features in updateHeader:', error);
                 }

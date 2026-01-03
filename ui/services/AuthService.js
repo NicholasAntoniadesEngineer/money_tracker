@@ -12,8 +12,10 @@ const AuthService = {
     authStateListener: null,
     sessionValidationInterval: null,
     SESSION_CHECK_INTERVAL: 5 * 60 * 1000, // Check every 5 minutes
+    SESSION_VALIDATION_CACHE_MS: 60000, // Cache validation results for 1 minute
     initializationInProgress: false,
     initializationPromise: null,
+    lastValidation: { timestamp: 0, result: null }, // Validation cache
 
     /**
      * Initialize the authentication service
@@ -495,7 +497,8 @@ const AuthService = {
             // Only validate if we think we're authenticated
             if (this.isAuthenticated()) {
                 console.log('[AuthService] Periodic session validation check...');
-                const validation = await this.validateSession();
+                // Use autoRedirect=true and bypassCache=true for periodic checks
+                const validation = await this.validateSession(true, true);
                 if (!validation.valid) {
                     console.log('[AuthService] Periodic check found invalid session - redirect will occur');
                 } else {
@@ -1707,71 +1710,143 @@ const AuthService = {
     /**
      * Validate and refresh the current session
      * Checks if session exists and is valid, refreshes if needed
-     * Redirects to sign-in if session is invalid or missing
+     * @param {boolean} autoRedirect - If true, automatically redirect to sign-in on validation failure (default: false)
+     * @param {boolean} bypassCache - If true, bypass validation cache and force fresh check (default: false)
      * @returns {Promise<{valid: boolean, session: Object|null, error: string|null}>}
      */
-    async validateSession() {
+    async validateSession(autoRedirect = false, bypassCache = false) {
         try {
+            // Check validation cache first (unless bypassed)
+            if (!bypassCache) {
+                const now = Date.now();
+                if (this.lastValidation.result &&
+                    now - this.lastValidation.timestamp < this.SESSION_VALIDATION_CACHE_MS &&
+                    this.lastValidation.result.valid) {
+                    console.log('[AuthService] Using cached validation result (age:', now - this.lastValidation.timestamp, 'ms)');
+                    return this.lastValidation.result;
+                }
+            }
+
             if (!this.client) {
                 console.warn('[AuthService] Client not initialized during session validation');
-                this.currentUser = null;
-                this.session = null;
-                this._redirectToSignIn();
-                return { valid: false, session: null, error: 'Auth service not initialized' };
+                const result = { valid: false, session: null, error: 'Auth service not initialized' };
+                if (autoRedirect) {
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                }
+                return result;
             }
-            
+
             // Get current session from Supabase
-            const { data: { session }, error } = await this.client.auth.getSession();
-            
+            let sessionData, error;
+            try {
+                const response = await this.client.auth.getSession();
+                sessionData = response.data;
+                error = response.error;
+            } catch (networkError) {
+                // Network error - preserve existing session and return as valid
+                console.warn('[AuthService] Network error during session check, preserving existing session:', networkError.message);
+                const result = {
+                    valid: this.session !== null,
+                    session: this.session,
+                    error: 'Network error - using cached session',
+                    fromCache: true
+                };
+                // Don't cache network errors
+                return result;
+            }
+
             if (error) {
                 console.warn('[AuthService] Error getting session during validation:', error.message);
-                this.currentUser = null;
-                this.session = null;
-                this._redirectToSignIn();
-                return { valid: false, session: null, error: error.message };
+                const result = { valid: false, session: null, error: error.message };
+                if (autoRedirect) {
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                }
+                // Don't cache errors
+                return result;
             }
-            
+
+            const session = sessionData?.session;
+
             if (!session) {
-                console.log('[AuthService] No session found during validation - redirecting to sign-in');
-                this.currentUser = null;
-                this.session = null;
-                this._redirectToSignIn();
-                return { valid: false, session: null, error: 'No active session' };
+                console.log('[AuthService] No session found during validation');
+                const result = { valid: false, session: null, error: 'No active session' };
+                if (autoRedirect) {
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                }
+                // Cache negative result
+                this.lastValidation = { timestamp: Date.now(), result };
+                return result;
             }
-            
+
             // Check if session is expired
             if (session.expires_at && session.expires_at * 1000 < Date.now()) {
                 console.log('[AuthService] Session expired - attempting refresh');
                 try {
                     const refreshResult = await this.refreshSession();
                     if (!refreshResult.success) {
-                        console.log('[AuthService] Session refresh failed - redirecting to sign-in');
+                        console.log('[AuthService] Session refresh failed');
+                        const result = { valid: false, session: null, error: 'Session expired and refresh failed' };
+                        if (autoRedirect) {
+                            this.currentUser = null;
+                            this.session = null;
+                            this._redirectToSignIn();
+                        }
+                        // Cache negative result
+                        this.lastValidation = { timestamp: Date.now(), result };
+                        return result;
+                    }
+                    // Refresh successful, return updated session
+                    const result = { valid: true, session: this.session, error: null };
+                    // Cache positive result
+                    this.lastValidation = { timestamp: Date.now(), result };
+                    return result;
+                } catch (refreshError) {
+                    console.error('[AuthService] Session refresh exception:', refreshError);
+                    const result = { valid: false, session: null, error: 'Session refresh failed' };
+                    if (autoRedirect) {
                         this.currentUser = null;
                         this.session = null;
                         this._redirectToSignIn();
-                        return { valid: false, session: null, error: 'Session expired and refresh failed' };
                     }
-                    // Refresh successful, return updated session
-                    return { valid: true, session: this.session, error: null };
-                } catch (refreshError) {
-                    console.error('[AuthService] Session refresh exception:', refreshError);
-                    this.currentUser = null;
-                    this.session = null;
-                    this._redirectToSignIn();
-                    return { valid: false, session: null, error: 'Session refresh failed' };
+                    // Don't cache exceptions
+                    return result;
                 }
             }
-            
+
             // Session is valid - update local state
             this.session = session;
             this.currentUser = session.user;
-            return { valid: true, session: session, error: null };
+            const result = { valid: true, session: session, error: null };
+
+            // Cache positive result
+            this.lastValidation = { timestamp: Date.now(), result };
+
+            return result;
         } catch (error) {
             console.error('[AuthService] Session validation exception:', error);
-            this.currentUser = null;
-            this.session = null;
-            this._redirectToSignIn();
-            return { valid: false, session: null, error: error.message || 'Session validation failed' };
+            // On exception, preserve existing session if we have one
+            if (this.session && this.currentUser) {
+                console.log('[AuthService] Preserving existing session despite validation exception');
+                return {
+                    valid: true,
+                    session: this.session,
+                    error: 'Validation exception - using cached session',
+                    fromCache: true
+                };
+            }
+            const result = { valid: false, session: null, error: error.message || 'Session validation failed' };
+            if (autoRedirect) {
+                this.currentUser = null;
+                this.session = null;
+                this._redirectToSignIn();
+            }
+            return result;
         }
     },
 

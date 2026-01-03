@@ -92,26 +92,28 @@ const DatabaseService = {
     
     /**
      * Get the current authenticated user ID
-     * Validates session before returning user ID
+     * Returns user ID from current session without excessive validation
+     * Session validation is now handled by periodic checks in AuthService
      * @returns {Promise<string|null>} User ID or null if not authenticated
      * @throws {Error} If AuthService is not available
      */
     async _getCurrentUserId() {
         const authService = this._getAuthService();
-        
-        // Validate session before returning user ID
-        const sessionValidation = await authService.validateSession();
-        if (!sessionValidation.valid) {
-            console.warn('[DatabaseService] Session validation failed - cannot get user ID');
+
+        // Trust current state - don't validate on every call (huge performance improvement)
+        // AuthService validates periodically (every 5 minutes) and on auth state changes
+        // This prevents hundreds of unnecessary validation calls per page
+        if (!authService.isAuthenticated()) {
+            console.warn('[DatabaseService] User not authenticated');
             return null;
         }
-        
+
         const currentUser = authService.getCurrentUser();
         if (!currentUser || !currentUser.id) {
-            console.warn('[DatabaseService] No current user found after session validation');
+            console.warn('[DatabaseService] No current user found');
             return null;
         }
-        
+
         return currentUser.id;
     },
     
@@ -891,6 +893,20 @@ const DatabaseService = {
      */
     async _handleResponse(response) {
         if (!response.ok) {
+            // Check for authentication failures (401 Unauthorized, 403 Forbidden)
+            if (response.status === 401 || response.status === 403) {
+                console.warn('[DatabaseService] Authentication failed on server (status:', response.status, ')');
+                console.warn('[DatabaseService] This indicates the auth token is invalid or expired');
+                console.warn('[DatabaseService] Redirecting to sign-in...');
+
+                // Clear validation cache in AuthService to force fresh check
+                if (window.AuthService) {
+                    window.AuthService.lastValidation = { timestamp: 0, result: null };
+                    // Redirect to sign-in
+                    window.AuthService._redirectToSignIn();
+                }
+            }
+
             const errorText = await response.text();
             let errorObj;
             try {

@@ -137,6 +137,8 @@
     <script src="../payments/utils/wait-for-payments-init.js"></script>
     <script src="utils/subscription-guard.js"></script>
     <script src="utils/auth-guard.js"></script>
+    <script src="utils/network-utils.js"></script>
+    <script src="utils/offline-handler.js"></script>
     <script src="../database/models/data-manager.js"></script>
     <script src="../database/models/month-factory.js"></script>
     <script src="services/CalculationService.js"></script>
@@ -148,39 +150,51 @@
     <script src="components/Header.js"></script>
     <script src="utils/InitialData.js"></script>
     <script>
-        // Protect route and initialize with all months data if no months exist
+        // Protect route and initialize with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                // Wait for payments module initialization before checking auth
-                if (window.waitForPaymentsInit) {
-                    await window.waitForPaymentsInit();
-                }
-                
-                // Check authentication first
+                console.log('[index.html] Starting initialization...');
+
+                // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
+                const [paymentsReady, dbInitResult] = await Promise.all([
+                    // Wait for payments module initialization
+                    window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
+                    // Initialize database service
+                    window.DatabaseService.initialize()
+                ]);
+                console.log('[index.html] Payments and Database initialized');
+
+                // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
+                    console.log('[index.html] Not authenticated, redirecting...');
                     return;
                 }
-                
-                // Initialize database service
-                await window.DatabaseService.initialize();
-                
-                // Initialize settings first
+                console.log('[index.html] Authentication check passed');
+
+                // Initialize settings after database is ready
                 await DataManager.initializeSettings();
                 await DataManager.applyFontSize();
-                
+                console.log('[index.html] Settings initialized and applied');
+
                 // Load months from files if database is empty
                 await InitialData.initializeIfEmpty();
-                
+                console.log('[index.html] Initial data checked');
+
                 // Mark as initialized to prevent double initialization
                 window.landingControllerInitialized = true;
-                
+
                 // Now initialize the LandingController
                 if (window.LandingController) {
                     await window.LandingController.init();
+                    console.log('[index.html] LandingController initialized');
                 }
+
+                console.log('[index.html] Initialization complete!');
             } catch (error) {
-                console.error('Error initializing landing page:', error);
+                console.error('[index.html] ❌ Initialization error:', error);
+                console.error('[index.html] Error stack:', error.stack);
+                alert('Failed to initialize the application. Please check the console for details and refresh the page.');
             }
         });
     </script>

@@ -48,9 +48,9 @@
 
         <section class="notifications-section form-section">
             <div class="notifications-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
-                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; flex: 1 1 auto; min-width: 0;">
-                    <label for="filter-dropdown" class="form-label" style="margin: 0;">Filter:</label>
-                    <select id="filter-dropdown" class="form-input" style="min-width: 150px; max-width: 100%;">
+                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: nowrap; flex: 0 0 auto;">
+                    <label for="filter-dropdown" class="form-label" style="margin: 0; white-space: nowrap;">Filter:</label>
+                    <select id="filter-dropdown" class="form-input" style="width: auto; min-width: auto; max-width: none;">
                         <option value="all">All</option>
                         <option value="unread">Unread</option>
                         <option value="sharing">Sharing</option>
@@ -227,6 +227,9 @@
     <script src="../../payments/init-payments.js"></script>
     <script src="../../payments/utils/wait-for-payments-init.js"></script>
     <script src="../utils/subscription-guard.js"></script>
+    <script src="../utils/auth-guard.js"></script>
+    <script src="../utils/network-utils.js"></script>
+    <script src="../utils/offline-handler.js"></script>
     
     <!-- Header Component -->
     <script>
@@ -414,7 +417,7 @@
                     headerType: typeof window.Header,
                     notificationsControllerType: typeof window.NotificationsController
                 });
-                alert('Error initializing notifications page. Please check console for details.');
+                alert('Failed to initialize the application. Please refresh the page or check your connection.');
             }
         });
     </script>

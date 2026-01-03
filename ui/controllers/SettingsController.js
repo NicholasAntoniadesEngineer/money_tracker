@@ -820,11 +820,23 @@ const SettingsController = {
 
         if (monthKeys.length > 0) {
             selector.innerHTML = '<option value="">Select month...</option>' +
-                '<option value="all">Export All Months</option>' + 
+                '<option value="all">Export All Months</option>' +
                 monthKeys.map(key => {
                     const monthData = allMonths[key];
                     const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                    return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+                    let displayText = `${monthName} ${monthData.year}`;
+
+                    // If this is a shared month, append owner email
+                    if (monthData.isShared && monthData.sharedOwnerId) {
+                        const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
+                        displayText += ` (shared:${ownerEmail})`;
+                    }
+                    // If this is an example month (year 2045), append "Example" label
+                    else if (monthData.year === 2045) {
+                        displayText += ` (Example)`;
+                    }
+
+                    return `<option value="${key}">${displayText}</option>`;
                 }).join('');
         } else {
             selector.innerHTML = '<option value="">No months available</option>';
@@ -2018,7 +2030,13 @@ const SettingsController = {
                 const monthData = allMonths[monthKey];
                 if (monthData && !monthData.isShared) {
                     const monthName = monthData.monthName || window.DataManager.getMonthName(monthData.month);
-                    const displayText = `${monthName} ${monthData.year}`;
+                    let displayText = `${monthName} ${monthData.year}`;
+
+                    // If this is an example month (year 2045), append "Example" label
+                    if (monthData.year === 2045) {
+                        displayText += ` (Example)`;
+                    }
+
                     const option = document.createElement('option');
                     option.value = monthKey;
                     option.textContent = displayText;

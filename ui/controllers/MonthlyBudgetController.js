@@ -109,24 +109,28 @@ const MonthlyBudgetController = {
         const allMonths = await DataManager.getAllMonths(false, true);
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        // Build options with shared month labels
+        // Build options with shared month and example labels
         let optionsHtml = '';
         if (monthKeys.length > 0) {
             const optionsPromises = monthKeys.map(async (key) => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
                 let displayText = `${monthName} ${monthData.year}`;
-                
+
                 // If this is a shared month, append owner email
                 if (monthData.isShared && monthData.sharedOwnerId) {
                     // Use owner email from getAllMonths (should already be set)
                     const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
                     displayText += ` (shared:${ownerEmail})`;
                 }
-                
+                // If this is an example month (year 2045), append "Example" label
+                else if (monthData.year === 2045) {
+                    displayText += ` (Example)`;
+                }
+
                 return `<option value="${key}">${displayText}</option>`;
             });
-            
+
             const options = await Promise.all(optionsPromises);
             optionsHtml = options.join('');
         } else {
@@ -3555,11 +3559,23 @@ const MonthlyBudgetController = {
             .sort()
             .reverse();
 
-        const optionsHtml = monthKeys.length > 0 
+        const optionsHtml = monthKeys.length > 0
             ? monthKeys.map(key => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+                let displayText = `${monthName} ${monthData.year}`;
+
+                // If this is a shared month, append owner email
+                if (monthData.isShared && monthData.sharedOwnerId) {
+                    const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
+                    displayText += ` (shared:${ownerEmail})`;
+                }
+                // If this is an example month (year 2045), append "Example" label
+                else if (monthData.year === 2045) {
+                    displayText += ` (Example)`;
+                }
+
+                return `<option value="${key}">${displayText}</option>`;
             }).join('')
             : '<option value="">No other months available</option>';
 
@@ -4467,16 +4483,31 @@ const MonthlyBudgetController = {
             return false;
         }
 
-        // If share_all_data is true, it includes all months (handle both snake_case and camelCase)
+        // If share_all_data is true, check if the current month is actually shared from this owner
+        // We verify by checking if currentMonthData has sharedOwnerId matching this share's owner
         if (share.share_all_data || share.shareAllData) {
-            return true;
+            if (this.currentMonthData && this.currentMonthData.sharedOwnerId) {
+                const ownerUserId = share.owner_user_id || share.ownerUserId;
+                return this.currentMonthData.sharedOwnerId === ownerUserId;
+            }
+            return false;
         }
 
         // Parse current month key (format: "YYYY-MM")
         const [currentYear, currentMonth] = this.currentMonthKey.split('-').map(Number);
 
+        // Parse shared_months if it's a string (from database)
+        let sharedMonths = share.shared_months || [];
+        if (typeof sharedMonths === 'string') {
+            try {
+                sharedMonths = JSON.parse(sharedMonths);
+            } catch (e) {
+                console.warn('[MonthlyBudgetController] Error parsing shared_months:', e);
+                sharedMonths = [];
+            }
+        }
+
         // Check shared_months array
-        const sharedMonths = share.shared_months || [];
         for (const monthData of sharedMonths) {
             if (monthData.type === 'single') {
                 if (monthData.year === currentYear && monthData.month === currentMonth) {
@@ -4506,8 +4537,6 @@ const MonthlyBudgetController = {
      * Share requests are handled in the notifications/conversations section
      */
     async renderSharedFromSection(sharedData) {
-        console.log('[MonthlyBudgetController] renderSharedFromSection() called', sharedData);
-
         const section = document.getElementById('shared-from-section');
         const content = document.getElementById('shared-from-content');
         if (!section || !content) {
@@ -4525,6 +4554,7 @@ const MonthlyBudgetController = {
         // Don't show pending or declined shares (they're handled in notifications)
         if (filteredAccepted.length === 0) {
             section.style.display = 'none';
+            content.innerHTML = '';
             return;
         }
 
@@ -4557,7 +4587,17 @@ const MonthlyBudgetController = {
                     }
                 }
 
-                const sharedMonths = share.shared_months || [];
+                // Parse shared_months if it's a string (from database)
+                let sharedMonths = share.shared_months || [];
+                if (typeof sharedMonths === 'string') {
+                    try {
+                        sharedMonths = JSON.parse(sharedMonths);
+                    } catch (e) {
+                        console.warn('[MonthlyBudgetController] Error parsing shared_months in render:', e);
+                        sharedMonths = [];
+                    }
+                }
+                
                 const monthsList = sharedMonths.map(m => {
                     if (m.type === 'range') {
                         return `${m.startMonth}/${m.startYear} - ${m.endMonth}/${m.endYear}`;
