@@ -147,32 +147,41 @@
         // Initialize application with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             try {
+                console.log('[pots.html] Starting initialization...');
+
                 // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
-                const [paymentsReady, dbInitResult, settingsResult] = await Promise.all([
+                const [paymentsReady, dbInitResult] = await Promise.all([
                     // Wait for payments module initialization
                     window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
                     // Initialize database service
-                    window.DatabaseService.initialize(),
-                    // Initialize settings (this doesn't depend on auth check)
-                    window.DataManager.initializeSettings()
+                    window.DatabaseService.initialize()
                 ]);
+                console.log('[pots.html] Payments and Database initialized');
 
                 // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
+                    console.log('[pots.html] Not authenticated, redirecting...');
                     return;
                 }
+                console.log('[pots.html] Authentication check passed');
 
-                // Apply font size after settings are loaded
+                // Initialize settings after database is ready
+                await window.DataManager.initializeSettings();
                 await window.DataManager.applyFontSize();
+                console.log('[pots.html] Settings initialized and applied');
 
                 // Now initialize the controller
                 if (window.PotsController) {
                     await window.PotsController.init();
+                    console.log('[pots.html] PotsController initialized');
                 }
+
+                console.log('[pots.html] Initialization complete!');
             } catch (error) {
-                console.error('Error initializing application:', error);
-                alert('Failed to initialize the application. Please refresh the page or check your connection.');
+                console.error('[pots.html] ❌ Initialization error:', error);
+                console.error('[pots.html] Error stack:', error.stack);
+                alert('Failed to initialize the application. Please check the console for details and refresh the page.');
             }
         });
     </script>

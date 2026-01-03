@@ -395,10 +395,12 @@
                     // Remove query parameter
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                
+
+                console.log('[SettingsPage] Initialization complete!');
             } catch (error) {
-                console.error('[SettingsPage] Error initializing application:', error);
-                alert('Failed to initialize the application. Please refresh the page or check your connection.');
+                console.error('[SettingsPage] ❌ Initialization error:', error);
+                console.error('[SettingsPage] Error stack:', error.stack);
+                alert('Failed to initialize the application. Please check the console for details and refresh the page.');
             }
         });
     </script>

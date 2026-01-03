@@ -435,24 +435,29 @@
         // Initialize application with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             try {
+                console.log('[monthly-budget.html] Starting initialization...');
+
                 // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
-                const [paymentsReady, dbInitResult, settingsResult] = await Promise.all([
+                const [paymentsReady, dbInitResult] = await Promise.all([
                     // Wait for payments module initialization
                     window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
                     // Initialize database service
-                    window.DatabaseService.initialize(),
-                    // Initialize settings (this doesn't depend on auth check)
-                    window.DataManager.initializeSettings()
+                    window.DatabaseService.initialize()
                 ]);
+                console.log('[monthly-budget.html] Payments and Database initialized');
 
                 // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
+                    console.log('[monthly-budget.html] Not authenticated, redirecting...');
                     return;
                 }
+                console.log('[monthly-budget.html] Authentication check passed');
 
-                // Apply font size after settings are loaded
+                // Initialize settings after database is ready
+                await window.DataManager.initializeSettings();
                 await window.DataManager.applyFontSize();
+                console.log('[monthly-budget.html] Settings initialized and applied');
         
         // Verify ReferenceImporter is loaded
         if (!window.ReferenceImporter) {
@@ -568,10 +573,14 @@
                 // Now initialize the controller (it will handle loading months)
                 if (window.MonthlyBudgetController) {
                     await window.MonthlyBudgetController.init();
+                    console.log('[monthly-budget.html] MonthlyBudgetController initialized');
                 }
+
+                console.log('[monthly-budget.html] Initialization complete!');
             } catch (error) {
-                console.error('Error initializing application:', error);
-                alert('Failed to initialize the application. Please refresh the page or check your connection.');
+                console.error('[monthly-budget.html] ❌ Initialization error:', error);
+                console.error('[monthly-budget.html] Error stack:', error.stack);
+                alert('Failed to initialize the application. Please check the console for details and refresh the page.');
             }
         });
     </script>

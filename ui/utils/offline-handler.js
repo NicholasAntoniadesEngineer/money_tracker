@@ -184,11 +184,14 @@ const OfflineHandler = {
     }
 };
 
-// Auto-initialize when DOM is ready
+// Auto-initialize when DOM is ready - but defer to avoid blocking page load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => OfflineHandler.initialize());
+    document.addEventListener('DOMContentLoaded', () => {
+        // Defer initialization slightly to ensure other scripts are ready
+        setTimeout(() => OfflineHandler.initialize(), 100);
+    });
 } else {
-    OfflineHandler.initialize();
+    setTimeout(() => OfflineHandler.initialize(), 100);
 }
 
 // Make OfflineHandler available globally
