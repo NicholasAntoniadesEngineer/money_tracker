@@ -3,6 +3,12 @@
  * Centralized configuration for Supabase client
  */
 
+// ============================================================================
+// SINGLE LINE TO CONTROL ALL LOGGING - Change this line to enable/disable logs
+// ============================================================================
+const ENABLE_ALL_LOGS = false; // Set to true to enable all console logging, false to disable
+// ============================================================================
+
 /**
  * Global Debug Configuration
  * Set ENABLE_ALL_LOGS to false to disable ALL console logging across the entire codebase
@@ -21,7 +27,7 @@
 
 // Initialize AppConfig with defaults (can be overridden before this script loads)
 window.AppConfig = window.AppConfig || {};
-window.AppConfig.ENABLE_ALL_LOGS = window.AppConfig.ENABLE_ALL_LOGS !== undefined ? window.AppConfig.ENABLE_ALL_LOGS : false; // Set to false to disable ALL console logging
+window.AppConfig.ENABLE_ALL_LOGS = window.AppConfig.ENABLE_ALL_LOGS !== undefined ? window.AppConfig.ENABLE_ALL_LOGS : ENABLE_ALL_LOGS; // Uses the constant above
 window.AppConfig.DEBUG_MODE = window.AppConfig.DEBUG_MODE !== undefined ? window.AppConfig.DEBUG_MODE : false; // Set to false in production
 window.AppConfig.ENABLE_AUTH_LOGS = window.AppConfig.ENABLE_AUTH_LOGS !== undefined ? window.AppConfig.ENABLE_AUTH_LOGS : false; // Set to false to disable auth-specific logs
 window.AppConfig.ENABLE_DB_LOGS = window.AppConfig.ENABLE_DB_LOGS !== undefined ? window.AppConfig.ENABLE_DB_LOGS : false; // Set to false to disable database logs
@@ -40,9 +46,17 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     const originalInfo = console.info;
     const originalDebug = console.debug;
     
+    // Helper to check if logging should be disabled
+    // Defaults to disabled (false) if not explicitly set to true
+    const shouldDisableLogs = function() {
+        if (!window.AppConfig) return true; // Disable if AppConfig doesn't exist
+        // Disable if explicitly false OR if undefined (default to disabled)
+        return window.AppConfig.ENABLE_ALL_LOGS !== true;
+    };
+    
     // Override console.log
     console.log = function(...args) {
-        if (window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === false) {
+        if (shouldDisableLogs()) {
             return; // Skip logging
         }
         originalLog.apply(console, args);
@@ -50,7 +64,7 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     
     // Override console.warn
     console.warn = function(...args) {
-        if (window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === false) {
+        if (shouldDisableLogs()) {
             return; // Skip logging
         }
         originalWarn.apply(console, args);
@@ -58,7 +72,7 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     
     // Override console.error
     console.error = function(...args) {
-        if (window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === false) {
+        if (shouldDisableLogs()) {
             return; // Skip logging
         }
         originalError.apply(console, args);
@@ -66,7 +80,7 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     
     // Override console.info
     console.info = function(...args) {
-        if (window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === false) {
+        if (shouldDisableLogs()) {
             return; // Skip logging
         }
         originalInfo.apply(console, args);
@@ -74,7 +88,7 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     
     // Override console.debug
     console.debug = function(...args) {
-        if (window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === false) {
+        if (shouldDisableLogs()) {
             return; // Skip logging
         }
         originalDebug.apply(console, args);
