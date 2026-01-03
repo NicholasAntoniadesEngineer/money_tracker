@@ -513,6 +513,14 @@ const NotificationsController = {
         // Build HTML with notifications only (conversations are in messenger view)
         let html = '';
 
+        // Batch fetch all user emails before rendering
+        if (filteredNotifications.length > 0) {
+            const userIds = filteredNotifications
+                .map(n => n.from_user_id)
+                .filter(id => id);
+            await this.batchFetchUserEmails(userIds);
+        }
+
         // Add notifications section if there are any
         if (filteredNotifications.length > 0) {
             const notificationsHtml = await Promise.all(
