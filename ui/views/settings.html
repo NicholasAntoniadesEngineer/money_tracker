@@ -315,6 +315,8 @@
     <script src="../../payments/utils/wait-for-payments-init.js"></script>
     <script src="../utils/subscription-guard.js"></script>
     <script src="../utils/auth-guard.js"></script>
+    <script src="../utils/network-utils.js"></script>
+    <script src="../utils/offline-handler.js"></script>
     <script src="../../database/models/data-manager.js"></script>
     <script src="../../database/models/month-factory.js"></script>
     
@@ -329,33 +331,33 @@
     <script src="../components/Header.js"></script>
     <script src="../controllers/SettingsController.js"></script>
     <script>
-        // Initialize application
+        // Initialize application with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('[SettingsPage] DOMContentLoaded - starting initialization');
             try {
-                // Wait for payments module initialization before checking auth
-                if (window.waitForPaymentsInit) {
-                    await window.waitForPaymentsInit();
-                }
-                
-                // Check authentication first
+                // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
+                console.log('[SettingsPage] Starting parallel initialization...');
+                const [paymentsReady, dbInitResult] = await Promise.all([
+                    // Wait for payments module initialization
+                    window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
+                    // Initialize database service
+                    window.DatabaseService.initialize()
+                ]);
+                console.log('[SettingsPage] Parallel initialization complete');
+
+                // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
                 }
-                
-                // Initialize database service
-                console.log('[SettingsPage] Initializing database service...');
-                await window.DatabaseService.initialize();
-                console.log('[SettingsPage] Database service initialized');
-                
+
                 // Initialize SettingsController FIRST so buttons work immediately
                 if (window.SettingsController) {
                     console.log('[SettingsPage] Initializing SettingsController...');
                     await window.SettingsController.init();
                     console.log('[SettingsPage] SettingsController initialized');
                 }
-                
+
                 // Initialize settings (non-blocking - don't wait if it hangs)
                 console.log('[SettingsPage] Loading settings (non-blocking)...');
                 Promise.all([
@@ -396,7 +398,7 @@
                 
             } catch (error) {
                 console.error('[SettingsPage] Error initializing application:', error);
-                alert('Error initializing application. Please check console for details.');
+                alert('Failed to initialize the application. Please refresh the page or check your connection.');
             }
         });
     </script>

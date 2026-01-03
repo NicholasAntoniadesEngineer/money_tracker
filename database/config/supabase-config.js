@@ -3,6 +3,44 @@
  * Centralized configuration for Supabase client
  */
 
+/**
+ * Global Debug Configuration
+ * Set DEBUG_MODE to false in production to disable console logging
+ * This significantly improves performance by skipping log operations
+ *
+ * PRODUCTION SETTINGS (recommended):
+ * DEBUG_MODE: false
+ * ENABLE_AUTH_LOGS: false
+ * ENABLE_DB_LOGS: false
+ * ENABLE_PERF_LOGS: false
+ *
+ * NOTE: console.error and console.warn will always work regardless of these settings
+ */
+window.AppConfig = window.AppConfig || {
+    DEBUG_MODE: true, // Set to false in production
+    ENABLE_AUTH_LOGS: true, // Set to false to disable auth-specific logs
+    ENABLE_DB_LOGS: true, // Set to false to disable database logs
+    ENABLE_PERF_LOGS: true // Set to false to disable performance logs
+};
+
+/**
+ * Debug logging helper
+ * Only logs if DEBUG_MODE is enabled
+ */
+window.debugLog = function(category, ...args) {
+    if (!window.AppConfig.DEBUG_MODE) return;
+
+    const categoryFlags = {
+        'auth': window.AppConfig.ENABLE_AUTH_LOGS,
+        'db': window.AppConfig.ENABLE_DB_LOGS,
+        'perf': window.AppConfig.ENABLE_PERF_LOGS
+    };
+
+    if (categoryFlags[category] !== false) {
+        console.log(...args);
+    }
+};
+
 const SupabaseConfig = {
     PROJECT_URL: 'https://ofutzrxfbrgtbkyafndv.supabase.co',
     PUBLISHABLE_API_KEY: 'sb_publishable_yUPqP6PRjtgphcvS0--vgw_Zy3S_Urd',

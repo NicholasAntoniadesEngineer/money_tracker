@@ -137,6 +137,8 @@
     <script src="../payments/utils/wait-for-payments-init.js"></script>
     <script src="utils/subscription-guard.js"></script>
     <script src="utils/auth-guard.js"></script>
+    <script src="utils/network-utils.js"></script>
+    <script src="utils/offline-handler.js"></script>
     <script src="../database/models/data-manager.js"></script>
     <script src="../database/models/month-factory.js"></script>
     <script src="services/CalculationService.js"></script>
@@ -148,39 +150,41 @@
     <script src="components/Header.js"></script>
     <script src="utils/InitialData.js"></script>
     <script>
-        // Protect route and initialize with all months data if no months exist
+        // Protect route and initialize with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                // Wait for payments module initialization before checking auth
-                if (window.waitForPaymentsInit) {
-                    await window.waitForPaymentsInit();
-                }
-                
-                // Check authentication first
+                // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
+                const [paymentsReady, dbInitResult, settingsResult] = await Promise.all([
+                    // Wait for payments module initialization
+                    window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
+                    // Initialize database service
+                    window.DatabaseService.initialize(),
+                    // Initialize settings (this doesn't depend on auth check)
+                    DataManager.initializeSettings()
+                ]);
+
+                // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
                 }
-                
-                // Initialize database service
-                await window.DatabaseService.initialize();
-                
-                // Initialize settings first
-                await DataManager.initializeSettings();
+
+                // Apply font size after settings are loaded
                 await DataManager.applyFontSize();
-                
+
                 // Load months from files if database is empty
                 await InitialData.initializeIfEmpty();
-                
+
                 // Mark as initialized to prevent double initialization
                 window.landingControllerInitialized = true;
-                
+
                 // Now initialize the LandingController
                 if (window.LandingController) {
                     await window.LandingController.init();
                 }
             } catch (error) {
                 console.error('Error initializing landing page:', error);
+                alert('Failed to initialize the application. Please refresh the page or check your connection.');
             }
         });
     </script>
