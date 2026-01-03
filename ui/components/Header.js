@@ -39,6 +39,10 @@ class Header {
             return 'Settings';
         } else if (filename.includes('import')) {
             return 'Settings';
+        } else if (filename.includes('messenger')) {
+            return 'Messenger';
+        } else if (filename.includes('notifications')) {
+            return 'Notifications';
         }
         return 'Home';
     }
