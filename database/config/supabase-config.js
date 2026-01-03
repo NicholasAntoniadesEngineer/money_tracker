@@ -17,10 +17,10 @@
  * NOTE: console.error and console.warn will always work regardless of these settings
  */
 window.AppConfig = window.AppConfig || {
-    DEBUG_MODE: true, // Set to false in production
-    ENABLE_AUTH_LOGS: true, // Set to false to disable auth-specific logs
-    ENABLE_DB_LOGS: true, // Set to false to disable database logs
-    ENABLE_PERF_LOGS: true // Set to false to disable performance logs
+    DEBUG_MODE: false, // Set to false in production
+    ENABLE_AUTH_LOGS: false, // Set to false to disable auth-specific logs
+    ENABLE_DB_LOGS: false, // Set to false to disable database logs
+    ENABLE_PERF_LOGS: false // Set to false to disable performance logs
 };
 
 /**
