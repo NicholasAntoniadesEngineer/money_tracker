@@ -133,12 +133,24 @@ const PotsController = {
             return;
         }
 
-        // Populate dropdown
-        monthSelector.innerHTML = '<option value="">Select a month...</option>' + 
+        // Populate dropdown with shared month and example labels
+        monthSelector.innerHTML = '<option value="">Select a month...</option>' +
             monthKeys.map(monthKey => {
                 const monthData = allMonths[monthKey];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                return `<option value="${monthKey}">${monthName} ${monthData.year}</option>`;
+                let displayText = `${monthName} ${monthData.year}`;
+
+                // If this is a shared month, append owner email
+                if (monthData.isShared && monthData.sharedOwnerId) {
+                    const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
+                    displayText += ` (shared:${ownerEmail})`;
+                }
+                // If this is an example month (year 2045), append "Example" label
+                else if (monthData.year === 2045) {
+                    displayText += ` (Example)`;
+                }
+
+                return `<option value="${monthKey}">${displayText}</option>`;
             }).join('');
 
         // Show initial message

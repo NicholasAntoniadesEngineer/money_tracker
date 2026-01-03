@@ -109,24 +109,28 @@ const MonthlyBudgetController = {
         const allMonths = await DataManager.getAllMonths(false, true);
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        // Build options with shared month labels
+        // Build options with shared month and example labels
         let optionsHtml = '';
         if (monthKeys.length > 0) {
             const optionsPromises = monthKeys.map(async (key) => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
                 let displayText = `${monthName} ${monthData.year}`;
-                
+
                 // If this is a shared month, append owner email
                 if (monthData.isShared && monthData.sharedOwnerId) {
                     // Use owner email from getAllMonths (should already be set)
                     const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
                     displayText += ` (shared:${ownerEmail})`;
                 }
-                
+                // If this is an example month (year 2045), append "Example" label
+                else if (monthData.year === 2045) {
+                    displayText += ` (Example)`;
+                }
+
                 return `<option value="${key}">${displayText}</option>`;
             });
-            
+
             const options = await Promise.all(optionsPromises);
             optionsHtml = options.join('');
         } else {
@@ -3555,11 +3559,23 @@ const MonthlyBudgetController = {
             .sort()
             .reverse();
 
-        const optionsHtml = monthKeys.length > 0 
+        const optionsHtml = monthKeys.length > 0
             ? monthKeys.map(key => {
                 const monthData = allMonths[key];
                 const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                return `<option value="${key}">${monthName} ${monthData.year}</option>`;
+                let displayText = `${monthName} ${monthData.year}`;
+
+                // If this is a shared month, append owner email
+                if (monthData.isShared && monthData.sharedOwnerId) {
+                    const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
+                    displayText += ` (shared:${ownerEmail})`;
+                }
+                // If this is an example month (year 2045), append "Example" label
+                else if (monthData.year === 2045) {
+                    displayText += ` (Example)`;
+                }
+
+                return `<option value="${key}">${displayText}</option>`;
             }).join('')
             : '<option value="">No other months available</option>';
 
