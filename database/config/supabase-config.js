@@ -3,25 +3,104 @@
  * Centralized configuration for Supabase client
  */
 
+// ============================================================================
+// SINGLE LINE TO CONTROL ALL LOGGING - Change this line to enable/disable logs
+// ============================================================================
+const ENABLE_ALL_LOGS = false; // Set to true to enable all console logging, false to disable
+// ============================================================================
+
 /**
  * Global Debug Configuration
- * Set DEBUG_MODE to false in production to disable console logging
- * This significantly improves performance by skipping log operations
+ * Set ENABLE_ALL_LOGS to false to disable ALL console logging across the entire codebase
+ * This significantly improves performance by skipping all log operations
  *
  * PRODUCTION SETTINGS (recommended):
+ * ENABLE_ALL_LOGS: false (disables ALL console.log, console.warn, console.error)
  * DEBUG_MODE: false
  * ENABLE_AUTH_LOGS: false
  * ENABLE_DB_LOGS: false
  * ENABLE_PERF_LOGS: false
  *
- * NOTE: console.error and console.warn will always work regardless of these settings
+ * NOTE: When ENABLE_ALL_LOGS is false, ALL console methods are disabled
+ * Set ENABLE_ALL_LOGS to true to enable all logging for debugging
  */
-window.AppConfig = window.AppConfig || {
-    DEBUG_MODE: true, // Set to false in production
-    ENABLE_AUTH_LOGS: true, // Set to false to disable auth-specific logs
-    ENABLE_DB_LOGS: true, // Set to false to disable database logs
-    ENABLE_PERF_LOGS: true // Set to false to disable performance logs
-};
+
+// Initialize AppConfig with defaults (can be overridden before this script loads)
+window.AppConfig = window.AppConfig || {};
+window.AppConfig.ENABLE_ALL_LOGS = window.AppConfig.ENABLE_ALL_LOGS !== undefined ? window.AppConfig.ENABLE_ALL_LOGS : ENABLE_ALL_LOGS; // Uses the constant above
+window.AppConfig.DEBUG_MODE = window.AppConfig.DEBUG_MODE !== undefined ? window.AppConfig.DEBUG_MODE : false; // Set to false in production
+window.AppConfig.ENABLE_AUTH_LOGS = window.AppConfig.ENABLE_AUTH_LOGS !== undefined ? window.AppConfig.ENABLE_AUTH_LOGS : false; // Set to false to disable auth-specific logs
+window.AppConfig.ENABLE_DB_LOGS = window.AppConfig.ENABLE_DB_LOGS !== undefined ? window.AppConfig.ENABLE_DB_LOGS : false; // Set to false to disable database logs
+window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefined ? window.AppConfig.ENABLE_PERF_LOGS : false; // Set to false to disable performance logs
+
+/**
+ * Override console methods to respect ENABLE_ALL_LOGS flag
+ * This allows disabling ALL logs across the entire codebase with a single flag
+ * This runs immediately after AppConfig is set to catch all logs
+ */
+(function() {
+    // Store original console methods
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    const originalInfo = console.info;
+    const originalDebug = console.debug;
+    
+    // Helper to check if logging should be disabled
+    // Defaults to disabled (false) if not explicitly set to true
+    const shouldDisableLogs = function() {
+        if (!window.AppConfig) return true; // Disable if AppConfig doesn't exist
+        // Disable if explicitly false OR if undefined (default to disabled)
+        return window.AppConfig.ENABLE_ALL_LOGS !== true;
+    };
+    
+    // Override console.log
+    console.log = function(...args) {
+        if (shouldDisableLogs()) {
+            return; // Skip logging
+        }
+        originalLog.apply(console, args);
+    };
+    
+    // Override console.warn
+    console.warn = function(...args) {
+        if (shouldDisableLogs()) {
+            return; // Skip logging
+        }
+        originalWarn.apply(console, args);
+    };
+    
+    // Override console.error
+    console.error = function(...args) {
+        if (shouldDisableLogs()) {
+            return; // Skip logging
+        }
+        originalError.apply(console, args);
+    };
+    
+    // Override console.info
+    console.info = function(...args) {
+        if (shouldDisableLogs()) {
+            return; // Skip logging
+        }
+        originalInfo.apply(console, args);
+    };
+    
+    // Override console.debug
+    console.debug = function(...args) {
+        if (shouldDisableLogs()) {
+            return; // Skip logging
+        }
+        originalDebug.apply(console, args);
+    };
+    
+    // Store original methods for potential restoration
+    console._originalLog = originalLog;
+    console._originalWarn = originalWarn;
+    console._originalError = originalError;
+    console._originalInfo = originalInfo;
+    console._originalDebug = originalDebug;
+})();
 
 /**
  * Debug logging helper
@@ -108,4 +187,3 @@ const SupabaseConfig = {
 if (typeof window !== 'undefined') {
     window.SupabaseConfig = SupabaseConfig;
 }
-
