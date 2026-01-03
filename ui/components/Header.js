@@ -39,6 +39,10 @@ class Header {
             return 'Settings';
         } else if (filename.includes('import')) {
             return 'Settings';
+        } else if (filename.includes('messenger')) {
+            return 'Messenger';
+        } else if (filename.includes('notifications')) {
+            return 'Notifications';
         }
         return 'Home';
     }
@@ -166,6 +170,10 @@ class Header {
                             <i class="fa-regular fa-bell user-dropdown-icon"></i>
                             <span>Notifications</span>
                             <span class="notification-count-badge" id="header-notification-count" style="display: none;">0</span>
+                        </button>
+                        <button class="user-dropdown-item user-dropdown-messenger" id="header-messenger-button" aria-label="Messenger">
+                            <i class="fa-regular fa-message user-dropdown-icon"></i>
+                            <span>Messenger</span>
                         </button>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                             <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
@@ -484,6 +492,34 @@ class Header {
         const basePath = this.getBasePath();
         const notificationsUrl = basePath + 'notifications.html';
         window.location.href = notificationsUrl;
+    }
+
+    /**
+     * Initialize messenger button
+     */
+    static initMessengerButton() {
+        try {
+            const messengerButton = document.getElementById('header-messenger-button');
+
+            if (messengerButton) {
+                messengerButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.handleMessengerButtonClick();
+                });
+            }
+        } catch (error) {
+            console.error('[Header] Error initializing messenger button:', error);
+        }
+    }
+
+    /**
+     * Handle messenger button click
+     */
+    static handleMessengerButtonClick() {
+        const basePath = this.getBasePath();
+        const messengerUrl = basePath + 'messenger.html';
+        window.location.href = messengerUrl;
     }
 
     /**
@@ -1009,6 +1045,10 @@ class Header {
                             <span>Notifications</span>
                             <span class="notification-count-badge" id="header-notification-count" style="display: none;">0</span>
                         </button>
+                        <button class="user-dropdown-item user-dropdown-messenger" id="header-messenger-button" aria-label="Messenger">
+                            <i class="fa-regular fa-message user-dropdown-icon"></i>
+                            <span>Messenger</span>
+                        </button>
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                                 <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                                 <span>Sign Out</span>
@@ -1019,6 +1059,7 @@ class Header {
                 this.initUserMenu();
                 this.initSignOutButton();
                 this.initNotificationBell(); // Initialize notifications button click handler
+                this.initMessengerButton(); // Initialize messenger button click handler
                 
                 // Note: updateNotificationCount and subscriptions are already set up in init()
                 // Only set up subscriptions if they haven't been set up yet

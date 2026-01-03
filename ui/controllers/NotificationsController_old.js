@@ -5,23 +5,13 @@
 
 const NotificationsController = {
     currentFilter: 'all',
-    currentCategory: null, // 'sharing', 'payments', 'messaging', or null for all
-    currentView: 'notifications', // 'notifications' or 'messages'
-    currentConversationId: null,
+    currentCategory: null, // 'sharing', 'payments', or null for all
     // Performance optimizations
-    emailCache: new Map(), // Cache user emails to avoid repeated lookups
-    shareCache: new Map(), // Cache share details to avoid repeated queries
     enableVerboseLogging: false, // Set to true for debugging
     notifications: [],
-    conversations: [],
     // Loading guards to prevent duplicate concurrent calls
-    isLoadingConversations: false,
     isLoadingNotifications: false,
-    conversationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
     notificationsLoadPromise: null, // Cache the promise to reuse for concurrent calls
-    isOpeningConversation: false, // Guard to prevent multiple simultaneous opens
-    openingConversationId: null, // Track which conversation is being opened
-    conversationListenersAttached: false, // Track if conversation item listeners are attached
 
     /**
      * Initialize the notifications page
@@ -83,13 +73,12 @@ const NotificationsController = {
             // Always start with 'all' filter
             this.currentFilter = 'all';
             this.currentCategory = null;
-            this.currentView = 'notifications';
-            
-            // Load notifications only (conversations are now in messenger view)
+
+            // Load notifications
             await this.loadNotifications();
-            
+
             // Render the notifications view
-            this.renderAllView();
+            this.renderNotifications();
             
             this.updateFilterDropdown(); // Set initial dropdown value to 'all'
         } catch (error) {
@@ -106,12 +95,6 @@ const NotificationsController = {
     setupEventListeners() {
         const filterDropdown = document.getElementById('filter-dropdown');
         const markAllRead = document.getElementById('mark-all-read-button');
-        const sendMessageButton = document.getElementById('send-message-button');
-        const shareDataButton = document.getElementById('share-data-button');
-        const shareDataModal = document.getElementById('share-data-modal');
-        const closeShareDataModal = document.getElementById('close-share-data-modal');
-        const cancelShareDataButton = document.getElementById('cancel-share-data-button');
-        const saveShareDataButton = document.getElementById('save-share-data-button');
 
         // Filter dropdown
         if (filterDropdown) {
@@ -140,14 +123,6 @@ const NotificationsController = {
                     this.currentView = 'notifications';
                     this.switchView('notifications');
                     this.renderNotifications();
-                } else if (value === 'messaging') {
-                    // Navigate to messenger view instead of showing messages in notifications
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
-                    const messengerUrl = basePath + 'messenger.html';
-                    window.location.href = messengerUrl;
-                }
             });
         }
 
@@ -157,94 +132,6 @@ const NotificationsController = {
             });
         }
 
-        if (sendMessageButton) {
-            sendMessageButton.addEventListener('click', () => {
-                this.handleSendMessage();
-            });
-        }
-
-        // Share data button
-        if (shareDataButton) {
-            shareDataButton.addEventListener('click', () => {
-                this.handleShareDataClick();
-            });
-        }
-
-        // Share data modal
-        if (closeShareDataModal) {
-            closeShareDataModal.addEventListener('click', () => {
-                this.hideShareDataModal();
-            });
-        }
-
-        if (cancelShareDataButton) {
-            cancelShareDataButton.addEventListener('click', () => {
-                this.hideShareDataModal();
-            });
-        }
-
-        if (saveShareDataButton) {
-            saveShareDataButton.addEventListener('click', () => {
-                this.handleSaveShareData();
-            });
-        }
-
-        // Share all data checkbox - toggle month selection
-        const shareAllDataCheckbox = document.getElementById('share-data-all-data');
-        if (shareAllDataCheckbox) {
-            shareAllDataCheckbox.addEventListener('change', (e) => {
-                const monthsContainer = document.getElementById('share-data-months-container');
-                if (monthsContainer) {
-                    monthsContainer.style.display = e.target.checked ? 'none' : 'block';
-                }
-            });
-        }
-
-        const messageInput = document.getElementById('message-input');
-        if (messageInput) {
-            messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.handleSendMessage();
-                }
-            });
-        }
-
-        // Back to conversations button
-        const backToConversationsButton = document.getElementById('back-to-conversations');
-        if (backToConversationsButton) {
-            backToConversationsButton.addEventListener('click', async () => {
-                try {
-                    await this.handleBackToConversations();
-                } catch (error) {
-                    console.error('[NotificationsController] Error in handleBackToConversations:', error);
-                }
-            });
-        }
-
-            // Block user button in conversation
-            const blockUserConversationBtn = document.getElementById('block-user-conversation-btn');
-            if (blockUserConversationBtn) {
-                blockUserConversationBtn.addEventListener('click', () => {
-                    const userId = blockUserConversationBtn.dataset.userId;
-                    const userEmail = blockUserConversationBtn.dataset.userEmail;
-                    if (userId) {
-                        this.handleBlockUserFromConversation(userId, userEmail);
-                    }
-                });
-            }
-
-            // Add friend button in conversation
-            const addFriendConversationBtn = document.getElementById('add-friend-conversation-btn');
-            if (addFriendConversationBtn) {
-                addFriendConversationBtn.addEventListener('click', () => {
-                    const userId = addFriendConversationBtn.dataset.userId;
-                    const userEmail = addFriendConversationBtn.dataset.userEmail;
-                    if (userId) {
-                        this.handleAddFriendFromConversation(userId, userEmail, addFriendConversationBtn);
-                    }
-                });
-            }
         },
 
     /**
@@ -254,9 +141,7 @@ const NotificationsController = {
         const filterDropdown = document.getElementById('filter-dropdown');
         if (!filterDropdown) return;
 
-        if (this.currentView === 'messages') {
-            filterDropdown.value = 'messaging';
-        } else if (this.currentCategory === 'sharing') {
+        if (this.currentCategory === 'sharing') {
             filterDropdown.value = 'sharing';
         } else if (this.currentCategory === 'payments') {
             filterDropdown.value = 'payments';
@@ -510,19 +395,27 @@ const NotificationsController = {
             shareRequests: filteredNotifications.filter(n => n.type === 'share_request').map(n => ({ id: n.id, share_id: n.share_id, read: n.read }))
         });
 
-        // Build HTML with notifications only (conversations are in messenger view)
+        // Build combined HTML with both notifications and conversations
         let html = '';
 
-        // Batch fetch all user emails before rendering
-        if (filteredNotifications.length > 0) {
-            const userIds = filteredNotifications
-                .map(n => n.from_user_id)
-                .filter(id => id);
-            await this.batchFetchUserEmails(userIds);
+        // Add conversations section if there are any
+        if (this.conversations && this.conversations.length > 0) {
+            html += '<div class="notifications-section-header" style="margin-bottom: var(--spacing-md);">';
+            html += '<h3 style="margin: 0 0 var(--spacing-sm) 0;">Conversations</h3>';
+            html += '</div>';
+
+            const conversationsHtml = await Promise.all(
+                this.conversations.map(conversation => this.renderConversationItem(conversation))
+            );
+            html += conversationsHtml.join('');
         }
 
         // Add notifications section if there are any
         if (filteredNotifications.length > 0) {
+            html += '<div class="notifications-section-header" style="margin-top: var(--spacing-lg); margin-bottom: var(--spacing-md);">';
+            html += '<h3 style="margin: 0 0 var(--spacing-sm) 0;">Notifications</h3>';
+            html += '</div>';
+
             const notificationsHtml = await Promise.all(
                 filteredNotifications.map(notification => this.renderNotificationItem(notification))
             );
@@ -530,14 +423,15 @@ const NotificationsController = {
         }
 
         // Show message if nothing to display
-        if (filteredNotifications.length === 0) {
-            html = '<p>No notifications found.</p>';
+        if ((!this.conversations || this.conversations.length === 0) && filteredNotifications.length === 0) {
+            html = '<p>No notifications or conversations found.</p>';
         }
 
         notificationsList.innerHTML = html;
 
-        // Setup listeners for notifications
+        // Setup listeners for both notifications and conversations
         this.setupNotificationItemListeners();
+        this.setupConversationItemListeners();
     },
 
     /**
@@ -563,7 +457,6 @@ const NotificationsController = {
 
     /**
      * Setup event listeners for conversation items in the all view
-     * Note: Conversations are no longer shown in notifications view, but keeping this for safety
      */
     setupConversationItemListeners() {
         const list = document.getElementById('notifications-list');
@@ -577,12 +470,12 @@ const NotificationsController = {
             if (conversationItem) {
                 const conversationId = parseInt(conversationItem.dataset.conversationId, 10);
                 if (conversationId) {
-                    // Navigate to messenger view with conversation ID
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
-                    const messengerUrl = basePath + 'messenger.html?conversationId=' + conversationId;
-                    window.location.href = messengerUrl;
+                    // Switch to messages view and open the conversation
+                    this.currentView = 'messages';
+                    this.currentCategory = 'messaging';
+                    this.switchView('messages');
+                    await this.loadConversations();
+                    await this.openConversation(conversationId);
                 }
             }
         });
@@ -648,12 +541,12 @@ const NotificationsController = {
                 const notificationId = parseInt(target.dataset.notificationId, 10);
                 if (conversationId && notificationId) {
                     await this.handleNotificationClick(notificationId);
-                    // Navigate to messenger view with conversation ID
-                    const basePath = window.Header && typeof window.Header.getBasePath === 'function' 
-                        ? window.Header.getBasePath() 
-                        : '';
-                    const messengerUrl = basePath + 'messenger.html?conversationId=' + conversationId;
-                    window.location.href = messengerUrl;
+                    this.currentView = 'messages';
+                    this.currentCategory = 'messaging';
+                    this.switchView('messages');
+                    this.updateFilterDropdown();
+                    await this.loadConversations();
+                    await this.openConversation(conversationId);
                 }
             }
         });
@@ -2047,6 +1940,110 @@ const NotificationsController = {
         }
     },
 
+    /**
+     * Show new message modal
+     */
+    showNewMessageModal() {
+        console.log('[NotificationsController] showNewMessageModal() called');
+        const modal = document.getElementById('new-message-modal');
+        const recipientInput = document.getElementById('recipient-email-input');
+        const messageInput = document.getElementById('new-message-content');
+        
+        if (modal) {
+            modal.style.display = 'flex';
+            // Clear form
+            if (recipientInput) recipientInput.value = '';
+            if (messageInput) messageInput.value = '';
+            // Focus on recipient input
+            if (recipientInput) {
+                setTimeout(() => recipientInput.focus(), 100);
+            }
+        }
+    },
+
+    /**
+     * Hide new message modal
+     */
+    hideNewMessageModal() {
+        console.log('[NotificationsController] hideNewMessageModal() called');
+        const modal = document.getElementById('new-message-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
+    /**
+     * Handle sending a new message from the modal
+     */
+    async handleSendNewMessage() {
+        console.log('[NotificationsController] handleSendNewMessage() called');
+        const recipientEmailInput = document.getElementById('recipient-email-input');
+        const messageContentInput = document.getElementById('new-message-content');
+        
+        if (!recipientEmailInput || !messageContentInput) {
+            alert('Message form not found');
+            return;
+        }
+
+        const recipientEmail = recipientEmailInput.value.trim();
+        const messageContent = messageContentInput.value.trim();
+
+        if (!recipientEmail) {
+            alert('Please enter a recipient email address');
+            recipientEmailInput.focus();
+            return;
+        }
+
+        if (!messageContent) {
+            alert('Please enter a message');
+            messageContentInput.focus();
+            return;
+        }
+
+        try {
+            if (typeof window.DatabaseService === 'undefined') {
+                throw new Error('DatabaseService not available');
+            }
+
+            console.log('[NotificationsController] Sending new message:', { recipientEmail, contentLength: messageContent.length });
+
+            // Send message (this will create conversation if needed)
+            const result = await window.DatabaseService.sendMessage(recipientEmail, messageContent);
+            if (result.success) {
+                // Close modal and clear form
+                this.hideNewMessageModal();
+                recipientEmailInput.value = '';
+                messageContentInput.value = '';
+                
+                // Switch to messages view if not already there
+                if (this.currentView !== 'messages') {
+                    this.currentView = 'messages';
+                    this.currentCategory = 'messaging';
+                    const filterDropdown = document.getElementById('filter-dropdown');
+                    if (filterDropdown) filterDropdown.value = 'messaging';
+                    this.switchView('messages');
+                }
+                
+                // Reload conversations and open the new one
+                await this.loadConversations();
+                // Find the conversation that was just created/used
+                const conversation = this.conversations.find(c => 
+                    c.other_user_email.toLowerCase() === recipientEmail.toLowerCase()
+                );
+                if (conversation) {
+                    await this.openConversation(conversation.id);
+                } else {
+                    // If conversation not found, just reload the list
+                    console.log('[NotificationsController] Conversation not found after sending, reloading list');
+                }
+            } else {
+                throw new Error(result.error || 'Failed to start conversation');
+            }
+        } catch (error) {
+            console.error('[NotificationsController] Error sending new message:', error);
+            alert(`Error: ${error.message}`);
+        }
+    },
 
     /**
      * Handle share data button click
