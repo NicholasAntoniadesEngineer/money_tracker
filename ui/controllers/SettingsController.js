@@ -951,14 +951,14 @@ const SettingsController = {
                     }
                     message += '</ul>';
                 }
-                message += '<p style="margin-top: 0.5rem;">Example data is now visible in your monthly budget. The page will reload.</p>';
+                message += '<p style="margin-top: 0.5rem;">Example data is now visible in your monthly budget.</p>';
                 importStatus.innerHTML = message;
             }
 
-            // Reload the page to refresh data
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            // Refresh the month selector dropdown without reloading the page
+            await this.loadMonthSelector();
+            // Also refresh the user months dropdown in data sharing section if it exists
+            await this.loadUserMonthsIntoDropdown();
 
         } catch (error) {
             console.error('Error loading example data:', error);
@@ -1004,13 +1004,13 @@ const SettingsController = {
             window.DatabaseService.removeEnabledExampleMonths();
 
             if (importStatus) {
-                importStatus.innerHTML = '<p style="color: var(--success-color);">✓ Example data removed from your view. Data in Supabase remains intact. You can add it back anytime using the "Load Example Data" button. The page will reload.</p>';
+                importStatus.innerHTML = '<p style="color: var(--success-color);">✓ Example data removed from your view. Data in Supabase remains intact. You can add it back anytime using the "Load Example Data" button.</p>';
             }
 
-            // Reload the page to refresh data
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            // Refresh the month selector dropdown without reloading the page
+            await this.loadMonthSelector();
+            // Also refresh the user months dropdown in data sharing section if it exists
+            await this.loadUserMonthsIntoDropdown();
 
         } catch (error) {
             console.error('Error removing example data from cache:', error);
