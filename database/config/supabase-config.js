@@ -12,31 +12,27 @@ const ENABLE_ALL_LOGS = false; // Set to true to enable all console logging, fal
 /**
  * Global Debug Configuration
  * Set ENABLE_ALL_LOGS to false to disable ALL console logging across the entire codebase
- * This significantly improves performance by skipping all log operations
+ * This achieves zero-overhead performance by using no-op functions that are optimized away
+ * by JavaScript engines. Arguments to disabled log calls are never evaluated.
  *
  * PRODUCTION SETTINGS (recommended):
- * ENABLE_ALL_LOGS: false (disables ALL console.log, console.warn, console.error)
- * DEBUG_MODE: false
- * ENABLE_AUTH_LOGS: false
- * ENABLE_DB_LOGS: false
- * ENABLE_PERF_LOGS: false
+ * ENABLE_ALL_LOGS: false (disables ALL console.log, console.warn, console.error, console.info, console.debug)
  *
- * NOTE: When ENABLE_ALL_LOGS is false, ALL console methods are disabled
- * Set ENABLE_ALL_LOGS to true to enable all logging for debugging
+ * DEVELOPMENT SETTINGS:
+ * ENABLE_ALL_LOGS: true (enables all logging for debugging)
+ *
+ * NOTE: The flag is checked once at initialization, not on every log call, for maximum performance.
  */
 
 // Initialize AppConfig with defaults (can be overridden before this script loads)
 window.AppConfig = window.AppConfig || {};
 window.AppConfig.ENABLE_ALL_LOGS = window.AppConfig.ENABLE_ALL_LOGS !== undefined ? window.AppConfig.ENABLE_ALL_LOGS : ENABLE_ALL_LOGS; // Uses the constant above
-window.AppConfig.DEBUG_MODE = window.AppConfig.DEBUG_MODE !== undefined ? window.AppConfig.DEBUG_MODE : false; // Set to false in production
-window.AppConfig.ENABLE_AUTH_LOGS = window.AppConfig.ENABLE_AUTH_LOGS !== undefined ? window.AppConfig.ENABLE_AUTH_LOGS : false; // Set to false to disable auth-specific logs
-window.AppConfig.ENABLE_DB_LOGS = window.AppConfig.ENABLE_DB_LOGS !== undefined ? window.AppConfig.ENABLE_DB_LOGS : false; // Set to false to disable database logs
-window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefined ? window.AppConfig.ENABLE_PERF_LOGS : false; // Set to false to disable performance logs
 
 /**
  * Override console methods to respect ENABLE_ALL_LOGS flag
- * This allows disabling ALL logs across the entire codebase with a single flag
- * This runs immediately after AppConfig is set to catch all logs
+ * This achieves zero-overhead logging by checking the flag once at initialization
+ * instead of on every log call. When disabled, console methods become no-op functions
+ * that are optimized away by JavaScript engines.
  */
 (function() {
     // Store original console methods
@@ -45,55 +41,21 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     const originalError = console.error;
     const originalInfo = console.info;
     const originalDebug = console.debug;
-    
-    // Helper to check if logging should be disabled
-    // Defaults to disabled (false) if not explicitly set to true
-    const shouldDisableLogs = function() {
-        if (!window.AppConfig) return true; // Disable if AppConfig doesn't exist
-        // Disable if explicitly false OR if undefined (default to disabled)
-        return window.AppConfig.ENABLE_ALL_LOGS !== true;
-    };
-    
-    // Override console.log
-    console.log = function(...args) {
-        if (shouldDisableLogs()) {
-            return; // Skip logging
-        }
-        originalLog.apply(console, args);
-    };
-    
-    // Override console.warn
-    console.warn = function(...args) {
-        if (shouldDisableLogs()) {
-            return; // Skip logging
-        }
-        originalWarn.apply(console, args);
-    };
-    
-    // Override console.error
-    console.error = function(...args) {
-        if (shouldDisableLogs()) {
-            return; // Skip logging
-        }
-        originalError.apply(console, args);
-    };
-    
-    // Override console.info
-    console.info = function(...args) {
-        if (shouldDisableLogs()) {
-            return; // Skip logging
-        }
-        originalInfo.apply(console, args);
-    };
-    
-    // Override console.debug
-    console.debug = function(...args) {
-        if (shouldDisableLogs()) {
-            return; // Skip logging
-        }
-        originalDebug.apply(console, args);
-    };
-    
+
+    // Check flag once at initialization time
+    const loggingEnabled = window.AppConfig && window.AppConfig.ENABLE_ALL_LOGS === true;
+
+    if (!loggingEnabled) {
+        // Assign no-op functions - zero overhead when disabled!
+        // Arguments are not evaluated and empty functions are optimized away by JS engines
+        console.log = function() {};
+        console.warn = function() {};
+        console.error = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+    }
+    // If logging is enabled, keep original methods (no wrapper needed)
+
     // Store original methods for potential restoration
     console._originalLog = originalLog;
     console._originalWarn = originalWarn;
@@ -101,24 +63,6 @@ window.AppConfig.ENABLE_PERF_LOGS = window.AppConfig.ENABLE_PERF_LOGS !== undefi
     console._originalInfo = originalInfo;
     console._originalDebug = originalDebug;
 })();
-
-/**
- * Debug logging helper
- * Only logs if DEBUG_MODE is enabled
- */
-window.debugLog = function(category, ...args) {
-    if (!window.AppConfig.DEBUG_MODE) return;
-
-    const categoryFlags = {
-        'auth': window.AppConfig.ENABLE_AUTH_LOGS,
-        'db': window.AppConfig.ENABLE_DB_LOGS,
-        'perf': window.AppConfig.ENABLE_PERF_LOGS
-    };
-
-    if (categoryFlags[category] !== false) {
-        console.log(...args);
-    }
-};
 
 const SupabaseConfig = {
     PROJECT_URL: 'https://ofutzrxfbrgtbkyafndv.supabase.co',
