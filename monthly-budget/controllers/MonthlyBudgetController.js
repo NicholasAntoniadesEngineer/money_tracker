@@ -100,7 +100,7 @@ const MonthlyBudgetController = {
             }
         } else {
             // Load month selector (will show UI when done)
-            this.loadMonthSelector();
+            await this.loadMonthSelector();
 
             if (monthParam) {
                 await this.loadMonth(monthParam);
