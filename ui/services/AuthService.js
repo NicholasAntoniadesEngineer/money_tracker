@@ -1623,7 +1623,7 @@ const AuthService = {
         }
         
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authPath = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authPath = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthService] Force redirecting to:', authPath);
         console.log('[AuthService] ========== FORCE SIGN OUT COMPLETE ==========');
@@ -1667,7 +1667,7 @@ const AuthService = {
         
         // Construct the auth URL
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthService] Redirecting to:', authUrl);
         console.log('[AuthService] Path calculation:', {

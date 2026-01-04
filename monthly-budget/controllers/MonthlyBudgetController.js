@@ -92,6 +92,12 @@ const MonthlyBudgetController = {
             const monthKeys = Object.keys(allMonths).sort().reverse();
             if (monthKeys.length > 0) {
                 await this.loadMonth(monthKeys[0]);
+            } else {
+                // No months available - update message
+                const noMonthMessageText = document.getElementById('no-month-message-text');
+                if (noMonthMessageText) {
+                    noMonthMessageText.textContent = 'No month selected. Please select a month from the dropdown or create a new one.';
+                }
             }
         }
 
@@ -3526,8 +3532,12 @@ const MonthlyBudgetController = {
                 } else {
                     const monthContent = document.getElementById('month-content');
                     const noMonthMessage = document.getElementById('no-month-message');
+                    const noMonthMessageText = document.getElementById('no-month-message-text');
                     if (monthContent) monthContent.style.display = 'none';
                     if (noMonthMessage) noMonthMessage.style.display = 'block';
+                    if (noMonthMessageText) {
+                        noMonthMessageText.textContent = 'No month selected. Please select a month from the dropdown or create a new one.';
+                    }
                     this.updateShareButtonVisibility();
                 }
             } else {

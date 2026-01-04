@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notifications - Money Tracker</title>
-    <link rel="stylesheet" href="../vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../ui/styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -136,7 +136,7 @@
 
     <!-- Scripts -->
     <script src="../../database/config/supabase-config.js"></script>
-    <script src="../services/AuthService.js"></script>
+    <script src="../../ui/services/AuthService.js"></script>
     <script src="../../database/config/database-config-base.js"></script>
     <script src="../../database/config/money-tracker-database-config.js"></script>
     <script src="../../database/utils/database-config-helper.js"></script>
@@ -175,17 +175,17 @@
     <!-- Initialize Payments Module -->
     <script src="../../payments/init-payments.js"></script>
     <script src="../../payments/utils/wait-for-payments-init.js"></script>
-    <script src="../utils/subscription-guard.js"></script>
-    <script src="../utils/auth-guard.js"></script>
-    <script src="../utils/network-utils.js"></script>
-    <script src="../utils/offline-handler.js"></script>
+    <script src="../../ui/utils/subscription-guard.js"></script>
+    <script src="../../ui/utils/auth-guard.js"></script>
+    <script src="../../ui/utils/network-utils.js"></script>
+    <script src="../../ui/utils/offline-handler.js"></script>
     
     <!-- Header Component -->
     <script>
         console.log('[NotificationsPage] Loading Header.js script...');
         const headerScriptStart = Date.now();
     </script>
-    <script src="../components/Header.js" onload="console.log('[NotificationsPage] Header.js loaded in', Date.now() - headerScriptStart, 'ms'); console.log('[NotificationsPage] window.Header after load:', typeof window.Header);" onerror="console.error('[NotificationsPage] ERROR loading Header.js');"></script>
+    <script src="../../ui/components/Header.js" onload="console.log('[NotificationsPage] Header.js loaded in', Date.now() - headerScriptStart, 'ms'); console.log('[NotificationsPage] window.Header after load:', typeof window.Header);" onerror="console.error('[NotificationsPage] ERROR loading Header.js');"></script>
     
     <!-- Notifications Controller -->
     <script>

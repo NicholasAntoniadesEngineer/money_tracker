@@ -205,7 +205,7 @@ const AuthGuard = {
         
         // Construct the auth URL
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthGuard] Redirecting to auth page:', authUrl);
         console.log('[AuthGuard] Path calculation:', {
@@ -258,7 +258,7 @@ const AuthGuard = {
         
         // Construct the settings URL (subscription section)
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const settingsUrl = `${baseUrl}/${basePath}ui/views/settings.html`;
+        const settingsUrl = `${baseUrl}/${basePath}settings/views/settings.html`;
         
         console.log('[AuthGuard] Redirecting to settings page:', settingsUrl);
         console.log('[AuthGuard] Path calculation:', {
@@ -284,11 +284,11 @@ const AuthGuard = {
             console.error('[AuthGuard] ❌ Invalid settings URL:', urlError);
             console.error('[AuthGuard] Settings URL that failed:', settingsUrl);
             // Fallback to relative path
-            const fallbackPath = currentPath.includes('/ui/views/') 
+            const fallbackPath = currentPath.includes('/ui/views/')
                 ? 'settings.html'
                 : currentPath.includes('/ui/')
-                ? 'views/settings.html'
-                : 'ui/views/settings.html';
+                ? '../settings/views/settings.html'
+                : 'settings/views/settings.html';
             console.log('[AuthGuard] Using fallback path:', fallbackPath);
             window.location.href = fallbackPath;
             return;
@@ -370,10 +370,31 @@ const AuthGuard = {
             targetUrl = returnUrl;
         } else {
             // Default to home page
-            const basePath = window.location.pathname.includes('/views/') ? '../' : '';
-            const targetPath = `${basePath}index.html`;
+            // Determine the correct path based on current location
             const currentPath = window.location.pathname;
-            
+            let basePath = '';
+
+            // If we're in any module's views folder (auth, monthly-budget, notifications, pots, settings, payments, messaging)
+            if (currentPath.includes('/auth/views/') ||
+                currentPath.includes('/monthly-budget/views/') ||
+                currentPath.includes('/notifications/views/') ||
+                currentPath.includes('/pots/views/') ||
+                currentPath.includes('/settings/views/') ||
+                currentPath.includes('/payments/views/') ||
+                currentPath.includes('/messaging/views/')) {
+                basePath = '../../ui/';
+            }
+            // If we're in ui/views/ (old structure, for compatibility)
+            else if (currentPath.includes('/ui/views/')) {
+                basePath = '../';
+            }
+            // If we're at any other level with /views/, assume module structure
+            else if (currentPath.includes('/views/')) {
+                basePath = '../../ui/';
+            }
+
+            const targetPath = `${basePath}index.html`;
+
             console.log('[AuthGuard] No return URL, using default:', {
                 basePath: basePath,
                 targetPath: targetPath,

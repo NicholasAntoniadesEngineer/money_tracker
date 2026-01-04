@@ -58,7 +58,7 @@ const LandingController = {
                     <td>${Formatters.formatCurrency(totals.pots.actual)}</td>
                     <td class="${totals.savings.actual >= 0 ? 'positive' : 'negative'}"><strong>${Formatters.formatCurrency(totals.savings.actual)}</strong></td>
                     <td>
-                        <a href="views/monthly-budget.html?month=${monthKey}" class="btn btn-action btn-sm">View</a>
+                        <a href="../monthly-budget/views/monthly-budget.html?month=${monthKey}" class="btn btn-action btn-sm">View</a>
                         <button type="button" class="delete-row-x" aria-label="Delete month" data-month-key="${monthKey}" data-month-name="${monthDisplayName} ${monthData.year}">x</button>
                     </td>
                 `;
@@ -200,13 +200,13 @@ const LandingController = {
 
         if (existingMonth) {
             if (confirm('A month for this period already exists. Do you want to open it instead?')) {
-                window.location.href = `views/monthly-budget.html?month=${monthKey}`;
+                window.location.href = `../monthly-budget/views/monthly-budget.html?month=${monthKey}`;
             }
             return;
         }
 
         await DataManager.createNewMonth(year, month);
-        window.location.href = `views/monthly-budget.html?month=${monthKey}`;
+        window.location.href = `../monthly-budget/views/monthly-budget.html?month=${monthKey}`;
     },
 
     /**
