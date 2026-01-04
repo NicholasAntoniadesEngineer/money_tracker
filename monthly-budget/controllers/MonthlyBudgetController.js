@@ -81,27 +81,26 @@ const MonthlyBudgetController = {
         const urlParams = new URLSearchParams(window.location.search);
         const monthParam = urlParams.get('month');
 
-        // Load months from database (user months + enabled example data only)
+        // Fetch months data ONCE (optimization - avoid duplicate calls)
         const allMonths = await DataManager.getAllMonths(false, true);
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        // If no months available, populate dropdown first then show UI
+        // ALWAYS await month selector load first (ensures proper UI order)
+        await this.loadMonthSelector(allMonths, monthKeys);
+
+        // Show the month header container now that selector is ready
+        const monthHeaderContainer = document.querySelector('.month-header-container');
+        if (monthHeaderContainer) {
+            monthHeaderContainer.style.display = 'flex';
+        }
+
         if (monthKeys.length === 0) {
-            await this.loadMonthSelector();
-
-            const monthHeaderContainer = document.querySelector('.month-header-container');
-            if (monthHeaderContainer) {
-                monthHeaderContainer.style.display = 'flex';
-            }
-
             const noMonthMessageText = document.getElementById('no-month-message-text');
             if (noMonthMessageText) {
                 noMonthMessageText.textContent = 'No months available. Create a new month to get started.';
             }
         } else {
-            // Load month selector (will show UI when done)
-            this.loadMonthSelector();
-
+            // Now load month data (selector is already visible)
             if (monthParam) {
                 await this.loadMonth(monthParam);
             } else {
@@ -115,13 +114,17 @@ const MonthlyBudgetController = {
 
     /**
      * Load month selector dropdown
+     * @param {Object} allMonths - Pre-fetched months data (optional)
+     * @param {Array} monthKeys - Pre-sorted month keys (optional)
      */
-    async loadMonthSelector() {
+    async loadMonthSelector(allMonths = null, monthKeys = null) {
         const selector = document.getElementById('month-selector');
 
-        // Load user months + enabled example data only
-        const allMonths = await DataManager.getAllMonths(false, true);
-        const monthKeys = Object.keys(allMonths).sort().reverse();
+        // If data not provided, fetch it
+        if (!allMonths) {
+            allMonths = await DataManager.getAllMonths(false, true);
+            monthKeys = Object.keys(allMonths).sort().reverse();
+        }
 
         // Build options with shared month and example labels
         let optionsHtml = '';
@@ -154,12 +157,7 @@ const MonthlyBudgetController = {
         if (selector) {
             selector.innerHTML = optionsHtml;
             this.adjustMonthSelectorWidth();
-
-            // Show the month header container now that data is loaded
-            const monthHeaderContainer = document.querySelector('.month-header-container');
-            if (monthHeaderContainer) {
-                monthHeaderContainer.style.display = 'flex';
-            }
+            // REMOVED: container visibility logic (moved to init())
         }
     },
     

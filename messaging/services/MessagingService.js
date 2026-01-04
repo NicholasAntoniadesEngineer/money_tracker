@@ -182,21 +182,48 @@ const MessagingService = {
             const messagesTableName = this._getTableName('messages');
             const conversationsTableName = this._getTableName('conversations');
 
-            // Create message
-            const messageData = {
-                conversation_id: conversationId,
-                sender_id: senderId,
-                recipient_id: recipientId,
-                content: content.trim(),
-                read: false
-            };
+            // Encrypt message using E2E encryption
+            let messageData;
+            try {
+                console.log('[MessagingService] Encrypting message...');
 
-            console.log('[MessagingService] Inserting message:', { 
-                conversationId, 
-                senderId, 
-                recipientId, 
-                contentLength: messageData.content.length 
-            });
+                // Ensure encryption session exists
+                await window.KeyManager.establishSession(conversationId, recipientId);
+
+                // Encrypt the message
+                const encryptedData = await window.KeyManager.encryptMessage(
+                    conversationId,
+                    content.trim()
+                );
+
+                // Create encrypted message
+                messageData = {
+                    conversation_id: conversationId,
+                    sender_id: senderId,
+                    recipient_id: recipientId,
+                    encrypted_content: encryptedData.ciphertext,
+                    encryption_nonce: encryptedData.nonce,
+                    message_counter: encryptedData.counter,
+                    is_encrypted: true,
+                    read: false
+                };
+
+                console.log('[MessagingService] Message encrypted, inserting...', {
+                    conversationId,
+                    senderId,
+                    recipientId,
+                    counter: encryptedData.counter,
+                    ciphertextLength: encryptedData.ciphertext.length
+                });
+
+            } catch (encryptionError) {
+                console.error('[MessagingService] Encryption error:', encryptionError);
+                return {
+                    success: false,
+                    message: null,
+                    error: 'Failed to encrypt message: ' + encryptionError.message
+                };
+            }
             
             const messageResult = await databaseService.queryInsert(messagesTableName, messageData);
 
@@ -488,18 +515,43 @@ const MessagingService = {
             const messages = result.data || [];
             console.log(`[MessagingService] Found ${messages.length} messages in conversation ${conversationId}`);
 
-            // Fetch sender emails for each message
-            const messagesWithEmails = await Promise.all(messages.map(async (msg) => {
+            // Decrypt encrypted messages and fetch sender emails
+            const messagesWithEmailsAndDecrypted = await Promise.all(messages.map(async (msg) => {
+                // Fetch sender email
                 const senderEmailResult = await databaseService.getUserEmailById(msg.sender_id);
+                const sender_email = senderEmailResult.success ? senderEmailResult.email : 'Unknown User';
+
+                // Decrypt message if encrypted
+                let content = msg.content; // Legacy plain-text fallback
+
+                if (msg.is_encrypted && msg.encrypted_content && msg.encryption_nonce) {
+                    try {
+                        // Decrypt the message
+                        const plaintext = await window.KeyManager.decryptMessage(
+                            conversationId,
+                            {
+                                ciphertext: msg.encrypted_content,
+                                nonce: msg.encryption_nonce,
+                                counter: msg.message_counter
+                            }
+                        );
+                        content = plaintext;
+                    } catch (decryptionError) {
+                        console.error('[MessagingService] Failed to decrypt message:', msg.id, decryptionError);
+                        content = '[Decryption failed]';
+                    }
+                }
+
                 return {
                     ...msg,
-                    sender_email: senderEmailResult.success ? senderEmailResult.email : 'Unknown User'
+                    content, // Decrypted content
+                    sender_email
                 };
             }));
 
             return {
                 success: true,
-                messages: messagesWithEmails,
+                messages: messagesWithEmailsAndDecrypted,
                 error: null
             };
         } catch (error) {

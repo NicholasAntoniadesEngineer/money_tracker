@@ -72,12 +72,31 @@ const MessengerController = {
             }
 
             console.log('[MessengerController] User authenticated, proceeding with initialization');
+
+            // Initialize end-to-end encryption
+            console.log('[MessengerController] Initializing E2E encryption...');
+            const currentUserId = window.AuthService.getCurrentUserId();
+
+            if (!currentUserId) {
+                console.error('[MessengerController] No user ID found!');
+                throw new Error('User ID not available');
+            }
+
+            try {
+                await window.KeyManager.initialize(currentUserId);
+                console.log('[MessengerController] ✓ E2E encryption initialized');
+            } catch (encryptionError) {
+                console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
+                alert('Failed to initialize secure messaging. Please refresh the page.');
+                return;
+            }
+
             this.setupEventListeners();
-            
+
             // Check URL for conversation ID parameter
             const urlParams = new URLSearchParams(window.location.search);
             const conversationIdParam = urlParams.get('conversationId');
-            
+
             // Load conversations
             await this.loadConversations();
             
