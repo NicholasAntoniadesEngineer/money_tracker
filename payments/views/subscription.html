@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Subscription - Money Tracker</title>
+    <title>Subscription - Money Tracker</title>
     <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
     <link rel="stylesheet" href="../../ui/styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -616,6 +616,13 @@
     <script src="../../database/config/money-tracker-database-config.js"></script>
     <script src="../../database/utils/database-config-helper.js"></script>
     <script src="../../database/database-module.js"></script>
+
+    <!-- Core Utilities -->
+    <script src="../../ui/config/module-registry.js"></script>
+    <script src="../../ui/config/constants.js"></script>
+    <script src="../../ui/utils/logger.js"></script>
+    <script src="../../ui/utils/error-handler.js"></script>
+    <script src="../../ui/utils/validators.js"></script>
     
     <!-- Database Service -->
     <script src="../../database/services/database-service.js"></script>
@@ -646,8 +653,8 @@
     
     <script>
         // Verify all required services are loaded
-        console.log('[upgrade.html] Checking required services after script load...');
-        console.log('[upgrade.html] Services check:', {
+        console.log('[subscription.html] Checking required services after script load...');
+        console.log('[subscription.html] Services check:', {
             hasSupabaseConfig: !!window.SupabaseConfig,
             hasAuthService: !!window.AuthService,
             hasDatabaseService: !!window.DatabaseService,
@@ -660,7 +667,7 @@
         
         // Check for script loading errors
         window.addEventListener('error', function(e) {
-            console.log('[upgrade.html] Global error event:', {
+            console.log('[subscription.html] Global error event:', {
                 message: e.message,
                 filename: e.filename,
                 lineno: e.lineno,
@@ -669,7 +676,7 @@
                 isStripeService: e.filename && e.filename.includes('StripeService')
             });
             if (e.filename && e.filename.includes('StripeService')) {
-                console.error('[upgrade.html] ⚠️ StripeService script loading error detected:', {
+                console.error('[subscription.html] ⚠️ StripeService script loading error detected:', {
                     message: e.message,
                     filename: e.filename,
                     lineno: e.lineno,
@@ -683,7 +690,7 @@
         window.addEventListener('error', function(e) {
             const target = e.target;
             if (target && target.tagName === 'SCRIPT' && target.src && target.src.includes('StripeService')) {
-                console.error('[upgrade.html] ⚠️ StripeService script resource loading error:', {
+                console.error('[subscription.html] ⚠️ StripeService script resource loading error:', {
                     src: target.src,
                     error: e.error,
                     type: target.type
@@ -695,7 +702,7 @@
         setTimeout(function() {
             const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
             if (stripeServiceScript) {
-                console.log('[upgrade.html] StripeService script tag found:', {
+                console.log('[subscription.html] StripeService script tag found:', {
                     src: stripeServiceScript.src,
                     async: stripeServiceScript.async,
                     defer: stripeServiceScript.defer,
@@ -704,15 +711,15 @@
                 
                 // Try to manually check if script loaded
                 stripeServiceScript.addEventListener('load', function() {
-                    console.log('[upgrade.html] ✅ StripeService script load event fired');
-                    console.log('[upgrade.html] StripeService available after load event:', !!window.StripeService);
+                    console.log('[subscription.html] ✅ StripeService script load event fired');
+                    console.log('[subscription.html] StripeService available after load event:', !!window.StripeService);
                 });
                 
                 stripeServiceScript.addEventListener('error', function(e) {
-                    console.error('[upgrade.html] ❌ StripeService script error event fired:', e);
+                    console.error('[subscription.html] ❌ StripeService script error event fired:', e);
                 });
             } else {
-                console.error('[upgrade.html] ❌ StripeService script tag not found in DOM');
+                console.error('[subscription.html] ❌ StripeService script tag not found in DOM');
             }
         }, 100);
         
@@ -720,7 +727,7 @@
         if (window.Header) {
             window.Header.init();
         } else {
-            console.warn('[upgrade.html] Header not available');
+            console.warn('[subscription.html] Header not available');
         }
         
         // Initialize upgrade page (async to wait for payments init)
@@ -730,20 +737,20 @@
                 try {
                     await window.waitForPaymentsInit();
                 } catch (error) {
-                    console.error('[upgrade.html] Error waiting for payments init:', error);
+                    console.error('[subscription.html] Error waiting for payments init:', error);
                 }
             }
             
             if (window.UpgradeController) {
                 window.UpgradeController.init();
             } else {
-                console.warn('[upgrade.html] UpgradeController not available');
+                console.warn('[subscription.html] UpgradeController not available');
             }
         })();
         
         // Final check after a short delay
         setTimeout(function() {
-            console.log('[upgrade.html] Final services check after delay:', {
+            console.log('[subscription.html] Final services check after delay:', {
                 hasStripeService: !!window.StripeService,
                 stripeServiceType: typeof window.StripeService,
                 hasListInvoices: !!(window.StripeService && typeof window.StripeService.listInvoices === 'function')
@@ -751,33 +758,33 @@
             
             // If StripeService still not available, try to manually verify the script URL
             if (!window.StripeService) {
-                console.warn('[upgrade.html] ⚠️ StripeService still not available after delay');
+                console.warn('[subscription.html] ⚠️ StripeService still not available after delay');
                 const stripeServiceScript = document.querySelector('script[src*="StripeService"]');
                 if (stripeServiceScript) {
                     const scriptUrl = stripeServiceScript.src;
-                    console.log('[upgrade.html] Attempting to manually verify script URL:', scriptUrl);
+                    console.log('[subscription.html] Attempting to manually verify script URL:', scriptUrl);
                     
                     // Try to fetch the script to see if it's accessible
                     fetch(scriptUrl)
                         .then(response => {
-                            console.log('[upgrade.html] Script fetch response:', {
+                            console.log('[subscription.html] Script fetch response:', {
                                 status: response.status,
                                 statusText: response.statusText,
                                 ok: response.ok,
                                 contentType: response.headers.get('content-type')
                             });
                             if (!response.ok) {
-                                console.error('[upgrade.html] ❌ Script URL returned error status:', response.status);
+                                console.error('[subscription.html] ❌ Script URL returned error status:', response.status);
                             }
                             return response.text();
                         })
                         .then(text => {
-                            console.log('[upgrade.html] Script content preview (first 200 chars):', text.substring(0, 200));
-                            console.log('[upgrade.html] Script contains StripeService definition:', text.includes('const StripeService'));
-                            console.log('[upgrade.html] Script contains window.StripeService:', text.includes('window.StripeService'));
+                            console.log('[subscription.html] Script content preview (first 200 chars):', text.substring(0, 200));
+                            console.log('[subscription.html] Script contains StripeService definition:', text.includes('const StripeService'));
+                            console.log('[subscription.html] Script contains window.StripeService:', text.includes('window.StripeService'));
                         })
                         .catch(error => {
-                            console.error('[upgrade.html] ❌ Error fetching script:', error);
+                            console.error('[subscription.html] ❌ Error fetching script:', error);
                         });
                 }
             }

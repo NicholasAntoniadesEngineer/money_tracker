@@ -155,7 +155,7 @@ const UpgradeController = {
                 const baseUrl = window.location.origin;
                 const currentPath = window.location.pathname;
                 const basePath = currentPath.includes('/payments/') ? '../../../' : '';
-                const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
                 console.warn('[UpgradeController] Auth URL:', authUrl);
                 window.location.href = authUrl;
                 return;

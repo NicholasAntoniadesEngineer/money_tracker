@@ -83,14 +83,28 @@ const MonthlyBudgetController = {
 
         // Load months from database (user months + enabled example data only)
         const allMonths = await DataManager.getAllMonths(false, true);
+        const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        this.loadMonthSelector();
+        // If no months available, populate dropdown first then show UI
+        if (monthKeys.length === 0) {
+            await this.loadMonthSelector();
 
-        if (monthParam) {
-            await this.loadMonth(monthParam);
+            const monthHeaderContainer = document.querySelector('.month-header-container');
+            if (monthHeaderContainer) {
+                monthHeaderContainer.style.display = 'flex';
+            }
+
+            const noMonthMessageText = document.getElementById('no-month-message-text');
+            if (noMonthMessageText) {
+                noMonthMessageText.textContent = 'No months available. Create a new month to get started.';
+            }
         } else {
-            const monthKeys = Object.keys(allMonths).sort().reverse();
-            if (monthKeys.length > 0) {
+            // Load month selector (will show UI when done)
+            this.loadMonthSelector();
+
+            if (monthParam) {
+                await this.loadMonth(monthParam);
+            } else {
                 await this.loadMonth(monthKeys[0]);
             }
         }
@@ -140,6 +154,12 @@ const MonthlyBudgetController = {
         if (selector) {
             selector.innerHTML = optionsHtml;
             this.adjustMonthSelectorWidth();
+
+            // Show the month header container now that data is loaded
+            const monthHeaderContainer = document.querySelector('.month-header-container');
+            if (monthHeaderContainer) {
+                monthHeaderContainer.style.display = 'flex';
+            }
         }
     },
     
@@ -3526,8 +3546,22 @@ const MonthlyBudgetController = {
                 } else {
                     const monthContent = document.getElementById('month-content');
                     const noMonthMessage = document.getElementById('no-month-message');
+                    const noMonthMessageText = document.getElementById('no-month-message-text');
                     if (monthContent) monthContent.style.display = 'none';
                     if (noMonthMessage) noMonthMessage.style.display = 'block';
+                    if (noMonthMessageText) {
+                        // Check if dropdown has any months available (including shared/example)
+                        const selector = document.getElementById('month-selector');
+                        const hasMonths = selector && selector.options.length > 0 &&
+                                         selector.options[0].value !== '' &&
+                                         selector.options[0].text !== 'No months available';
+
+                        if (hasMonths) {
+                            noMonthMessageText.textContent = 'No month selected. Please select a month from the dropdown or create a new one.';
+                        } else {
+                            noMonthMessageText.textContent = 'No months available. Create a new month to get started.';
+                        }
+                    }
                     this.updateShareButtonVisibility();
                 }
             } else {
