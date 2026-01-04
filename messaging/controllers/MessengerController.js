@@ -67,7 +67,7 @@ const MessengerController = {
 
             if (!window.AuthService || !window.AuthService.isAuthenticated()) {
                 console.warn('[MessengerController] User not authenticated after waiting, redirecting to auth');
-                window.location.href = '../views/auth.html';
+                window.location.href = '../../auth/views/auth.html';
                 return;
             }
 

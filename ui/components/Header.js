@@ -50,74 +50,42 @@ class Header {
     }
 
     /**
-     * Get the base path for navigation links
+     * Get path to a specific module's views folder
+     * @param {string} moduleName - Name of the module (e.g., 'auth', 'monthly-budget', 'settings')
+     * @returns {string} Path to the module's views folder
      */
-    static getBasePath() {
+    static getModulePath(moduleName) {
         const path = window.location.pathname;
-        
-        // If we're in payments/views/, we need to go up to ui/views/
-        if (path.includes('/payments/views/')) {
-            return '../../ui/views/';
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Check if we're in any module's views/ folder
+        const inModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
+        if (inModuleViews) {
+            return `../../${moduleName}/views/`;
         }
-        
-        // If we're in messaging/views/, go to ui/views/ for main navigation
-        if (path.includes('/messaging/views/')) {
-            return '../../ui/views/';
-        }
-        
-        // If we're in ui/views/, we're already in the right place
+
+        // If we're in ui/views/ (shouldn't exist anymore, but for compatibility)
         if (path.includes('/ui/views/')) {
-            return '';
+            return `../../${moduleName}/views/`;
         }
-        
-        // If we're in payments/ but not in views/, go to ui/views/
-        if (path.includes('/payments/')) {
-            return '../ui/views/';
+
+        // Check if we're in any module folder but not in views/
+        const inModule = modules.some(mod => path.includes(`/${mod}/`));
+        if (inModule) {
+            return `../${moduleName}/views/`;
         }
-        
-        // If we're at root or in ui/ but not in views/, paths go to views/
+
+        // If we're in ui/ folder
         if (path.includes('/ui/')) {
-            return 'views/';
+            return `../${moduleName}/views/`;
         }
-        
+
         // Default: assume we're at root level
-        return 'ui/views/';
+        return `${moduleName}/views/`;
     }
-    
-    /**
-     * Get the base path for messaging/views/ navigation
-     */
-    static getMessagingBasePath() {
-        const path = window.location.pathname;
-        
-        // If we're in payments/views/, we need to go up to messaging/views/
-        if (path.includes('/payments/views/')) {
-            return '../../messaging/views/';
-        }
-        
-        // If we're in messaging/views/, we're already in the right place
-        if (path.includes('/messaging/views/')) {
-            return '';
-        }
-        
-        // If we're in ui/views/, go to messaging/views/
-        if (path.includes('/ui/views/')) {
-            return '../../messaging/views/';
-        }
-        
-        // If we're in payments/ but not in views/, go to messaging/views/
-        if (path.includes('/payments/')) {
-            return '../messaging/views/';
-        }
-        
-        // If we're at root or in ui/ but not in views/, paths go to messaging/views/
-        if (path.includes('/ui/')) {
-            return '../messaging/views/';
-        }
-        
-        // Default: assume we're at root level
-        return 'messaging/views/';
-    }
+
 
     /**
      * Get user initials from email
@@ -147,33 +115,35 @@ class Header {
         }
         
         const currentPage = this.getCurrentPage();
-        const basePath = this.getBasePath();
         const path = window.location.pathname;
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Check if we're in any module's views/ folder
+        const isInModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
         const isInPaymentsViews = path.includes('/payments/views/');
         const isInUiViews = path.includes('/ui/views/');
         const isInMessagingViews = path.includes('/messaging/views/');
-        const isInViews = isInPaymentsViews || isInUiViews || isInMessagingViews;
-        
+
         // Determine Home link based on current location
         let homeHref;
-        if (isInPaymentsViews) {
-            homeHref = '../../ui/index.html';
-        } else if (isInMessagingViews) {
+        if (isInModuleViews) {
             homeHref = '../../ui/index.html';
         } else if (isInUiViews) {
             homeHref = '../index.html';
-        } else if (path.includes('/payments/')) {
+        } else if (modules.some(mod => path.includes(`/${mod}/`))) {
             homeHref = '../ui/index.html';
         } else if (path.includes('/ui/')) {
             homeHref = 'index.html';
         } else {
             homeHref = 'ui/index.html';
         }
-        
+
         const navItems = [
             { name: 'Home', href: homeHref, page: 'Home' },
-            { name: 'Monthly Budget', href: basePath + 'monthly-budget.html', page: 'Monthly Budget' },
-            { name: 'Pots & Investments', href: basePath + 'pots.html', page: 'Pots & Investments' }
+            { name: 'Monthly Budget', href: this.getModulePath('monthly-budget') + 'monthly-budget.html', page: 'Monthly Budget' },
+            { name: 'Pots & Investments', href: this.getModulePath('pots') + 'pots.html', page: 'Pots & Investments' }
         ];
 
         const navLinks = navItems.map(item => {
@@ -195,7 +165,7 @@ class Header {
                 const user = window.AuthService.getCurrentUser() || window.AuthService.currentUser;
                 const userEmail = user?.email || 'User';
                 const userInitials = this.getUserInitials(userEmail);
-                const settingsHref = basePath + 'settings.html';
+                const settingsHref = this.getModulePath('settings') + 'settings.html';
                 userInfoHtml = `
                 <div class="header-user-menu">
                     <button class="user-avatar-button" id="user-avatar-button" aria-label="User menu" aria-expanded="false">
@@ -385,6 +355,10 @@ class Header {
                     console.log('[Header] User menu missing but user appears authenticated, refreshing header...');
                     this.updateHeader(true);
                 }
+                // Also update notification count periodically to ensure it stays current
+                this.updateNotificationCount().catch(err => {
+                    console.warn('[Header] Failed to update notification count in periodic check:', err);
+                });
             }
         }, 30000); // Check every 30 seconds
         
@@ -435,21 +409,24 @@ class Header {
         const handleClick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
-            const basePath = this.getBasePath();
             const path = window.location.pathname;
-            const isInPaymentsViews = path.includes('/payments/views/');
+
+            // Get all module names from registry
+            const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+            const isInModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
             const isInUiViews = path.includes('/ui/views/');
-            
+
             if (isAuthenticated) {
                 // Determine landing page URL based on current location (same logic as render method)
                 let landingPageUrl;
-                if (isInPaymentsViews) {
+                if (isInModuleViews) {
                     landingPageUrl = '../../ui/index.html';
                 } else if (isInUiViews) {
                     landingPageUrl = '../index.html';
-                } else if (path.includes('/payments/')) {
+                } else if (modules.some(mod => path.includes(`/${mod}/`))) {
                     landingPageUrl = '../ui/index.html';
                 } else if (path.includes('/ui/')) {
                     landingPageUrl = 'index.html';
@@ -458,7 +435,7 @@ class Header {
                 }
                 window.location.href = landingPageUrl;
             } else {
-                const authPageUrl = basePath + 'auth.html';
+                const authPageUrl = this.getModulePath('auth') + 'auth.html';
                 window.location.href = authPageUrl;
             }
         };
@@ -534,8 +511,7 @@ class Header {
      * Handle notification bell click
      */
     static handleNotificationBellClick() {
-        const basePath = this.getBasePath();
-        const notificationsUrl = basePath + 'notifications.html';
+        const notificationsUrl = this.getModulePath('notifications') + 'notifications.html';
         window.location.href = notificationsUrl;
     }
 
@@ -562,8 +538,7 @@ class Header {
      * Handle messenger button click
      */
     static handleMessengerButtonClick() {
-        const basePath = this.getMessagingBasePath();
-        const messengerUrl = basePath + 'messenger.html';
+        const messengerUrl = this.getModulePath('messaging') + 'messenger.html';
         window.location.href = messengerUrl;
     }
 
@@ -825,18 +800,21 @@ class Header {
                         const baseUrl = window.location.origin;
                         const currentPath = window.location.pathname;
                         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                        
-                        // Find the base path (everything before 'ui' or 'payments')
+
+                        // Get all module names from registry
+                        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+                        // Find the base path (everything before any known module or 'ui')
                         let basePathParts = [];
                         for (let i = 0; i < pathParts.length; i++) {
-                            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                                 break;
                             }
                             basePathParts.push(pathParts[i]);
                         }
-                        
+
                         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-                        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                        const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
                         console.log('[Header] Redirecting to auth:', authUrl);
                         window.location.href = authUrl;
                     });
@@ -845,17 +823,20 @@ class Header {
                     const baseUrl = window.location.origin;
                     const currentPath = window.location.pathname;
                     const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                    
+
+                    // Get all module names from registry
+                    const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
                     let basePathParts = [];
                     for (let i = 0; i < pathParts.length; i++) {
-                        if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                        if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                             break;
                         }
                         basePathParts.push(pathParts[i]);
                     }
-                    
+
                     const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-                    const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+                    const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
                     console.log('[Header] Fallback redirect to auth:', authUrl);
                     window.location.href = authUrl;
                 }
@@ -1061,9 +1042,8 @@ class Header {
                 
                 const userEmail = user?.email || 'User';
                 const userInitials = this.getUserInitials(userEmail);
-                const basePath = this.getBasePath();
-                const settingsHref = basePath + 'settings.html';
-                
+                const settingsHref = this.getModulePath('settings') + 'settings.html';
+
                 console.log('[Header] Adding user menu:', {
                     userEmail: userEmail,
                     userInitials: userInitials,

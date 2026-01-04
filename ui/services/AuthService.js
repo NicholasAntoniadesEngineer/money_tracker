@@ -1612,18 +1612,21 @@ const AuthService = {
         const baseUrl = window.location.origin;
         const currentPath = window.location.pathname;
         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-        
-        // Find the base path (everything before 'ui' or 'payments')
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Find the base path (everything before any known module or 'ui')
         let basePathParts = [];
         for (let i = 0; i < pathParts.length; i++) {
-            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                 break;
             }
             basePathParts.push(pathParts[i]);
         }
-        
+
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authPath = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authPath = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthService] Force redirecting to:', authPath);
         console.log('[AuthService] ========== FORCE SIGN OUT COMPLETE ==========');
@@ -1655,19 +1658,22 @@ const AuthService = {
         // Construct absolute URL to avoid path resolution issues
         const baseUrl = window.location.origin;
         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-        
-        // Find the base path (everything before 'ui' or 'payments')
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Find the base path (everything before any known module or 'ui')
         let basePathParts = [];
         for (let i = 0; i < pathParts.length; i++) {
-            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                 break;
             }
             basePathParts.push(pathParts[i]);
         }
-        
+
         // Construct the auth URL
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthService] Redirecting to:', authUrl);
         console.log('[AuthService] Path calculation:', {

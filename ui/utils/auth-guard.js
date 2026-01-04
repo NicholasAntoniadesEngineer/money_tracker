@@ -193,19 +193,22 @@ const AuthGuard = {
         // Construct absolute URL to avoid path resolution issues
         const baseUrl = window.location.origin;
         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-        
-        // Find the base path (everything before 'ui' or 'payments')
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Find the base path (everything before any known module or 'ui')
         let basePathParts = [];
         for (let i = 0; i < pathParts.length; i++) {
-            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                 break;
             }
             basePathParts.push(pathParts[i]);
         }
-        
+
         // Construct the auth URL
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const authUrl = `${baseUrl}/${basePath}ui/views/auth.html`;
+        const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
         
         console.log('[AuthGuard] Redirecting to auth page:', authUrl);
         console.log('[AuthGuard] Path calculation:', {
@@ -246,19 +249,22 @@ const AuthGuard = {
         // Construct absolute URL to avoid path resolution issues
         const baseUrl = window.location.origin;
         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-        
-        // Find the base path (everything before 'ui' or 'payments')
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Find the base path (everything before any known module or 'ui')
         let basePathParts = [];
         for (let i = 0; i < pathParts.length; i++) {
-            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                 break;
             }
             basePathParts.push(pathParts[i]);
         }
-        
+
         // Construct the settings URL (subscription section)
         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        const settingsUrl = `${baseUrl}/${basePath}ui/views/settings.html`;
+        const settingsUrl = `${baseUrl}/${basePath}settings/views/settings.html`;
         
         console.log('[AuthGuard] Redirecting to settings page:', settingsUrl);
         console.log('[AuthGuard] Path calculation:', {
@@ -284,11 +290,11 @@ const AuthGuard = {
             console.error('[AuthGuard] ❌ Invalid settings URL:', urlError);
             console.error('[AuthGuard] Settings URL that failed:', settingsUrl);
             // Fallback to relative path
-            const fallbackPath = currentPath.includes('/ui/views/') 
+            const fallbackPath = currentPath.includes('/ui/views/')
                 ? 'settings.html'
                 : currentPath.includes('/ui/')
-                ? 'views/settings.html'
-                : 'ui/views/settings.html';
+                ? '../settings/views/settings.html'
+                : 'settings/views/settings.html';
             console.log('[AuthGuard] Using fallback path:', fallbackPath);
             window.location.href = fallbackPath;
             return;
@@ -370,10 +376,29 @@ const AuthGuard = {
             targetUrl = returnUrl;
         } else {
             // Default to home page
-            const basePath = window.location.pathname.includes('/views/') ? '../' : '';
-            const targetPath = `${basePath}index.html`;
+            // Determine the correct path based on current location
             const currentPath = window.location.pathname;
-            
+            let basePath = '';
+
+            // Get all module names from registry
+            const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+            // Check if we're in any module's views folder
+            const inModuleViews = modules.some(mod => currentPath.includes(`/${mod}/views/`));
+            if (inModuleViews) {
+                basePath = '../../ui/';
+            }
+            // If we're in ui/views/ (old structure, for compatibility)
+            else if (currentPath.includes('/ui/views/')) {
+                basePath = '../';
+            }
+            // If we're at any other level with /views/, assume module structure
+            else if (currentPath.includes('/views/')) {
+                basePath = '../../ui/';
+            }
+
+            const targetPath = `${basePath}index.html`;
+
             console.log('[AuthGuard] No return URL, using default:', {
                 basePath: basePath,
                 targetPath: targetPath,

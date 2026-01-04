@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monthly Budget - Money Tracker</title>
-    <link rel="stylesheet" href="../vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../ui/styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -47,9 +47,9 @@
         </section>
 
         <section class="month-selector-section form-section">
-            <div class="month-header-container" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <div class="month-header-container" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                 <label for="month-selector" class="form-label" style="margin: 0; white-space: nowrap;">Select Month:</label>
-                <select id="month-selector" class="form-select" style="width: auto; min-width: fit-content; max-width: none;">
+                <select id="month-selector" class="form-select">
                         <option value="">Loading...</option>
                     </select>
                     <button id="create-month-button" class="btn btn-primary create-month-btn">Create New Month</button>
@@ -268,7 +268,7 @@
         </div>
 
         <div id="no-month-message" style="text-align: center; padding: 3rem;">
-            <p class="empty-message">No month selected. Please select a month from the dropdown or create a new one.</p>
+            <p class="empty-message" id="no-month-message-text">Loading month data...</p>
         </div>
     </main>
 
@@ -376,13 +376,20 @@
 
     <!-- Database Layer -->
     <script src="../../database/config/supabase-config.js"></script>
-    <script src="../services/AuthService.js"></script>
+    <script src="../../ui/services/AuthService.js"></script>
     
     <!-- Database Module Configuration -->
     <script src="../../database/config/database-config-base.js"></script>
     <script src="../../database/config/money-tracker-database-config.js"></script>
     <script src="../../database/utils/database-config-helper.js"></script>
     <script src="../../database/database-module.js"></script>
+
+    <!-- Core Utilities -->
+    <script src="../../ui/config/module-registry.js"></script>
+    <script src="../../ui/config/constants.js"></script>
+    <script src="../../ui/utils/logger.js"></script>
+    <script src="../../ui/utils/error-handler.js"></script>
+    <script src="../../ui/utils/validators.js"></script>
     
     <!-- Database Service -->
     <script src="../../database/services/database-service.js"></script>
@@ -414,22 +421,22 @@
     <!-- Initialize Payments Module -->
     <script src="../../payments/init-payments.js"></script>
     <script src="../../payments/utils/wait-for-payments-init.js"></script>
-    <script src="../utils/subscription-guard.js"></script>
-    <script src="../utils/auth-guard.js"></script>
-    <script src="../utils/network-utils.js"></script>
-    <script src="../utils/offline-handler.js"></script>
+    <script src="../../ui/utils/subscription-guard.js"></script>
+    <script src="../../ui/utils/auth-guard.js"></script>
+    <script src="../../ui/utils/network-utils.js"></script>
+    <script src="../../ui/utils/offline-handler.js"></script>
     <script src="../../database/models/data-manager.js"></script>
     <script src="../../database/models/month-factory.js"></script>
     
     <!-- UI Layer -->
-    <script src="../services/CalculationService.js"></script>
-    <script src="../services/FormHandler.js"></script>
-    <script src="../services/TableRenderer.js"></script>
-    <script src="../utils/formatters.js"></script>
-    <script src="../utils/CSVHandler.js"></script>
-    <script src="../utils/ReferenceImporter.js"></script>
-    <script src="../services/ExportService.js"></script>
-    <script src="../components/Header.js"></script>
+    <script src="../../ui/services/CalculationService.js"></script>
+    <script src="../../ui/services/FormHandler.js"></script>
+    <script src="../../ui/services/TableRenderer.js"></script>
+    <script src="../../ui/utils/formatters.js"></script>
+    <script src="../../ui/utils/CSVHandler.js"></script>
+    <script src="../../ui/utils/ReferenceImporter.js"></script>
+    <script src="../../ui/services/ExportService.js"></script>
+    <script src="../../ui/components/Header.js"></script>
     <script src="../controllers/MonthlyBudgetController.js"></script>
     <script>
         // Initialize application with parallel loading for better performance
