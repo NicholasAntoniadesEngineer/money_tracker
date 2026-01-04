@@ -374,14 +374,12 @@ const AuthGuard = {
             const currentPath = window.location.pathname;
             let basePath = '';
 
-            // If we're in any module's views folder (auth, monthly-budget, notifications, pots, settings, payments, messaging)
-            if (currentPath.includes('/auth/views/') ||
-                currentPath.includes('/monthly-budget/views/') ||
-                currentPath.includes('/notifications/views/') ||
-                currentPath.includes('/pots/views/') ||
-                currentPath.includes('/settings/views/') ||
-                currentPath.includes('/payments/views/') ||
-                currentPath.includes('/messaging/views/')) {
+            // Get all module names from registry
+            const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+            // Check if we're in any module's views folder
+            const inModuleViews = modules.some(mod => currentPath.includes(`/${mod}/views/`));
+            if (inModuleViews) {
                 basePath = '../../ui/';
             }
             // If we're in ui/views/ (old structure, for compatibility)

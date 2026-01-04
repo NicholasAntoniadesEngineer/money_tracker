@@ -57,14 +57,12 @@ class Header {
     static getModulePath(moduleName) {
         const path = window.location.pathname;
 
-        // If we're in any module's views/ folder, go up two levels then into target module
-        if (path.includes('/payments/views/') ||
-            path.includes('/messaging/views/') ||
-            path.includes('/auth/views/') ||
-            path.includes('/monthly-budget/views/') ||
-            path.includes('/notifications/views/') ||
-            path.includes('/pots/views/') ||
-            path.includes('/settings/views/')) {
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Check if we're in any module's views/ folder
+        const inModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
+        if (inModuleViews) {
             return `../../${moduleName}/views/`;
         }
 
@@ -73,14 +71,9 @@ class Header {
             return `../../${moduleName}/views/`;
         }
 
-        // If we're in any module folder but not in views/
-        if (path.includes('/payments/') ||
-            path.includes('/messaging/') ||
-            path.includes('/auth/') ||
-            path.includes('/monthly-budget/') ||
-            path.includes('/notifications/') ||
-            path.includes('/pots/') ||
-            path.includes('/settings/')) {
+        // Check if we're in any module folder but not in views/
+        const inModule = modules.some(mod => path.includes(`/${mod}/`));
+        if (inModule) {
             return `../${moduleName}/views/`;
         }
 
@@ -93,40 +86,6 @@ class Header {
         return `${moduleName}/views/`;
     }
 
-    /**
-     * Get the base path for messaging/views/ navigation
-     */
-    static getMessagingBasePath() {
-        const path = window.location.pathname;
-        
-        // If we're in payments/views/, we need to go up to messaging/views/
-        if (path.includes('/payments/views/')) {
-            return '../../messaging/views/';
-        }
-        
-        // If we're in messaging/views/, we're already in the right place
-        if (path.includes('/messaging/views/')) {
-            return '';
-        }
-        
-        // If we're in ui/views/, go to messaging/views/
-        if (path.includes('/ui/views/')) {
-            return '../../messaging/views/';
-        }
-        
-        // If we're in payments/ but not in views/, go to messaging/views/
-        if (path.includes('/payments/')) {
-            return '../messaging/views/';
-        }
-        
-        // If we're at root or in ui/ but not in views/, paths go to messaging/views/
-        if (path.includes('/ui/')) {
-            return '../messaging/views/';
-        }
-        
-        // Default: assume we're at root level
-        return 'messaging/views/';
-    }
 
     /**
      * Get user initials from email
@@ -157,25 +116,23 @@ class Header {
         
         const currentPage = this.getCurrentPage();
         const path = window.location.pathname;
+
+        // Get all module names from registry
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Check if we're in any module's views/ folder
+        const isInModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
         const isInPaymentsViews = path.includes('/payments/views/');
         const isInUiViews = path.includes('/ui/views/');
         const isInMessagingViews = path.includes('/messaging/views/');
-        const isInModuleViews = path.includes('/auth/views/') ||
-            path.includes('/monthly-budget/views/') ||
-            path.includes('/notifications/views/') ||
-            path.includes('/pots/views/') ||
-            path.includes('/settings/views/');
 
         // Determine Home link based on current location
         let homeHref;
-        if (isInPaymentsViews || isInMessagingViews || isInModuleViews) {
+        if (isInModuleViews) {
             homeHref = '../../ui/index.html';
         } else if (isInUiViews) {
             homeHref = '../index.html';
-        } else if (path.includes('/payments/') || path.includes('/messaging/') ||
-                   path.includes('/auth/') || path.includes('/monthly-budget/') ||
-                   path.includes('/notifications/') || path.includes('/pots/') ||
-                   path.includes('/settings/')) {
+        } else if (modules.some(mod => path.includes(`/${mod}/`))) {
             homeHref = '../ui/index.html';
         } else if (path.includes('/ui/')) {
             homeHref = 'index.html';
@@ -452,29 +409,24 @@ class Header {
         const handleClick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const isAuthenticated = window.AuthService && window.AuthService.isAuthenticated();
             const path = window.location.pathname;
-            const isInPaymentsViews = path.includes('/payments/views/');
+
+            // Get all module names from registry
+            const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+            const isInModuleViews = modules.some(mod => path.includes(`/${mod}/views/`));
             const isInUiViews = path.includes('/ui/views/');
-            const isInModuleViews = path.includes('/auth/views/') ||
-                path.includes('/monthly-budget/views/') ||
-                path.includes('/notifications/views/') ||
-                path.includes('/pots/views/') ||
-                path.includes('/settings/views/') ||
-                path.includes('/messaging/views/');
 
             if (isAuthenticated) {
                 // Determine landing page URL based on current location (same logic as render method)
                 let landingPageUrl;
-                if (isInPaymentsViews || isInModuleViews) {
+                if (isInModuleViews) {
                     landingPageUrl = '../../ui/index.html';
                 } else if (isInUiViews) {
                     landingPageUrl = '../index.html';
-                } else if (path.includes('/payments/') || path.includes('/messaging/') ||
-                           path.includes('/auth/') || path.includes('/monthly-budget/') ||
-                           path.includes('/notifications/') || path.includes('/pots/') ||
-                           path.includes('/settings/')) {
+                } else if (modules.some(mod => path.includes(`/${mod}/`))) {
                     landingPageUrl = '../ui/index.html';
                 } else if (path.includes('/ui/')) {
                     landingPageUrl = 'index.html';
