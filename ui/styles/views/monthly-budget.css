@@ -91,6 +91,37 @@
     max-width: 300px;
 }
 
+/* Prevent any select dropdown from overflowing viewport */
+select.form-select {
+    max-width: 100% !important;
+}
+
+/* Specific rule for month selector to prevent overflow */
+#month-selector {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Ensure option elements also truncate */
+#month-selector option {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.copy-month-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.copy-month-select option {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
 .month-buttons-container {
     display: flex;
     gap: 0.5rem;
@@ -135,7 +166,10 @@
     .month-header-container .form-select {
         flex: 1 1 auto;
         min-width: 120px;
-        max-width: 180px;
+        max-width: min(180px, calc(100vw - 16rem));
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
     
     .month-header-container .create-month-btn {
@@ -188,8 +222,11 @@
     
     .month-selector-wrapper .form-select {
         min-width: 140px;
-        max-width: none;
+        max-width: calc(100vw - 12rem);
         flex: 1;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
     
     .month-buttons-container {
@@ -242,7 +279,11 @@
     
     .month-selector-wrapper .form-select {
         min-width: 100px;
+        max-width: calc(100vw - 8rem);
         font-size: 0.85rem;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
     
 
@@ -267,7 +308,10 @@
         order: 1;
         flex: 1 1 auto;
         min-width: 0 !important;
-        max-width: none !important;
+        max-width: calc(100vw - 10rem) !important;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
 
     .section-actions-container button:not(:last-child) {

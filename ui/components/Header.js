@@ -800,16 +800,19 @@ class Header {
                         const baseUrl = window.location.origin;
                         const currentPath = window.location.pathname;
                         const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                        
-                        // Find the base path (everything before 'ui' or 'payments')
+
+                        // Get all module names from registry
+                        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+                        // Find the base path (everything before any known module or 'ui')
                         let basePathParts = [];
                         for (let i = 0; i < pathParts.length; i++) {
-                            if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                                 break;
                             }
                             basePathParts.push(pathParts[i]);
                         }
-                        
+
                         const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
                         const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
                         console.log('[Header] Redirecting to auth:', authUrl);
@@ -820,15 +823,18 @@ class Header {
                     const baseUrl = window.location.origin;
                     const currentPath = window.location.pathname;
                     const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-                    
+
+                    // Get all module names from registry
+                    const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
                     let basePathParts = [];
                     for (let i = 0; i < pathParts.length; i++) {
-                        if (pathParts[i] === 'ui' || pathParts[i] === 'payments') {
+                        if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
                             break;
                         }
                         basePathParts.push(pathParts[i]);
                     }
-                    
+
                     const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
                     const authUrl = `${baseUrl}/${basePath}auth/views/auth.html`;
                     console.log('[Header] Fallback redirect to auth:', authUrl);
