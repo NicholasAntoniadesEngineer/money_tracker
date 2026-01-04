@@ -119,7 +119,7 @@ const SubscriptionGuard = {
                 }
                 
                 const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-                const upgradeUrl = `${baseUrl}/${basePath}payments/views/upgrade.html`;
+                const upgradeUrl = `${baseUrl}/${basePath}payments/views/subscription.html`;
                 window.location.href = upgradeUrl;
             }
         }

@@ -43,6 +43,8 @@ class Header {
             return 'Messenger';
         } else if (filename.includes('notifications')) {
             return 'Notifications';
+        } else if (filename.includes('subscription')) {
+            return 'Upgrade';
         }
         return 'Home';
     }
@@ -58,6 +60,11 @@ class Header {
             return '../../ui/views/';
         }
         
+        // If we're in messaging/views/, go to ui/views/ for main navigation
+        if (path.includes('/messaging/views/')) {
+            return '../../ui/views/';
+        }
+        
         // If we're in ui/views/, we're already in the right place
         if (path.includes('/ui/views/')) {
             return '';
@@ -70,11 +77,46 @@ class Header {
         
         // If we're at root or in ui/ but not in views/, paths go to views/
         if (path.includes('/ui/')) {
-        return 'views/';
+            return 'views/';
         }
         
         // Default: assume we're at root level
         return 'ui/views/';
+    }
+    
+    /**
+     * Get the base path for messaging/views/ navigation
+     */
+    static getMessagingBasePath() {
+        const path = window.location.pathname;
+        
+        // If we're in payments/views/, we need to go up to messaging/views/
+        if (path.includes('/payments/views/')) {
+            return '../../messaging/views/';
+        }
+        
+        // If we're in messaging/views/, we're already in the right place
+        if (path.includes('/messaging/views/')) {
+            return '';
+        }
+        
+        // If we're in ui/views/, go to messaging/views/
+        if (path.includes('/ui/views/')) {
+            return '../../messaging/views/';
+        }
+        
+        // If we're in payments/ but not in views/, go to messaging/views/
+        if (path.includes('/payments/')) {
+            return '../messaging/views/';
+        }
+        
+        // If we're at root or in ui/ but not in views/, paths go to messaging/views/
+        if (path.includes('/ui/')) {
+            return '../messaging/views/';
+        }
+        
+        // Default: assume we're at root level
+        return 'messaging/views/';
     }
 
     /**
@@ -109,11 +151,14 @@ class Header {
         const path = window.location.pathname;
         const isInPaymentsViews = path.includes('/payments/views/');
         const isInUiViews = path.includes('/ui/views/');
-        const isInViews = isInPaymentsViews || isInUiViews;
+        const isInMessagingViews = path.includes('/messaging/views/');
+        const isInViews = isInPaymentsViews || isInUiViews || isInMessagingViews;
         
         // Determine Home link based on current location
         let homeHref;
         if (isInPaymentsViews) {
+            homeHref = '../../ui/index.html';
+        } else if (isInMessagingViews) {
             homeHref = '../../ui/index.html';
         } else if (isInUiViews) {
             homeHref = '../index.html';
@@ -517,7 +562,7 @@ class Header {
      * Handle messenger button click
      */
     static handleMessengerButtonClick() {
-        const basePath = this.getBasePath();
+        const basePath = this.getMessagingBasePath();
         const messengerUrl = basePath + 'messenger.html';
         window.location.href = messengerUrl;
     }
