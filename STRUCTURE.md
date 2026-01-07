@@ -39,12 +39,13 @@
 ├── /assets/                    → Shared static assets
 │   └── siteBackgroundImage.jpg
 │
-├── /components/                → Shared UI components
-│   └── header.js               → Navigation header (on ALL pages)
-│
 ├── /config/                    → Global app configuration
 │   ├── constants.js            → App-wide constants
 │   └── moduleRegistry.js       → Module registration
+│
+├── /header/                    → Header component (used on ALL pages)
+│   ├── header.js               → Header logic & rendering
+│   └── header.css              → Header/navigation styles
 │
 ├── /services/                  → Services used by multiple features
 │   ├── authService.js          → ✓ Used by ALL features
@@ -67,7 +68,6 @@
 │       ├── buttons.css
 │       ├── cards.css
 │       ├── forms.css
-│       ├── navigation.css      → Header/nav styles
 │       └── tables.css
 │
 ├── /utils/                     → Utilities used by multiple features
@@ -187,7 +187,7 @@ Each feature follows this pattern:
 
 ### ✅ Put in `/shared` if:
 - Used by 2+ features
-- Navigation/header component
+- Header component (logic + styles in `/shared/header/`)
 - Global configuration
 - Common utilities (auth, validation, formatting)
 - Shared services (calculation, export, file handling)
@@ -204,14 +204,14 @@ Each feature follows this pattern:
 
 | File | Location | Why |
 |------|----------|-----|
-| `header.js` | `/shared/components/` | Used on ALL pages |
+| `header.js` | `/shared/header/` | Used on ALL pages |
+| `header.css` | `/shared/header/` | Header styles (all pages) |
 | `authService.js` | `/shared/services/` | Used by ALL features |
 | `monthlyBudgetController.js` | `/monthlyBudget/controllers/` | Only used by monthlyBudget |
 | `messagingService.js` | `/messaging/services/` | Only used by messenger |
 | `calculationService.js` | `/shared/services/` | Used by monthlyBudget AND pots |
 | `landing.css` | `/landing/styles/` | Only used by landing page |
 | `monthlyBudget.css` | `/monthlyBudget/styles/` | Only used by monthlyBudget |
-| `navigation.css` | `/shared/styles/components/` | Header styles (all pages) |
 
 ---
 
