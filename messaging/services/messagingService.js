@@ -196,12 +196,11 @@ const MessagingService = {
                     content.trim()
                 );
 
-                // Create encrypted message
+                // Create encrypted message (encryption-only, no plain-text content)
                 messageData = {
                     conversation_id: conversationId,
                     sender_id: senderId,
                     recipient_id: recipientId,
-                    content: '', // Placeholder for backward compatibility (content column is still NOT NULL)
                     encrypted_content: encryptedData.ciphertext,
                     encryption_nonce: encryptedData.nonce,
                     message_counter: encryptedData.counter,
