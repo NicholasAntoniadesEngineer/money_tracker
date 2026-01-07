@@ -137,7 +137,7 @@ class Header {
         } else if (path.includes('/ui/')) {
             homeHref = 'index.html';
         } else {
-            homeHref = 'ui/index.html';
+            homeHref = 'shared/index.html';
         }
 
         const navItems = [
@@ -431,7 +431,7 @@ class Header {
                 } else if (path.includes('/ui/')) {
                     landingPageUrl = 'index.html';
                 } else {
-                    landingPageUrl = 'ui/index.html';
+                    landingPageUrl = 'shared/index.html';
                 }
                 window.location.href = landingPageUrl;
             } else {

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Money Tracker - Sign In</title>
-    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../ui/styles/main.css">
+    <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../shared/styles/main.css">
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
         (function() {
@@ -247,7 +247,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="../../database/config/supabaseConfig.js"></script>
-    <script src="../../ui/services/AuthService.js"></script>
+    <script src="../../shared/services/AuthService.js"></script>
     
     <!-- Database Module Configuration -->
     <script src="../../database/config/databaseConfigBase.js"></script>
@@ -256,11 +256,11 @@
     <script src="../../database/databaseModule.js"></script>
 
     <!-- Core Utilities -->
-    <script src="../../ui/config/moduleRegistry.js"></script>
-    <script src="../../ui/config/constants.js"></script>
-    <script src="../../ui/utils/logger.js"></script>
-    <script src="../../ui/utils/errorHandler.js"></script>
-    <script src="../../ui/utils/validators.js"></script>
+    <script src="../../shared/config/moduleRegistry.js"></script>
+    <script src="../../shared/config/constants.js"></script>
+    <script src="../../shared/utils/logger.js"></script>
+    <script src="../../shared/utils/errorHandler.js"></script>
+    <script src="../../shared/utils/validators.js"></script>
 
     <!-- Database Service -->
     <script src="../../database/services/databaseService.js"></script>
@@ -296,8 +296,8 @@
     <script src="../../payments/initPayments.js"></script>
     <script src="../../payments/utils/waitForPaymentsInit.js"></script>
     
-    <script src="../../ui/utils/authGuard.js"></script>
-    <script src="../../ui/components/header.js"></script>
+    <script src="../../shared/utils/authGuard.js"></script>
+    <script src="../../shared/components/header.js"></script>
     <script>
         // Initialize AuthService
         let authServiceInitialized = false;
