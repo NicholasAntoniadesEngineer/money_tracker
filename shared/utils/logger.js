@@ -30,7 +30,8 @@ const Logger = {
     init() {
         // Set log level based on environment
         const hostname = window.location.hostname;
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+            // Empty hostname means file:// protocol - enable debug for local development
             this.level = 'debug';
         } else {
             this.level = 'error'; // Production: only show errors
