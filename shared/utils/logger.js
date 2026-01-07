@@ -4,6 +4,13 @@
  * @module ui/utils/logger
  */
 
+// IMMEDIATE LOG - This runs as soon as the file loads
+console.log('===== LOGGER.JS FILE LOADING =====');
+console.log('Location:', window.location.href);
+console.log('Protocol:', window.location.protocol);
+console.log('Hostname:', window.location.hostname);
+console.log('==================================');
+
 const Logger = {
     /**
      * Current log level
