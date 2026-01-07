@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Money Tracker</title>
-    <link rel="stylesheet" href="../../ui/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../ui/styles/main.css">
+    <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <link rel="stylesheet" href="../styles/settings.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script>
@@ -274,72 +275,75 @@
     </footer>
 
     <!-- Database Layer -->
-    <script src="../../database/config/supabase-config.js"></script>
-    <script src="../../ui/services/AuthService.js"></script>
+    <!-- Global Logging Configuration - MUST load first -->
+    <script src="../../shared/config/loggingConfig.js"></script>
+
+    <script src="../../database/config/supabaseConfig.js"></script>
+    <script src="../../shared/services/authService.js"></script>
     
     <!-- Database Module Configuration -->
-    <script src="../../database/config/database-config-base.js"></script>
-    <script src="../../database/config/money-tracker-database-config.js"></script>
-    <script src="../../database/utils/database-config-helper.js"></script>
-    <script src="../../database/database-module.js"></script>
+    <script src="../../database/config/databaseConfigBase.js"></script>
+    <script src="../../database/config/moneyTrackerDatabaseConfig.js"></script>
+    <script src="../../database/utils/databaseConfigHelper.js"></script>
+    <script src="../../database/databaseModule.js"></script>
 
     <!-- Core Utilities -->
-    <script src="../../ui/config/module-registry.js"></script>
-    <script src="../../ui/config/constants.js"></script>
-    <script src="../../ui/utils/logger.js"></script>
-    <script src="../../ui/utils/error-handler.js"></script>
-    <script src="../../ui/utils/validators.js"></script>
+    <script src="../../shared/config/moduleRegistry.js"></script>
+    <script src="../../shared/config/constants.js"></script>
+    <script src="../../shared/utils/logger.js"></script>
+    <script src="../../shared/utils/errorHandler.js"></script>
+    <script src="../../shared/utils/validators.js"></script>
     
     <!-- Database Service -->
-    <script src="../../database/services/database-service.js"></script>
-    <script src="../../database/services/DataSharingService.js"></script>
-    <script src="../../database/services/FieldLockingService.js"></script>
+    <script src="../../database/services/databaseService.js"></script>
+    <script src="../../database/services/dataSharingService.js"></script>
+    <script src="../../database/services/fieldLockingService.js"></script>
     
     <!-- Notification Services -->
-    <script src="../../database/services/NotificationTypeRegistry.js"></script>
-    <script src="../../database/services/NotificationService.js"></script>
-    <script src="../../database/services/NotificationPreferenceService.js"></script>
-    <script src="../../database/services/NotificationChannelService.js"></script>
-    <script src="../../database/services/NotificationProcessor.js"></script>
+    <script src="../../database/services/notificationTypeRegistry.js"></script>
+    <script src="../../database/services/notificationService.js"></script>
+    <script src="../../database/services/notificationPreferenceService.js"></script>
+    <script src="../../database/services/notificationChannelService.js"></script>
+    <script src="../../database/services/notificationProcessor.js"></script>
 
     <!-- Initialize Database Module -->
-    <script src="../../database/init-database.js"></script>
+    <script src="../../database/initDatabase.js"></script>
 
     <!-- Messaging Service -->
-    <script src="../../messaging/services/MessagingService.js"></script>
+    <script src="../../messaging/services/messagingService.js"></script>
     
     <!-- Payments Module Configuration -->
-    <script src="../../payments/config/payments-config-base.js"></script>
-    <script src="../../payments/config/money-tracker-config.js"></script>
-    <script src="../../payments/utils/config-helper.js"></script>
-    <script src="../../payments/payments-module.js"></script>
+    <script src="../../payments/config/paymentsConfigBase.js"></script>
+    <script src="../../payments/config/moneyTrackerConfig.js"></script>
+    <script src="../../payments/utils/configHelper.js"></script>
+    <script src="../../payments/paymentsModule.js"></script>
     
     <!-- Payments Services -->
-    <script src="../../payments/services/StripeService.js"></script>
-    <script src="../../payments/services/PaymentService.js"></script>
-    <script src="../../payments/services/SubscriptionService.js"></script>
-    <script src="../../payments/utils/subscription-checker.js"></script>
+    <script src="../../payments/services/stripeService.js"></script>
+    <script src="../../payments/services/paymentService.js"></script>
+    <script src="../../payments/services/subscriptionService.js"></script>
+    <script src="../../payments/utils/subscriptionChecker.js"></script>
     
     <!-- Initialize Payments Module -->
-    <script src="../../payments/init-payments.js"></script>
-    <script src="../../payments/utils/wait-for-payments-init.js"></script>
-    <script src="../../ui/utils/subscription-guard.js"></script>
-    <script src="../../ui/utils/auth-guard.js"></script>
-    <script src="../../ui/utils/network-utils.js"></script>
-    <script src="../../ui/utils/offline-handler.js"></script>
-    <script src="../../database/models/data-manager.js"></script>
-    <script src="../../database/models/month-factory.js"></script>
+    <script src="../../payments/initPayments.js"></script>
+    <script src="../../payments/utils/waitForPaymentsInit.js"></script>
+    <script src="../../shared/utils/subscriptionGuard.js"></script>
+    <script src="../../shared/utils/authGuard.js"></script>
+    <script src="../../shared/utils/networkUtils.js"></script>
+    <script src="../../shared/utils/offlineHandler.js"></script>
+    <script src="../../database/models/dataManager.js"></script>
+    <script src="../../database/models/monthFactory.js"></script>
     
     <!-- UI Layer -->
-    <script src="../../ui/services/CalculationService.js"></script>
-    <script src="../../ui/services/FormHandler.js"></script>
-    <script src="../../ui/services/TableRenderer.js"></script>
-    <script src="../../ui/utils/formatters.js"></script>
-    <script src="../../ui/utils/CSVHandler.js"></script>
-    <script src="../../ui/utils/ReferenceImporter.js"></script>
-    <script src="../../ui/services/ExportService.js"></script>
-    <script src="../../ui/components/Header.js"></script>
-    <script src="../controllers/SettingsController.js"></script>
+    <script src="../../shared/services/calculationService.js"></script>
+    <script src="../../shared/services/formHandler.js"></script>
+    <script src="../../shared/services/tableRenderer.js"></script>
+    <script src="../../shared/utils/formatters.js"></script>
+    <script src="../../shared/utils/CSVHandler.js"></script>
+    <script src="../../shared/utils/ReferenceImporter.js"></script>
+    <script src="../../shared/services/exportService.js"></script>
+    <script src="../../shared/header/header.js"></script>
+    <script src="../controllers/settingsController.js"></script>
     <script>
         // Initialize application with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
