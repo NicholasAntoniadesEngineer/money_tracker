@@ -37,7 +37,10 @@ END $$;
 -- Delete all messages (plain-text and any early encrypted messages)
 DELETE FROM messages;
 
-RAISE NOTICE 'All messages deleted. Starting fresh with encryption-only.';
+DO $$
+BEGIN
+    RAISE NOTICE 'All messages deleted. Starting fresh with encryption-only.';
+END $$;
 
 -- =====================================================
 -- 3. Drop old content column and make encryption columns required
@@ -58,7 +61,10 @@ ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_must_be_encrypted;
 ALTER TABLE messages ADD CONSTRAINT messages_must_be_encrypted
     CHECK (is_encrypted = true);
 
-RAISE NOTICE 'Messages table updated: content column dropped, encryption columns now required';
+DO $$
+BEGIN
+    RAISE NOTICE 'Messages table updated: content column dropped, encryption columns now required';
+END $$;
 
 -- =====================================================
 -- 4. Update table comments
