@@ -11,6 +11,7 @@ const ModuleRegistry = {
      */
     modules: [
         { name: 'auth', hasController: false, hasService: false, hasViews: true },
+        { name: 'landing', hasController: true, hasService: false, hasViews: false },
         { name: 'monthlyBudget', hasController: true, hasService: false, hasViews: true },
         { name: 'notifications', hasController: true, hasService: false, hasViews: true },
         { name: 'pots', hasController: true, hasService: false, hasViews: true },

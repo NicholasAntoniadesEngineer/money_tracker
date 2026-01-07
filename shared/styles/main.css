@@ -16,13 +16,6 @@
 @import url('components/buttons.css');
 @import url('components/cards.css');
 
-/* Views */
-@import url('views/landing.css');
-@import url('views/monthly-budget.css');
-@import url('views/overview.css');
-@import url('views/pots.css');
-@import url('views/settings.css');
-
 /* Utilities & Responsive */
 @import url('utilities.css');
 @import url('responsive.css');
