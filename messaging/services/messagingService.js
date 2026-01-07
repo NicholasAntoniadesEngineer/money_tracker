@@ -522,7 +522,7 @@ const MessagingService = {
                 const sender_email = senderEmailResult.success ? senderEmailResult.email : 'Unknown User';
 
                 // Decrypt message if encrypted
-                let content = msg.content; // Legacy plain-text fallback
+                let content = '[Encrypted]'; // Default fallback
 
                 if (msg.is_encrypted && msg.encrypted_content && msg.encryption_nonce) {
                     try {

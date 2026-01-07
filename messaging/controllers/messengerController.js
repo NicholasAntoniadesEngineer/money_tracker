@@ -1425,12 +1425,30 @@ const MessengerController = {
             const date = new Date(message.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Decrypt message if encrypted
+            let displayContent = message.content || '[Encrypted]';
+            if (message.is_encrypted && message.encrypted_content && message.encryption_nonce) {
+                try {
+                    displayContent = await window.KeyManager.decryptMessage(
+                        conversation.id,
+                        {
+                            ciphertext: message.encrypted_content,
+                            nonce: message.encryption_nonce,
+                            counter: message.message_counter
+                        }
+                    );
+                } catch (decryptionError) {
+                    console.error('[MessengerController] Failed to decrypt message in appendMessageToThread:', decryptionError);
+                    displayContent = '[Decryption failed]';
+                }
+            }
+
             // Generate HTML for the new message (regular message only, not share requests)
             const messageHtml = `
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                     <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                         <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                        <div style="white-space: pre-line;">${message.content}</div>
+                        <div style="white-space: pre-line;">${displayContent}</div>
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
                     </div>
                 </div>
