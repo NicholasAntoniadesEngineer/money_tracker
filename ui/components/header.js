@@ -31,7 +31,7 @@ class Header {
         
         if (filename === 'index.html' || filename === '') {
             return 'Home';
-        } else if (filename.includes('monthly-budget')) {
+        } else if (filename.includes('monthlyBudget')) {
             return 'Monthly Budget';
         } else if (filename.includes('pots')) {
             return 'Pots & Investments';
@@ -51,7 +51,7 @@ class Header {
 
     /**
      * Get path to a specific module's views folder
-     * @param {string} moduleName - Name of the module (e.g., 'auth', 'monthly-budget', 'settings')
+     * @param {string} moduleName - Name of the module (e.g., 'auth', 'monthlyBudget', 'settings')
      * @returns {string} Path to the module's views folder
      */
     static getModulePath(moduleName) {
@@ -142,7 +142,7 @@ class Header {
 
         const navItems = [
             { name: 'Home', href: homeHref, page: 'Home' },
-            { name: 'Monthly Budget', href: this.getModulePath('monthly-budget') + 'monthly-budget.html', page: 'Monthly Budget' },
+            { name: 'Monthly Budget', href: this.getModulePath('monthlyBudget') + 'monthlyBudget.html', page: 'Monthly Budget' },
             { name: 'Pots & Investments', href: this.getModulePath('pots') + 'pots.html', page: 'Pots & Investments' }
         ];
 

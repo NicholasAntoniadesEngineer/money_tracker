@@ -10,7 +10,7 @@ const Constants = {
      */
     MODULES: {
         AUTH: 'auth',
-        MONTHLY_BUDGET: 'monthly-budget',
+        MONTHLY_BUDGET: 'monthlyBudget',
         NOTIFICATIONS: 'notifications',
         POTS: 'pots',
         SETTINGS: 'settings',
@@ -24,7 +24,7 @@ const Constants = {
     PATHS: {
         UI_INDEX: 'ui/index.html',
         AUTH: 'auth/views/auth.html',
-        MONTHLY_BUDGET: 'monthly-budget/views/monthly-budget.html',
+        MONTHLY_BUDGET: 'monthly-budget/views/monthlyBudget.html',
         NOTIFICATIONS: 'notifications/views/notifications.html',
         POTS: 'pots/views/pots.html',
         SETTINGS: 'settings/views/settings.html',

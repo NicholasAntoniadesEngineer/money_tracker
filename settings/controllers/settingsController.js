@@ -796,14 +796,14 @@ const SettingsController = {
                     <p style="color: var(--success-color);">
                         ✓ Successfully imported ${monthName || 'month'} ${fileYear || ''} from ${fileType} file!
                     </p>
-                    ${monthData ? `<p style="margin-top: 0.5rem;"><a href="monthly-budget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month →</a></p>` : ''}
+                    ${monthData ? `<p style="margin-top: 0.5rem;"><a href="monthlyBudget.html?month=${monthData.key}" style="color: var(--primary-color);">View Month →</a></p>` : ''}
                 `;
             } else {
                 importStatus.innerHTML = `
                     <div>
                         <p><strong>Import Complete:</strong> ${successCount} succeeded, ${errorCount} failed</p>
                         ${results.join('')}
-                        ${successCount > 0 ? `<p><a href="monthly-budget.html" style="color: var(--primary-color);">View Monthly Budget</a></p>` : ''}
+                        ${successCount > 0 ? `<p><a href="monthlyBudget.html" style="color: var(--primary-color);">View Monthly Budget</a></p>` : ''}
                     </div>
                 `;
             }

@@ -295,7 +295,7 @@ const MonthlyBudgetController = {
         const month = parseInt(monthInput, 10);
         const monthKey = DataManager.generateMonthKey(year, month);
         await DataManager.createNewMonth(year, month);
-        window.location.href = `monthly-budget.html?month=${monthKey}`;
+        window.location.href = `monthlyBudget.html?month=${monthKey}`;
     },
 
     /**

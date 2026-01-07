@@ -185,7 +185,7 @@ const PotsController = {
                 <div class="form-section" style="margin-bottom: 1rem;">
                     <h3>${monthName} ${monthData.year}</h3>
                     <p class="empty-message">No pots for this month.</p>
-                    <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action">Edit Month</a>
+                    <a href="monthlyBudget.html?month=${monthKey}" class="btn btn-action">Edit Month</a>
                 </div>
             `;
             return;
@@ -225,7 +225,7 @@ const PotsController = {
                         </tr>
                     </tbody>
                 </table>
-                <a href="monthly-budget.html?month=${monthKey}" class="btn btn-action" style="margin-top: 1rem;">Edit Month</a>
+                <a href="monthlyBudget.html?month=${monthKey}" class="btn btn-action" style="margin-top: 1rem;">Edit Month</a>
             </div>
         `;
     },
