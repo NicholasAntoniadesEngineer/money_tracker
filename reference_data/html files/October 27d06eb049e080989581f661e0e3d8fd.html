@@ -1,0 +1,715 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>October</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="27d06eb0-49e0-8098-9581-f661e0e3d8fd" class="page sans"><header><img class="page-cover-image" src="October/October.jpg" style="object-position:center 43.88999999999999%"/><div class="page-header-icon page-header-icon-with-cover"><img class="icon notion-static-icon" src="https://www.notion.so/icons/cash_lightgray.svg"/></div><h1 class="page-title" dir="auto">October</h1><p class="page-description" dir="auto"></p><table class="properties"><tbody></tbody></table></header><div class="page-body"><div style="display:contents" dir="auto"><p id="27d06eb0-49e0-8057-a849-c3c292254ddd" class="">
+</p></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-81a1-8e80-df0f0757efb8" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8107-9a7a-cd059196d5d6"><th id="wbIq" class="simple-table-header-color simple-table-header">Date</th><th id="JjND" class="simple-table-header-color simple-table-header" style="width:321.1892395019531px">Payments Due</th><th id="wMPX" class="simple-table-header-color simple-table-header" style="width:246.7621612548828px">Unplanned/Other</th><th id="&lt;upj" class="simple-table-header-color simple-table-header" style="width:240.2465362548828px">Groceries</th><th id="csAR" class="simple-table-header-color simple-table-header" style="width:189.4479217529297px">Activities</th><th id="?S=}" class="simple-table-header-color simple-table-header" style="width:106px">Estimate</th><th id="u]Gk" class="simple-table-header-color simple-table-header" style="width:111px">Actual</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81c6-b239-eb5c81113742"><th id="wbIq" class="simple-table-header-color simple-table-header">1-7</th><td id="JjND" class="" style="width:321.1892395019531px">Rent/Lease 1751.13 <br/>Spotify 23.32 <br/>Barclays Partner Finance 48.23 <br/>Audible 10.96 <br/>Alpinacom Gmbh 22.02 (Lara)<br/></td><td id="wMPX" class="" style="width:246.7621612548828px"></td><td id="&lt;upj" class="" style="width:240.2465362548828px">125<br/><br/><br/>=<br/>Spent:</td><td id="csAR" class="" style="width:189.4479217529297px">100<br/><br/><br/>= <br/>Spent:</td><td id="?S=}" class="" style="width:106px">1833.64</td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8144-9449-ca284bb947f8"><th id="wbIq" class="simple-table-header-color simple-table-header">8-14</th><td id="JjND" class="" style="width:321.1892395019531px">Alpinacom Gmbh 22.02 <br/>iCloud+ 2TB Storage 11.54 <br/>Fitinn Wien Rathauspla 140.12 <br/>Transport 226.84</td><td id="wMPX" class="" style="width:246.7621612548828px"></td><td id="&lt;upj" class="" style="width:240.2465362548828px">125 <br/><br/><br/>=<br/>Spent:</td><td id="csAR" class="" style="width:189.4479217529297px">100<br/><br/><br/>= <br/>Spent:</td><td id="?S=}" class="" style="width:106px">625.52</td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8171-8a78-ca4c9eb9c00e"><th id="wbIq" class="simple-table-header-color simple-table-header">15-21</th><td id="JjND" class="" style="width:321.1892395019531px">Weed 69.29<br/>Adobe All Apps 100GB 33.23<br/>Cs Addtl Storage (Creative Cloud 1TB) 11.70 <br/>ChatGPT 23.08<br/>Xai LLC 25.93 </td><td id="wMPX" class="" style="width:246.7621612548828px"></td><td id="&lt;upj" class="" style="width:240.2465362548828px">125<br/><br/><br/>=<br/>Spent:</td><td id="csAR" class="" style="width:189.4479217529297px">100<br/><br/><br/>= <br/>Spent:</td><td id="?S=}" class="" style="width:106px">388.23</td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-812e-b580-f36a86b00906"><th id="wbIq" class="simple-table-header-color simple-table-header">22-28</th><td id="JjND" class="" style="width:321.1892395019531px">Google Storage Photos 9.04<br/></td><td id="wMPX" class="" style="width:246.7621612548828px"></td><td id="&lt;upj" class="" style="width:240.2465362548828px">125<br/><br/><br/>=<br/>Spent:</td><td id="csAR" class="" style="width:189.4479217529297px">100<br/><br/><br/>= <br/>Spent:</td><td id="?S=}" class="" style="width:106px">234.04</td><td id="u]Gk" class="" style="width:111px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8142-ad23-d72daa80b2b2"><th id="wbIq" class="simple-table-header-color simple-table-header">Totals</th><td id="JjND" class="" style="width:321.1892395019531px"></td><td id="wMPX" class="" style="width:246.7621612548828px"></td><td id="&lt;upj" class="" style="width:240.2465362548828px"></td><td id="csAR" class="" style="width:189.4479217529297px"></td><td id="?S=}" class="" style="width:106px"></td><td id="u]Gk" class="" style="width:111px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="27d06eb0-49e0-8128-8bad-d69f6aed035e"/></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-812a-b167-eb5e42ec6a34" class=""><strong>1. Expenses vs Income</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-81fa-9ea8-feae94c7b57a" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81b4-9baf-d41e689d281d"><th id="O`;V" class="simple-table-header-color simple-table-header" style="width:738.9844360351562px">Revenue Source</th><th id="~rhS" class="simple-table-header-color simple-table-header" style="width:261.3203125px">Estimated Amount (£)</th><th id="Fw^l" class="simple-table-header-color simple-table-header" style="width:277.65625px">Actual Amount (£)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8113-8d95-d1bd26712a74"><td id="O`;V" class="" style="width:738.9844360351562px">Nicholas Income</td><td id="~rhS" class="" style="width:261.3203125px">3080</td><td id="Fw^l" class="" style="width:277.65625px">3155.64</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-818b-adf0-eae97af21093"><td id="O`;V" class="" style="width:738.9844360351562px">Lara Income</td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81b5-b61a-dc49733f6eb1"><td id="O`;V" class="" style="width:738.9844360351562px">Other Income (e.g., sales of cloths, household)</td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8171-9c77-fd847e9d3bdd"><td id="O`;V" class="" style="width:738.9844360351562px"><strong>Total Income</strong></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81a8-bd1e-f84b0abde37e"><td id="O`;V" class="" style="width:738.9844360351562px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-811b-9b81-c19766759562"><td id="O`;V" class="" style="width:738.9844360351562px">Total Fixed Costs</td><td id="~rhS" class="" style="width:261.3203125px">2137.51</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81bd-9162-f2a385287051"><td id="O`;V" class="" style="width:738.9844360351562px">Total Variable Costs</td><td id="~rhS" class="" style="width:261.3203125px">650</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81a9-955d-f793dd98c5fc"><td id="O`;V" class="" style="width:738.9844360351562px"><strong>Total Expenses</strong></td><td id="~rhS" class="" style="width:261.3203125px">3037.51</td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-817e-a547-d30061786392"><td id="O`;V" class="" style="width:738.9844360351562px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81e1-8580-eeda0008c901"><td id="O`;V" class="" style="width:738.9844360351562px"><strong>Total Unplanned Buying</strong></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-817f-bb63-e09b04e8262c"><td id="O`;V" class="" style="width:738.9844360351562px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81e3-ba50-db91a169207d"><td id="O`;V" class="" style="width:738.9844360351562px"><em>Grand Savings Total </em></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:277.65625px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-816b-8108-eab6f95fc7aa" class=""><strong>2. Fixed Costs (Recurring Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-8184-8e54-cbeceb032a3e" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8113-ba3d-e8cd6f36e02a"><th id=":kC|" class="simple-table-header-color simple-table-header" style="width:442.998291015625px">Expense Category</th><th id="Qw=;" class="simple-table-header-color simple-table-header" style="width:284.31597900390625px">Estimate Amount (<strong>€</strong>)</th><th id="Y}q^" class="simple-table-header-color simple-table-header" style="width:252.65106201171875px">Actual Amount (<strong>€</strong>)</th><th id="bSa_" class="simple-table-header-color simple-table-header" style="width:143.9947967529297px">Date</th><th id="I[Th" class="simple-table-header-color simple-table-header" style="width:151.73265075683594px">Card</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81f0-b470-fa03f9157bca"><td id=":kC|" class="" style="width:442.998291015625px"><em>Once Off Expenses</em></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81b7-b3a5-d04429854019"><td id=":kC|" class="" style="width:442.998291015625px">Lara Flex</td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81a4-93fa-f97784b471e7"><td id=":kC|" class="" style="width:442.998291015625px">Nicholas Flex</td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81b9-876b-d3fe5dc395b6"><td id=":kC|" class="" style="width:442.998291015625px"><em>Recurring Expenses</em></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-817b-a93b-e1d793af1a83"><td id=":kC|" class="" style="width:442.998291015625px">Rent/Lease</td><td id="Qw=;" class="" style="width:284.31597900390625px">1491</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">2nd</td><td id="I[Th" class="" style="width:151.73265075683594px">Joint Amex</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81fe-a44a-eae6e21de5f2"><td id=":kC|" class="" style="width:442.998291015625px">Barclays Partner Finance</td><td id="Qw=;" class="" style="width:284.31597900390625px">48.23</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">28th</td><td id="I[Th" class="" style="width:151.73265075683594px">Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81ed-90e2-fb8d1ac58916"><td id=":kC|" class="" style="width:442.998291015625px">Transport</td><td id="Qw=;" class="" style="width:284.31597900390625px">196.54</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">9th</td><td id="I[Th" class="" style="width:151.73265075683594px">Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8161-8933-f5a3626868d5"><td id=":kC|" class="" style="width:442.998291015625px">Weed </td><td id="Qw=;" class="" style="width:284.31597900390625px">130</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">15th</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81b5-a230-cea8071914fb"><td id=":kC|" class="" style="width:442.998291015625px"><em>Subscriptions (e.g., software, memberships)</em></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81e6-97a6-d523e1055e93"><td id=":kC|" class="" style="width:442.998291015625px">Spotify</td><td id="Qw=;" class="" style="width:284.31597900390625px">23.32</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">1st</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8121-9f2c-dacc0920b29f"><td id=":kC|" class="" style="width:442.998291015625px">Audible</td><td id="Qw=;" class="" style="width:284.31597900390625px">10.96</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">2nd</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81d8-8564-db10b14a1f5c"><td id=":kC|" class="" style="width:442.998291015625px">Alpinacom Gmbh x2 (Data)</td><td id="Qw=;" class="" style="width:284.31597900390625px">44</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">8th</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8128-b0e0-d3f0a87c3260"><td id=":kC|" class="" style="width:442.998291015625px">Fitinn Wien Rathauspla x 2</td><td id="Qw=;" class="" style="width:284.31597900390625px">140.12</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">9th</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81a5-a348-eee5411eda30"><td id=":kC|" class="" style="width:442.998291015625px">iCloud+ 2TB Storage</td><td id="Qw=;" class="" style="width:284.31597900390625px">11.54</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">11th</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8151-a6cc-d43c1013d028"><td id=":kC|" class="" style="width:442.998291015625px">Adobe All Apps 100GB</td><td id="Qw=;" class="" style="width:284.31597900390625px">32.89</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">16th</td><td id="I[Th" class="" style="width:151.73265075683594px">Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-815a-9efb-fe57064c4cf1"><td id=":kC|" class="" style="width:442.998291015625px">Cs Addtl Storage (Creative Cloud 1TB)</td><td id="Qw=;" class="" style="width:284.31597900390625px">11.53</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">16th</td><td id="I[Th" class="" style="width:151.73265075683594px">Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8174-9d6f-d985e99a234a"><td id=":kC|" class="" style="width:442.998291015625px">Xai LLC (Grok)</td><td id="Qw=;" class="" style="width:284.31597900390625px">25.93</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">17th</td><td id="I[Th" class="" style="width:151.73265075683594px">Nicholas Flex</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8131-a8c4-e94b91c50213"><td id=":kC|" class="" style="width:442.998291015625px">ChatGPT</td><td id="Qw=;" class="" style="width:284.31597900390625px">23.08</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">17th</td><td id="I[Th" class="" style="width:151.73265075683594px">Apple Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81ee-aa85-fa3fe2d11a06"><td id=":kC|" class="" style="width:442.998291015625px">Google Storage Photos</td><td id="Qw=;" class="" style="width:284.31597900390625px">9.04</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px">27th</td><td id="I[Th" class="" style="width:151.73265075683594px">Monzo Joint</td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81bf-833b-f3430435932e"><td id=":kC|" class="" style="width:442.998291015625px"></td><td id="Qw=;" class="" style="width:284.31597900390625px"></td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-811f-9a90-d2d675900bd5"><td id=":kC|" class="" style="width:442.998291015625px"><strong>Total Fixed Costs</strong></td><td id="Qw=;" class="" style="width:284.31597900390625px">2137.51</td><td id="Y}q^" class="" style="width:252.65106201171875px"></td><td id="bSa_" class="" style="width:143.9947967529297px"></td><td id="I[Th" class="" style="width:151.73265075683594px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="27d06eb0-49e0-8133-9ac2-e7a4a3efc604"/></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-812b-a83f-f7e0673618d4" class=""><strong>3. Variable Costs (Operational Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-811c-b58d-e1fbb5e22a48" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-816c-b8f5-f184bbb91f20"><th id="GSsm" class="simple-table-header-color simple-table-header" style="width:738.46533203125px">Expense Category</th><th id="\=C&lt;" class="simple-table-header-color simple-table-header" style="width:261.3203125px">Estimated Amount (<strong>€</strong>)</th><th id="l[KS" class="simple-table-header-color simple-table-header" style="width:277.65625px">Actual Amount (<strong>€</strong>)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8111-a88f-f2a2572c157b"><td id="GSsm" class="" style="width:738.46533203125px">Food</td><td id="\=C&lt;" class="" style="width:261.3203125px">450</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81fb-8da9-c520b31bf9ba"><td id="GSsm" class="" style="width:738.46533203125px">Activities</td><td id="\=C&lt;" class="" style="width:261.3203125px">200</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81e4-9b42-e68e3f0551e1"><td id="GSsm" class="" style="width:738.46533203125px"></td><td id="\=C&lt;" class="" style="width:261.3203125px"></td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8189-b208-fce584190f6a"><td id="GSsm" class="" style="width:738.46533203125px"><strong>Total Variable Costs</strong></td><td id="\=C&lt;" class="" style="width:261.3203125px">650</td><td id="l[KS" class="" style="width:277.65625px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="27d06eb0-49e0-81c0-8135-c636ab5fe554"/></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-8123-91e3-e662ceb12060" class=""><strong>4. Unplanned Buying (Within the Month)</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-815a-a4bc-d90a1e2c2e59" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8198-b524-ca543a55ec27"><th id="|uOS" class="simple-table-header-color simple-table-header" style="width:605.9931030273438px">Expense Name</th><th id="t@@u" class="simple-table-header-color simple-table-header" style="width:272.9965515136719px">Total Amount (<strong>€</strong>)</th><th id="XzOv" class="simple-table-header-color simple-table-header" style="width:278px">Card Used for Payment</th><th id="qZXd" class="simple-table-header-color simple-table-header">Date</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81ac-a81d-ee279757236b"><td id="|uOS" class="" style="width:605.9931030273438px"></td><td id="t@@u" class="" style="width:272.9965515136719px"></td><td id="XzOv" class="" style="width:278px"></td><td id="qZXd" class=""></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8109-9840-ef77dee8f089"><td id="|uOS" class="" style="width:605.9931030273438px"></td><td id="t@@u" class="" style="width:272.9965515136719px"></td><td id="XzOv" class="" style="width:278px"></td><td id="qZXd" class=""></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-815b-8887-c35cd610e4e0"><td id="|uOS" class="" style="width:605.9931030273438px"><strong>Total</strong></td><td id="t@@u" class="" style="width:272.9965515136719px"></td><td id="XzOv" class="" style="width:278px"></td><td id="qZXd" class=""></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="27d06eb0-49e0-8153-98c6-d090ae5173a1"/></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-818b-80ac-ecb4995ec4c1" class=""><strong>5. Pots and Investments</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-8161-819d-c002cf7a58ac" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-815b-abd7-dfc416c89054"><th id="xocK" class="simple-table-header-color simple-table-header" style="width:743.3472900390625px">Category</th><th id="DeeP" class="simple-table-header-color simple-table-header" style="width:267.3194580078125px">Estimated Amount (<strong>€</strong>)</th><th id="\OIt" class="simple-table-header-color simple-table-header" style="width:269.86285400390625px">Actual Amount (<strong>€</strong>)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81d3-8c0a-f1eeb6ec6c04"><td id="xocK" class="" style="width:743.3472900390625px">Cosmetic Pot </td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-811b-b536-e05bae9c23a4"><td id="xocK" class="" style="width:743.3472900390625px">Apple Care Pot </td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-812f-94d7-e778242b6a64"><td id="xocK" class="" style="width:743.3472900390625px">So Nicholas Can See Pot</td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8147-95e0-de527862d97c"><td id="xocK" class="" style="width:743.3472900390625px">House/Breakages Pot </td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-812f-8b13-ef7157f86529"><td id="xocK" class="" style="width:743.3472900390625px">Clothes</td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81c7-9976-c6c39ed83abf"><td id="xocK" class="" style="width:743.3472900390625px">Birthday Present Pot</td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81c3-81d0-f8c1e30d51e3"><td id="xocK" class="" style="width:743.3472900390625px">Emergency Pot </td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-812e-9be8-f3369dc0413c"><td id="xocK" class="" style="width:743.3472900390625px">Business Pot</td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81e7-ab74-c81805bb47b7"><td id="xocK" class="" style="width:743.3472900390625px"><strong>Total Savings/Investments</strong></td><td id="DeeP" class="" style="width:267.3194580078125px"></td><td id="\OIt" class="" style="width:269.86285400390625px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="27d06eb0-49e0-8155-ba9a-c88a0df73b44"/></div><div style="display:contents" dir="auto"><p id="27d06eb0-49e0-81b9-adeb-e26c380f1f00" class="">
+</p></div><div style="display:contents" dir="auto"><h3 id="27d06eb0-49e0-8159-964b-c03c0533e156" class=""><strong>6. Lara Income Work</strong></h3></div><div style="display:contents" dir="ltr"><table id="27d06eb0-49e0-81ab-8361-f03081664374" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8197-8606-c810606db6d9"><th id="xocK" class="simple-table-header-color simple-table-header" style="width:840.3489990234375px">Category</th><th id="DeeP" class="simple-table-header-color simple-table-header" style="width:202.3194580078125px">Estimated Amount (<strong>€</strong>)</th><th id="nWG;" class="simple-table-header-color simple-table-header" style="width:234.61805725097656px">Actual Amount (<strong>€</strong>)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8195-accc-d1b2cca33f8a"><td id="xocK" class="" style="width:840.3489990234375px"><em>Lucy Delius </em></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-810f-b3f5-ecbadf1e9e4c"><td id="xocK" class="" style="width:840.3489990234375px"></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8144-9a5f-eb90d775e8dd"><td id="xocK" class="" style="width:840.3489990234375px"></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8118-b0c5-ec4b4fd068d7"><td id="xocK" class="" style="width:840.3489990234375px"></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81c7-a5b3-fe3736260f8d"><td id="xocK" class="" style="width:840.3489990234375px"></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-81c2-8b2f-fdf43513808e"><td id="xocK" class="" style="width:840.3489990234375px"><em>Connolly</em></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8115-8069-f56a43fe76cd"><td id="xocK" class="" style="width:840.3489990234375px"> Edit Car Images 1hr</td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8118-a72d-f13853ccb6d6"><td id="xocK" class="" style="width:840.3489990234375px"> </td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8164-b245-d38d6845b41f"><td id="xocK" class="" style="width:840.3489990234375px"></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="27d06eb0-49e0-8175-911f-d02f0e77f836"><td id="xocK" class="" style="width:840.3489990234375px"><strong>Total Savings/Investments</strong></td><td id="DeeP" class="" style="width:202.3194580078125px"></td><td id="nWG;" class="" style="width:234.61805725097656px"> </td></tr></div></tbody></table></div></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

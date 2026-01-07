@@ -1,0 +1,86 @@
+/* ============================================================================
+   LANDING PAGE STYLES
+   ============================================================================ */
+
+.hero-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border: var(--border-width-standard) solid var(--border-color-dark);
+    border-radius: 0px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.summary-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.views-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.views-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-sm);
+}
+
+.months-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-xs);
+}
+
+.quick-actions-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.actions-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+@media (max-width: 768px) {
+    .views-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .view-card {
+        padding: var(--spacing-md);
+        background-color: rgba(220, 220, 220, 0.85);
+    }
+    
+    body.landing-page .view-card {
+        background-color: rgba(225, 225, 225, 0.85);
+    }
+}
+
+.months-comparison-section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#months-comparison-table {
+    min-width: 800px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .months-comparison-section {
+        overflow-x: auto;
+    }
+    
+    #months-comparison-table {
+        min-width: 700px;
+    }
+    
+    #months-comparison-table th,
+    #months-comparison-table td {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        padding: calc(var(--spacing-xs) * var(--spacing-multiplier-reduced)) var(--spacing-xs);
+    }
+}

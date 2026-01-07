@@ -1,0 +1,152 @@
+/* ============================================================================
+   BUTTON COMPONENTS
+   ============================================================================ */
+
+.btn {
+    padding: 0.3rem 0.5rem;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-align: center;
+    min-height: 1.9rem;
+    height: 1.9rem;
+    box-sizing: border-box;
+    line-height: 1.2;
+    white-space: nowrap;
+    vertical-align: middle;
+    max-width: 100%;
+    min-width: 0;
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Buttons on mobile - shrink to fit or wrap to next line, never wrap text */
+@media (max-width: 480px) {
+    .btn {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 1.9rem;
+        min-height: 1.9rem;
+        max-width: 100%;
+        min-width: 0;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Ensure anchor tags styled as buttons match button styling exactly */
+a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-white);
+}
+
+a.btn:hover {
+    text-decoration: none;
+    color: var(--text-white);
+}
+
+/* Ensure anchor buttons with specific classes use white text */
+a.btn-primary,
+a.btn-secondary,
+a.btn-danger,
+a.btn-success,
+a.btn-action {
+    color: var(--text-white);
+}
+
+a.btn-primary:hover,
+a.btn-secondary:hover,
+a.btn-danger:hover,
+a.btn-success:hover,
+a.btn-action:hover {
+    color: var(--text-white);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--text-white);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+    background-color: rgba(210, 210, 210, 0.85);
+    color: var(--text-white);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(200, 200, 200, 0.85);
+    color: var(--text-white);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: var(--text-white);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-hover);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: var(--text-white);
+}
+
+.btn-success:hover {
+    background-color: var(--success-hover);
+}
+
+.btn-action {
+    background-color: var(--action-color);
+    color: var(--text-white);
+}
+
+.btn-action:hover {
+    background-color: var(--action-hover);
+}
+
+.btn-sm {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#export-format-select {
+    background-color: var(--action-color) !important;
+    color: var(--text-white) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
+    border-radius: 0px !important;
+    padding: 0.3rem 0.5rem !important;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    max-height: 1.9rem !important;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+#export-format-select:hover {
+    background-color: var(--action-hover) !important;
+    border: var(--border-width-standard) solid var(--border-color-black) !important;
+}
+
+#export-format-select option {
+    background-color: var(--action-color);
+    color: var(--text-white);
+}
