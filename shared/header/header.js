@@ -129,15 +129,15 @@ class Header {
         // Determine Home link based on current location
         let homeHref;
         if (isInModuleViews) {
-            homeHref = '../../ui/index.html';
+            homeHref = '../../landing/index.html';
         } else if (isInUiViews) {
             homeHref = '../index.html';
         } else if (modules.some(mod => path.includes(`/${mod}/`))) {
-            homeHref = '../ui/index.html';
-        } else if (path.includes('/ui/')) {
-            homeHref = 'index.html';
+            homeHref = '../landing/index.html';
+        } else if (path.includes('/shared/')) {
+            homeHref = '../landing/index.html';
         } else {
-            homeHref = 'shared/index.html';
+            homeHref = 'landing/index.html';
         }
 
         const navItems = [
@@ -423,15 +423,15 @@ class Header {
                 // Determine landing page URL based on current location (same logic as render method)
                 let landingPageUrl;
                 if (isInModuleViews) {
-                    landingPageUrl = '../../ui/index.html';
+                    landingPageUrl = '../../landing/index.html';
                 } else if (isInUiViews) {
                     landingPageUrl = '../index.html';
                 } else if (modules.some(mod => path.includes(`/${mod}/`))) {
-                    landingPageUrl = '../ui/index.html';
-                } else if (path.includes('/ui/')) {
-                    landingPageUrl = 'index.html';
+                    landingPageUrl = '../landing/index.html';
+                } else if (path.includes('/shared/')) {
+                    landingPageUrl = '../landing/index.html';
                 } else {
-                    landingPageUrl = 'shared/index.html';
+                    landingPageUrl = 'landing/index.html';
                 }
                 window.location.href = landingPageUrl;
             } else {

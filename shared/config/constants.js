@@ -22,7 +22,7 @@ const Constants = {
      * Common paths
      */
     PATHS: {
-        UI_INDEX: 'shared/index.html',
+        UI_INDEX: 'landing/index.html',
         AUTH: 'auth/views/auth.html',
         MONTHLY_BUDGET: 'monthlyBudget/views/monthlyBudget.html',
         NOTIFICATIONS: 'notifications/views/notifications.html',

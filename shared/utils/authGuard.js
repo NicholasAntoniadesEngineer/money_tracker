@@ -386,7 +386,7 @@ const AuthGuard = {
             // Check if we're in any module's views folder
             const inModuleViews = modules.some(mod => currentPath.includes(`/${mod}/views/`));
             if (inModuleViews) {
-                basePath = '../../ui/';
+                basePath = '../../landing/';
             }
             // If we're in ui/views/ (old structure, for compatibility)
             else if (currentPath.includes('/ui/views/')) {
@@ -394,7 +394,7 @@ const AuthGuard = {
             }
             // If we're at any other level with /views/, assume module structure
             else if (currentPath.includes('/views/')) {
-                basePath = '../../ui/';
+                basePath = '../../landing/';
             }
 
             const targetPath = `${basePath}index.html`;
