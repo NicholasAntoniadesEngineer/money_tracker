@@ -75,7 +75,8 @@ const MessengerController = {
 
             // Initialize end-to-end encryption
             console.log('[MessengerController] Initializing E2E encryption...');
-            const currentUserId = window.AuthService.getCurrentUserId();
+            const currentUser = window.AuthService.getCurrentUser();
+            const currentUserId = currentUser?.id;
 
             if (!currentUserId) {
                 console.error('[MessengerController] No user ID found!');
