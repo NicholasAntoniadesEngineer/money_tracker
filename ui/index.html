@@ -93,69 +93,69 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="../database/config/supabase-config.js"></script>
+    <script src="../database/config/supabaseConfig.js"></script>
     <script src="services/AuthService.js"></script>
     
     <!-- Database Module Configuration -->
-    <script src="../database/config/database-config-base.js"></script>
-    <script src="../database/config/money-tracker-database-config.js"></script>
-    <script src="../database/utils/database-config-helper.js"></script>
-    <script src="../database/database-module.js"></script>
+    <script src="../database/config/databaseConfigBase.js"></script>
+    <script src="../database/config/moneyTrackerDatabaseConfig.js"></script>
+    <script src="../database/utils/databaseConfigHelper.js"></script>
+    <script src="../database/databaseModule.js"></script>
 
     <!-- Core Utilities -->
-    <script src="config/module-registry.js"></script>
+    <script src="config/moduleRegistry.js"></script>
     <script src="config/constants.js"></script>
     <script src="utils/logger.js"></script>
-    <script src="utils/error-handler.js"></script>
+    <script src="utils/errorHandler.js"></script>
     <script src="utils/validators.js"></script>
 
     <!-- Database Service -->
-    <script src="../database/services/database-service.js"></script>
-    <script src="../database/services/DataSharingService.js"></script>
-    <script src="../database/services/FieldLockingService.js"></script>
+    <script src="../database/services/databaseService.js"></script>
+    <script src="../database/services/dataSharingService.js"></script>
+    <script src="../database/services/fieldLockingService.js"></script>
     
     <!-- Notification Services -->
-    <script src="../database/services/NotificationTypeRegistry.js"></script>
-    <script src="../database/services/NotificationService.js"></script>
-    <script src="../database/services/NotificationPreferenceService.js"></script>
-    <script src="../database/services/NotificationChannelService.js"></script>
-    <script src="../database/services/NotificationProcessor.js"></script>
+    <script src="../database/services/notificationTypeRegistry.js"></script>
+    <script src="../database/services/notificationService.js"></script>
+    <script src="../database/services/notificationPreferenceService.js"></script>
+    <script src="../database/services/notificationChannelService.js"></script>
+    <script src="../database/services/notificationProcessor.js"></script>
     
     <!-- Messaging Service -->
-    <script src="../messaging/services/MessagingService.js"></script>
+    <script src="../messaging/services/messagingService.js"></script>
     
     <!-- Initialize Database Module -->
-    <script src="../database/init-database.js"></script>
+    <script src="../database/initDatabase.js"></script>
     
     <!-- Payments Module Configuration -->
-    <script src="../payments/config/payments-config-base.js"></script>
-    <script src="../payments/config/money-tracker-config.js"></script>
-    <script src="../payments/utils/config-helper.js"></script>
-    <script src="../payments/payments-module.js"></script>
+    <script src="../payments/config/paymentsConfigBase.js"></script>
+    <script src="../payments/config/moneyTrackerConfig.js"></script>
+    <script src="../payments/utils/configHelper.js"></script>
+    <script src="../payments/paymentsModule.js"></script>
     
     <!-- Payments Services -->
-    <script src="../payments/services/StripeService.js"></script>
-    <script src="../payments/services/PaymentService.js"></script>
-    <script src="../payments/services/SubscriptionService.js"></script>
-    <script src="../payments/utils/subscription-checker.js"></script>
+    <script src="../payments/services/stripeService.js"></script>
+    <script src="../payments/services/paymentService.js"></script>
+    <script src="../payments/services/subscriptionService.js"></script>
+    <script src="../payments/utils/subscriptionChecker.js"></script>
     
     <!-- Initialize Payments Module -->
-    <script src="../payments/init-payments.js"></script>
-    <script src="../payments/utils/wait-for-payments-init.js"></script>
-    <script src="utils/subscription-guard.js"></script>
-    <script src="utils/auth-guard.js"></script>
-    <script src="utils/network-utils.js"></script>
-    <script src="utils/offline-handler.js"></script>
-    <script src="../database/models/data-manager.js"></script>
-    <script src="../database/models/month-factory.js"></script>
-    <script src="services/CalculationService.js"></script>
-    <script src="services/FormHandler.js"></script>
-    <script src="services/TableRenderer.js"></script>
+    <script src="../payments/initPayments.js"></script>
+    <script src="../payments/utils/waitForPaymentsInit.js"></script>
+    <script src="utils/subscriptionGuard.js"></script>
+    <script src="utils/authGuard.js"></script>
+    <script src="utils/networkUtils.js"></script>
+    <script src="utils/offlineHandler.js"></script>
+    <script src="../database/models/dataManager.js"></script>
+    <script src="../database/models/monthFactory.js"></script>
+    <script src="services/calculationService.js"></script>
+    <script src="services/formHandler.js"></script>
+    <script src="services/tableRenderer.js"></script>
     <script src="utils/formatters.js"></script>
-    <script src="services/FileService.js"></script>
-    <script src="services/ExportService.js"></script>
-    <script src="components/Header.js"></script>
-    <script src="utils/InitialData.js"></script>
+    <script src="services/fileService.js"></script>
+    <script src="services/exportService.js"></script>
+    <script src="components/header.js"></script>
+    <script src="utils/initialData.js"></script>
     <script>
         // Protect route and initialize with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
@@ -205,7 +205,7 @@
             }
         });
     </script>
-    <script src="controllers/LandingController.js"></script>
+    <script src="controllers/landingController.js"></script>
 </body>
 </html>
 

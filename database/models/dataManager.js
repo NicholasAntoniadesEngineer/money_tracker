@@ -6,7 +6,7 @@
 
 const DataManager = {
     _cachedSettings: null,
-    
+
     /**
      * Initialize default settings if they don't exist
      * @returns {Promise<Object>} Settings object
@@ -32,12 +32,12 @@ const DataManager = {
                 }
                 return defaultSettings;
             }
-            
+
             if (!existingSettings.fontSize) {
                 existingSettings.fontSize = '16';
                 await this.saveSettings(existingSettings);
             }
-            
+
             this._cachedSettings = existingSettings;
             // Ensure localStorage is updated
             try {
@@ -51,7 +51,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Get all months data from database
      * @param {boolean} forceRefresh - Force refresh from database, bypass cache
@@ -69,7 +69,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Save all months data to database
      * @param {Object} monthsData - Object with all months
@@ -80,19 +80,19 @@ const DataManager = {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            
+
             const monthKeys = Object.keys(monthsData);
             for (const monthKey of monthKeys) {
                 await window.DatabaseService.saveMonth(monthKey, monthsData[monthKey]);
             }
-            
+
             return true;
         } catch (error) {
             console.error('Error saving all months:', error);
             throw error;
         }
     },
-    
+
     /**
      * Get a specific month's data from database
      * @param {string} monthKey - Month key (e.g., "2025-11")
@@ -109,7 +109,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Save a specific month's data to database
      * @param {string} monthKey - Month key
@@ -122,23 +122,23 @@ const DataManager = {
             if (!monthKey || !monthData) {
                 throw new Error('Month key and data are required');
             }
-            
+
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            
+
             monthData.updatedAt = new Date().toISOString();
             if (!monthData.createdAt) {
                 monthData.createdAt = new Date().toISOString();
             }
-            
+
             return await window.DatabaseService.saveMonth(monthKey, monthData, forceUserTable);
         } catch (error) {
             console.error(`Error saving month ${monthKey}:`, error);
             throw error;
         }
     },
-    
+
     /**
      * Delete a month from database
      * @param {string} monthKey - Month key
@@ -150,20 +150,20 @@ const DataManager = {
             if (!window.DatabaseService) {
                 throw new Error('DatabaseService not available');
             }
-            
+
             // Check if this is example data before attempting deletion
             const isExample = await window.DatabaseService.isExampleData(monthKey);
             if (isExample) {
                 throw new Error('Example data cannot be deleted. This data is protected and locked.');
             }
-            
+
             return await window.DatabaseService.deleteMonth(monthKey);
         } catch (error) {
             console.error(`Error deleting month ${monthKey}:`, error);
             throw error;
         }
     },
-    
+
     /**
      * Get all pots data
      * @returns {Promise<Object>} Pots data object
@@ -179,7 +179,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Save all pots data
      * @param {Object} potsData - Pots data object
@@ -196,7 +196,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Get settings
      * @returns {Promise<Object|null>} Settings object or null
@@ -227,7 +227,7 @@ const DataManager = {
             return null;
         }
     },
-    
+
     /**
      * Get cached settings synchronously (for use in synchronous contexts)
      * Checks localStorage first for immediate access, then in-memory cache
@@ -238,7 +238,7 @@ const DataManager = {
         if (this._cachedSettings) {
             return this._cachedSettings;
         }
-        
+
         // Fallback to localStorage for immediate access (prevents FOUC)
         try {
             const cachedSettings = localStorage.getItem('money_tracker_settings');
@@ -251,10 +251,10 @@ const DataManager = {
         } catch (error) {
             // Silently fail - localStorage might not be available
         }
-        
+
         return null;
     },
-    
+
     /**
      * Save settings
      * @param {Object} settings - Settings object
@@ -281,7 +281,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Apply font size setting to the document
      */
@@ -298,7 +298,7 @@ const DataManager = {
             localStorage.setItem('money_tracker_fontSize', '16');
         }
     },
-    
+
     /**
      * Generate a month key from year and month
      * @param {number} year - Year
@@ -311,7 +311,7 @@ const DataManager = {
         }
         return window.MonthFactory.generateMonthKey(year, month);
     },
-    
+
     /**
      * Parse month key to year and month
      * @param {string} monthKey - Month key
@@ -323,7 +323,7 @@ const DataManager = {
         }
         return window.MonthFactory.parseMonthKey(monthKey);
     },
-    
+
     /**
      * Get month name from month number
      * @param {number} monthNumber - Month number (1-12)
@@ -335,7 +335,7 @@ const DataManager = {
         }
         return window.MonthFactory.getMonthName(monthNumber);
     },
-    
+
     /**
      * Create a new month with default structure
      * @param {number} year - Year
@@ -345,11 +345,11 @@ const DataManager = {
     async createNewMonth(year, month) {
         try {
             const settings = await this.getSettings() || await this.initializeSettings();
-            
+
             if (!window.MonthFactory) {
                 throw new Error('MonthFactory not available');
             }
-            
+
             const newMonth = window.MonthFactory.createNewMonth(year, month, settings);
             const monthKey = newMonth.key;
             await this.saveMonth(monthKey, newMonth);
@@ -359,7 +359,7 @@ const DataManager = {
             throw error;
         }
     },
-    
+
     /**
      * Calculate totals for a month
      * @param {Object} monthData - Month data object
@@ -371,7 +371,7 @@ const DataManager = {
         }
         return window.CalculationService.calculateMonthTotals(monthData);
     },
-    
+
     /**
      * Generate HTML representation of month data
      * @param {Object} monthData - Month data object
@@ -389,4 +389,3 @@ const DataManager = {
 if (typeof window !== 'undefined') {
     window.DataManager = DataManager;
 }
-

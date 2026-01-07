@@ -375,77 +375,77 @@
     </footer>
 
     <!-- Database Layer -->
-    <script src="../../database/config/supabase-config.js"></script>
+    <script src="../../database/config/supabaseConfig.js"></script>
     <script src="../../ui/services/AuthService.js"></script>
     
     <!-- Database Module Configuration -->
-    <script src="../../database/config/database-config-base.js"></script>
-    <script src="../../database/config/money-tracker-database-config.js"></script>
-    <script src="../../database/utils/database-config-helper.js"></script>
-    <script src="../../database/database-module.js"></script>
+    <script src="../../database/config/databaseConfigBase.js"></script>
+    <script src="../../database/config/moneyTrackerDatabaseConfig.js"></script>
+    <script src="../../database/utils/databaseConfigHelper.js"></script>
+    <script src="../../database/databaseModule.js"></script>
 
     <!-- Core Utilities -->
-    <script src="../../ui/config/module-registry.js"></script>
+    <script src="../../ui/config/moduleRegistry.js"></script>
     <script src="../../ui/config/constants.js"></script>
     <script src="../../ui/utils/logger.js"></script>
-    <script src="../../ui/utils/error-handler.js"></script>
+    <script src="../../ui/utils/errorHandler.js"></script>
     <script src="../../ui/utils/validators.js"></script>
     
     <!-- Database Service -->
-    <script src="../../database/services/database-service.js"></script>
-    <script src="../../database/services/DataSharingService.js"></script>
-    <script src="../../database/services/FieldLockingService.js"></script>
+    <script src="../../database/services/databaseService.js"></script>
+    <script src="../../database/services/dataSharingService.js"></script>
+    <script src="../../database/services/fieldLockingService.js"></script>
     
     <!-- Notification Services -->
-    <script src="../../database/services/NotificationTypeRegistry.js"></script>
-    <script src="../../database/services/NotificationService.js"></script>
-    <script src="../../database/services/NotificationPreferenceService.js"></script>
-    <script src="../../database/services/NotificationChannelService.js"></script>
-    <script src="../../database/services/NotificationProcessor.js"></script>
+    <script src="../../database/services/notificationTypeRegistry.js"></script>
+    <script src="../../database/services/notificationService.js"></script>
+    <script src="../../database/services/notificationPreferenceService.js"></script>
+    <script src="../../database/services/notificationChannelService.js"></script>
+    <script src="../../database/services/notificationProcessor.js"></script>
     
     <!-- Initialize Database Module -->
-    <script src="../../database/init-database.js"></script>
+    <script src="../../database/initDatabase.js"></script>
     
     <!-- Payments Module Configuration -->
-    <script src="../../payments/config/payments-config-base.js"></script>
-    <script src="../../payments/config/money-tracker-config.js"></script>
-    <script src="../../payments/utils/config-helper.js"></script>
-    <script src="../../payments/payments-module.js"></script>
+    <script src="../../payments/config/paymentsConfigBase.js"></script>
+    <script src="../../payments/config/moneyTrackerConfig.js"></script>
+    <script src="../../payments/utils/configHelper.js"></script>
+    <script src="../../payments/paymentsModule.js"></script>
     
     <!-- Payments Services -->
-    <script src="../../payments/services/StripeService.js"></script>
-    <script src="../../payments/services/PaymentService.js"></script>
-    <script src="../../payments/services/SubscriptionService.js"></script>
-    <script src="../../payments/utils/subscription-checker.js"></script>
+    <script src="../../payments/services/stripeService.js"></script>
+    <script src="../../payments/services/paymentService.js"></script>
+    <script src="../../payments/services/subscriptionService.js"></script>
+    <script src="../../payments/utils/subscriptionChecker.js"></script>
     
     <!-- Initialize Payments Module -->
-    <script src="../../payments/init-payments.js"></script>
-    <script src="../../payments/utils/wait-for-payments-init.js"></script>
-    <script src="../../ui/utils/subscription-guard.js"></script>
-    <script src="../../ui/utils/auth-guard.js"></script>
-    <script src="../../ui/utils/network-utils.js"></script>
-    <script src="../../ui/utils/offline-handler.js"></script>
-    <script src="../../database/models/data-manager.js"></script>
-    <script src="../../database/models/month-factory.js"></script>
+    <script src="../../payments/initPayments.js"></script>
+    <script src="../../payments/utils/waitForPaymentsInit.js"></script>
+    <script src="../../ui/utils/subscriptionGuard.js"></script>
+    <script src="../../ui/utils/authGuard.js"></script>
+    <script src="../../ui/utils/networkUtils.js"></script>
+    <script src="../../ui/utils/offlineHandler.js"></script>
+    <script src="../../database/models/dataManager.js"></script>
+    <script src="../../database/models/monthFactory.js"></script>
 
     <!-- Debug Tools (Development) -->
     <script src="../../database/utils/debug-missing-row.js"></script>
 
     <!-- UI Layer -->
-    <script src="../../ui/services/CalculationService.js"></script>
-    <script src="../../ui/services/FormHandler.js"></script>
-    <script src="../../ui/services/TableRenderer.js"></script>
+    <script src="../../ui/services/calculationService.js"></script>
+    <script src="../../ui/services/formHandler.js"></script>
+    <script src="../../ui/services/tableRenderer.js"></script>
     <script src="../../ui/utils/formatters.js"></script>
     <script src="../../ui/utils/CSVHandler.js"></script>
     <script src="../../ui/utils/ReferenceImporter.js"></script>
-    <script src="../../ui/services/ExportService.js"></script>
-    <script src="../../ui/components/Header.js"></script>
+    <script src="../../ui/services/exportService.js"></script>
+    <script src="../../ui/components/header.js"></script>
     <script src="../controllers/MonthlyBudgetController.js"></script>
     <script>
         // Initialize application with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                console.log('[monthly-budget.html] Starting initialization...');
+                console.log('[monthlyBudget.html] Starting initialization...');
 
                 // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
                 const [paymentsReady, dbInitResult] = await Promise.all([
@@ -454,20 +454,20 @@
                     // Initialize database service
                     window.DatabaseService.initialize()
                 ]);
-                console.log('[monthly-budget.html] Payments and Database initialized');
+                console.log('[monthlyBudget.html] Payments and Database initialized');
 
                 // Check authentication (must happen after database/payments init)
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
-                    console.log('[monthly-budget.html] Not authenticated, redirecting...');
+                    console.log('[monthlyBudget.html] Not authenticated, redirecting...');
                     return;
                 }
-                console.log('[monthly-budget.html] Authentication check passed');
+                console.log('[monthlyBudget.html] Authentication check passed');
 
                 // Initialize settings after database is ready
                 await window.DataManager.initializeSettings();
                 await window.DataManager.applyFontSize();
-                console.log('[monthly-budget.html] Settings initialized and applied');
+                console.log('[monthlyBudget.html] Settings initialized and applied');
         
         // Verify ReferenceImporter is loaded
         if (!window.ReferenceImporter) {
@@ -583,13 +583,13 @@
                 // Now initialize the controller (it will handle loading months)
                 if (window.MonthlyBudgetController) {
                     await window.MonthlyBudgetController.init();
-                    console.log('[monthly-budget.html] MonthlyBudgetController initialized');
+                    console.log('[monthlyBudget.html] MonthlyBudgetController initialized');
                 }
 
-                console.log('[monthly-budget.html] Initialization complete!');
+                console.log('[monthlyBudget.html] Initialization complete!');
             } catch (error) {
-                console.error('[monthly-budget.html] ❌ Initialization error:', error);
-                console.error('[monthly-budget.html] Error stack:', error.stack);
+                console.error('[monthlyBudget.html] ❌ Initialization error:', error);
+                console.error('[monthlyBudget.html] Error stack:', error.stack);
                 alert('Failed to initialize the application. Please check the console for details and refresh the page.');
             }
         });
