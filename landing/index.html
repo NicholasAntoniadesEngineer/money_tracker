@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - Home</title>
+    <link rel="stylesheet" href="../shared/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../shared/styles/main.css">
+    <link rel="stylesheet" href="styles/landing.css">
+    <link rel="stylesheet" href="styles/overview.css">
+    <script>
+        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
+        (function() {
+            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
+            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            
+            // Sync with database once services are available
+            async function syncFontSizeFromDatabase() {
+                try {
+                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
+                        const settings = await window.DatabaseService.getSettings();
+                        if (settings && settings.fontSize) {
+                            const fontSize = settings.fontSize;
+                            document.documentElement.style.fontSize = fontSize + 'px';
+                            localStorage.setItem('money_tracker_fontSize', fontSize);
+                        }
+                    } else if (document.readyState !== 'complete') {
+                        setTimeout(syncFontSizeFromDatabase, 100);
+                    }
+                } catch (error) {
+                    // Silently fail - use cached value
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
+            } else {
+                syncFontSizeFromDatabase();
+            }
+        })();
+    </script>
+</head>
+<body class="landing-page">
+    <!-- Header will be injected by Header.js -->
+
+    <main class="landing-main overview-main" role="main">
+        <section class="hero-section">
+            <h2 class="hero-title">Financial Overview</h2>
+        </section>
+
+        <section class="summary-section" aria-labelledby="summary-heading">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Income:</div>
+                    <div id="overall-income" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Expenses:</div>
+                    <div id="overall-expenses" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Savings:</div>
+                    <div id="overall-savings" class="summary-card-value">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">Total Pots/Investments:</div>
+                    <div id="overall-pots" class="summary-card-value">0.00</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="months-comparison-section form-section" aria-labelledby="months-comparison-heading">
+            <h2 id="months-comparison-heading" class="section-title">Monthly Comparison</h2>
+            <table class="data-table" id="months-comparison-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Income</th>
+                        <th>Fixed Costs</th>
+                        <th>Variable Costs</th>
+                        <th>Unplanned</th>
+                        <th>Total Expenses</th>
+                        <th>Pots</th>
+                        <th>Savings</th>
+                        <th class="delete-column-header"></th>
+                    </tr>
+                </thead>
+                <tbody id="months-comparison-tbody">
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer class="main-footer" role="contentinfo">
+        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+    <!-- Global Logging Configuration - MUST load first -->
+    <script src="../shared/config/loggingConfig.js"></script>
+
+    <script src="../database/config/supabaseConfig.js"></script>
+    <script src="../shared/services/authService.js"></script>
+
+    <!-- Database Module Configuration -->
+    <script src="../database/config/databaseConfigBase.js"></script>
+    <script src="../database/config/moneyTrackerDatabaseConfig.js"></script>
+    <script src="../database/utils/databaseConfigHelper.js"></script>
+    <script src="../database/databaseModule.js"></script>
+
+    <!-- Core Utilities -->
+    <script src="../shared/config/moduleRegistry.js"></script>
+    <script src="../shared/config/constants.js"></script>
+    <script src="../shared/utils/logger.js"></script>
+    <script src="../shared/utils/errorHandler.js"></script>
+    <script src="../shared/utils/validators.js"></script>
+
+    <!-- Database Service -->
+    <script src="../database/services/databaseService.js"></script>
+    <script src="../database/services/dataSharingService.js"></script>
+    <script src="../database/services/fieldLockingService.js"></script>
+    
+    <!-- Notification Services -->
+    <script src="../database/services/notificationTypeRegistry.js"></script>
+    <script src="../database/services/notificationService.js"></script>
+    <script src="../database/services/notificationPreferenceService.js"></script>
+    <script src="../database/services/notificationChannelService.js"></script>
+    <script src="../database/services/notificationProcessor.js"></script>
+    
+    <!-- Messaging Service -->
+    <script src="../messaging/services/messagingService.js"></script>
+    
+    <!-- Initialize Database Module -->
+    <script src="../database/initDatabase.js"></script>
+    
+    <!-- Payments Module Configuration -->
+    <script src="../payments/config/paymentsConfigBase.js"></script>
+    <script src="../payments/config/moneyTrackerConfig.js"></script>
+    <script src="../payments/utils/configHelper.js"></script>
+    <script src="../payments/paymentsModule.js"></script>
+    
+    <!-- Payments Services -->
+    <script src="../payments/services/stripeService.js"></script>
+    <script src="../payments/services/paymentService.js"></script>
+    <script src="../payments/services/subscriptionService.js"></script>
+    <script src="../payments/utils/subscriptionChecker.js"></script>
+    
+    <!-- Initialize Payments Module -->
+    <script src="../payments/initPayments.js"></script>
+    <script src="../payments/utils/waitForPaymentsInit.js"></script>
+    <script src="../shared/utils/subscriptionGuard.js"></script>
+    <script src="../shared/utils/authGuard.js"></script>
+    <script src="../shared/utils/networkUtils.js"></script>
+    <script src="../shared/utils/offlineHandler.js"></script>
+    <script src="../database/models/dataManager.js"></script>
+    <script src="../database/models/monthFactory.js"></script>
+    <script src="../shared/services/calculationService.js"></script>
+    <script src="../shared/services/formHandler.js"></script>
+    <script src="../shared/services/tableRenderer.js"></script>
+    <script src="../shared/utils/formatters.js"></script>
+    <script src="../shared/services/fileService.js"></script>
+    <script src="../shared/services/exportService.js"></script>
+    <script src="../shared/header/header.js"></script>
+    <script src="utils/initialData.js"></script>
+    <script>
+        // Protect route and initialize with parallel loading for better performance
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log('[index.html] Starting initialization...');
+
+                // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
+                const [paymentsReady, dbInitResult] = await Promise.all([
+                    // Wait for payments module initialization
+                    window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
+                    // Initialize database service
+                    window.DatabaseService.initialize()
+                ]);
+                console.log('[index.html] Payments and Database initialized');
+
+                // Check authentication (must happen after database/payments init)
+                const isAuthenticated = await window.AuthGuard.checkAuth();
+                if (!isAuthenticated) {
+                    console.log('[index.html] Not authenticated, redirecting...');
+                    return;
+                }
+                console.log('[index.html] Authentication check passed');
+
+                // Initialize settings after database is ready
+                await DataManager.initializeSettings();
+                await DataManager.applyFontSize();
+                console.log('[index.html] Settings initialized and applied');
+
+                // Load months from files if database is empty
+                await InitialData.initializeIfEmpty();
+                console.log('[index.html] Initial data checked');
+
+                // Mark as initialized to prevent double initialization
+                window.landingControllerInitialized = true;
+
+                // Now initialize the LandingController
+                if (window.LandingController) {
+                    await window.LandingController.init();
+                    console.log('[index.html] LandingController initialized');
+                }
+
+                console.log('[index.html] Initialization complete!');
+            } catch (error) {
+                console.error('[index.html] ❌ Initialization error:', error);
+                console.error('[index.html] Error stack:', error.stack);
+                alert('Failed to initialize the application. Please check the console for details and refresh the page.');
+            }
+        });
+    </script>
+    <script src="controllers/landingController.js"></script>
+</body>
+</html>
+
