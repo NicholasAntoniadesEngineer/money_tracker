@@ -30,20 +30,31 @@ const Logger = {
     init() {
         // Set log level based on environment
         const hostname = window.location.hostname;
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
-            // Empty hostname means file:// protocol - enable debug for local development
+        const protocol = window.location.protocol;
+
+        // Enable debug logging for:
+        // 1. localhost/127.0.0.1
+        // 2. file:// protocol (for testing without server)
+        // 3. Empty hostname (fallback for file:// protocol)
+        if (hostname === 'localhost' ||
+            hostname === '127.0.0.1' ||
+            hostname === '' ||
+            protocol === 'file:') {
             this.level = 'debug';
+            console.log('[Logger] Debug logging enabled for local development');
         } else {
             this.level = 'error'; // Production: only show errors
+            console.log('[Logger] Production mode - only errors will be logged');
         }
 
         // Allow override via localStorage for debugging production
         const override = localStorage.getItem('log_level');
         if (override && this._levels.hasOwnProperty(override)) {
             this.level = override;
+            console.log('[Logger] Log level overridden to:', override);
         }
 
-        this.info('[Logger] Initialized with level:', this.level);
+        console.log('[Logger] Final log level:', this.level, '| Protocol:', protocol, '| Hostname:', hostname || '(empty)');
     },
 
     /**
