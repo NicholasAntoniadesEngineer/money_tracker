@@ -24,7 +24,7 @@ const Constants = {
     PATHS: {
         UI_INDEX: 'ui/index.html',
         AUTH: 'auth/views/auth.html',
-        MONTHLY_BUDGET: 'monthly-budget/views/monthlyBudget.html',
+        MONTHLY_BUDGET: 'monthlyBudget/views/monthlyBudget.html',
         NOTIFICATIONS: 'notifications/views/notifications.html',
         POTS: 'pots/views/pots.html',
         SETTINGS: 'settings/views/settings.html',
