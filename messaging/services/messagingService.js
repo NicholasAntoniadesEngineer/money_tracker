@@ -201,6 +201,7 @@ const MessagingService = {
                     conversation_id: conversationId,
                     sender_id: senderId,
                     recipient_id: recipientId,
+                    content: '', // Placeholder for backward compatibility (content column is still NOT NULL)
                     encrypted_content: encryptedData.ciphertext,
                     encryption_nonce: encryptedData.nonce,
                     message_counter: encryptedData.counter,
