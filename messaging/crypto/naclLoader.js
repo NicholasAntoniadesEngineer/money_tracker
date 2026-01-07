@@ -12,51 +12,76 @@
 
 const NaClLoader = {
     /**
-     * Load TweetNaCl.js library
-     * @returns {Promise<Object>} The nacl library object
+     * Load TweetNaCl.js library and utilities
+     * @returns {Promise<Object>} The nacl library object with util
      */
     async load() {
-        // Return existing instance if already loaded
-        if (window.nacl) {
-            console.log('[NaClLoader] TweetNaCl already loaded');
+        // Return existing instance if already loaded with utils
+        if (window.nacl && window.nacl.util) {
+            console.log('[NaClLoader] TweetNaCl already loaded with utils');
             return window.nacl;
         }
 
         console.log('[NaClLoader] Loading TweetNaCl.js from CDN...');
 
+        // Load main library first
+        await this._loadScript(
+            'https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js',
+            'TweetNaCl main library'
+        );
+
+        // Then load util library (extends nacl object)
+        await this._loadScript(
+            'https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js',
+            'TweetNaCl util library'
+        );
+
+        // Verify both are available
+        if (!window.nacl) {
+            throw new Error('TweetNaCl loaded but not available on window object');
+        }
+
+        if (!window.nacl.util) {
+            throw new Error('TweetNaCl util loaded but not available on nacl object');
+        }
+
+        console.log('[NaClLoader] ✓ TweetNaCl.js loaded successfully with utils');
+
+        // Log library version info
+        console.log('[NaClLoader] Library info:', {
+            hasBox: !!window.nacl.box,
+            hasSecretbox: !!window.nacl.secretbox,
+            hasHash: !!window.nacl.hash,
+            hasRandomBytes: !!window.nacl.randomBytes,
+            hasUtil: !!window.nacl.util,
+            hasUtilEncodeBase64: !!window.nacl.util?.encodeBase64,
+            hasUtilDecodeBase64: !!window.nacl.util?.decodeBase64
+        });
+
+        return window.nacl;
+    },
+
+    /**
+     * Load a single script
+     * @private
+     * @param {string} src - Script URL
+     * @param {string} name - Script name for logging
+     * @returns {Promise<void>}
+     */
+    _loadScript(src, name) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
-
-            // Use fast variant for better performance
-            script.src = 'https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js';
+            script.src = src;
             script.async = true;
             script.defer = true;
 
             script.onload = () => {
-                console.log('[NaClLoader] ✓ TweetNaCl.js loaded successfully');
-
-                // Verify library is available
-                if (!window.nacl) {
-                    const error = new Error('TweetNaCl loaded but not available on window object');
-                    console.error('[NaClLoader]', error);
-                    reject(error);
-                    return;
-                }
-
-                // Log library version info
-                console.log('[NaClLoader] Library info:', {
-                    hasBox: !!window.nacl.box,
-                    hasSecretbox: !!window.nacl.secretbox,
-                    hasHash: !!window.nacl.hash,
-                    hasRandomBytes: !!window.nacl.randomBytes,
-                    hasUtil: !!window.nacl.util
-                });
-
-                resolve(window.nacl);
+                console.log(`[NaClLoader] ✓ ${name} loaded`);
+                resolve();
             };
 
             script.onerror = (event) => {
-                const error = new Error('Failed to load TweetNaCl.js from CDN');
+                const error = new Error(`Failed to load ${name} from CDN`);
                 console.error('[NaClLoader]', error, event);
                 reject(error);
             };
@@ -66,11 +91,11 @@ const NaClLoader = {
     },
 
     /**
-     * Check if TweetNaCl is already loaded
-     * @returns {boolean} True if loaded
+     * Check if TweetNaCl is already loaded with utils
+     * @returns {boolean} True if loaded with utils
      */
     isLoaded() {
-        return !!window.nacl;
+        return !!(window.nacl && window.nacl.util);
     }
 };
 
