@@ -1425,10 +1425,16 @@ const MessengerController = {
             const date = new Date(message.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Decrypt message if encrypted
-            let displayContent = message.content || '[Encrypted]';
-            if (message.is_encrypted && message.encrypted_content && message.encryption_nonce) {
+            // ALL messages MUST be encrypted (enforced by database constraint)
+            let displayContent;
+
+            // Verify message has required encryption fields
+            if (!message.encrypted_content || !message.encryption_nonce) {
+                console.error('[MessengerController] Message missing encryption data:', message.id);
+                displayContent = '[ERROR: Message corrupted - missing encryption data]';
+            } else {
                 try {
+                    // Decrypt the message (all messages are encrypted)
                     displayContent = await window.KeyManager.decryptMessage(
                         conversation.id,
                         {
@@ -1438,8 +1444,8 @@ const MessengerController = {
                         }
                     );
                 } catch (decryptionError) {
-                    console.error('[MessengerController] Failed to decrypt message in appendMessageToThread:', decryptionError);
-                    displayContent = '[Decryption failed]';
+                    console.error('[MessengerController] Decryption failed in appendMessageToThread:', decryptionError);
+                    displayContent = '[ERROR: Decryption failed - you may not have access to this conversation]';
                 }
             }
 

@@ -521,12 +521,16 @@ const MessagingService = {
                 const senderEmailResult = await databaseService.getUserEmailById(msg.sender_id);
                 const sender_email = senderEmailResult.success ? senderEmailResult.email : 'Unknown User';
 
-                // Decrypt message if encrypted
-                let content = '[Encrypted]'; // Default fallback
+                // ALL messages MUST be encrypted (enforced by database constraint)
+                let content;
 
-                if (msg.is_encrypted && msg.encrypted_content && msg.encryption_nonce) {
+                // Verify message has required encryption fields
+                if (!msg.encrypted_content || !msg.encryption_nonce) {
+                    console.error('[MessagingService] Message missing encryption data:', msg.id);
+                    content = '[ERROR: Message corrupted - missing encryption data]';
+                } else {
                     try {
-                        // Decrypt the message
+                        // Decrypt the message (all messages are encrypted)
                         const plaintext = await window.KeyManager.decryptMessage(
                             conversationId,
                             {
@@ -537,8 +541,8 @@ const MessagingService = {
                         );
                         content = plaintext;
                     } catch (decryptionError) {
-                        console.error('[MessagingService] Failed to decrypt message:', msg.id, decryptionError);
-                        content = '[Decryption failed]';
+                        console.error('[MessagingService] Decryption failed for message:', msg.id, decryptionError);
+                        content = '[ERROR: Decryption failed - you may not have access to this conversation]';
                     }
                 }
 
