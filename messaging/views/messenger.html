@@ -168,7 +168,7 @@
 
     <!-- Scripts -->
     <script src="../../database/config/supabaseConfig.js"></script>
-    <script src="../../shared/services/AuthService.js"></script>
+    <script src="../../shared/services/authService.js"></script>
     <script src="../../database/config/databaseConfigBase.js"></script>
     <script src="../../database/config/moneyTrackerDatabaseConfig.js"></script>
     <script src="../../database/utils/databaseConfigHelper.js"></script>
@@ -234,10 +234,10 @@
     
     <!-- Messenger Controller -->
     <script>
-        console.log('[MessengerPage] Loading MessengerController.js script...');
+        console.log('[MessengerPage] Loading messengerController.js script...');
         const controllerScriptStart = Date.now();
     </script>
-    <script src="../controllers/MessengerController.js" onload="console.log('[MessengerPage] MessengerController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[MessengerPage] window.MessengerController after load:', typeof window.MessengerController);" onerror="console.error('[MessengerPage] ERROR loading MessengerController.js');"></script>
+    <script src="../controllers/messengerController.js" onload="console.log('[MessengerPage] messengerController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[MessengerPage] window.MessengerController after load:', typeof window.MessengerController);" onerror="console.error('[MessengerPage] ERROR loading messengerController.js');"></script>
 
     <script>
         // Wait for scripts to load with detailed logging

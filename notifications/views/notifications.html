@@ -136,7 +136,7 @@
 
     <!-- Scripts -->
     <script src="../../database/config/supabaseConfig.js"></script>
-    <script src="../../shared/services/AuthService.js"></script>
+    <script src="../../shared/services/authService.js"></script>
     <script src="../../database/config/databaseConfigBase.js"></script>
     <script src="../../database/config/moneyTrackerDatabaseConfig.js"></script>
     <script src="../../database/utils/databaseConfigHelper.js"></script>
@@ -196,10 +196,10 @@
     
     <!-- Notifications Controller -->
     <script>
-        console.log('[NotificationsPage] Loading NotificationsController.js script...');
+        console.log('[NotificationsPage] Loading notificationsController.js script...');
         const controllerScriptStart = Date.now();
     </script>
-    <script src="../controllers/NotificationsController.js" onload="console.log('[NotificationsPage] NotificationsController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[NotificationsPage] window.NotificationsController after load:', typeof window.NotificationsController);" onerror="console.error('[NotificationsPage] ERROR loading NotificationsController.js');"></script>
+    <script src="../controllers/notificationsController.js" onload="console.log('[NotificationsPage] notificationsController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[NotificationsPage] window.NotificationsController after load:', typeof window.NotificationsController);" onerror="console.error('[NotificationsPage] ERROR loading notificationsController.js');"></script>
 
     <script>
         // Wait for scripts to load with detailed logging
