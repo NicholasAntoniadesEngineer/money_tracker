@@ -88,29 +88,8 @@ const MessengerController = {
                 console.log('[MessengerController] ✓ E2E encryption initialized');
             } catch (encryptionError) {
                 console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
-
-                // Check if this is a first-time device (no keys found)
-                const errorMessage = encryptionError.message || '';
-                if (errorMessage.includes('No identity keys found') ||
-                    errorMessage.includes('not set up encryption') ||
-                    errorMessage.includes('No public key found')) {
-                    console.log('[MessengerController] First-time device detected, showing pairing modal');
-
-                    // Show device pairing modal for first-time setup
-                    if (window.DevicePairingController) {
-                        window.DevicePairingController.showDeviceDetection();
-                        // Don't proceed with messenger initialization until pairing is complete
-                        return;
-                    } else {
-                        console.error('[MessengerController] DevicePairingController not available');
-                        alert('Device pairing service not available. Please refresh the page.');
-                        return;
-                    }
-                } else {
-                    // Other encryption errors
-                    alert('Failed to initialize secure messaging. Please refresh the page.');
-                    return;
-                }
+                alert('Failed to initialize secure messaging. Your device may not be paired. Please go back to home and set up device pairing.');
+                return;
             }
 
             this.setupEventListeners();

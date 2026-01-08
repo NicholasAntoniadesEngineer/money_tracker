@@ -149,6 +149,14 @@
     <script src="../payments/initPayments.js"></script>
     <script src="../payments/utils/waitForPaymentsInit.js"></script>
     <script src="../shared/utils/subscriptionGuard.js"></script>
+
+    <!-- Crypto Libraries for E2E Encryption -->
+    <script src="../messaging/crypto/naclLoader.js"></script>
+    <script src="../messaging/crypto/keyStorageService.js"></script>
+
+    <!-- Pairing Guard -->
+    <script src="../shared/utils/pairing-guard.js"></script>
+
     <script src="../shared/utils/authGuard.js"></script>
     <script src="../shared/utils/networkUtils.js"></script>
     <script src="../shared/utils/offlineHandler.js"></script>
@@ -184,6 +192,20 @@
                     return;
                 }
                 console.log('[index.html] Authentication check passed');
+
+                // Check device pairing status (encryption keys)
+                if (window.PairingGuard) {
+                    console.log('[index.html] Checking device pairing status...');
+                    const isPaired = await window.PairingGuard.checkPairingStatus();
+                    if (!isPaired) {
+                        console.log('[index.html] Device not paired, redirecting to pairing page...');
+                        window.location.href = '../messaging/views/device-pairing.html';
+                        return;
+                    }
+                    console.log('[index.html] Device pairing check passed');
+                } else {
+                    console.warn('[index.html] PairingGuard not available, skipping pairing check');
+                }
 
                 // Initialize settings after database is ready
                 await DataManager.initializeSettings();

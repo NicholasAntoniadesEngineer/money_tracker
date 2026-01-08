@@ -66,6 +66,20 @@ const DevicePairingController = {
             cancelBtn.addEventListener('click', () => this.closeModal());
         }
 
+        // Back to detection
+        const backBtn = document.getElementById('back-to-detection-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => this.showDeviceDetection());
+        }
+
+        // Continue without pairing (primary device)
+        const continueBtn = document.getElementById('continue-without-pairing-btn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', () => {
+                window.location.href = '../../landing/index.html';
+            });
+        }
+
         // Auto-format pairing code input (only numbers)
         const codeInput = document.getElementById('pairing-code-input');
         if (codeInput) {
@@ -92,10 +106,13 @@ const DevicePairingController = {
 
         const detectionView = document.getElementById('device-detection-view');
         if (detectionView) {
-            detectionView.style.display = 'block';
+            detectionView.classList.add('active');
         }
 
-        this.modal.style.display = 'flex';
+        // Only show modal if it exists (for modal version)
+        if (this.modal) {
+            this.modal.style.display = 'flex';
+        }
     },
 
     /**
@@ -129,15 +146,14 @@ const DevicePairingController = {
             const deviceName = window.DevicePairingService.getDeviceName();
             await window.DevicePairingService.registerDevice(userId, deviceName, true);
 
-            // Show success and reload
+            // Show success and redirect
             if (detectionView) {
-                detectionView.innerHTML = '<p style="text-align: center; color: var(--success-color);">Encryption set up successfully! Reloading...</p>';
+                detectionView.innerHTML = '<p style="text-align: center; color: var(--success-color);">Encryption set up successfully! Redirecting...</p>';
             }
 
-            // Close modal and reload page to start fresh
+            // Redirect to home page
             setTimeout(() => {
-                this.closeModal();
-                window.location.reload();
+                window.location.href = '../../landing/index.html';
             }, 1500);
 
         } catch (error) {
@@ -167,10 +183,13 @@ const DevicePairingController = {
 
         const primaryView = document.getElementById('primary-device-view');
         if (primaryView) {
-            primaryView.style.display = 'block';
+            primaryView.classList.add('active');
         }
 
-        this.modal.style.display = 'flex';
+        // Only show modal if it exists (for modal version)
+        if (this.modal) {
+            this.modal.style.display = 'flex';
+        }
 
         // Generate pairing code
         this.generatePairingCode();
@@ -267,7 +286,7 @@ const DevicePairingController = {
 
         const secondaryView = document.getElementById('secondary-device-view');
         if (secondaryView) {
-            secondaryView.style.display = 'block';
+            secondaryView.classList.add('active');
         }
 
         const codeInput = document.getElementById('pairing-code-input');
@@ -341,12 +360,11 @@ const DevicePairingController = {
             const deviceName = window.DevicePairingService.getDeviceName();
             await window.DevicePairingService.registerDevice(userId, deviceName, false);
 
-            statusDiv.innerHTML = '<span style="color: var(--success-color);">Device paired successfully!</span>';
+            statusDiv.innerHTML = '<span style="color: var(--success-color);">Device paired successfully! Redirecting...</span>';
 
-            // Close modal and reload
+            // Redirect to home page
             setTimeout(() => {
-                this.closeModal();
-                window.location.reload();
+                window.location.href = '../../landing/index.html';
             }, 1500);
 
         } catch (error) {
@@ -373,6 +391,7 @@ const DevicePairingController = {
         views.forEach(viewId => {
             const view = document.getElementById(viewId);
             if (view) {
+                view.classList.remove('active');
                 view.style.display = 'none';
             }
         });

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Pairing - Money Tracker</title>
+    <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        .pairing-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+            background: var(--background-color);
+        }
+
+        .pairing-card {
+            background: var(--surface-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-xl);
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pairing-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .pairing-header h1 {
+            font-size: 2rem;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-color);
+        }
+
+        .pairing-header p {
+            color: var(--text-color-secondary);
+            font-size: 1rem;
+        }
+
+        .pairing-view {
+            display: none;
+        }
+
+        .pairing-view.active {
+            display: block;
+        }
+
+        .pairing-code-display {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 0.5rem;
+            margin: var(--spacing-xl) 0;
+            padding: var(--spacing-lg);
+            background: var(--hover-overlay);
+            border-radius: var(--border-radius);
+            color: var(--primary-color);
+            font-family: monospace;
+        }
+
+        .pairing-timer {
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--text-color-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .pairing-code-input {
+            font-size: 2rem;
+            text-align: center;
+            letter-spacing: 0.5rem;
+            padding: var(--spacing-lg);
+            width: 100%;
+            border: var(--border-width-standard) solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-lg);
+            font-family: monospace;
+        }
+
+        .pairing-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .pairing-status {
+            text-align: center;
+            margin-top: var(--spacing-md);
+            min-height: 1.5rem;
+        }
+
+        .instruction-text {
+            text-align: center;
+            color: var(--text-color-secondary);
+            margin: var(--spacing-lg) 0;
+            line-height: 1.6;
+        }
+
+        .logout-link {
+            text-align: center;
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-lg);
+            border-top: var(--border-width-standard) solid var(--border-color);
+        }
+
+        .logout-link a {
+            color: var(--text-color-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .logout-link a:hover {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="pairing-container">
+        <div class="pairing-card">
+            <div class="pairing-header">
+                <h1>🔐 Device Setup</h1>
+                <p>Secure your messages with end-to-end encryption</p>
+            </div>
+
+            <!-- Detection View -->
+            <div id="device-detection-view" class="pairing-view active">
+                <div class="instruction-text">
+                    <p>Is this your first time using Money Tracker on this device?</p>
+                </div>
+                <div class="pairing-buttons">
+                    <button id="is-primary-device-btn" class="btn btn-primary btn-lg">
+                        <i class="fas fa-key"></i> Yes, set up encryption
+                    </button>
+                    <button id="is-secondary-device-btn" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-mobile-alt"></i> No, I have another device
+                    </button>
+                </div>
+            </div>
+
+            <!-- Primary Device View (Show Code) -->
+            <div id="primary-device-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Share this code with your other device:</strong></p>
+                </div>
+                <div id="pairing-code-display" class="pairing-code-display">------</div>
+                <div id="pairing-code-timer" class="pairing-timer">5:00</div>
+                <div class="instruction-text">
+                    <p style="font-size: 0.9rem;">Enter this code on your other device to sync your encryption keys.</p>
+                    <p style="font-size: 0.9rem; margin-top: var(--spacing-sm);">Code expires in 5 minutes.</p>
+                </div>
+                <div class="pairing-buttons">
+                    <button id="regenerate-code-btn" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Generate New Code
+                    </button>
+                    <button id="continue-without-pairing-btn" class="btn btn-action">
+                        <i class="fas fa-arrow-right"></i> Continue to App
+                    </button>
+                </div>
+            </div>
+
+            <!-- Secondary Device View (Enter Code) -->
+            <div id="secondary-device-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Enter the 6-digit code from your primary device:</strong></p>
+                </div>
+                <input
+                    type="text"
+                    id="pairing-code-input"
+                    class="pairing-code-input"
+                    placeholder="000000"
+                    maxlength="6"
+                    pattern="[0-9]{6}"
+                    autocomplete="off"
+                >
+                <div class="pairing-buttons">
+                    <button id="submit-pairing-code-btn" class="btn btn-primary btn-lg">
+                        <i class="fas fa-check"></i> Pair Device
+                    </button>
+                    <button id="back-to-detection-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+                <div id="pairing-status" class="pairing-status"></div>
+            </div>
+
+            <div class="logout-link">
+                <a href="../../auth/views/auth.html">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Logging Configuration -->
+    <script src="../../shared/config/loggingConfig.js"></script>
+
+    <!-- Database and Services -->
+    <script src="../../database/config/supabaseConfig.js"></script>
+    <script src="../../database/services/databaseService.js"></script>
+    <script src="../../auth/services/authService.js"></script>
+
+    <!-- Crypto Libraries -->
+    <script src="../crypto/naclLoader.js"></script>
+    <script src="../crypto/keyManager.js"></script>
+    <script src="../crypto/keyStorageService.js"></script>
+
+    <!-- Device Pairing -->
+    <script src="../services/devicePairingService.js"></script>
+    <script src="../controllers/devicePairingController.js"></script>
+
+    <script>
+        console.log('[DevicePairingPage] Page loaded');
+
+        // Wait for services to be ready
+        async function waitFor(condition, name, timeout = 10000) {
+            const startTime = Date.now();
+            while (!condition()) {
+                if (Date.now() - startTime > timeout) {
+                    throw new Error(`Timeout waiting for ${name}`);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[DevicePairingPage] DOMContentLoaded');
+
+            try {
+                // Check if user is authenticated
+                console.log('[DevicePairingPage] Checking authentication...');
+                await waitFor(() => typeof window.AuthService !== 'undefined', 'AuthService', 5000);
+
+                let authCheckAttempts = 0;
+                const maxAuthChecks = 50;
+                while (authCheckAttempts < maxAuthChecks) {
+                    if (window.AuthService && window.AuthService.isAuthenticated()) {
+                        console.log('[DevicePairingPage] User authenticated');
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    authCheckAttempts++;
+                }
+
+                if (!window.AuthService || !window.AuthService.isAuthenticated()) {
+                    console.warn('[DevicePairingPage] User not authenticated, redirecting to auth');
+                    window.location.href = '../../auth/views/auth.html';
+                    return;
+                }
+
+                // Initialize DevicePairingController
+                console.log('[DevicePairingPage] Initializing pairing controller...');
+                await waitFor(() => typeof window.DevicePairingController !== 'undefined', 'DevicePairingController', 5000);
+
+                if (window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
+                    window.DevicePairingController.init();
+                    console.log('[DevicePairingPage] DevicePairingController initialized');
+                } else {
+                    throw new Error('DevicePairingController not available');
+                }
+
+                console.log('[DevicePairingPage] Page ready');
+
+            } catch (error) {
+                console.error('[DevicePairingPage] Initialization error:', error);
+                alert('Error loading device pairing. Please try again or contact support.');
+            }
+        });
+    </script>
+</body>
+</html>
