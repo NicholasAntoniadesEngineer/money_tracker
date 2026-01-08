@@ -88,7 +88,7 @@ const MessengerController = {
                 console.log('[MessengerController] ✓ E2E encryption initialized');
             } catch (encryptionError) {
                 console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
-                alert('Failed to initialize secure messaging. Please refresh the page.');
+                alert('Failed to initialize secure messaging. Your device may not be paired. Please go back to home and set up device pairing.');
                 return;
             }
 

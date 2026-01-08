@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Money Tracker - Home</title>
-    <link rel="stylesheet" href="../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../shared/styles/main.css">
-    <link rel="stylesheet" href="styles/landing.css">
-    <link rel="stylesheet" href="styles/overview.css">
+    <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="styles/main.css">
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
         (function() {
@@ -95,81 +93,69 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-    <!-- Global Logging Configuration - MUST load first -->
-    <script src="../shared/config/loggingConfig.js"></script>
-
-    <script src="../database/config/supabaseConfig.js"></script>
-    <script src="../shared/services/authService.js"></script>
-
+    <script src="../database/config/supabase-config.js"></script>
+    <script src="services/AuthService.js"></script>
+    
     <!-- Database Module Configuration -->
-    <script src="../database/config/databaseConfigBase.js"></script>
-    <script src="../database/config/moneyTrackerDatabaseConfig.js"></script>
-    <script src="../database/utils/databaseConfigHelper.js"></script>
-    <script src="../database/databaseModule.js"></script>
+    <script src="../database/config/database-config-base.js"></script>
+    <script src="../database/config/money-tracker-database-config.js"></script>
+    <script src="../database/utils/database-config-helper.js"></script>
+    <script src="../database/database-module.js"></script>
 
     <!-- Core Utilities -->
-    <script src="../shared/config/moduleRegistry.js"></script>
-    <script src="../shared/config/constants.js"></script>
-    <script src="../shared/utils/logger.js"></script>
-    <script src="../shared/utils/errorHandler.js"></script>
-    <script src="../shared/utils/validators.js"></script>
+    <script src="config/module-registry.js"></script>
+    <script src="config/constants.js"></script>
+    <script src="utils/logger.js"></script>
+    <script src="utils/error-handler.js"></script>
+    <script src="utils/validators.js"></script>
 
     <!-- Database Service -->
-    <script src="../database/services/databaseService.js"></script>
-    <script src="../database/services/dataSharingService.js"></script>
-    <script src="../database/services/fieldLockingService.js"></script>
+    <script src="../database/services/database-service.js"></script>
+    <script src="../database/services/DataSharingService.js"></script>
+    <script src="../database/services/FieldLockingService.js"></script>
     
     <!-- Notification Services -->
-    <script src="../database/services/notificationTypeRegistry.js"></script>
-    <script src="../database/services/notificationService.js"></script>
-    <script src="../database/services/notificationPreferenceService.js"></script>
-    <script src="../database/services/notificationChannelService.js"></script>
-    <script src="../database/services/notificationProcessor.js"></script>
+    <script src="../database/services/NotificationTypeRegistry.js"></script>
+    <script src="../database/services/NotificationService.js"></script>
+    <script src="../database/services/NotificationPreferenceService.js"></script>
+    <script src="../database/services/NotificationChannelService.js"></script>
+    <script src="../database/services/NotificationProcessor.js"></script>
     
     <!-- Messaging Service -->
-    <script src="../messaging/services/messagingService.js"></script>
+    <script src="../messaging/services/MessagingService.js"></script>
     
     <!-- Initialize Database Module -->
-    <script src="../database/initDatabase.js"></script>
+    <script src="../database/init-database.js"></script>
     
     <!-- Payments Module Configuration -->
-    <script src="../payments/config/paymentsConfigBase.js"></script>
-    <script src="../payments/config/moneyTrackerConfig.js"></script>
-    <script src="../payments/utils/configHelper.js"></script>
-    <script src="../payments/paymentsModule.js"></script>
+    <script src="../payments/config/payments-config-base.js"></script>
+    <script src="../payments/config/money-tracker-config.js"></script>
+    <script src="../payments/utils/config-helper.js"></script>
+    <script src="../payments/payments-module.js"></script>
     
     <!-- Payments Services -->
-    <script src="../payments/services/stripeService.js"></script>
-    <script src="../payments/services/paymentService.js"></script>
-    <script src="../payments/services/subscriptionService.js"></script>
-    <script src="../payments/utils/subscriptionChecker.js"></script>
+    <script src="../payments/services/StripeService.js"></script>
+    <script src="../payments/services/PaymentService.js"></script>
+    <script src="../payments/services/SubscriptionService.js"></script>
+    <script src="../payments/utils/subscription-checker.js"></script>
     
     <!-- Initialize Payments Module -->
-    <script src="../payments/initPayments.js"></script>
-    <script src="../payments/utils/waitForPaymentsInit.js"></script>
-    <script src="../shared/utils/subscriptionGuard.js"></script>
-
-    <!-- Crypto Libraries for E2E Encryption -->
-    <script src="../messaging/crypto/naclLoader.js"></script>
-    <script src="../messaging/crypto/keyStorageService.js"></script>
-
-    <!-- Pairing Guard -->
-    <script src="../shared/utils/pairing-guard.js"></script>
-
-    <script src="../shared/utils/authGuard.js"></script>
-    <script src="../shared/utils/networkUtils.js"></script>
-    <script src="../shared/utils/offlineHandler.js"></script>
-    <script src="../database/models/dataManager.js"></script>
-    <script src="../database/models/monthFactory.js"></script>
-    <script src="../shared/services/calculationService.js"></script>
-    <script src="../shared/services/formHandler.js"></script>
-    <script src="../shared/services/tableRenderer.js"></script>
-    <script src="../shared/utils/formatters.js"></script>
-    <script src="../shared/services/fileService.js"></script>
-    <script src="../shared/services/exportService.js"></script>
-    <script src="../shared/header/header.js"></script>
-    <script src="utils/initialData.js"></script>
+    <script src="../payments/init-payments.js"></script>
+    <script src="../payments/utils/wait-for-payments-init.js"></script>
+    <script src="utils/subscription-guard.js"></script>
+    <script src="utils/auth-guard.js"></script>
+    <script src="utils/network-utils.js"></script>
+    <script src="utils/offline-handler.js"></script>
+    <script src="../database/models/data-manager.js"></script>
+    <script src="../database/models/month-factory.js"></script>
+    <script src="services/CalculationService.js"></script>
+    <script src="services/FormHandler.js"></script>
+    <script src="services/TableRenderer.js"></script>
+    <script src="utils/formatters.js"></script>
+    <script src="services/FileService.js"></script>
+    <script src="services/ExportService.js"></script>
+    <script src="components/Header.js"></script>
+    <script src="utils/InitialData.js"></script>
     <script>
         // Protect route and initialize with parallel loading for better performance
         document.addEventListener('DOMContentLoaded', async function() {
@@ -192,20 +178,6 @@
                     return;
                 }
                 console.log('[index.html] Authentication check passed');
-
-                // Check device pairing status (encryption keys)
-                if (window.PairingGuard) {
-                    console.log('[index.html] Checking device pairing status...');
-                    const isPaired = await window.PairingGuard.checkPairingStatus();
-                    if (!isPaired) {
-                        console.log('[index.html] Device not paired, redirecting to pairing page...');
-                        window.location.href = '../messaging/views/device-pairing.html';
-                        return;
-                    }
-                    console.log('[index.html] Device pairing check passed');
-                } else {
-                    console.warn('[index.html] PairingGuard not available, skipping pairing check');
-                }
 
                 // Initialize settings after database is ready
                 await DataManager.initializeSettings();
@@ -233,7 +205,7 @@
             }
         });
     </script>
-    <script src="controllers/landingController.js"></script>
+    <script src="controllers/LandingController.js"></script>
 </body>
 </html>
 

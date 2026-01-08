@@ -1,0 +1,585 @@
+/* ============================================================================
+   MONTHLY BUDGET PAGE STYLES
+   ============================================================================ */
+
+/* Prevent text wrapping in all table cells - ensures multi-word names stay on one line */
+.data-table th,
+.data-table td {
+    white-space: nowrap;
+}
+
+#summary-table th,
+#summary-table td {
+    white-space: nowrap;
+}
+
+/* Ensure working section can scroll horizontally on all screen sizes */
+.working-section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.month-selector-section {
+    background-color: rgba(225, 225, 225, 0.85);
+    border-radius: 0px;
+}
+
+.month-header-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: var(--spacing-md);
+}
+
+.month-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.month-selector-compact {
+    padding: 0.5rem 1rem;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-width: 180px;
+    max-width: 220px;
+}
+
+.month-selector-compact:hover {
+    background-color: var(--bg-input-hover, rgba(240, 240, 240, 0.9));
+}
+
+.month-selector-compact:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.month-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.month-selector-wrapper .form-label {
+    margin: 0;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.month-selector-wrapper .form-select {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+/* Prevent any select dropdown from overflowing viewport */
+select.form-select {
+    max-width: 100% !important;
+}
+
+/* Specific rule for month selector to prevent overflow */
+#month-selector {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Ensure option elements also truncate */
+#month-selector option {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.copy-month-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.copy-month-select option {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.month-buttons-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+}
+
+
+.create-month-btn {
+    flex-shrink: 1;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#month-content > section {
+    background-color: rgba(220, 220, 220, 0.85);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+}
+
+@media (max-width: 1024px) {
+    .month-header-container {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .month-header-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: var(--spacing-sm);
+    }
+    
+    .month-header-container .form-label {
+        flex-shrink: 0;
+        margin: 0;
+        white-space: nowrap;
+    }
+    
+    .month-header-container .form-select {
+        flex: 1 1 auto;
+        min-width: 120px;
+        max-width: min(180px, calc(100vw - 16rem));
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    
+    .month-header-container .create-month-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .month-header-container #share-month-button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .month-header-container #month-sharing-indicator {
+        flex: 1 1 100%;
+        margin-left: 0;
+        margin-top: 0;
+        font-size: 0.85em;
+        order: 10;
+    }
+    
+    .month-title-wrapper {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+    
+    .month-title {
+        font-size: 1.25rem;
+    }
+    
+    .month-selector-compact {
+        min-width: 140px;
+        max-width: none;
+        flex: 1;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.75rem;
+    }
+    
+    .month-selector-wrapper {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-label {
+        font-size: 0.9rem;
+    }
+    
+    .month-selector-wrapper .form-select {
+        min-width: 140px;
+        max-width: calc(100vw - 12rem);
+        flex: 1;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    
+    .month-buttons-container {
+        justify-content: center;
+    }
+    
+    .create-month-btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .section-actions-container {
+        flex-wrap: wrap;
+    }
+
+    .copy-month-select {
+        max-width: 200px;
+        min-width: 150px;
+    }
+
+    .data-table th,
+    .data-table td {
+        white-space: nowrap;
+    }
+
+    .data-table input[type="number"],
+    .data-table input[type="text"],
+    .data-table input[type="date"],
+    .data-table select,
+    .data-table textarea {
+        font-size: 0.8rem;
+        padding: calc(var(--spacing-xs) * 0.85);
+    }
+}
+
+@media (max-width: 480px) {
+    .month-title {
+        font-size: 1rem;
+    }
+    
+    .month-selector-compact {
+        min-width: 100px;
+        font-size: 0.8rem;
+        padding: 0.35rem 0.5rem;
+    }
+    
+    .month-selector-wrapper .form-label {
+        font-size: 0.85rem;
+    }
+    
+    .month-selector-wrapper .form-select {
+        min-width: 100px;
+        max-width: calc(100vw - 8rem);
+        font-size: 0.85rem;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    
+
+    .section-actions-container {
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Add button goes first on its own row */
+    .section-actions-container button:last-child {
+        order: -1;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    /* Copy row container: select + copy button stay together */
+    .section-actions-container .copy-month-select {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0 !important;
+        max-width: calc(100vw - 10rem) !important;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .section-actions-container button:not(:last-child) {
+        order: 1;
+        flex: 0 0 auto;
+        width: auto;
+    }
+
+    .data-table th,
+    .data-table td {
+        white-space: nowrap;
+    }
+
+    .data-table input[type="number"],
+    .data-table input[type="text"],
+    .data-table input[type="date"],
+    .data-table select,
+    .data-table textarea {
+        font-size: 0.75rem;
+        padding: calc(var(--spacing-xs) * 0.75);
+    }
+}
+
+@media (max-width: 400px) {
+    .month-title-wrapper {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .month-title {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .month-selector-compact {
+        width: 100%;
+    }
+    
+    .month-buttons-container {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .create-month-btn {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+}
+
+/* ============================================================================
+   CALCULATED VALUES STYLES (Italicized)
+   ============================================================================ */
+
+/* Calculated input fields (read-only, auto-calculated) */
+.weekly-estimate,
+.weekly-actual {
+    font-style: italic;
+}
+
+/* Calculated cells (remaining amounts, totals) */
+.variable-cost-remaining {
+    font-style: italic;
+}
+
+/* Weekly variable cost textareas - italicize only the Estimate line (first line) */
+textarea[class*="weekly-variable-"]::first-line {
+    font-style: italic;
+}
+
+/* ============================================================================
+   HELP BUTTON STYLES
+   ============================================================================ */
+
+.help-button {
+    width: 1.25rem;
+    height: 1.25rem;
+    min-width: 1.25rem;
+    min-height: 1.25rem;
+    padding: 0;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 50%;
+    background-color: var(--action-color);
+    color: var(--text-white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.help-button:hover {
+    background-color: var(--action-hover);
+    transform: scale(1.1);
+}
+
+.help-button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+   HELP MODAL STYLES
+   ============================================================================ */
+
+.help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.help-modal-content {
+    position: relative;
+    background-color: var(--surface-color);
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: calc(var(--border-radius) * var(--border-radius-multiplier));
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1001;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    border-bottom: var(--border-width-standard) solid var(--border-color-black);
+}
+
+.help-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.help-modal-close {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    border: var(--border-width-standard) solid var(--border-color-black);
+    border-radius: 0px;
+    background-color: var(--danger-color);
+    color: var(--text-white);
+    font-size: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: var(--transition);
+}
+
+.help-modal-close:hover {
+    background-color: var(--danger-hover);
+}
+
+.help-modal-close:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.help-modal-body {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.help-modal-body p {
+    margin: 0 0 1rem 0;
+}
+
+.help-modal-body p:last-child {
+    margin-bottom: 0;
+}
+
+.help-modal-body ul {
+    margin: 0.5rem 0 1rem 1.5rem;
+    padding: 0;
+}
+
+.help-modal-body li {
+    margin: 0.25rem 0;
+}
+
+.help-modal-body code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 2px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.help-modal-body strong {
+    font-weight: 600;
+}
+
+.help-modal-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+
+.help-modal-body table thead tr {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.help-modal-body table th {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color-black);
+    text-align: left;
+    font-weight: 600;
+}
+
+.help-modal-body table td {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color-black);
+    vertical-align: top;
+}
+
+.help-modal-body table tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.help-modal-body table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+    .help-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .help-modal-header {
+        padding: var(--spacing-sm);
+    }
+
+    .help-modal-body {
+        padding: var(--spacing-sm);
+    }
+}

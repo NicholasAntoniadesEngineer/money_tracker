@@ -1,0 +1,714 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>March</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="1a606eb0-49e0-807f-bdae-d054c46a5ed6" class="page sans"><header><img class="page-cover-image" src="March/Mar.jpg" style="object-position:center 45.84%"/><div class="page-header-icon page-header-icon-with-cover"><img class="icon notion-static-icon" src="https://www.notion.so/icons/cash_lightgray.svg"/></div><h1 class="page-title" dir="auto">March</h1><p class="page-description" dir="auto"></p><table class="properties"><tbody><tr class="property-row property-row-date"><th><span class="icon property-icon"><img src="https://www.notion.so/icons/calendar_gray.svg" style="width:14px;height:14px;display:block"/></span>Date</th><td><time>@March 1, 2025 → March 31, 2025</time></td></tr></tbody></table></header><div class="page-body"><div style="display:contents" dir="auto"><h3 id="22906eb0-49e0-80b0-8345-ebb7c6c04d7d" class=""><strong>Period: March 2025</strong></h3></div><div style="display:contents" dir="auto"><hr id="22906eb0-49e0-80e2-b514-c254ca096a09"/></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-8106-8dc4-c144c79fc959" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8149-ba74-e7a8c15a0e2f"><th id="wbIq" class="simple-table-header-color simple-table-header">Date</th><th id="JjND" class="simple-table-header-color simple-table-header" style="width:279.2109375px">Payments Due</th><th id="&lt;upj" class="simple-table-header-color simple-table-header" style="width:127.25px">Groceries</th><th id="ZeS{" class="simple-table-header-color simple-table-header" style="width:125.3046875px">Transport</th><th id="csAR" class="simple-table-header-color simple-table-header" style="width:136.4609375px">Activities</th><th id="?S=}" class="simple-table-header-color simple-table-header" style="width:106px">Estimate</th><th id="u]Gk" class="simple-table-header-color simple-table-header" style="width:111px">Actual</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81d5-bd11-d4da1171b44a"><th id="wbIq" class="simple-table-header-color simple-table-header">28-9</th><td id="JjND" class="" style="width:279.2109375px">Spotify 19.99 ✓<br/>London Borough of Haringey 145.00✓<br/>Barclays Partner Finance 41.62 ✓<br/>The Basement Gym 54.99 ✓<br/>Urban Jungle Insurance 20.07✓<br/>Google Photos 8.00 ✓<br/>X Ai 11.00 ✓</td><td id="&lt;upj" class="" style="width:127.25px">120-24.50-8.65-16.20-9.20-70.48<br/><br/>=-9.03<br/>Spent 129.03</td><td id="ZeS{" class="" style="width:125.3046875px">75-4-9.90-10.50-3.80<br/><br/><br/>=46.8<br/>Spent 28.20</td><td id="csAR" class="" style="width:136.4609375px">75-7.99-7.99-7.99-4.60-6.99-7.99-70-7.99<br/><br/>=-46.54<br/>Spent 121.54</td><td id="?S=}" class="" style="width:106px">601.17</td><td id="u]Gk" class="" style="width:111px">579.44</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8133-8122-c611b777dd8c"><th id="wbIq" class="simple-table-header-color simple-table-header">10-16</th><td id="JjND" class="" style="width:279.2109375px">Rent/Lease 2100.00✓<br/>Voxi 10.00✓<br/>Apple Storage iCloud 8.99✓<br/>Creative Cloud All Apps 100GB 28.48✓<br/>Creative Cloud Files Storage 1TB 9.98✓<br/>ChatGPT 19.99✓<br/><br/><br/>Spent 2177.44</td><td id="&lt;upj" class="" style="width:127.25px">120-71-9.40-36.96-1.85-2.20-8.85-8.73-21.50-2.99-2.79-7.76<br/><br/><br/>=-54.03<br/>Spent 174.03</td><td id="ZeS{" class="" style="width:125.3046875px">75-4.20-18.99-12.75-3.10-3.10-6.90-41.30-17.70-4.85-4.85-5.20-4.19-0.10<br/><br/>=-52.23<br/>Spent 127.23</td><td id="csAR" class="" style="width:136.4609375px">120-7.99+6.60-5.50-7-15.80-4.60-17.50-12.60-5.20-11.05-3.99-3.99-8.34-1.60<br/><br/><br/>= 21.44<br/>Spent 141.44</td><td id="?S=}" class="" style="width:106px">2497.44</td><td id="u]Gk" class="" style="width:111px">2620.14</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81f6-8bea-d0f01a39bfba"><th id="wbIq" class="simple-table-header-color simple-table-header">17-23</th><td id="JjND" class="" style="width:279.2109375px">OVO Energy LTD 176.56✓<br/>Virgin Media 28.83<br/>Capture One 4.49✓</td><td id="&lt;upj" class="" style="width:127.25px">120-20.20-12.90-26.95-2.70-6.65<br/><br/>= 50.6<br/>Spent 69.40</td><td id="ZeS{" class="" style="width:125.3046875px">75-6.90-16.30-3.80-3.10-18.99-4.85<br/><br/>= 21.06<br/>Spent 53.94</td><td id="csAR" class="" style="width:136.4609375px">50-3.49<br/><br/><br/><br/>= 46.51<br/>Spent 3.49</td><td id="?S=}" class="" style="width:106px">454.88</td><td id="u]Gk" class="" style="width:111px">307.88<br/></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8117-bc6d-df512d6fce7a"><th id="wbIq" class="simple-table-header-color simple-table-header">24-30</th><td id="JjND" class="" style="width:279.2109375px">Cursor AI 15.52✓<br/>The Basement Gym 54.99✓<br/>EE 10✓<br/>Google Storage 7.90✓<br/>The Basement Gym 54.99✓<br/>X Ai 11✓<br/><br/>Barclays Partner Finance 41.62 ✓<br/>Urban Jungle Insurance 20.07✓</td><td id="&lt;upj" class="" style="width:127.25px">120-50.67-3.45-3.45-55.27-10.40-22.10<br/><br/><br/><br/>= -25.34<br/>Spent 145.3</td><td id="ZeS{" class="" style="width:125.3046875px">75-4.20-2.16-10.50-2.10-6.20-2.45<br/><br/><br/><br/><br/>= 47.39<br/>Spent 27.61</td><td id="csAR" class="" style="width:136.4609375px">50-8-8.60-3.45-7.99-7.99-10-9.99-6.98<br/><br/><br/><br/><br/>= -13<br/>Spent 63</td><td id="?S=}" class="" style="width:106px">315.83</td><td id="u]Gk" class="" style="width:111px">452</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81b9-80eb-eb4c36d8778d"><th id="wbIq" class="simple-table-header-color simple-table-header">TOTALS</th><td id="JjND" class="" style="width:279.2109375px"></td><td id="&lt;upj" class="" style="width:127.25px"></td><td id="ZeS{" class="" style="width:125.3046875px"></td><td id="csAR" class="" style="width:136.4609375px"></td><td id="?S=}" class="" style="width:106px">£3,869.32</td><td id="u]Gk" class="" style="width:111px">£3,959.46</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="1a606eb0-49e0-810e-b55b-f8e589456b1c" class=""><strong>1. Fixed Costs (Recurring Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-81b3-b3c7-e0c9e928c14d" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8160-b41f-f5e01bd20094"><th id=":kC|" class="simple-table-header-color simple-table-header" style="width:438px">Expense Category</th><th id="Y}q^" class="simple-table-header-color simple-table-header" style="width:217.65625px">Estimate Amount (£)</th><th id="Qw=;" class="simple-table-header-color simple-table-header" style="width:240.3203125px">Actual Amount (£)</th><th id="bSa_" class="simple-table-header-color simple-table-header" style="width:110px">Date</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-817d-83ef-c71851e1086b"><td id=":kC|" class="" style="width:438px">London Borough of Haringey</td><td id="Y}q^" class="" style="width:217.65625px">145.00</td><td id="Qw=;" class="" style="width:240.3203125px">145.00</td><td id="bSa_" class="" style="width:110px">3rd</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8155-b8f3-cdcf979224f1"><td id=":kC|" class="" style="width:438px">Voxi</td><td id="Y}q^" class="" style="width:217.65625px">10.00</td><td id="Qw=;" class="" style="width:240.3203125px">10.00</td><td id="bSa_" class="" style="width:110px">11th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-811c-a199-d94cb2023a74"><td id=":kC|" class="" style="width:438px">Rent/Lease</td><td id="Y}q^" class="" style="width:217.65625px">2100.00</td><td id="Qw=;" class="" style="width:240.3203125px">2100.00</td><td id="bSa_" class="" style="width:110px">10th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81e7-952d-c515ae940f7a"><td id=":kC|" class="" style="width:438px">OVO Energy LTD</td><td id="Y}q^" class="" style="width:217.65625px">176.56</td><td id="Qw=;" class="" style="width:240.3203125px">176.56</td><td id="bSa_" class="" style="width:110px">18th </td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81ef-892a-fca9ae87a225"><td id=":kC|" class="" style="width:438px">Virgin Media</td><td id="Y}q^" class="" style="width:217.65625px">28.83</td><td id="Qw=;" class="" style="width:240.3203125px">28.83</td><td id="bSa_" class="" style="width:110px">18th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a706eb0-49e0-8023-9ddb-f550fe8609f9"><td id=":kC|" class="" style="width:438px">EE </td><td id="Y}q^" class="" style="width:217.65625px">10.00</td><td id="Qw=;" class="" style="width:240.3203125px">10.00</td><td id="bSa_" class="" style="width:110px">25th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8114-8dfa-d1e94bafc538"><td id=":kC|" class="" style="width:438px">Barclays Partner Finance</td><td id="Y}q^" class="" style="width:217.65625px">41.62</td><td id="Qw=;" class="" style="width:240.3203125px">41.62</td><td id="bSa_" class="" style="width:110px">28th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-818b-a436-ee8f54f9fb52"><td id=":kC|" class="" style="width:438px">Urban Jungle Insurance</td><td id="Y}q^" class="" style="width:217.65625px">20.07</td><td id="Qw=;" class="" style="width:240.3203125px">20.07</td><td id="bSa_" class="" style="width:110px">28th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-818e-81ec-d5e197889afe"><td id=":kC|" class="" style="width:438px"><em>Subscriptions (e.g., software, memberships)</em></td><td id="Y}q^" class="" style="width:217.65625px"></td><td id="Qw=;" class="" style="width:240.3203125px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8142-bcb7-e92a3274c4b3"><td id=":kC|" class="" style="width:438px">Spotify</td><td id="Y}q^" class="" style="width:217.65625px">19.99</td><td id="Qw=;" class="" style="width:240.3203125px">19.99</td><td id="bSa_" class="" style="width:110px">1st</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81a3-b84d-d146412df24e"><td id=":kC|" class="" style="width:438px">Apple Storage iCloud</td><td id="Y}q^" class="" style="width:217.65625px">8.99</td><td id="Qw=;" class="" style="width:240.3203125px">8.99</td><td id="bSa_" class="" style="width:110px">11th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1bc06eb0-49e0-80c9-a78d-edb4852f4d9e"><td id=":kC|" class="" style="width:438px">Audible</td><td id="Y}q^" class="" style="width:217.65625px">0</td><td id="Qw=;" class="" style="width:240.3203125px">9.99</td><td id="bSa_" class="" style="width:110px">11th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-819b-b7c2-c080e945abbe"><td id=":kC|" class="" style="width:438px">ChatGPT</td><td id="Y}q^" class="" style="width:217.65625px">19.99</td><td id="Qw=;" class="" style="width:240.3203125px">19.99</td><td id="bSa_" class="" style="width:110px">15th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8168-9832-c7107381e292"><td id=":kC|" class="" style="width:438px">Creative Cloud All Apps 100GB</td><td id="Y}q^" class="" style="width:217.65625px">28.48</td><td id="Qw=;" class="" style="width:240.3203125px">28.48</td><td id="bSa_" class="" style="width:110px">16th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-815a-931e-f17809ee7c9f"><td id=":kC|" class="" style="width:438px">Creative Cloud Files Storage 1 TB</td><td id="Y}q^" class="" style="width:217.65625px">9.98</td><td id="Qw=;" class="" style="width:240.3203125px">9.98</td><td id="bSa_" class="" style="width:110px">16th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81c9-85ce-de7a8c0bfc76"><td id=":kC|" class="" style="width:438px">Capture One</td><td id="Y}q^" class="" style="width:217.65625px">4.49</td><td id="Qw=;" class="" style="width:240.3203125px">4.49</td><td id="bSa_" class="" style="width:110px">19th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81e2-96cd-f2c0d977b22a"><td id=":kC|" class="" style="width:438px">Cursor AI</td><td id="Y}q^" class="" style="width:217.65625px">15.84</td><td id="Qw=;" class="" style="width:240.3203125px">15.52</td><td id="bSa_" class="" style="width:110px">24th </td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81ba-bcbd-ff5f015dc729"><td id=":kC|" class="" style="width:438px">The Basement Gym Nicholas</td><td id="Y}q^" class="" style="width:217.65625px">54.99</td><td id="Qw=;" class="" style="width:240.3203125px">54.99</td><td id="bSa_" class="" style="width:110px">27th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-814b-83f4-e20266ca2ef2"><td id=":kC|" class="" style="width:438px">The Basement Gym Lara</td><td id="Y}q^" class="" style="width:217.65625px">54.99</td><td id="Qw=;" class="" style="width:240.3203125px">54.99</td><td id="bSa_" class="" style="width:110px">27th </td></tr></div><div style="display:contents" dir="ltr"><tr id="1ab06eb0-49e0-80be-a3c7-c2063a7feb4d"><td id=":kC|" class="" style="width:438px">Google Storage Photos</td><td id="Y}q^" class="" style="width:217.65625px">0</td><td id="Qw=;" class="" style="width:240.3203125px">8.00</td><td id="bSa_" class="" style="width:110px">27th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-815a-9767-e7b3923fbc98"><td id=":kC|" class="" style="width:438px">X Ai</td><td id="Y}q^" class="" style="width:217.65625px">11.00</td><td id="Qw=;" class="" style="width:240.3203125px">11.00</td><td id="bSa_" class="" style="width:110px">27th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8146-b0e5-c42b85b8ed23"><td id=":kC|" class="" style="width:438px"></td><td id="Y}q^" class="" style="width:217.65625px"></td><td id="Qw=;" class="" style="width:240.3203125px"></td><td id="bSa_" class="" style="width:110px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8153-94ef-ca9a5d418911"><td id=":kC|" class="" style="width:438px"><strong>Total Fixed Costs</strong></td><td id="Y}q^" class="" style="width:217.65625px">2760.82</td><td id="Qw=;" class="" style="width:240.3203125px">£2,778.49</td><td id="bSa_" class="" style="width:110px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="1a606eb0-49e0-8140-a954-d8f30f470fce"/></div><div style="display:contents" dir="auto"><h3 id="1a606eb0-49e0-8172-b1c3-f2e6c1f1142e" class=""><strong>2. Variable Costs (Operational Expenses)</strong></h3></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-815f-b37b-e72416ff6657" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-813f-9f24-fcbf62c08ab3"><th id="GSsm" class="simple-table-header-color simple-table-header" style="width:435.4765625px">Expense Category</th><th id="\=C&lt;" class="simple-table-header-color simple-table-header" style="width:286.3203125px">Estimated Amount (£)</th><th id="l[KS" class="simple-table-header-color simple-table-header" style="width:284.65625px">Actual Amount (£)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81f6-8080-ea85a157c618"><td id="GSsm" class="" style="width:435.4765625px">Food</td><td id="\=C&lt;" class="" style="width:286.3203125px">480</td><td id="l[KS" class="" style="width:284.65625px">517.76</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-817d-b68c-e3f544f9fb37"><td id="GSsm" class="" style="width:435.4765625px">Travel/Transport</td><td id="\=C&lt;" class="" style="width:286.3203125px">300</td><td id="l[KS" class="" style="width:284.65625px">236.98</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81e3-8292-c4cb96faa1af"><td id="GSsm" class="" style="width:435.4765625px">Activities</td><td id="\=C&lt;" class="" style="width:286.3203125px">300</td><td id="l[KS" class="" style="width:284.65625px">329.47</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81a5-aacc-c1d152ce7f41"><td id="GSsm" class="" style="width:435.4765625px"></td><td id="\=C&lt;" class="" style="width:286.3203125px"></td><td id="l[KS" class="" style="width:284.65625px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81fd-8eff-c0efeb90e399"><td id="GSsm" class="" style="width:435.4765625px"><strong>Total Variable Costs</strong></td><td id="\=C&lt;" class="" style="width:286.3203125px">1050</td><td id="l[KS" class="" style="width:284.65625px">1,084.21</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="1a606eb0-49e0-8128-8147-cecdf48c34af"/></div><div style="display:contents" dir="auto"><h3 id="1a606eb0-49e0-8178-9620-d97f85251d68" class=""><strong>3. Unplanned Expense</strong></h3></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-8198-9155-cbc2f2730f49" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="1ca06eb0-49e0-801a-a030-f7ddf39f56b3"><th id="|uOS" class="simple-table-header-color simple-table-header" style="width:437px">Name</th><th id="t@@u" class="simple-table-header-color simple-table-header" style="width:143px">Amount (£)</th><th id="FFBz" class="simple-table-header-color simple-table-header" style="width:144px">Date</th><th id="dZKz" class="simple-table-header-color simple-table-header" style="width:140px">Card</th><th id="XzOv" class="simple-table-header-color simple-table-header" style="width:143px">Status</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="1b306eb0-49e0-804d-969c-ed470ce5ec4a"><td id="|uOS" class="" style="width:437px">Lara’s Flex (Previous Months expenses, Books, Eating Out, High Commission Cypriot Passport, Carhartt, Levi’s)</td><td id="t@@u" class="" style="width:143px">926.33</td><td id="FFBz" class="" style="width:144px"></td><td id="dZKz" class="" style="width:140px"></td><td id="XzOv" class="" style="width:143px">Paid</td></tr></div><div style="display:contents" dir="ltr"><tr id="1bc06eb0-49e0-80bc-abd6-df5ba80af08d"><td id="|uOS" class="" style="width:437px">Past Electricity Overdue</td><td id="t@@u" class="" style="width:143px">148.28</td><td id="FFBz" class="" style="width:144px"></td><td id="dZKz" class="" style="width:140px"></td><td id="XzOv" class="" style="width:143px">Paid</td></tr></div><div style="display:contents" dir="ltr"><tr id="1ca06eb0-49e0-80bb-8c5b-ef00cc5edca5"><td id="|uOS" class="" style="width:437px">Nicholas Flex</td><td id="t@@u" class="" style="width:143px">141</td><td id="FFBz" class="" style="width:144px"></td><td id="dZKz" class="" style="width:140px"></td><td id="XzOv" class="" style="width:143px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1ca06eb0-49e0-80a5-9212-ec9b1041c315"><td id="|uOS" class="" style="width:437px">Carharrt Jeans</td><td id="t@@u" class="" style="width:143px">110</td><td id="FFBz" class="" style="width:144px">31st Mar</td><td id="dZKz" class="" style="width:140px">Business Card</td><td id="XzOv" class="" style="width:143px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1ca06eb0-49e0-8049-9c89-c4dba46e2812"><td id="|uOS" class="" style="width:437px"></td><td id="t@@u" class="" style="width:143px"></td><td id="FFBz" class="" style="width:144px"></td><td id="dZKz" class="" style="width:140px"></td><td id="XzOv" class="" style="width:143px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1bc06eb0-49e0-8044-a2fb-ffe25675e069"><td id="|uOS" class="" style="width:437px"><strong>Total</strong></td><td id="t@@u" class="" style="width:143px">1325.61</td><td id="FFBz" class="" style="width:144px"></td><td id="dZKz" class="" style="width:140px"></td><td id="XzOv" class="" style="width:143px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="1a606eb0-49e0-815c-812f-f38e3ef8622b"/></div><div style="display:contents" dir="auto"><h3 id="1a606eb0-49e0-81fb-8aab-f7b5bd2ed526" class=""><strong>4. Pots and Investments</strong></h3></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-81f6-83f1-fd1a8f443cc8" class="simple-table"><tbody><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8137-911e-f7c97bf0d337"><td id="xocK" class="" style="width:389.359375px">Category</td><td id="DeeP" class="" style="width:260.3203125px">Estimated Amount (£)</td><td id=";vi&gt;" class="" style="width:269.3203125px">Actual Amount (£)</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-815b-be96-c642d26ac3fd"><td id="xocK" class="" style="width:389.359375px">Cosmetic Pot </td><td id="DeeP" class="" style="width:260.3203125px">100</td><td id=";vi&gt;" class="" style="width:269.3203125px">100</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-815a-9531-db1dddbe7b14"><td id="xocK" class="" style="width:389.359375px">Apple Care Pot </td><td id="DeeP" class="" style="width:260.3203125px">17</td><td id=";vi&gt;" class="" style="width:269.3203125px">17</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8111-8c29-cb8072493420"><td id="xocK" class="" style="width:389.359375px">So Nicholas Can See Pot</td><td id="DeeP" class="" style="width:260.3203125px">18</td><td id=";vi&gt;" class="" style="width:269.3203125px">18</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-817e-b79b-f5c1905e685c"><td id="xocK" class="" style="width:389.359375px">House/Breakages Pot </td><td id="DeeP" class="" style="width:260.3203125px">200</td><td id=";vi&gt;" class="" style="width:269.3203125px">200</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8171-acd0-f7ff0a1a9e61"><td id="xocK" class="" style="width:389.359375px">Clothes</td><td id="DeeP" class="" style="width:260.3203125px">100</td><td id=";vi&gt;" class="" style="width:269.3203125px">100</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8184-932b-ea2363223e7a"><td id="xocK" class="" style="width:389.359375px">Birthday Present Pot</td><td id="DeeP" class="" style="width:260.3203125px">100</td><td id=";vi&gt;" class="" style="width:269.3203125px">100</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81a6-b498-d7905cfea21c"><td id="xocK" class="" style="width:389.359375px">Emergency Pot </td><td id="DeeP" class="" style="width:260.3203125px">200</td><td id=";vi&gt;" class="" style="width:269.3203125px">200</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8102-867d-fa1cb06e080e"><td id="xocK" class="" style="width:389.359375px">Business Pot</td><td id="DeeP" class="" style="width:260.3203125px">200</td><td id=";vi&gt;" class="" style="width:269.3203125px">200</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-813c-b1ea-c141642084ab"><td id="xocK" class="" style="width:389.359375px"><strong>Total Savings/Investments</strong></td><td id="DeeP" class="" style="width:260.3203125px"><strong>935</strong></td><td id=";vi&gt;" class="" style="width:269.3203125px"><strong>935</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="1a606eb0-49e0-81f8-a290-d598ae3fbf23"/></div><div style="display:contents" dir="auto"><h3 id="1a606eb0-49e0-8183-acda-e1e0c8015665" class=""><strong>5. Expenses vs Income</strong></h3></div><div style="display:contents" dir="ltr"><table id="1a606eb0-49e0-8180-bb43-c50fb562494c" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-814d-ba8a-eb00c6f96468"><th id="O`;V" class="simple-table-header-color simple-table-header" style="width:386px">Revenue Source</th><th id="~rhS" class="simple-table-header-color simple-table-header" style="width:261.3203125px">Estimated Amount (£)</th><th id="Fw^l" class="simple-table-header-color simple-table-header" style="width:247.65625px">Actual Amount (£)</th><th id="kJ]Q" class="simple-table-header-color simple-table-header" style="width:108px"></th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-812f-873e-cc2e584b55d0"><td id="O`;V" class="" style="width:386px">Nicholas Income</td><td id="~rhS" class="" style="width:261.3203125px">3854.32</td><td id="Fw^l" class="" style="width:247.65625px">3854.32</td><td id="kJ]Q" class="" style="width:108px">27th</td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-81ab-bdbf-f40f2f544727"><td id="O`;V" class="" style="width:386px">Lara Income</td><td id="~rhS" class="" style="width:261.3203125px">2868.75</td><td id="Fw^l" class="" style="width:247.65625px">2868.75</td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8116-85f9-defe6aa5d2b0"><td id="O`;V" class="" style="width:386px">Other Income (e.g., sales of cloths, household)</td><td id="~rhS" class="" style="width:261.3203125px">196</td><td id="Fw^l" class="" style="width:247.65625px">171.71</td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8174-9502-e5ac6cb2008c"><td id="O`;V" class="" style="width:386px"><strong>Total Income</strong></td><td id="~rhS" class="" style="width:261.3203125px"><strong>6919.07</strong></td><td id="Fw^l" class="" style="width:247.65625px"><strong>6894.78</strong></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-805b-8e4c-f1f14a5e0d04"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:247.65625px"></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8148-a053-f8e5a622cc3e"><td id="O`;V" class="" style="width:386px">Total Fixed Costs</td><td id="~rhS" class="" style="width:261.3203125px">2750.82</td><td id="Fw^l" class="" style="width:247.65625px">2,778.49</td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-817a-9cfe-cbb9590c0e33"><td id="O`;V" class="" style="width:386px">Total Variable Costs</td><td id="~rhS" class="" style="width:261.3203125px">1050</td><td id="Fw^l" class="" style="width:247.65625px">1,084.21</td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-816b-a8bc-ea7142fc45e2"><td id="O`;V" class="" style="width:386px"><strong>Total Expenses</strong></td><td id="~rhS" class="" style="width:261.3203125px"><strong>3800.82</strong></td><td id="Fw^l" class="" style="width:247.65625px"><strong>3862.70</strong></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1bc06eb0-49e0-80ed-82a1-eb9c30a4eef5"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:247.65625px"></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1bc06eb0-49e0-806c-84ff-c2f5dc7b3ccb"><td id="O`;V" class="" style="width:386px"><strong>Total Unplanned Expenses</strong></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:247.65625px"><strong>1325.61</strong></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-80e3-8e90-cf7474d91335"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:247.65625px"></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-8097-aff5-d9f4de838055"><td id="O`;V" class="" style="width:386px"><strong>Total Pots/Investments</strong></td><td id="~rhS" class="" style="width:261.3203125px">935</td><td id="Fw^l" class="" style="width:247.65625px"><strong>935</strong></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1ca06eb0-49e0-8083-bfb3-d4be759b7c06"><td id="O`;V" class="" style="width:386px"></td><td id="~rhS" class="" style="width:261.3203125px"></td><td id="Fw^l" class="" style="width:247.65625px"></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div><div style="display:contents" dir="ltr"><tr id="1a606eb0-49e0-80ff-85f7-d7360dbb44d8"><td id="O`;V" class="" style="width:386px"><em>Grand Savings Total </em></td><td id="~rhS" class="" style="width:261.3203125px"><em><strong>3118.25</strong></em></td><td id="Fw^l" class="" style="width:247.65625px"><strong>1706.47</strong></td><td id="kJ]Q" class="" style="width:108px"></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="1ca06eb0-49e0-806c-b706-f5dc087d35f1" class="">
+</p></div></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

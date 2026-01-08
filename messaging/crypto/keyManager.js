@@ -42,15 +42,102 @@ const KeyManager = {
             let keys = await window.KeyStorageService.getIdentityKeys(userId);
 
             if (!keys) {
-                console.log('[KeyManager] No keys found, generating new identity keys...');
+                console.log('[KeyManager] No keys found, checking for encrypted backup...');
 
-                // Generate and store new identity keys
-                keys = await this.generateAndStoreIdentityKeys(userId);
+                // Check if user has encrypted backup in database
+                let restoredFromBackup = false;
+                if (window.KeyBackupService) {
+                    const hasBackup = await window.KeyBackupService.hasBackup(userId);
 
-                // Upload public key to database for others to fetch
-                await this.uploadPublicKey(userId, keys.publicKey);
+                    if (hasBackup) {
+                        console.log('[KeyManager] Encrypted backup found, attempting restoration...');
 
-                console.log('[KeyManager] ✓ New identity keys created and uploaded');
+                        // Try to get password from session (just logged in)
+                        let password = window.PasswordManager ? window.PasswordManager.retrieve() : null;
+
+                        // If no password in session, prompt user
+                        if (!password && window.PasswordManager) {
+                            password = await window.PasswordManager.promptForPassword(
+                                'Enter your password to restore encryption keys:'
+                            );
+                        }
+
+                        if (password) {
+                            try {
+                                const restoreResult = await window.KeyBackupService.restoreFromBackup(userId, password);
+
+                                if (restoreResult.success) {
+                                    // Store restored keys in localStorage
+                                    await window.KeyStorageService.storeIdentityKeys(
+                                        userId,
+                                        restoreResult.keys.publicKey,
+                                        restoreResult.keys.secretKey
+                                    );
+
+                                    keys = restoreResult.keys;
+                                    restoredFromBackup = true;
+                                    console.log('[KeyManager] ✓ Keys restored from encrypted backup');
+                                } else {
+                                    console.warn('[KeyManager] Failed to restore from backup:', restoreResult.error);
+                                    if (restoreResult.wrongPassword) {
+                                        throw new Error('Incorrect password. Cannot restore encryption keys.');
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('[KeyManager] Error restoring from backup:', error);
+                                throw error;
+                            }
+                        } else {
+                            console.warn('[KeyManager] No password provided, cannot restore from backup');
+                        }
+                    }
+                }
+
+                // If not restored from backup, generate new keys
+                if (!restoredFromBackup) {
+                    console.log('[KeyManager] Generating new identity keys...');
+
+                    // Generate and store new identity keys
+                    keys = await this.generateAndStoreIdentityKeys(userId);
+
+                    // Upload public key to database for others to fetch
+                    await this.uploadPublicKey(userId, keys.publicKey);
+
+                    // Create encrypted backup if password is available
+                    if (window.KeyBackupService && window.PasswordManager) {
+                        const password = window.PasswordManager.retrieve();
+
+                        if (password) {
+                            console.log('[KeyManager] Creating encrypted backup of new keys...');
+
+                            try {
+                                const backupResult = await window.KeyBackupService.createBackup(
+                                    userId,
+                                    keys.publicKey,
+                                    keys.secretKey,
+                                    password
+                                );
+
+                                if (backupResult.success) {
+                                    console.log('[KeyManager] ✓ Encrypted backup created successfully');
+
+                                    // Clear password from memory after use
+                                    window.PasswordManager.markUsedAndClear();
+                                } else {
+                                    console.warn('[KeyManager] Failed to create backup:', backupResult.error);
+                                }
+                            } catch (error) {
+                                console.error('[KeyManager] Error creating backup:', error);
+                                // Don't fail key generation if backup fails
+                            }
+                        } else {
+                            console.warn('[KeyManager] No password available for backup - keys will only be stored locally');
+                            console.warn('[KeyManager] If localStorage is cleared, keys will be lost!');
+                        }
+                    }
+
+                    console.log('[KeyManager] ✓ New identity keys created and uploaded');
+                }
             } else {
                 console.log('[KeyManager] ✓ Existing identity keys found');
             }

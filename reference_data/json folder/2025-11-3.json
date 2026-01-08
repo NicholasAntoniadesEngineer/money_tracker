@@ -1,0 +1,242 @@
+{
+  "key": "2025-11",
+  "year": 2025,
+  "month": 11,
+  "monthName": "November",
+  "dateRange": {
+    "start": "2025-10-31",
+    "end": "2025-11-29"
+  },
+  "weeklyBreakdown": [
+    {
+      "dateRange": "1-7",
+      "weekRange": "1-7",
+      "paymentsDue": "Rent/Lease 1,491 ✓Spotify 22.69 ✓OneMobility x2 (Transport) 196.60 ✓",
+      "groceries": "120-1.31-2.24-88.72-6.60-46.71-11.35-10.57-20.79= -68.29 + 50Spent: 188.29",
+      "transport": "",
+      "activities": "50-50= 0Spent: 0",
+      "estimate": 0,
+      "weeklyEstimate": 0,
+      "actual": 1948.58
+    },
+    {
+      "dateRange": "8-16",
+      "weekRange": "8-16",
+      "paymentsDue": "Alpinacom Gmbh 22.02 ✓iCloud+ 2TB Storage 10.22 ✓Audibile Account 11.37 ✓Cs Addtl Storage 11.35 ✓",
+      "groceries": "120-7.04-6.04-1.00-4.25-20.80-26.57-29.69-6.45-12.75-38.68-38-5.88-4.93-19.95-11-22.87-14.15= -150.05Spent: 270.05",
+      "transport": "",
+      "activities": "50-6.68-35.17-10.10= -1.95Spent: 51.95",
+      "estimate": 343.68,
+      "weeklyEstimate": 343.68,
+      "actual": 0
+    },
+    {
+      "dateRange": "17-23",
+      "weekRange": "17-23",
+      "paymentsDue": "Adobe All Apps 100GB 37.81 ✓",
+      "groceries": "120-19.90-7.75-26.52-53.10= 12.73Spent: 107.27",
+      "transport": "",
+      "activities": "50= Spent:",
+      "estimate": 388.23,
+      "weeklyEstimate": 388.23,
+      "actual": 0
+    },
+    {
+      "dateRange": "24-30",
+      "weekRange": "24-30",
+      "paymentsDue": "Google Storage Photos 9.04Barclays Partner Finance 48.23 Alpinacom Gmbh 22.02 ChatGPT 23.08Xai LLC 25.93 Fitinn Wien Rathauspla 140.12",
+      "groceries": "120=Spent:",
+      "transport": "",
+      "activities": "50= Spent:",
+      "estimate": 234.04,
+      "weeklyEstimate": 234.04,
+      "actual": 0
+    },
+    {
+      "dateRange": "Totals",
+      "weekRange": "Totals",
+      "paymentsDue": "",
+      "groceries": "",
+      "transport": "",
+      "activities": "",
+      "estimate": 0,
+      "weeklyEstimate": 0,
+      "actual": 0
+    }
+  ],
+  "incomeSources": [
+    {
+      "source": "Nicholas Income",
+      "estimated": 3080,
+      "actual": 3155.64,
+      "date": "",
+      "description": ""
+    },
+    {
+      "source": "Lara Income",
+      "estimated": 2551.3,
+      "actual": 2521.3,
+      "date": "",
+      "description": ""
+    },
+    {
+      "source": "Other Income",
+      "estimated": 0,
+      "actual": 0,
+      "date": "",
+      "description": "Other Income (e.g., sales of cloths, household)"
+    }
+  ],
+  "fixedCosts": [
+    {
+      "category": "Spotify",
+      "estimatedAmount": 23.32,
+      "actualAmount": 22.69,
+      "date": "1st",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Rent/Lease",
+      "estimatedAmount": 1491,
+      "actualAmount": 1491,
+      "date": "3rd",
+      "card": "Joint Amex",
+      "paid": false
+    },
+    {
+      "category": "Transport",
+      "estimatedAmount": 196.54,
+      "actualAmount": 196.6,
+      "date": "3rd",
+      "card": "Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Alpinacom Gmbh (Data)",
+      "estimatedAmount": 24.99,
+      "actualAmount": 22.02,
+      "date": "",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Audible",
+      "estimatedAmount": 11.34,
+      "actualAmount": 11.37,
+      "date": "11th",
+      "card": "Lara Monzo Flex",
+      "paid": false
+    },
+    {
+      "category": "Weed",
+      "estimatedAmount": 130,
+      "actualAmount": 175.77,
+      "date": "15th",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "iCloud+ 2TB Storage",
+      "estimatedAmount": 10.2,
+      "actualAmount": 10.22,
+      "date": "15th",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Adobe All Apps 100GB",
+      "estimatedAmount": 32.89,
+      "actualAmount": 37.81,
+      "date": "16th",
+      "card": "Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Cs Addtl Storage (Creative Cloud 1TB)",
+      "estimatedAmount": 11.53,
+      "actualAmount": 11.35,
+      "date": "16th",
+      "card": "Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Fitinn Wien Rathauspla x 2",
+      "estimatedAmount": 140.12,
+      "actualAmount": 0,
+      "date": "",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Xai LLC (Grok)",
+      "estimatedAmount": 26.38,
+      "actualAmount": 0,
+      "date": "25th",
+      "card": "Joint Amex",
+      "paid": false
+    },
+    {
+      "category": "ChatGPT",
+      "estimatedAmount": 22.69,
+      "actualAmount": 0,
+      "date": "17th",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Google Storage Photos",
+      "estimatedAmount": 9.22,
+      "actualAmount": 0,
+      "date": "28th",
+      "card": "Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Barclays Partner Finance",
+      "estimatedAmount": 47.37,
+      "actualAmount": 0,
+      "date": "28th",
+      "card": "Monzo Joint",
+      "paid": false
+    },
+    {
+      "category": "Alpinacom Gmbh (Data)",
+      "estimatedAmount": 24.99,
+      "actualAmount": 0,
+      "date": "31st",
+      "card": "Apple Monzo Joint",
+      "paid": false
+    }
+  ],
+  "variableCosts": [
+    {
+      "category": "Food",
+      "estimatedAmount": 500,
+      "actualAmount": 0
+    },
+    {
+      "category": "Activities",
+      "estimatedAmount": 200,
+      "actualAmount": 0
+    }
+  ],
+  "unplannedExpenses": [
+    {
+      "name": "Robert Kolinski",
+      "amount": 50,
+      "date": "",
+      "card": "Joint Monzo",
+      "status": ""
+    }
+  ],
+  "pots": [
+    {
+      "category": "Remaining Debt",
+      "estimatedAmount": 2041.96,
+      "actualAmount": 2041.96
+    }
+  ],
+  "createdAt": "2025-12-12T22:34:39.463Z",
+  "updatedAt": "2025-12-12T22:34:39.463Z"
+}

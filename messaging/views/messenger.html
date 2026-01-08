@@ -166,6 +166,66 @@
         </div>
     </div>
 
+    <!-- Device Pairing Modal -->
+    <div id="device-pairing-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="pairing-modal-title">Device Pairing</h3>
+                <button class="modal-close" id="close-pairing-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Primary Device View -->
+                <div id="primary-device-view" style="display: none; text-align: center;">
+                    <p style="margin-bottom: var(--spacing-md);">To pair a new device, enter this code on your other device:</p>
+                    <div style="font-size: 3rem; font-weight: bold; letter-spacing: 0.5rem; margin: var(--spacing-lg) 0; color: var(--primary-color); font-family: monospace;">
+                        <span id="pairing-code-display">------</span>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-md);">
+                        Code expires in <span id="pairing-code-timer">5:00</span>
+                    </p>
+                    <button id="regenerate-code-btn" class="btn btn-secondary" style="margin-top: var(--spacing-sm);">
+                        Generate New Code
+                    </button>
+                </div>
+
+                <!-- Secondary Device View -->
+                <div id="secondary-device-view" style="display: none;">
+                    <p style="margin-bottom: var(--spacing-md);">Enter the 6-digit pairing code from your primary device:</p>
+                    <input
+                        type="text"
+                        id="pairing-code-input"
+                        class="form-input"
+                        placeholder="000000"
+                        maxlength="6"
+                        pattern="[0-9]{6}"
+                        style="font-size: 2rem; text-align: center; letter-spacing: 0.5rem; font-family: monospace;"
+                    >
+                    <div id="pairing-status" style="margin-top: var(--spacing-md); min-height: 24px;"></div>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                        <button id="cancel-pairing-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                        <button id="submit-pairing-code-btn" class="btn btn-primary" style="flex: 1;">Pair Device</button>
+                    </div>
+                </div>
+
+                <!-- Detection View -->
+                <div id="device-detection-view" style="display: none; text-align: center;">
+                    <div style="margin: var(--spacing-lg) 0;">
+                        <i class="fas fa-mobile-alt" style="font-size: 4rem; color: var(--primary-color); margin-bottom: var(--spacing-md);"></i>
+                        <p style="margin-bottom: var(--spacing-lg);">Is this your first time using messenger on this device?</p>
+                        <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                            <button id="is-primary-device-btn" class="btn btn-primary">
+                                Yes, this is my primary device
+                            </button>
+                            <button id="is-secondary-device-btn" class="btn btn-secondary">
+                                No, I have another device already
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <!-- Global Logging Configuration - MUST load first -->
     <script src="../../shared/config/loggingConfig.js"></script>
@@ -204,6 +264,7 @@
 
     <!-- Messaging Service -->
     <script src="../services/messagingService.js"></script>
+    <script src="../services/devicePairingService.js"></script>
 
     <!-- Initialize Database Module -->
     <script src="../../database/initDatabase.js"></script>
@@ -241,6 +302,7 @@
         const controllerScriptStart = Date.now();
     </script>
     <script src="../controllers/messengerController.js" onload="console.log('[MessengerPage] messengerController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[MessengerPage] window.MessengerController after load:', typeof window.MessengerController);" onerror="console.error('[MessengerPage] ERROR loading messengerController.js');"></script>
+    <script src="../controllers/devicePairingController.js"></script>
 
     <script>
         // Wait for scripts to load with detailed logging
@@ -374,13 +436,22 @@
                     });
                 }
 
-                console.log('[MessengerPage] Step 3: Waiting for MessengerController to be available...');
+                console.log('[MessengerPage] Step 3: Initializing DevicePairingController...');
+                if (window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
+                    console.log('[MessengerPage] Calling DevicePairingController.init()...');
+                    window.DevicePairingController.init();
+                    console.log('[MessengerPage] ✅ DevicePairingController.init() completed');
+                } else {
+                    console.warn('[MessengerPage] ⚠️ DevicePairingController not available');
+                }
+
+                console.log('[MessengerPage] Step 4: Waiting for MessengerController to be available...');
                 const controllerWaitStart = Date.now();
                 await waitFor(() => typeof window.MessengerController !== 'undefined', 'MessengerController', 10000);
                 const controllerWaitTime = Date.now() - controllerWaitStart;
                 console.log(`[MessengerPage] MessengerController wait completed in ${controllerWaitTime}ms`);
 
-                console.log('[MessengerPage] Step 4: Checking MessengerController availability and initializing...');
+                console.log('[MessengerPage] Step 5: Checking MessengerController availability and initializing...');
                 console.log('[MessengerPage] MessengerController object:', {
                     exists: window.MessengerController !== undefined,
                     type: typeof window.MessengerController,

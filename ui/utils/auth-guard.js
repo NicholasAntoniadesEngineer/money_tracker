@@ -330,13 +330,13 @@ const AuthGuard = {
      * Redirect to the return URL or default page
      * @returns {void}
      */
-    async redirectAfterAuth() {
+    redirectAfterAuth() {
         console.log('[AuthGuard] ========== REDIRECT AFTER AUTH ==========');
         console.log('[AuthGuard] redirectAfterAuth() called');
-
+        
         const redirectKey = 'auth_redirecting';
         const redirectTimestamp = 'auth_redirect_timestamp';
-
+        
         // Check if redirect was recently attempted (within last 2 seconds)
         const lastRedirectTime = sessionStorage.getItem(redirectTimestamp);
         const now = Date.now();
@@ -344,55 +344,16 @@ const AuthGuard = {
             console.log('[AuthGuard] Redirect was recently attempted, skipping duplicate call');
             return;
         }
-
+        
         // Set timestamp to prevent duplicate calls
         sessionStorage.setItem(redirectTimestamp, now.toString());
         console.log('[AuthGuard] Set redirect timestamp to prevent duplicates');
-
+        
         // Clear the timestamp after a delay
         setTimeout(() => {
             sessionStorage.removeItem(redirectTimestamp);
         }, 3000);
-
-        // Check if device needs pairing (encryption keys)
-        console.log('[AuthGuard] Checking device pairing status...');
-        if (window.PairingGuard) {
-            try {
-                const isPaired = await window.PairingGuard.checkPairingStatus();
-                if (!isPaired) {
-                    console.log('[AuthGuard] Device not paired, redirecting to pairing page');
-
-                    // Determine the correct path to pairing page
-                    const currentPath = window.location.pathname;
-                    let pairingPath = '';
-
-                    // If we're in auth/views/
-                    if (currentPath.includes('/auth/views/')) {
-                        pairingPath = '../../messaging/views/device-pairing.html';
-                    }
-                    // If we're in any other module's views/
-                    else if (currentPath.includes('/views/')) {
-                        pairingPath = '../../messaging/views/device-pairing.html';
-                    }
-                    // Fallback
-                    else {
-                        pairingPath = '/messaging/views/device-pairing.html';
-                    }
-
-                    console.log('[AuthGuard] Redirecting to pairing page:', pairingPath);
-                    sessionStorage.removeItem(redirectTimestamp);
-                    window.location.href = pairingPath;
-                    return;
-                }
-                console.log('[AuthGuard] Device is paired, proceeding with normal redirect');
-            } catch (error) {
-                console.error('[AuthGuard] Error checking pairing status:', error);
-                // Continue with normal redirect if pairing check fails
-            }
-        } else {
-            console.warn('[AuthGuard] PairingGuard not available, skipping pairing check');
-        }
-
+        
         const returnUrl = this.getReturnUrl();
         console.log('[AuthGuard] Return URL from query params:', returnUrl);
         
@@ -425,7 +386,7 @@ const AuthGuard = {
             // Check if we're in any module's views folder
             const inModuleViews = modules.some(mod => currentPath.includes(`/${mod}/views/`));
             if (inModuleViews) {
-                basePath = '../../landing/';
+                basePath = '../../ui/';
             }
             // If we're in ui/views/ (old structure, for compatibility)
             else if (currentPath.includes('/ui/views/')) {
@@ -433,7 +394,7 @@ const AuthGuard = {
             }
             // If we're at any other level with /views/, assume module structure
             else if (currentPath.includes('/views/')) {
-                basePath = '../../landing/';
+                basePath = '../../ui/';
             }
 
             const targetPath = `${basePath}index.html`;
