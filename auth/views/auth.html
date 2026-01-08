@@ -307,6 +307,9 @@
     <!-- Pairing Guard -->
     <script src="../../shared/utils/pairing-guard.js"></script>
 
+    <!-- Password Manager for Key Encryption -->
+    <script src="../../shared/utils/passwordManager.js"></script>
+
     <script src="../../shared/utils/authGuard.js"></script>
     <script src="../../shared/header/header.js"></script>
     <script>
@@ -610,7 +613,13 @@
                     console.log('[AuthPage] ========== SIGN IN SUCCESSFUL ==========');
                     console.log('[AuthPage] Showing success message and preparing redirect...');
                     showSuccess('signin-success', 'Sign in successful! Redirecting...');
-                    
+
+                    // Store password temporarily for key encryption
+                    if (window.PasswordManager) {
+                        console.log('[AuthPage] Storing password temporarily for E2E encryption setup');
+                        window.PasswordManager.storeTemporarily(password);
+                    }
+
                     // Wait a moment for user to see success message
                     setTimeout(() => {
                         console.log('[AuthPage] Redirecting to main page...');
