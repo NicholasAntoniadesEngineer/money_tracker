@@ -34,6 +34,11 @@ const PairingGuard = {
                 return false;
             }
 
+            // Initialize KeyStorageService if needed
+            if (typeof window.KeyStorageService.initialize === 'function') {
+                await window.KeyStorageService.initialize();
+            }
+
             // Check for identity keys
             const keys = await window.KeyStorageService.getIdentityKeys(userId);
 
