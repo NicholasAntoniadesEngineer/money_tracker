@@ -812,6 +812,15 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize CryptoService first (required for KeyStorageService)
+            if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
+                try {
+                    await window.CryptoService.initialize();
+                } catch (error) {
+                    console.warn('[AuthPage] Failed to initialize CryptoService:', error);
+                }
+            }
+
             await initializeAuth();
         });
     </script>
