@@ -1523,6 +1523,26 @@ const MessengerController = {
             const date = new Date(message.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Build debug info HTML if debug mode is enabled
+            let debugInfoHtml = '';
+            if (window.ENCRYPTION_DEBUG_MODE && message._debugInfo) {
+                const debug = message._debugInfo;
+                const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                const typeLabel = debug.isSentMessage ? ' (Sent)' : '';
+                debugInfoHtml = `
+                    <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                        <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Encryption${typeLabel}: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                        ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                        <div>Epoch: ${debug.epoch}</div>
+                        <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                        <div>Message ID: ${debug.messageId}</div>
+                        <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                        <div>Nonce: ${debug.nonceLength} chars</div>
+                    </div>
+                `;
+            }
+
             // Generate HTML for the new message (regular message only, not share requests)
             const messageHtml = `
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
@@ -1530,6 +1550,7 @@ const MessengerController = {
                         <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                         <div style="white-space: pre-line;">${message.content}</div>
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                        ${debugInfoHtml}
                     </div>
                 </div>
             `;

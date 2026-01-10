@@ -347,9 +347,24 @@ const MessagingService = {
                 }
             }
 
+            // Add debug info for sent message if debug mode is enabled
+            const returnMessage = { ...newMessage };
+            if (window.ENCRYPTION_DEBUG_MODE) {
+                returnMessage._debugInfo = {
+                    decryptSuccess: true, // Sent message - we have the plaintext
+                    epoch: messageData.key_epoch,
+                    counter: messageData.message_counter,
+                    messageId: newMessage.id,
+                    ciphertextLength: messageData.encrypted_content?.length || 0,
+                    nonceLength: messageData.encryption_nonce?.length || 0,
+                    isSentMessage: true
+                };
+                console.log('[MessagingService] Debug info attached to sent message:', returnMessage._debugInfo);
+            }
+
             return {
                 success: true,
-                message: newMessage,
+                message: returnMessage,
                 error: null
             };
         } catch (error) {

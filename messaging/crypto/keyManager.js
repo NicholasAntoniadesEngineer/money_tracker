@@ -583,6 +583,25 @@ const KeyManager = {
             }
             console.log('[KeyManager] ✓ Our keys retrieved from IndexedDB');
 
+            // Verify our local key matches database (helpful for debugging safety number issues)
+            const ourDbKeyResult = await window.DatabaseService.querySelect('identity_keys', {
+                filter: { user_id: this.currentUserId },
+                limit: 1
+            });
+            if (ourDbKeyResult.data && ourDbKeyResult.data.length > 0) {
+                const ourDbKeyB64 = ourDbKeyResult.data[0].public_key;
+                const ourLocalKeyB64 = window.CryptoService.serializePublicKey(ourKeys.publicKey);
+                if (ourDbKeyB64 !== ourLocalKeyB64) {
+                    console.warn('[KeyManager] ⚠️ WARNING: Local key differs from database key!');
+                    console.warn('[KeyManager] Local key:', ourLocalKeyB64.substring(0, 32) + '...');
+                    console.warn('[KeyManager] Database key:', ourDbKeyB64.substring(0, 32) + '...');
+                    console.warn('[KeyManager] This may cause safety number discrepancies between devices');
+                } else {
+                    console.log('[KeyManager] ✓ Local key matches database key');
+                }
+                console.log('[KeyManager] Our epoch in database:', ourDbKeyResult.data[0].current_epoch);
+            }
+
             // Get other user's public key from identity_keys table
             console.log('[KeyManager] [SafetyNumber Step 2] Getting THEIR public key from DATABASE...');
             const theirKeyResult = await window.DatabaseService.querySelect('identity_keys', {
@@ -831,17 +850,19 @@ const KeyManager = {
         const indexedDBCheckStart = Date.now();
         let session = await window.KeyStorageService.getEpochSessionKey(convIdStr, messageEpoch);
 
-        // If no epoch session found, try legacy session
+        // If no epoch session found, try legacy session (only for epoch 0 messages!)
         if (!session) {
             console.log('[KeyManager] No epoch session found, trying legacy session key...');
             const legacySession = await window.KeyStorageService.getSessionKey(convIdStr);
 
             if (legacySession) {
-                console.log('[KeyManager] Found legacy session, using it for epoch', messageEpoch);
-                session = legacySession;
-
-                // Also migrate it to epoch storage for future use
+                // CRITICAL: Only use legacy session for epoch 0 messages!
+                // For epoch > 0, we need to establish a new session with the sender's new keys
                 if (messageEpoch === 0) {
+                    console.log('[KeyManager] Found legacy session, using it for epoch 0 message');
+                    session = legacySession;
+
+                    // Migrate legacy session to epoch 0 storage for future use
                     try {
                         await window.KeyStorageService.storeEpochSessionKey(
                             convIdStr,
@@ -853,6 +874,11 @@ const KeyManager = {
                     } catch (e) {
                         console.warn('[KeyManager] Failed to migrate legacy session:', e.message);
                     }
+                } else {
+                    console.log('[KeyManager] Legacy session found but message epoch is', messageEpoch);
+                    console.log('[KeyManager] Will NOT use legacy session - need to establish new session for this epoch');
+                    // Don't use legacy session for epoch > 0 messages
+                    // The code below will handle establishing a new session
                 }
             }
         }
@@ -899,19 +925,23 @@ const KeyManager = {
                             : conversation.user1_id;
 
                         console.log('[KeyManager] Found other user:', otherUserId);
-                        console.log('[KeyManager] Establishing session via ECDH...');
+                        console.log('[KeyManager] Establishing session via ECDH for epoch', messageEpoch);
 
                         // Establish session (will derive shared secret and create backup)
-                        await this.establishSession(conversationId, otherUserId);
-
-                        // Try getting it again from IndexedDB (convert to string!)
-                        console.log('[KeyManager] Retrieving newly established session from IndexedDB...');
-                        session = await window.KeyStorageService.getSessionKey(conversationId.toString());
+                        // CRITICAL: Use the message's epoch to establish the correct session
+                        if (messageEpoch > 0) {
+                            console.log('[KeyManager] Using establishSessionForEpoch for epoch', messageEpoch);
+                            await this.establishSessionForEpoch(conversationId, otherUserId, messageEpoch);
+                            session = await window.KeyStorageService.getEpochSessionKey(conversationId.toString(), messageEpoch);
+                        } else {
+                            await this.establishSession(conversationId, otherUserId);
+                            session = await window.KeyStorageService.getSessionKey(conversationId.toString());
+                        }
 
                         if (session) {
-                            console.log('[KeyManager] ✓ Session key derived and backed up successfully');
+                            console.log('[KeyManager] ✓ Session key derived for epoch', messageEpoch);
                         } else {
-                            console.error('[KeyManager] ❌ Failed to retrieve newly established session!');
+                            console.error('[KeyManager] ❌ Failed to retrieve newly established session for epoch', messageEpoch);
                         }
                     } else {
                         console.error('[KeyManager] Could not find conversation details');
@@ -1046,17 +1076,25 @@ const KeyManager = {
                             : conversation.user1_id;
 
                         console.log('[KeyManager] Re-establishing session with user:', otherUserId);
+                        console.log('[KeyManager] Message epoch:', messageEpoch);
 
                         // Re-derive the session using CURRENT public keys from database
-                        await this.establishSession(conversationId, otherUserId);
-
-                        // Get the fresh session (convert to string for IndexedDB)
-                        freshSession = await window.KeyStorageService.getSessionKey(conversationId.toString());
-                        if (!freshSession) {
-                            throw new Error('Failed to establish fresh session');
+                        // CRITICAL: Use the MESSAGE's epoch, not epoch 0!
+                        // This ensures we create a session compatible with the sender's new keys
+                        if (messageEpoch > 0) {
+                            console.log('[KeyManager] Using establishSessionForEpoch for epoch', messageEpoch);
+                            await this.establishSessionForEpoch(conversationId, otherUserId, messageEpoch);
+                            freshSession = await window.KeyStorageService.getEpochSessionKey(conversationId.toString(), messageEpoch);
+                        } else {
+                            await this.establishSession(conversationId, otherUserId);
+                            freshSession = await window.KeyStorageService.getSessionKey(conversationId.toString());
                         }
 
-                        console.log('[KeyManager] ✓ Fresh session derived');
+                        if (!freshSession) {
+                            throw new Error('Failed to establish fresh session for epoch ' + messageEpoch);
+                        }
+
+                        console.log('[KeyManager] ✓ Fresh session derived for epoch', messageEpoch);
 
                         // Log the new shared secret for comparison
                         const freshSecretHex = Array.from(freshSession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -2409,6 +2447,26 @@ const KeyManager = {
                 throw new Error('Failed to update public key in database: ' + updateResult.error.message);
             }
             console.log('[KeyManager] ✓ Public key updated in database');
+
+            // Step 5b: VERIFY database update was successful
+            console.log('[KeyManager] Step 5b: Verifying database update...');
+            const verifyDbResult = await window.DatabaseService.querySelect('identity_keys', {
+                filter: { user_id: this.currentUserId },
+                limit: 1
+            });
+            if (verifyDbResult.error || !verifyDbResult.data || verifyDbResult.data.length === 0) {
+                console.error('[KeyManager] ❌ CRITICAL: Could not verify database update!');
+                throw new Error('Failed to verify public key update in database');
+            }
+            const dbPublicKey = verifyDbResult.data[0].public_key;
+            if (dbPublicKey !== publicKeyB64) {
+                console.error('[KeyManager] ❌ CRITICAL: Database key does not match new key!');
+                console.error('[KeyManager] Expected:', publicKeyB64.substring(0, 32));
+                console.error('[KeyManager] Got:', dbPublicKey.substring(0, 32));
+                throw new Error('Database key verification failed - key mismatch');
+            }
+            console.log('[KeyManager] ✓ Database update verified - key matches');
+            console.log('[KeyManager] Database epoch:', verifyDbResult.data[0].current_epoch);
 
             // Step 6: IMPORTANT - Keep existing session keys!
             // Session keys are used to decrypt OLD messages. If we delete them, old messages become unreadable.
