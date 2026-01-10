@@ -458,6 +458,94 @@ const KeyManager = {
     },
 
     /**
+     * Establish encrypted session for a specific epoch
+     * Used after key regeneration to create new sessions with new identity keys
+     * @param {string} conversationId - Conversation ID
+     * @param {string} otherUserId - Other user's ID
+     * @param {number} epoch - Epoch to establish session for
+     * @returns {Promise<void>}
+     */
+    async establishSessionForEpoch(conversationId, otherUserId, epoch) {
+        if (!this.initialized) {
+            throw new Error('KeyManager not initialized');
+        }
+
+        console.log('[KeyManager] ========== ESTABLISHING SESSION FOR EPOCH', epoch, '==========');
+        console.log('[KeyManager] Conversation ID:', conversationId);
+        console.log('[KeyManager] Other user ID:', otherUserId);
+        console.log('[KeyManager] Target epoch:', epoch);
+        console.log('[KeyManager] KeyManager.currentEpoch:', this.currentEpoch);
+
+        // Check if session already exists for this epoch
+        console.log('[KeyManager] [EpochSession Step 1] Checking if session already exists for epoch', epoch);
+        const existingSession = await window.KeyStorageService.getEpochSessionKey(conversationId.toString(), epoch);
+
+        if (existingSession) {
+            console.log('[KeyManager] ✓ Session already exists for epoch', epoch, '- skipping establishment');
+            console.log('[KeyManager] Existing session counter:', existingSession.messageCounter);
+            return;
+        }
+        console.log('[KeyManager] No existing session for epoch', epoch, '- will create new one');
+
+        // Fetch other user's public key from database (get their LATEST key)
+        console.log('[KeyManager] [EpochSession Step 2] Fetching other user public key from database...');
+        const theirPublicKey = await this.fetchPublicKey(otherUserId);
+        const theirPublicKeyHex = Array.from(theirPublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log('[KeyManager] ✓ Their public key fetched');
+        console.log('[KeyManager] Their key fingerprint:', theirPublicKeyHex.substring(0, 16).toUpperCase());
+
+        // Get our (NEW) secret key from local storage
+        console.log('[KeyManager] [EpochSession Step 3] Getting our identity keys from IndexedDB...');
+        const ourKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
+
+        if (!ourKeys) {
+            console.error('[KeyManager] ❌ Our identity keys not found in IndexedDB!');
+            throw new Error('Our identity keys not found');
+        }
+        const ourPublicKeyHex = Array.from(ourKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log('[KeyManager] ✓ Our identity keys retrieved');
+        console.log('[KeyManager] Our key fingerprint:', ourPublicKeyHex.substring(0, 16).toUpperCase());
+
+        // Perform key agreement (ECDH) with NEW keys
+        console.log('[KeyManager] [EpochSession Step 4] Performing ECDH key agreement...');
+        console.log('[KeyManager] Using OUR secret key + THEIR public key');
+        const sharedSecret = window.CryptoService.deriveSharedSecret(
+            ourKeys.secretKey,
+            theirPublicKey
+        );
+        const derivedSecretHex = Array.from(sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log('[KeyManager] ✓ Shared secret derived');
+        console.log('[KeyManager] Shared secret (first 16):', derivedSecretHex.substring(0, 16));
+        console.log('[KeyManager] Shared secret (last 16):', derivedSecretHex.substring(derivedSecretHex.length - 16));
+
+        // Store session for this epoch with message counter = 0
+        console.log('[KeyManager] [EpochSession Step 5] Storing epoch session in IndexedDB...');
+        await window.KeyStorageService.storeEpochSessionKey(conversationId.toString(), epoch, sharedSecret, 0);
+        console.log('[KeyManager] ✓ Epoch session stored locally (epoch:', epoch, ', counter: 0)');
+
+        // Backup session key to database for multi-device support
+        console.log('[KeyManager] [EpochSession Step 6] Backing up epoch session to database...');
+        await this.backupSessionKeyToDatabase(conversationId, sharedSecret, 0, epoch);
+        console.log('[KeyManager] ✓ Epoch session backed up to database');
+
+        // Verify the session was stored correctly
+        console.log('[KeyManager] [EpochSession Step 7] Verifying stored session...');
+        const verifySession = await window.KeyStorageService.getEpochSessionKey(conversationId.toString(), epoch);
+        if (verifySession) {
+            const verifyHex = Array.from(verifySession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+            if (verifyHex === derivedSecretHex) {
+                console.log('[KeyManager] ✓ Session verification passed - shared secrets match');
+            } else {
+                console.error('[KeyManager] ❌ Session verification FAILED - shared secrets do NOT match!');
+            }
+        } else {
+            console.error('[KeyManager] ❌ Session verification FAILED - could not retrieve stored session!');
+        }
+
+        console.log('[KeyManager] ========== EPOCH SESSION ESTABLISHMENT COMPLETE ==========');
+    },
+
+    /**
      * Generate a safety number for MITM protection
      * Both users will see the same number if using correct keys
      * Users can verify this out-of-band (phone call, in person) to confirm no MITM
@@ -465,7 +553,10 @@ const KeyManager = {
      * @returns {Promise<Object>} Safety number info
      */
     async getSafetyNumber(conversationId) {
-        console.log('[KeyManager] Generating safety number for conversation:', conversationId);
+        console.log('[KeyManager] ========== GENERATING SAFETY NUMBER ==========');
+        console.log('[KeyManager] Conversation ID:', conversationId);
+        console.log('[KeyManager] Current user ID:', this.currentUserId);
+        console.log('[KeyManager] Current KeyManager epoch:', this.currentEpoch);
 
         try {
             // Get conversation to find the other user
@@ -481,21 +572,31 @@ const KeyManager = {
             const otherUserId = conversation.user1_id === this.currentUserId
                 ? conversation.user2_id
                 : conversation.user1_id;
+            console.log('[KeyManager] Other user ID:', otherUserId);
 
             // Get both users' public keys
+            console.log('[KeyManager] [SafetyNumber Step 1] Getting OUR public key from LOCAL IndexedDB...');
             const ourKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
             if (!ourKeys) {
+                console.error('[KeyManager] ❌ Our identity keys not found in IndexedDB!');
                 return { success: false, message: 'Your identity keys not found' };
             }
+            console.log('[KeyManager] ✓ Our keys retrieved from IndexedDB');
 
             // Get other user's public key from identity_keys table
+            console.log('[KeyManager] [SafetyNumber Step 2] Getting THEIR public key from DATABASE...');
             const theirKeyResult = await window.DatabaseService.querySelect('identity_keys', {
                 filter: { user_id: otherUserId },
                 limit: 1
             });
 
             if (theirKeyResult.error || !theirKeyResult.data || theirKeyResult.data.length === 0) {
+                console.error('[KeyManager] ❌ Other user public key not found in database');
                 return { success: false, message: 'Other user\'s public key not found. They may need to initialize encryption first.' };
+            }
+            console.log('[KeyManager] ✓ Their key retrieved from database');
+            if (theirKeyResult.data[0].current_epoch !== undefined) {
+                console.log('[KeyManager] Their current epoch in database:', theirKeyResult.data[0].current_epoch);
             }
 
             const theirPublicKeyBase64 = theirKeyResult.data[0].public_key;
@@ -505,6 +606,10 @@ const KeyManager = {
             // This ensures both users get the same number
             const ourKeyHex = Array.from(ourKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
             const theirKeyHex = Array.from(theirPublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            console.log('[KeyManager] [SafetyNumber Step 3] Computing safety number...');
+            console.log('[KeyManager] Our key fingerprint:', ourKeyHex.substring(0, 16).toUpperCase());
+            console.log('[KeyManager] Their key fingerprint:', theirKeyHex.substring(0, 16).toUpperCase());
 
             // Sort to ensure consistent order
             const [first, second] = [ourKeyHex, theirKeyHex].sort();
@@ -520,6 +625,11 @@ const KeyManager = {
             // Also create a visual fingerprint (shorter version)
             const fingerprint = combined.substring(0, 16).toUpperCase();
 
+            console.log('[KeyManager] ========== SAFETY NUMBER GENERATED ==========');
+            console.log('[KeyManager] Safety number:', safetyNumber);
+            console.log('[KeyManager] Our fingerprint:', ourKeyHex.substring(0, 16).toUpperCase());
+            console.log('[KeyManager] Their fingerprint:', theirKeyHex.substring(0, 16).toUpperCase());
+
             return {
                 success: true,
                 safetyNumber: safetyNumber,
@@ -530,7 +640,8 @@ const KeyManager = {
             };
 
         } catch (error) {
-            console.error('[KeyManager] Error generating safety number:', error);
+            console.error('[KeyManager] ========== SAFETY NUMBER GENERATION FAILED ==========');
+            console.error('[KeyManager] Error:', error);
             return { success: false, message: error.message };
         }
     },
@@ -551,25 +662,73 @@ const KeyManager = {
             throw new Error('Cannot encrypt empty message');
         }
 
-        console.log('[KeyManager] Encrypting message for conversation:', conversationId, '(type:', typeof conversationId + ')');
-        console.log('[KeyManager] Current epoch:', this.currentEpoch);
+        console.log('[KeyManager] ========== ENCRYPTING MESSAGE ==========');
+        console.log('[KeyManager] Conversation ID:', conversationId, '(type:', typeof conversationId + ')');
+        console.log('[KeyManager] Current KeyManager epoch:', this.currentEpoch);
+        console.log('[KeyManager] Current user ID:', this.currentUserId);
+        console.log('[KeyManager] Plaintext length:', plaintext.length, 'chars');
 
         // IMPORTANT: IndexedDB uses string keys, so convert conversationId to string
         const convIdStr = String(conversationId);
 
         // Try to get epoch-aware session key first
+        console.log('[KeyManager] [Encrypt Step 1] Looking for epoch session key for epoch', this.currentEpoch);
         let session = await window.KeyStorageService.getEpochSessionKey(convIdStr, this.currentEpoch);
         let usingEpoch = this.currentEpoch;
 
-        // If no session for current epoch, try to get the latest available session
+        // If no session for current epoch, check if we need to establish a new one
         if (!session) {
-            console.log('[KeyManager] No session for current epoch, checking for any existing session...');
-            session = await window.KeyStorageService.getLatestEpochSessionKey(convIdStr);
+            console.log('[KeyManager] [Encrypt Step 2] No session for current epoch', this.currentEpoch);
+            console.log('[KeyManager] Checking for any existing epoch sessions...');
+            const latestSession = await window.KeyStorageService.getLatestEpochSessionKey(convIdStr);
 
-            if (session) {
-                usingEpoch = session.epoch;
-                console.log('[KeyManager] Using existing session from epoch:', usingEpoch);
+            if (latestSession) {
+                console.log('[KeyManager] Found existing session - epoch:', latestSession.epoch, 'counter:', latestSession.messageCounter);
+            } else {
+                console.log('[KeyManager] No existing epoch sessions found');
             }
+
+            if (latestSession && latestSession.epoch < this.currentEpoch) {
+                // We have an older session but need a new one for the current epoch
+                // This happens after key regeneration - establish new session with new keys
+                console.log('[KeyManager] ========== KEY ROTATION DETECTED ==========');
+                console.log('[KeyManager] Latest session epoch:', latestSession.epoch);
+                console.log('[KeyManager] Current KeyManager epoch:', this.currentEpoch);
+                console.log('[KeyManager] Need to establish new session with NEW identity keys');
+
+                // Get conversation to find other user
+                const convResult = await window.DatabaseService.querySelect('conversations', {
+                    filter: { id: parseInt(conversationId) }
+                });
+
+                if (convResult.data && convResult.data.length > 0) {
+                    const conv = convResult.data[0];
+                    const otherUserId = conv.user1_id === this.currentUserId ? conv.user2_id : conv.user1_id;
+                    console.log('[KeyManager] Other user in conversation:', otherUserId);
+
+                    // Establish new session for current epoch using new identity keys
+                    console.log('[KeyManager] Calling establishSessionForEpoch for epoch', this.currentEpoch);
+                    await this.establishSessionForEpoch(convIdStr, otherUserId, this.currentEpoch);
+                    session = await window.KeyStorageService.getEpochSessionKey(convIdStr, this.currentEpoch);
+
+                    if (session) {
+                        console.log('[KeyManager] ✓ New session established for epoch', this.currentEpoch);
+                        console.log('[KeyManager] New session counter starts at:', session.messageCounter);
+                    } else {
+                        console.error('[KeyManager] ❌ Failed to establish new epoch session!');
+                    }
+                } else {
+                    console.error('[KeyManager] ❌ Failed to get conversation details for establishing new session');
+                }
+            } else if (latestSession) {
+                // Use existing session (same or newer epoch)
+                session = latestSession;
+                usingEpoch = latestSession.epoch;
+                console.log('[KeyManager] Using existing session from epoch:', usingEpoch, 'counter:', session.messageCounter);
+            }
+        } else {
+            console.log('[KeyManager] [Encrypt Step 2] ✓ Found session for current epoch', this.currentEpoch);
+            console.log('[KeyManager] Session counter:', session.messageCounter);
         }
 
         // Fall back to legacy session key if no epoch sessions exist
@@ -1239,12 +1398,14 @@ const KeyManager = {
      * @param {string} conversationId - Conversation ID
      * @param {Uint8Array} sharedSecret - Session shared secret
      * @param {number} messageCounter - Current message counter
+     * @param {number} epoch - Key epoch (default 0)
      * @returns {Promise<void>}
      */
-    async backupSessionKeyToDatabase(conversationId, sharedSecret, messageCounter) {
+    async backupSessionKeyToDatabase(conversationId, sharedSecret, messageCounter, epoch = 0) {
         console.log('[KeyManager] ========== BACKING UP SESSION KEY ==========');
         console.log('[KeyManager] Conversation ID:', conversationId);
         console.log('[KeyManager] Message counter:', messageCounter);
+        console.log('[KeyManager] Epoch:', epoch);
 
         try {
             // Get our identity keys
@@ -1264,11 +1425,12 @@ const KeyManager = {
             // Upload to database (use upsert to handle duplicates)
             console.log('[KeyManager] Uploading encrypted session key to database...');
 
-            // First check if backup already exists
+            // First check if backup already exists for this epoch
             const checkResult = await window.DatabaseService.querySelect('conversation_session_keys', {
                 filter: {
                     user_id: this.currentUserId,
-                    conversation_id: parseInt(conversationId)
+                    conversation_id: parseInt(conversationId),
+                    key_epoch: epoch
                 },
                 limit: 1
             });
@@ -1325,18 +1487,20 @@ const KeyManager = {
                     },
                     {
                         user_id: this.currentUserId,
-                        conversation_id: parseInt(conversationId)
+                        conversation_id: parseInt(conversationId),
+                        key_epoch: epoch
                     }
                 );
             } else {
                 // No backup exists, insert new
-                console.log('[KeyManager] Creating new backup...');
+                console.log('[KeyManager] Creating new backup for epoch', epoch, '...');
                 result = await window.DatabaseService.queryInsert('conversation_session_keys', {
                     user_id: this.currentUserId,
                     conversation_id: parseInt(conversationId),
                     encrypted_session_key: encrypted.encryptedKey,
                     encryption_nonce: encrypted.nonce,
-                    message_counter: messageCounter
+                    message_counter: messageCounter,
+                    key_epoch: epoch
                 });
             }
 
@@ -2183,9 +2347,12 @@ const KeyManager = {
             // Step 1: Get current keys for logging (before deletion)
             console.log('[KeyManager] Step 1: Getting current identity keys...');
             const oldKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
+            let oldFingerprint = 'N/A';
             if (oldKeys) {
                 const oldPublicKeyHex = Array.from(oldKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+                oldFingerprint = oldPublicKeyHex.substring(0, 16).toUpperCase();
                 console.log('[KeyManager] Old public key (first 32 chars):', oldPublicKeyHex.substring(0, 32));
+                console.log('[KeyManager] Old fingerprint:', oldFingerprint);
             }
 
             // Step 2: Generate new identity keys
@@ -2203,6 +2370,21 @@ const KeyManager = {
                 newKeyPair.secretKey
             );
             console.log('[KeyManager] ✓ New keys stored in IndexedDB');
+
+            // Step 3b: VERIFY new keys were stored correctly
+            console.log('[KeyManager] Step 3b: Verifying keys were stored correctly...');
+            const verifyKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
+            if (!verifyKeys) {
+                throw new Error('Failed to verify stored keys - keys not found after storage');
+            }
+            const verifyPublicKeyHex = Array.from(verifyKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+            if (verifyPublicKeyHex !== newPublicKeyHex) {
+                console.error('[KeyManager] ❌ CRITICAL: Stored keys do not match generated keys!');
+                console.error('[KeyManager] Expected:', newPublicKeyHex.substring(0, 32));
+                console.error('[KeyManager] Got:', verifyPublicKeyHex.substring(0, 32));
+                throw new Error('Key storage verification failed - stored keys do not match generated keys');
+            }
+            console.log('[KeyManager] ✓ Keys verified - storage successful');
 
             // Step 4: Increment epoch in database
             // This is critical for key rotation - new messages will use new session keys
@@ -2261,6 +2443,7 @@ const KeyManager = {
                 success: true,
                 message: `Identity keys regenerated (epoch ${newEpoch}). Verify safety numbers with your contacts.`,
                 newFingerprint: newFingerprint,
+                oldFingerprint: oldFingerprint,
                 newEpoch: newEpoch,
                 oldEpoch: oldEpoch
             };

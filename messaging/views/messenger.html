@@ -559,7 +559,7 @@
                         );
                         // Reload current conversation to apply debug mode
                         setTimeout(() => {
-                            window.MessengerController.loadConversation(window.MessengerController.currentConversationId);
+                            window.MessengerController.openConversation(window.MessengerController.currentConversationId);
                         }, 500);
                     }
                 });
@@ -592,11 +592,16 @@
                                 <div style="text-align: center;">
                                     <strong style="color: #28a745;"><i class="fas fa-check-circle"></i> Keys Regenerated</strong>
                                     <p style="font-size: 0.85rem; margin: 8px 0;">${result.message}</p>
-                                    <div style="font-family: monospace; font-size: 1.1rem; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
-                                        New Fingerprint: <strong>${result.newFingerprint}</strong>
+                                    <div style="font-family: monospace; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; text-align: left;">
+                                        <div style="margin-bottom: 8px;">
+                                            <span style="color: #dc3545;">Old:</span> <code style="text-decoration: line-through;">${result.oldFingerprint}</code>
+                                        </div>
+                                        <div>
+                                            <span style="color: #28a745;">New:</span> <strong>${result.newFingerprint}</strong>
+                                        </div>
                                     </div>
                                     <p style="font-size: 0.8rem; color: var(--text-color-secondary); margin-top: 12px;">
-                                        <i class="fas fa-info-circle"></i> Click "Show Safety Number" to see your new safety number for verification.
+                                        <i class="fas fa-info-circle"></i> Click "Show Safety Number" to verify the change. Your safety number should now be different.
                                     </p>
                                 </div>
                             `;

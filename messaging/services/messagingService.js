@@ -581,6 +581,11 @@ const MessagingService = {
                     timestamp: msg.created_at
                 };
 
+                // Log debug info if debug mode is enabled
+                if (window.ENCRYPTION_DEBUG_MODE) {
+                    console.log('[MessagingService] Debug info for message', msg.id + ':', JSON.stringify(debugInfo, null, 2));
+                }
+
                 return {
                     ...msg,
                     content, // Decrypted content
