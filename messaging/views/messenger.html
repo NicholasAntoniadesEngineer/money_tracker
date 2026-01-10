@@ -169,65 +169,6 @@
         </div>
     </div>
 
-    <!-- Device Pairing Modal -->
-    <div id="device-pairing-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3 id="pairing-modal-title">Device Pairing</h3>
-                <button class="modal-close" id="close-pairing-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <!-- Primary Device View -->
-                <div id="primary-device-view" style="display: none; text-align: center;">
-                    <p style="margin-bottom: var(--spacing-md);">To pair a new device, enter this code on your other device:</p>
-                    <div style="font-size: 3rem; font-weight: bold; letter-spacing: 0.5rem; margin: var(--spacing-lg) 0; color: var(--primary-color); font-family: monospace;">
-                        <span id="pairing-code-display">------</span>
-                    </div>
-                    <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-md);">
-                        Code expires in <span id="pairing-code-timer">5:00</span>
-                    </p>
-                    <button id="regenerate-code-btn" class="btn btn-secondary" style="margin-top: var(--spacing-sm);">
-                        Generate New Code
-                    </button>
-                </div>
-
-                <!-- Secondary Device View -->
-                <div id="secondary-device-view" style="display: none;">
-                    <p style="margin-bottom: var(--spacing-md);">Enter the 6-digit pairing code from your primary device:</p>
-                    <input
-                        type="text"
-                        id="pairing-code-input"
-                        class="form-input"
-                        placeholder="000000"
-                        maxlength="6"
-                        pattern="[0-9]{6}"
-                        style="font-size: 2rem; text-align: center; letter-spacing: 0.5rem; font-family: monospace;"
-                    >
-                    <div id="pairing-status" style="margin-top: var(--spacing-md); min-height: 24px;"></div>
-                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
-                        <button id="cancel-pairing-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
-                        <button id="submit-pairing-code-btn" class="btn btn-primary" style="flex: 1;">Pair Device</button>
-                    </div>
-                </div>
-
-                <!-- Detection View -->
-                <div id="device-detection-view" style="display: none; text-align: center;">
-                    <div style="margin: var(--spacing-lg) 0;">
-                        <i class="fas fa-mobile-alt" style="font-size: 4rem; color: var(--primary-color); margin-bottom: var(--spacing-md);"></i>
-                        <p style="margin-bottom: var(--spacing-lg);">Is this your first time using messenger on this device?</p>
-                        <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                            <button id="is-primary-device-btn" class="btn btn-primary">
-                                Yes, this is my primary device
-                            </button>
-                            <button id="is-secondary-device-btn" class="btn btn-secondary">
-                                No, I have another device already
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Encryption Admin Modal -->
     <div id="encryption-admin-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -264,6 +205,16 @@
                         </p>
                         <button id="force-sync-btn" class="btn btn-secondary" style="width: 100%;">
                             <i class="fas fa-download"></i> Sync from Backup
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #17a2b8; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(23, 162, 184, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-shield-alt"></i> Verify Keys (MITM Protection)</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Compare this safety number with your contact (via phone/in-person) to verify no one is intercepting messages.
+                        </p>
+                        <button id="verify-keys-btn" class="btn btn-secondary" style="width: 100%; border-color: #17a2b8; color: #17a2b8;">
+                            <i class="fas fa-fingerprint"></i> Show Safety Number
                         </button>
                     </div>
                 </div>
@@ -433,6 +384,7 @@
             const convIdInput = document.getElementById('encryption-admin-conv-id');
             const rebackupBtn = document.getElementById('force-rebackup-btn');
             const syncBtn = document.getElementById('force-sync-btn');
+            const verifyKeysBtn = document.getElementById('verify-keys-btn');
             const statusDiv = document.getElementById('encryption-admin-status');
 
             if (!adminBtn || !modal) {
@@ -515,6 +467,49 @@
 
                 syncBtn.disabled = false;
                 syncBtn.innerHTML = '<i class="fas fa-download"></i> Sync from Backup';
+            });
+
+            // Verify Keys button (MITM protection)
+            verifyKeysBtn.addEventListener('click', async () => {
+                const convId = convIdInput.value;
+                if (!convId) return;
+
+                verifyKeysBtn.disabled = true;
+                verifyKeysBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+                try {
+                    const result = await window.KeyManager.getSafetyNumber(convId);
+                    if (result.success) {
+                        const safetyHtml = `
+                            <div style="text-align: center;">
+                                <strong style="color: #17a2b8;"><i class="fas fa-shield-alt"></i> Safety Number</strong>
+                                <p style="font-size: 0.85rem; margin: 8px 0;">Compare this with your contact to verify encryption:</p>
+                                <div style="font-family: monospace; font-size: 1.2rem; letter-spacing: 2px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                    ${result.safetyNumber}
+                                </div>
+                                <p style="font-size: 0.8rem; color: var(--text-color-secondary); margin-top: 12px;">
+                                    <i class="fas fa-info-circle"></i> Both you and your contact should see this exact same number. If the numbers don't match, your conversation may be compromised.
+                                </p>
+                                <div style="font-size: 0.75rem; color: var(--text-color-secondary); margin-top: 8px; text-align: left;">
+                                    <div>Your key: <code>${result.ourKeyFingerprint}</code></div>
+                                    <div>Their key: <code>${result.theirKeyFingerprint}</code></div>
+                                </div>
+                            </div>
+                        `;
+                        statusDiv.style.display = 'block';
+                        statusDiv.style.background = 'rgba(23, 162, 184, 0.1)';
+                        statusDiv.style.border = '1px solid #17a2b8';
+                        statusDiv.style.color = 'var(--text-color)';
+                        statusDiv.innerHTML = safetyHtml;
+                    } else {
+                        showStatus(`<strong>Failed:</strong> ${result.message}`, true);
+                    }
+                } catch (error) {
+                    showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                }
+
+                verifyKeysBtn.disabled = false;
+                verifyKeysBtn.innerHTML = '<i class="fas fa-fingerprint"></i> Show Safety Number';
             });
 
             console.log('[MessengerPage] ✅ Encryption Admin Tools initialized');

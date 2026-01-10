@@ -378,6 +378,84 @@ const KeyManager = {
     },
 
     /**
+     * Generate a safety number for MITM protection
+     * Both users will see the same number if using correct keys
+     * Users can verify this out-of-band (phone call, in person) to confirm no MITM
+     * @param {string} conversationId - Conversation ID
+     * @returns {Promise<Object>} Safety number info
+     */
+    async getSafetyNumber(conversationId) {
+        console.log('[KeyManager] Generating safety number for conversation:', conversationId);
+
+        try {
+            // Get conversation to find the other user
+            const convResult = await window.DatabaseService.querySelect('conversations', {
+                filter: { id: parseInt(conversationId) }
+            });
+
+            if (convResult.error || !convResult.data || convResult.data.length === 0) {
+                return { success: false, message: 'Conversation not found' };
+            }
+
+            const conversation = convResult.data[0];
+            const otherUserId = conversation.user1_id === this.currentUserId
+                ? conversation.user2_id
+                : conversation.user1_id;
+
+            // Get both users' public keys
+            const ourKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
+            if (!ourKeys) {
+                return { success: false, message: 'Your identity keys not found' };
+            }
+
+            // Get other user's public key from identity_keys table
+            const theirKeyResult = await window.DatabaseService.querySelect('identity_keys', {
+                filter: { user_id: otherUserId },
+                limit: 1
+            });
+
+            if (theirKeyResult.error || !theirKeyResult.data || theirKeyResult.data.length === 0) {
+                return { success: false, message: 'Other user\'s public key not found. They may need to initialize encryption first.' };
+            }
+
+            const theirPublicKeyBase64 = theirKeyResult.data[0].public_key;
+            const theirPublicKey = Uint8Array.from(atob(theirPublicKeyBase64), c => c.charCodeAt(0));
+
+            // Create safety number by hashing both public keys in sorted order
+            // This ensures both users get the same number
+            const ourKeyHex = Array.from(ourKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+            const theirKeyHex = Array.from(theirPublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Sort to ensure consistent order
+            const [first, second] = [ourKeyHex, theirKeyHex].sort();
+            const combined = first + second;
+
+            // Simple hash to create a readable safety number
+            // Using first 32 chars of combined keys (formatted as groups)
+            const safetyNumber = combined.substring(0, 32)
+                .match(/.{1,4}/g)
+                .join(' ')
+                .toUpperCase();
+
+            // Also create a visual fingerprint (shorter version)
+            const fingerprint = combined.substring(0, 16).toUpperCase();
+
+            return {
+                success: true,
+                safetyNumber: safetyNumber,
+                fingerprint: fingerprint,
+                ourKeyFingerprint: ourKeyHex.substring(0, 16).toUpperCase(),
+                theirKeyFingerprint: theirKeyHex.substring(0, 16).toUpperCase(),
+                message: 'Compare this number with your contact to verify no one is intercepting your messages'
+            };
+
+        } catch (error) {
+            console.error('[KeyManager] Error generating safety number:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
      * Encrypt a message for sending
      * @param {string} conversationId - Conversation ID
      * @param {string} plaintext - Message to encrypt

@@ -46,6 +46,23 @@ GRANT USAGE, SELECT ON SEQUENCE blocked_users_id_seq TO authenticated;
 -- 3. CREATE OR REPLACE THE CREATE_NOTIFICATION RPC FUNCTION
 -- ============================================================
 
+-- Drop ALL existing versions of create_notification function
+DO $$
+DECLARE
+    func_oid oid;
+BEGIN
+    FOR func_oid IN
+        SELECT p.oid
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE p.proname = 'create_notification'
+        AND n.nspname = 'public'
+    LOOP
+        EXECUTE format('DROP FUNCTION IF EXISTS %s CASCADE', func_oid::regprocedure);
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION create_notification(
     p_user_id UUID,
     p_type TEXT,
@@ -129,3 +146,106 @@ CREATE POLICY notifications_insert_for_others ON notifications
 
 COMMENT ON FUNCTION create_notification IS
 'RPC function to create notifications for any user. Uses SECURITY DEFINER to bypass RLS.';
+
+-- ============================================================
+-- 5. CREATE USER_KEY_BACKUPS TABLE (for E2E encryption)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS user_key_backups (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    encrypted_private_key TEXT NOT NULL,
+    encryption_salt TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_key_backups_user ON user_key_backups(user_id);
+
+ALTER TABLE user_key_backups ENABLE ROW LEVEL SECURITY;
+
+-- Users can read any public key (needed for encryption)
+CREATE POLICY user_key_backups_select_all ON user_key_backups
+    FOR SELECT USING (true);
+
+-- Users can only insert/update their own key backup
+CREATE POLICY user_key_backups_insert_own ON user_key_backups
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY user_key_backups_update_own ON user_key_backups
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY user_key_backups_delete_own ON user_key_backups
+    FOR DELETE USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_key_backups TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE user_key_backups_id_seq TO authenticated;
+
+-- Trigger to update updated_at
+CREATE OR REPLACE FUNCTION update_user_key_backups_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_user_key_backups_updated_at ON user_key_backups;
+CREATE TRIGGER trigger_update_user_key_backups_updated_at
+    BEFORE UPDATE ON user_key_backups
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_key_backups_updated_at();
+
+-- ============================================================
+-- 6. CREATE CONVERSATION_SESSION_KEYS TABLE (for E2E encryption)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS conversation_session_keys (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    encrypted_session_key TEXT NOT NULL,
+    encryption_nonce TEXT NOT NULL,
+    message_counter BIGINT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, conversation_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_session_keys_user ON conversation_session_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_session_keys_conversation ON conversation_session_keys(conversation_id);
+
+ALTER TABLE conversation_session_keys ENABLE ROW LEVEL SECURITY;
+
+-- Users can only access their own session keys
+CREATE POLICY conversation_session_keys_select_own ON conversation_session_keys
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY conversation_session_keys_insert_own ON conversation_session_keys
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY conversation_session_keys_update_own ON conversation_session_keys
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY conversation_session_keys_delete_own ON conversation_session_keys
+    FOR DELETE USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON conversation_session_keys TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE conversation_session_keys_id_seq TO authenticated;
+
+-- Trigger to update updated_at
+CREATE OR REPLACE FUNCTION update_conversation_session_keys_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_conversation_session_keys_updated_at ON conversation_session_keys;
+CREATE TRIGGER trigger_update_conversation_session_keys_updated_at
+    BEFORE UPDATE ON conversation_session_keys
+    FOR EACH ROW
+    EXECUTE FUNCTION update_conversation_session_keys_updated_at();

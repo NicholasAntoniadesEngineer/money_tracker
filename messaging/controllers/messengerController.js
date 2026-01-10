@@ -1423,10 +1423,33 @@ const MessengerController = {
             );
 
             if (result.success && result.message) {
+                // SECURITY: Verify the message was actually encrypted before displaying
+                // This provides defense-in-depth against encryption failures
+                const msg = result.message;
+                if (!msg.is_encrypted || !msg.encrypted_content || msg.content) {
+                    console.error('[MessengerController] SECURITY: Message encryption verification failed!', {
+                        is_encrypted: msg.is_encrypted,
+                        hasEncryptedContent: !!msg.encrypted_content,
+                        hasPlaintextContent: !!msg.content
+                    });
+                    throw new Error('Message encryption verification failed - message may not be secure');
+                }
+
+                console.log('[MessengerController] ✓ Message encryption verified:', {
+                    is_encrypted: msg.is_encrypted,
+                    ciphertextLength: msg.encrypted_content?.length,
+                    counter: msg.message_counter
+                });
+
                 messageInput.value = '';
-                
+
                 // Append the new message to the thread without reloading everything
-                await this.appendMessageToThread(result.message, conversation);
+                // Use original plaintext content for sender's view (result.message contains only ciphertext)
+                const messageForDisplay = {
+                    ...result.message,
+                    content: content  // Use plaintext for display only (never stored/transmitted)
+                };
+                await this.appendMessageToThread(messageForDisplay, conversation);
             } else {
                 throw new Error(result.error || 'Failed to send message');
             }

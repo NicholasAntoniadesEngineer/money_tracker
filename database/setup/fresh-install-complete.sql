@@ -486,6 +486,38 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON friends TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE friends_id_seq TO authenticated;
 
 -- ============================================================
+-- BLOCKED USERS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS blocked_users (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    blocked_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, blocked_user_id)
+);
+
+CREATE INDEX idx_blocked_users_user ON blocked_users(user_id);
+CREATE INDEX idx_blocked_users_blocked ON blocked_users(blocked_user_id);
+
+ALTER TABLE blocked_users ENABLE ROW LEVEL SECURITY;
+
+-- Users can see their own blocked list
+CREATE POLICY blocked_users_select_own ON blocked_users
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can block others
+CREATE POLICY blocked_users_insert_own ON blocked_users
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can unblock others
+CREATE POLICY blocked_users_delete_own ON blocked_users
+    FOR DELETE USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, DELETE ON blocked_users TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE blocked_users_id_seq TO authenticated;
+
+-- ============================================================
 -- E2E ENCRYPTION SYSTEM
 -- ============================================================
 
@@ -515,6 +547,52 @@ CREATE POLICY identity_keys_delete_own ON identity_keys
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON identity_keys TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE identity_keys_id_seq TO authenticated;
+
+-- User key backups (public keys for safety number verification)
+CREATE TABLE IF NOT EXISTS user_key_backups (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    encrypted_private_key TEXT NOT NULL,
+    encryption_salt TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+CREATE INDEX idx_user_key_backups_user ON user_key_backups(user_id);
+
+ALTER TABLE user_key_backups ENABLE ROW LEVEL SECURITY;
+
+-- Users can read any public key (needed for encryption)
+CREATE POLICY user_key_backups_select_all ON user_key_backups
+    FOR SELECT USING (true);
+
+-- Users can only insert/update their own key backup
+CREATE POLICY user_key_backups_insert_own ON user_key_backups
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY user_key_backups_update_own ON user_key_backups
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY user_key_backups_delete_own ON user_key_backups
+    FOR DELETE USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_key_backups TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE user_key_backups_id_seq TO authenticated;
+
+CREATE OR REPLACE FUNCTION update_user_key_backups_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_user_key_backups_updated_at
+    BEFORE UPDATE ON user_key_backups
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_key_backups_updated_at();
 
 -- Paired devices (for multi-device support)
 CREATE TABLE IF NOT EXISTS paired_devices (
@@ -638,6 +716,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     read BOOLEAN DEFAULT false,
     from_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE,
+    share_id BIGINT REFERENCES data_shares(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -647,6 +726,7 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX idx_notifications_read ON notifications(read);
 CREATE INDEX idx_notifications_from_user ON notifications(from_user_id);
 CREATE INDEX idx_notifications_conversation ON notifications(conversation_id);
+CREATE INDEX idx_notifications_share ON notifications(share_id);
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
@@ -699,6 +779,79 @@ CREATE POLICY notification_prefs_update_own ON notification_preferences
     FOR UPDATE USING (auth.uid() = user_id);
 
 GRANT SELECT, INSERT, UPDATE ON notification_preferences TO authenticated;
+
+-- Create notification RPC function (bypasses RLS for system notifications)
+CREATE OR REPLACE FUNCTION create_notification(
+    p_user_id UUID,
+    p_type TEXT,
+    p_from_user_id UUID DEFAULT NULL,
+    p_share_id BIGINT DEFAULT NULL,
+    p_message TEXT DEFAULT NULL,
+    p_conversation_id BIGINT DEFAULT NULL,
+    p_payment_id BIGINT DEFAULT NULL,
+    p_subscription_id BIGINT DEFAULT NULL,
+    p_invoice_id BIGINT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_notification_id BIGINT;
+    v_title TEXT;
+BEGIN
+    -- Generate title based on type
+    CASE p_type
+        WHEN 'message_received' THEN v_title := 'New Message';
+        WHEN 'share_request' THEN v_title := 'Data Share Request';
+        WHEN 'share_response' THEN v_title := 'Share Request Response';
+        WHEN 'friend_request' THEN v_title := 'Friend Request';
+        WHEN 'friend_accepted' THEN v_title := 'Friend Request Accepted';
+        WHEN 'payment_received' THEN v_title := 'Payment Received';
+        WHEN 'payment_reminder' THEN v_title := 'Payment Reminder';
+        ELSE v_title := 'Notification';
+    END CASE;
+
+    -- Insert the notification
+    INSERT INTO notifications (
+        user_id,
+        type,
+        title,
+        message,
+        from_user_id,
+        share_id,
+        conversation_id,
+        read
+    ) VALUES (
+        p_user_id,
+        p_type,
+        v_title,
+        COALESCE(p_message, v_title),
+        p_from_user_id,
+        p_share_id,
+        p_conversation_id,
+        false
+    )
+    RETURNING id INTO v_notification_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'notification_id', v_notification_id
+    );
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'success', false,
+        'error', SQLERRM
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION create_notification TO authenticated;
+
+-- Allow the RPC function (running as SECURITY DEFINER) to insert notifications
+CREATE POLICY notifications_insert_for_others ON notifications
+    FOR INSERT WITH CHECK (true);
 
 -- Messages (encrypted)
 CREATE TABLE IF NOT EXISTS messages (
@@ -1090,8 +1243,10 @@ ON CONFLICT (year, month) DO UPDATE SET
 -- ✓ Subscription system (plans, subscriptions, payments with Free & Premium)
 -- ✓ Data sharing (data_shares with field locks)
 -- ✓ Friends system
--- ✓ Notifications system
--- ✓ E2E encryption (identity keys, conversations, messages)
+-- ✓ Blocked users system
+-- ✓ Notifications system (with create_notification RPC)
+-- ✓ E2E encryption (identity keys, user_key_backups, conversations, messages)
 -- ✓ Multi-device support (paired devices, session key backups)
 -- ✓ Password + Recovery key dual encryption system
+-- ✓ Safety number verification (user_key_backups for MITM protection)
 -- ============================================================
