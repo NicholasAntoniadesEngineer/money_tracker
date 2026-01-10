@@ -893,20 +893,27 @@ const KeyManager = {
 
         if (!session) {
             console.log('[KeyManager] [Decrypt Step 2/6] ❌ Session key NOT found in IndexedDB');
-            console.log('[KeyManager] Attempting to restore from database backup...');
+            console.log('[KeyManager] Attempting to restore from database backup (epoch', messageEpoch + ')...');
 
             try {
-                // Try to restore this specific session key from database
-                const restored = await this.restoreSessionKeyFromDatabase(conversationId);
+                // Try to restore session key(s) from database - pass null to restore all epochs
+                const restored = await this.restoreSessionKeyFromDatabase(conversationId, null);
                 if (restored) {
-                    console.log('[KeyManager] ✓ Session key restored from database backup');
-                    // Try getting it again from IndexedDB
-                    // CRITICAL: Convert to string to match how it was stored
-                    console.log('[KeyManager] Retrieving restored session from IndexedDB (conversationId as string)...');
-                    session = await window.KeyStorageService.getSessionKey(conversationId.toString());
+                    console.log('[KeyManager] ✓ Session key(s) restored from database backup');
+                    // Try getting it again from IndexedDB - check appropriate store based on epoch
+                    console.log('[KeyManager] Retrieving restored session from IndexedDB (epoch', messageEpoch + ')...');
+
+                    if (messageEpoch > 0) {
+                        session = await window.KeyStorageService.getEpochSessionKey(convIdStr, messageEpoch);
+                    } else {
+                        session = await window.KeyStorageService.getSessionKey(convIdStr);
+                        if (!session) {
+                            session = await window.KeyStorageService.getEpochSessionKey(convIdStr, 0);
+                        }
+                    }
 
                     if (session) {
-                        console.log('[KeyManager] ✓ Successfully retrieved restored session from IndexedDB');
+                        console.log('[KeyManager] ✓ Successfully retrieved restored session from IndexedDB (epoch', messageEpoch + ')');
                     } else {
                         console.error('[KeyManager] ❌ FAILED to retrieve restored session from IndexedDB!');
                         console.error('[KeyManager] This should never happen - session was just stored!');
@@ -1037,26 +1044,31 @@ const KeyManager = {
                     let freshSession;
 
                     if (!backupResult.error && backupResult.data && backupResult.data.length > 0) {
-                        // Database backup exists - restore from it
+                        // Database backup exists - restore from it (restore all epochs)
                         console.log('[KeyManager] ✓ Found database backup, restoring from it...');
-                        const restored = await this.restoreSessionKeyFromDatabase(conversationId);
+                        const restored = await this.restoreSessionKeyFromDatabase(conversationId, null);
 
                         if (restored) {
                             // Important: Ensure conversationId is a string for IndexedDB lookup
                             const conversationIdStr = String(conversationId);
-                            console.log('[KeyManager] Attempting to retrieve restored session with ID:', conversationIdStr);
+                            console.log('[KeyManager] Attempting to retrieve restored session for epoch', messageEpoch);
 
-                            freshSession = await window.KeyStorageService.getSessionKey(conversationIdStr);
+                            // Check appropriate store based on epoch
+                            if (messageEpoch > 0) {
+                                freshSession = await window.KeyStorageService.getEpochSessionKey(conversationIdStr, messageEpoch);
+                            } else {
+                                freshSession = await window.KeyStorageService.getSessionKey(conversationIdStr);
+                                if (!freshSession) {
+                                    freshSession = await window.KeyStorageService.getEpochSessionKey(conversationIdStr, 0);
+                                }
+                            }
+
                             if (freshSession) {
-                                console.log('[KeyManager] ✓ Session restored from database backup');
-
-                                // Log the restored shared secret
+                                console.log('[KeyManager] ✓ Session restored from database backup (epoch', messageEpoch + ')');
                                 const restoredSecretHex = Array.from(freshSession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
                                 console.log('[KeyManager] Restored shared secret (first 16 chars):', restoredSecretHex.substring(0, 16));
-                                console.log('[KeyManager] Restored shared secret (last 16 chars):', restoredSecretHex.substring(restoredSecretHex.length - 16));
                             } else {
-                                console.error('[KeyManager] ⚠️  Session restored but could not retrieve from IndexedDB');
-                                console.error('[KeyManager] This indicates a storage/retrieval mismatch issue');
+                                console.error('[KeyManager] ⚠️  Session restored but could not retrieve epoch', messageEpoch, 'from IndexedDB');
                             }
                         } else {
                             console.error('[KeyManager] ⚠️  restoreSessionKeyFromDatabase returned false');
@@ -1391,43 +1403,69 @@ const KeyManager = {
         }
 
         try {
-            // Step 1: Delete local session
-            console.log('[KeyManager] Step 1: Clearing local session...');
+            const convIdStr = conversationId.toString();
+
+            // Step 1: Delete local sessions (both legacy and epoch stores)
+            console.log('[KeyManager] Step 1: Clearing local sessions...');
             try {
-                await window.KeyStorageService.deleteSessionKey(conversationId.toString());
-                console.log('[KeyManager] ✓ Local session cleared');
+                await window.KeyStorageService.deleteSessionKey(convIdStr);
+                console.log('[KeyManager] ✓ Legacy session cleared');
             } catch (e) {
-                console.log('[KeyManager] No local session to clear');
+                console.log('[KeyManager] No legacy session to clear');
             }
 
-            // Step 2: Restore from database backup
-            console.log('[KeyManager] Step 2: Restoring from database backup...');
-            const restored = await this.restoreSessionKeyFromDatabase(conversationId);
+            // Also clear epoch sessions for this conversation
+            try {
+                const epochSessions = await window.KeyStorageService.getAllEpochSessionKeys(convIdStr);
+                for (const es of epochSessions) {
+                    await window.KeyStorageService.deleteEpochSessionKey(convIdStr, es.epoch);
+                }
+                console.log('[KeyManager] ✓ Cleared', epochSessions.length, 'epoch session(s)');
+            } catch (e) {
+                console.log('[KeyManager] No epoch sessions to clear');
+            }
+
+            // Step 2: Restore ALL epochs from database backup
+            console.log('[KeyManager] Step 2: Restoring from database backup (all epochs)...');
+            const restored = await this.restoreSessionKeyFromDatabase(conversationId, null);
 
             if (!restored) {
                 return { success: false, message: 'No backup found in database or decryption failed' };
             }
 
-            // Step 3: Verify the restored session
-            console.log('[KeyManager] Step 3: Verifying restored session...');
-            const session = await window.KeyStorageService.getSessionKey(conversationId.toString());
+            // Step 3: Verify restored sessions
+            console.log('[KeyManager] Step 3: Verifying restored sessions...');
+
+            // Check legacy store
+            let session = await window.KeyStorageService.getSessionKey(convIdStr);
+            let sessionSource = 'legacy';
+
+            // Also check epoch store
+            const epochSessions = await window.KeyStorageService.getAllEpochSessionKeys(convIdStr);
+            console.log('[KeyManager] Found', epochSessions.length, 'epoch session(s) after restore');
+
+            if (!session && epochSessions.length > 0) {
+                session = epochSessions[epochSessions.length - 1]; // Get latest epoch
+                sessionSource = 'epoch ' + session.epoch;
+            }
 
             if (!session) {
                 return { success: false, message: 'Failed to retrieve restored session' };
             }
 
             const sharedSecretHex = Array.from(session.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log('[KeyManager] ✓ Session restored successfully');
+            console.log('[KeyManager] ✓ Session restored successfully from', sessionSource);
             console.log('[KeyManager] Shared secret (first 16):', sharedSecretHex.substring(0, 16));
-            console.log('[KeyManager] Shared secret (last 16):', sharedSecretHex.substring(sharedSecretHex.length - 16));
 
             console.log('[KeyManager] ========== FORCE SYNC COMPLETE ==========');
+            console.log('[KeyManager] Restored sessions:', epochSessions.length, 'epoch(s)');
             console.log('[KeyManager] Try opening the conversation now to test decryption.');
 
             return {
                 success: true,
-                message: 'Session restored from backup successfully',
-                sharedSecret: sharedSecretHex.substring(0, 16) + '...' + sharedSecretHex.substring(sharedSecretHex.length - 16)
+                message: `Session restored from backup successfully (${epochSessions.length} epoch(s))`,
+                sharedSecret: sharedSecretHex.substring(0, 16) + '...',
+                epochs: epochSessions.map(s => s.epoch)
             };
 
         } catch (error) {
@@ -1615,19 +1653,29 @@ const KeyManager = {
 
             for (const backup of backedUpKeys) {
                 try {
-                    console.log('[KeyManager] Restoring session key for conversation:', backup.conversation_id);
+                    const backupEpoch = backup.key_epoch || 0;
+                    const convIdStr = backup.conversation_id.toString();
 
-                    // Check if session already exists locally
-                    const existingSession = await window.KeyStorageService.getSessionKey(
-                        backup.conversation_id.toString()
-                    );
+                    console.log('[KeyManager] Restoring session key for conversation:', backup.conversation_id, 'epoch:', backupEpoch);
+
+                    // Check if session already exists locally (check both legacy and epoch stores)
+                    let existingSession = null;
+                    if (backupEpoch === 0) {
+                        // For epoch 0, check both legacy and epoch stores
+                        existingSession = await window.KeyStorageService.getSessionKey(convIdStr);
+                        if (!existingSession) {
+                            existingSession = await window.KeyStorageService.getEpochSessionKey(convIdStr, 0);
+                        }
+                    } else {
+                        // For epoch > 0, only check epoch store
+                        existingSession = await window.KeyStorageService.getEpochSessionKey(convIdStr, backupEpoch);
+                    }
 
                     if (existingSession) {
                         // Log existing session details for debugging
                         const existingSecretHex = Array.from(existingSession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
-                        console.log('[KeyManager] Session already exists locally, comparing...');
+                        console.log('[KeyManager] Session already exists locally (epoch', backupEpoch + '), comparing...');
                         console.log('[KeyManager] Local session shared secret (first 16):', existingSecretHex.substring(0, 16));
-                        console.log('[KeyManager] Local session shared secret (last 16):', existingSecretHex.substring(existingSecretHex.length - 16));
 
                         // Also decrypt the backup to compare
                         try {
@@ -1637,32 +1685,34 @@ const KeyManager = {
                                 ourKeys.secretKey
                             );
                             const backupSecretHex = Array.from(backupSessionKey).map(b => b.toString(16).padStart(2, '0')).join('');
-                            console.log('[KeyManager] Backup session shared secret (first 16):', backupSecretHex.substring(0, 16));
-                            console.log('[KeyManager] Backup session shared secret (last 16):', backupSecretHex.substring(backupSecretHex.length - 16));
 
                             // Check if they match
-                            const localHex = existingSecretHex;
-                            const backupHex = backupSecretHex;
-                            if (localHex === backupHex) {
-                                console.log('[KeyManager] ✓ Local and backup session keys MATCH');
+                            if (existingSecretHex === backupSecretHex) {
+                                console.log('[KeyManager] ✓ Local and backup session keys MATCH (epoch', backupEpoch + ')');
                             } else {
-                                console.error('[KeyManager] ❌ LOCAL AND BACKUP SESSION KEYS DO NOT MATCH!');
-                                console.error('[KeyManager] This is a critical issue - the local session has a different shared secret');
-                                console.error('[KeyManager] This device may have established its own session instead of using the backup');
+                                console.error('[KeyManager] ❌ Session key mismatch for epoch', backupEpoch);
                                 console.error('[KeyManager] OVERWRITING local session with backup to fix decryption...');
 
                                 // Overwrite local session with backup
-                                await window.KeyStorageService.storeSessionKey(
-                                    backup.conversation_id.toString(),
-                                    backupSessionKey,
-                                    backup.message_counter || 0
-                                );
-                                console.log('[KeyManager] ✓ Local session OVERWRITTEN with backup');
+                                if (backupEpoch > 0) {
+                                    await window.KeyStorageService.storeEpochSessionKey(
+                                        convIdStr,
+                                        backupEpoch,
+                                        backupSessionKey,
+                                        backup.message_counter || 0
+                                    );
+                                } else {
+                                    await window.KeyStorageService.storeSessionKey(
+                                        convIdStr,
+                                        backupSessionKey,
+                                        backup.message_counter || 0
+                                    );
+                                }
+                                console.log('[KeyManager] ✓ Local session OVERWRITTEN with backup (epoch', backupEpoch + ')');
                             }
                         } catch (decryptError) {
                             console.error('[KeyManager] ❌ Failed to decrypt backup for comparison:', decryptError.message);
                             console.error('[KeyManager] This suggests identity keys on this device are DIFFERENT from the primary device!');
-                            console.error('[KeyManager] Device pairing may be required to sync identity keys.');
                         }
 
                         successCount++;
@@ -1670,7 +1720,7 @@ const KeyManager = {
                     }
 
                     // Decrypt session key from backup
-                    console.log('[KeyManager] Decrypting session key from backup...');
+                    console.log('[KeyManager] Decrypting session key from backup (epoch', backupEpoch + ')...');
                     const sessionKey = window.CryptoService.decryptSessionKeyFromBackup(
                         backup.encrypted_session_key,
                         backup.encryption_nonce,
@@ -1680,16 +1730,24 @@ const KeyManager = {
                     // Log the restored shared secret
                     const restoredSecretHex = Array.from(sessionKey).map(b => b.toString(16).padStart(2, '0')).join('');
                     console.log('[KeyManager] Restored shared secret (first 16):', restoredSecretHex.substring(0, 16));
-                    console.log('[KeyManager] Restored shared secret (last 16):', restoredSecretHex.substring(restoredSecretHex.length - 16));
 
-                    // Store in local IndexedDB
-                    await window.KeyStorageService.storeSessionKey(
-                        backup.conversation_id.toString(),
-                        sessionKey,
-                        backup.message_counter || 0
-                    );
-
-                    console.log('[KeyManager] ✓ Session key restored for conversation:', backup.conversation_id);
+                    // Store in local IndexedDB - use epoch store for epoch > 0
+                    if (backupEpoch > 0) {
+                        await window.KeyStorageService.storeEpochSessionKey(
+                            convIdStr,
+                            backupEpoch,
+                            sessionKey,
+                            backup.message_counter || 0
+                        );
+                        console.log('[KeyManager] ✓ Epoch session key restored (epoch', backupEpoch + ') for conversation:', backup.conversation_id);
+                    } else {
+                        await window.KeyStorageService.storeSessionKey(
+                            convIdStr,
+                            sessionKey,
+                            backup.message_counter || 0
+                        );
+                        console.log('[KeyManager] ✓ Legacy session key restored for conversation:', backup.conversation_id);
+                    }
                     successCount++;
 
                 } catch (error) {
@@ -1867,9 +1925,10 @@ const KeyManager = {
      * @param {string} conversationId - Conversation ID
      * @returns {Promise<boolean>} True if session key was restored, false otherwise
      */
-    async restoreSessionKeyFromDatabase(conversationId) {
+    async restoreSessionKeyFromDatabase(conversationId, targetEpoch = null) {
         console.log('[KeyManager] ========== RESTORING SESSION KEY FROM DATABASE ==========');
         console.log('[KeyManager] Conversation ID:', conversationId);
+        console.log('[KeyManager] Target epoch:', targetEpoch !== null ? targetEpoch : 'all');
         console.log('[KeyManager] User ID:', this.currentUserId);
 
         try {
@@ -1880,13 +1939,20 @@ const KeyManager = {
                 return false;
             }
 
-            // Fetch this specific session key backup from database
+            // Fetch session key backup(s) from database
             console.log('[KeyManager] Fetching session key backup from database...');
+            const filter = {
+                user_id: this.currentUserId,
+                conversation_id: parseInt(conversationId)
+            };
+
+            // If targeting a specific epoch, add it to the filter
+            if (targetEpoch !== null) {
+                filter.key_epoch = targetEpoch;
+            }
+
             const result = await window.DatabaseService.querySelect('conversation_session_keys', {
-                filter: {
-                    user_id: this.currentUserId,
-                    conversation_id: parseInt(conversationId)
-                }
+                filter: filter
             });
 
             if (result.error) {
@@ -1902,39 +1968,59 @@ const KeyManager = {
                 return false;
             }
 
-            const backup = backups[0];
+            // Restore all backups (or just the targeted one)
+            let restoredCount = 0;
+            for (const backup of backups) {
+                try {
+                    const backupEpoch = backup.key_epoch || 0;
 
-            // Decrypt session key
-            console.log('[KeyManager] Decrypting session key from backup...');
-            console.log('[KeyManager] Backup details:', {
-                conversation_id: backup.conversation_id,
-                message_counter: backup.message_counter,
-                created_at: backup.created_at,
-                updated_at: backup.updated_at
-            });
+                    // Decrypt session key
+                    console.log('[KeyManager] Decrypting session key from backup (epoch', backupEpoch + ')...');
+                    console.log('[KeyManager] Backup details:', {
+                        conversation_id: backup.conversation_id,
+                        key_epoch: backupEpoch,
+                        message_counter: backup.message_counter
+                    });
 
-            const sessionKey = window.CryptoService.decryptSessionKeyFromBackup(
-                backup.encrypted_session_key,
-                backup.encryption_nonce,
-                ourKeys.secretKey
-            );
+                    const sessionKey = window.CryptoService.decryptSessionKeyFromBackup(
+                        backup.encrypted_session_key,
+                        backup.encryption_nonce,
+                        ourKeys.secretKey
+                    );
 
-            // Log the restored shared secret for comparison
-            const restoredSecretHex = Array.from(sessionKey).map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log('[KeyManager] Restored shared secret (first 16 chars):', restoredSecretHex.substring(0, 16));
-            console.log('[KeyManager] Restored shared secret (last 16 chars):', restoredSecretHex.substring(restoredSecretHex.length - 16));
+                    // Log the restored shared secret for comparison
+                    const restoredSecretHex = Array.from(sessionKey).map(b => b.toString(16).padStart(2, '0')).join('');
+                    console.log('[KeyManager] Restored shared secret (first 16 chars):', restoredSecretHex.substring(0, 16));
 
-            // Store in local IndexedDB
-            console.log('[KeyManager] Storing restored session in IndexedDB...');
-            await window.KeyStorageService.storeSessionKey(
-                backup.conversation_id.toString(),
-                sessionKey,
-                backup.message_counter || 0
-            );
+                    // Store in local IndexedDB - use appropriate store based on epoch
+                    const convIdStr = backup.conversation_id.toString();
+                    if (backupEpoch > 0) {
+                        await window.KeyStorageService.storeEpochSessionKey(
+                            convIdStr,
+                            backupEpoch,
+                            sessionKey,
+                            backup.message_counter || 0
+                        );
+                        console.log('[KeyManager] ✓ Epoch session key restored (epoch', backupEpoch + ')');
+                    } else {
+                        await window.KeyStorageService.storeSessionKey(
+                            convIdStr,
+                            sessionKey,
+                            backup.message_counter || 0
+                        );
+                        console.log('[KeyManager] ✓ Legacy session key restored');
+                    }
+                    restoredCount++;
 
-            console.log('[KeyManager] ✓ Session key restored successfully');
+                } catch (decryptError) {
+                    console.error('[KeyManager] ❌ Failed to decrypt/restore backup:', decryptError.message);
+                    // Continue trying other backups
+                }
+            }
+
+            console.log('[KeyManager] Restored', restoredCount, 'of', backups.length, 'session keys');
             console.log('[KeyManager] ========== SESSION KEY RESTORE COMPLETE ==========');
-            return true;
+            return restoredCount > 0;
 
         } catch (error) {
             console.error('[KeyManager] ========== SESSION KEY RESTORE FAILED ==========');
