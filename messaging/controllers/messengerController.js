@@ -1056,12 +1056,33 @@ const MessengerController = {
                 // Regular message - use cached email
                 regularMessageCount++;
                 const senderEmail = this.getUserEmail(msg.sender_id);
+
+                // Build debug info HTML if debug mode is enabled
+                let debugInfoHtml = '';
+                if (window.ENCRYPTION_DEBUG_MODE && msg._debugInfo) {
+                    const debug = msg._debugInfo;
+                    const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                    const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                    debugInfoHtml = `
+                        <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                            <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Decryption: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                            ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                            <div>Epoch: ${debug.epoch}</div>
+                            <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                            <div>Message ID: ${debug.messageId}</div>
+                            <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                            <div>Nonce: ${debug.nonceLength} chars</div>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                             <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                             <div style="white-space: pre-line;">${msg.content}</div>
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                            ${debugInfoHtml}
                         </div>
                     </div>
                 `;

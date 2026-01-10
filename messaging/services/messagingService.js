@@ -197,6 +197,7 @@ const MessagingService = {
                 );
 
                 // Create encrypted message (encryption-only, no plain-text content)
+                // Include key_epoch for proper decryption after key rotation
                 messageData = {
                     conversation_id: conversationId,
                     sender_id: senderId,
@@ -204,6 +205,7 @@ const MessagingService = {
                     encrypted_content: encryptedData.ciphertext,
                     encryption_nonce: encryptedData.nonce,
                     message_counter: encryptedData.counter,
+                    key_epoch: encryptedData.epoch || 0,
                     is_encrypted: true,
                     read: false
                 };
@@ -213,6 +215,7 @@ const MessagingService = {
                     senderId,
                     recipientId,
                     counter: encryptedData.counter,
+                    epoch: encryptedData.epoch || 0,
                     ciphertextLength: encryptedData.ciphertext.length
                 });
 
@@ -523,6 +526,8 @@ const MessagingService = {
 
                 // ALL messages MUST be encrypted (enforced by database constraint)
                 let content;
+                let decryptSuccess = false;
+                let decryptError = null;
 
                 // Verify message has required encryption fields
                 if (!msg.encrypted_content || !msg.encryption_nonce) {
@@ -539,29 +544,48 @@ const MessagingService = {
                         });
 
                         // Decrypt the message (all messages are encrypted)
+                        // Include key_epoch for proper key selection after key rotation
                         const plaintext = await window.KeyManager.decryptMessage(
                             conversationId,
                             {
                                 ciphertext: msg.encrypted_content,
                                 nonce: msg.encryption_nonce,
-                                counter: msg.message_counter
+                                counter: msg.message_counter,
+                                epoch: msg.key_epoch || 0
                             }
                         );
                         content = plaintext;
-                        console.log('[MessagingService] ✓ Message', msg.id, 'decrypted successfully');
+                        decryptSuccess = true;
+                        console.log('[MessagingService] ✓ Message', msg.id, 'decrypted successfully (epoch:', msg.key_epoch || 0 + ')');
 
                     } catch (decryptionError) {
                         console.error('[MessagingService] ❌ Decryption failed for message:', msg.id);
                         console.error('[MessagingService] Error:', decryptionError.message);
                         console.error('[MessagingService] Stack:', decryptionError.stack);
                         content = '[ERROR: Decryption failed - you may not have access to this conversation]';
+                        decryptSuccess = false;
+                        decryptError = decryptionError.message;
                     }
                 }
+
+                // Build debug info for this message
+                const debugInfo = {
+                    messageId: msg.id,
+                    epoch: msg.key_epoch || 0,
+                    counter: msg.message_counter,
+                    isEncrypted: msg.is_encrypted,
+                    decryptSuccess: decryptSuccess,
+                    decryptError: decryptError || null,
+                    ciphertextLength: msg.encrypted_content ? msg.encrypted_content.length : 0,
+                    nonceLength: msg.encryption_nonce ? msg.encryption_nonce.length : 0,
+                    timestamp: msg.created_at
+                };
 
                 return {
                     ...msg,
                     content, // Decrypted content
-                    sender_email
+                    sender_email,
+                    _debugInfo: debugInfo // Debug info (prefixed with _ to indicate internal)
                 };
             }));
 

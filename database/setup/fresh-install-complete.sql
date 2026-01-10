@@ -526,8 +526,11 @@ CREATE TABLE IF NOT EXISTS identity_keys (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     public_key TEXT NOT NULL,
+    current_epoch INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+COMMENT ON COLUMN identity_keys.current_epoch IS 'Current key epoch. Incremented on each key regeneration for key rotation support.';
 
 CREATE INDEX idx_identity_keys_user_id ON identity_keys(user_id);
 
@@ -854,6 +857,7 @@ CREATE POLICY notifications_insert_for_others ON notifications
     FOR INSERT WITH CHECK (true);
 
 -- Messages (encrypted)
+-- key_epoch tracks which session key version was used to encrypt each message
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,
     conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -862,6 +866,7 @@ CREATE TABLE IF NOT EXISTS messages (
     encrypted_content TEXT NOT NULL,
     encryption_nonce TEXT NOT NULL,
     message_counter BIGINT NOT NULL,
+    key_epoch INTEGER DEFAULT 0,
     is_encrypted BOOLEAN DEFAULT TRUE,
     read BOOLEAN DEFAULT FALSE,
     read_at TIMESTAMPTZ,
@@ -869,11 +874,14 @@ CREATE TABLE IF NOT EXISTS messages (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+COMMENT ON COLUMN messages.key_epoch IS 'Session key epoch used to encrypt this message. Enables decryption with correct key version after key rotations.';
+
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX idx_messages_recipient_unread ON messages(recipient_id, read) WHERE read = FALSE;
 CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_messages_key_epoch ON messages(key_epoch);
 
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
@@ -933,6 +941,7 @@ ALTER TABLE data_shares
 -- ============================================================
 
 -- Session key backup for multi-device message decryption
+-- Supports multiple session keys per conversation (one per epoch) for key rotation
 CREATE TABLE IF NOT EXISTS conversation_session_keys (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -940,12 +949,16 @@ CREATE TABLE IF NOT EXISTS conversation_session_keys (
     encrypted_session_key TEXT NOT NULL,
     encryption_nonce TEXT NOT NULL,
     message_counter BIGINT NOT NULL DEFAULT 0,
+    key_epoch INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, conversation_id)
+    UNIQUE(user_id, conversation_id, key_epoch)
 );
 
+COMMENT ON COLUMN conversation_session_keys.key_epoch IS 'Key epoch this session belongs to. Higher epochs = more recent keys after regeneration.';
+
 CREATE INDEX idx_session_keys_user_conversation ON conversation_session_keys(user_id, conversation_id);
+CREATE INDEX idx_session_keys_epoch ON conversation_session_keys(key_epoch);
 
 ALTER TABLE conversation_session_keys ENABLE ROW LEVEL SECURITY;
 

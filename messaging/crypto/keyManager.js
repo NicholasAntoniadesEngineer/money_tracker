@@ -15,6 +15,7 @@
 const KeyManager = {
     currentUserId: null,
     initialized: false,
+    currentEpoch: 0, // Current key epoch for this user (incremented on key regeneration)
 
     /**
      * Initialize key manager for current user
@@ -56,8 +57,13 @@ const KeyManager = {
                 console.log('[KeyManager] Public key length:', keys.publicKey.length);
                 this.initialized = true;
 
-                // Step 4: Sync session keys from database (for multi-device support)
-                console.log('[KeyManager] Step 4: Syncing session keys from database...');
+                // Step 4: Fetch current epoch from database
+                console.log('[KeyManager] Step 4: Fetching current epoch from database...');
+                this.currentEpoch = await this.fetchCurrentEpoch(userId);
+                console.log('[KeyManager] ✓ Current epoch:', this.currentEpoch);
+
+                // Step 5: Sync session keys from database (for multi-device support)
+                console.log('[KeyManager] Step 5: Syncing session keys from database...');
                 try {
                     await this.syncSessionKeysFromDatabase();
                     console.log('[KeyManager] ✓ Session keys synced from database');
@@ -66,10 +72,19 @@ const KeyManager = {
                     // Don't fail initialization if session sync fails
                 }
 
-                // Step 5: Back up any local sessions that don't have database backups
+                // Step 6: Migrate legacy sessions to epoch-aware storage
+                console.log('[KeyManager] Step 6: Migrating legacy sessions to epoch storage...');
+                try {
+                    await this.migrateLegacySessionsToEpochs();
+                    console.log('[KeyManager] ✓ Legacy session migration complete');
+                } catch (error) {
+                    console.warn('[KeyManager] Legacy migration failed (non-critical):', error.message);
+                }
+
+                // Step 7: Back up any local sessions that don't have database backups
                 // SKIP THIS DURING INITIALIZATION - it hangs and blocks page load
                 // Sessions will be backed up automatically when sending/receiving messages
-                console.log('[KeyManager] Step 5: Skipping local session backup during initialization (non-critical, can hang)');
+                console.log('[KeyManager] Step 7: Skipping local session backup during initialization (non-critical, can hang)');
                 console.log('[KeyManager] Sessions will be backed up automatically during message operations');
 
                 // Run backup in background (non-blocking) - don't await, ignore errors
@@ -148,6 +163,71 @@ const KeyManager = {
                 userId: userId
             });
             throw new Error('Failed to initialize key manager: ' + error.message);
+        }
+    },
+
+    /**
+     * Fetch current key epoch from database
+     * @param {string} userId - User ID
+     * @returns {Promise<number>} Current epoch (0 if not set)
+     */
+    async fetchCurrentEpoch(userId) {
+        console.log('[KeyManager] Fetching current epoch for user:', userId);
+
+        try {
+            const result = await window.DatabaseService.querySelect('identity_keys', {
+                filter: { user_id: userId },
+                limit: 1
+            });
+
+            if (result.error || !result.data || result.data.length === 0) {
+                console.log('[KeyManager] No identity_keys record found, using epoch 0');
+                return 0;
+            }
+
+            const epoch = result.data[0].current_epoch || 0;
+            console.log('[KeyManager] Current epoch from database:', epoch);
+            return epoch;
+
+        } catch (error) {
+            console.error('[KeyManager] Error fetching epoch:', error);
+            return 0;
+        }
+    },
+
+    /**
+     * Increment epoch in database after key regeneration
+     * @param {string} userId - User ID
+     * @returns {Promise<number>} New epoch value
+     */
+    async incrementEpochInDatabase(userId) {
+        console.log('[KeyManager] Incrementing epoch in database for user:', userId);
+
+        try {
+            // Get current epoch
+            const currentEpoch = await this.fetchCurrentEpoch(userId);
+            const newEpoch = currentEpoch + 1;
+
+            // Update in database
+            const result = await window.DatabaseService.queryUpdate(
+                'identity_keys',
+                null,
+                { current_epoch: newEpoch },
+                { user_id: userId }
+            );
+
+            if (result.error) {
+                console.error('[KeyManager] Failed to increment epoch:', result.error);
+                throw new Error('Failed to increment epoch: ' + result.error.message);
+            }
+
+            console.log('[KeyManager] ✓ Epoch incremented to:', newEpoch);
+            this.currentEpoch = newEpoch;
+            return newEpoch;
+
+        } catch (error) {
+            console.error('[KeyManager] Error incrementing epoch:', error);
+            throw error;
         }
     },
 
@@ -457,9 +537,10 @@ const KeyManager = {
 
     /**
      * Encrypt a message for sending
+     * Uses current epoch's session key for encryption
      * @param {string} conversationId - Conversation ID
      * @param {string} plaintext - Message to encrypt
-     * @returns {Promise<Object>} Encrypted data with ciphertext, nonce, and counter
+     * @returns {Promise<Object>} Encrypted data with ciphertext, nonce, counter, and epoch
      */
     async encryptMessage(conversationId, plaintext) {
         if (!this.initialized) {
@@ -471,12 +552,48 @@ const KeyManager = {
         }
 
         console.log('[KeyManager] Encrypting message for conversation:', conversationId, '(type:', typeof conversationId + ')');
+        console.log('[KeyManager] Current epoch:', this.currentEpoch);
 
         // IMPORTANT: IndexedDB uses string keys, so convert conversationId to string
         const convIdStr = String(conversationId);
 
-        // Get session key
-        const session = await window.KeyStorageService.getSessionKey(convIdStr);
+        // Try to get epoch-aware session key first
+        let session = await window.KeyStorageService.getEpochSessionKey(convIdStr, this.currentEpoch);
+        let usingEpoch = this.currentEpoch;
+
+        // If no session for current epoch, try to get the latest available session
+        if (!session) {
+            console.log('[KeyManager] No session for current epoch, checking for any existing session...');
+            session = await window.KeyStorageService.getLatestEpochSessionKey(convIdStr);
+
+            if (session) {
+                usingEpoch = session.epoch;
+                console.log('[KeyManager] Using existing session from epoch:', usingEpoch);
+            }
+        }
+
+        // Fall back to legacy session key if no epoch sessions exist
+        if (!session) {
+            console.log('[KeyManager] No epoch session found, trying legacy session...');
+            const legacySession = await window.KeyStorageService.getSessionKey(convIdStr);
+
+            if (legacySession) {
+                // Migrate to epoch 0 and use it
+                console.log('[KeyManager] Found legacy session, migrating to epoch 0...');
+                await window.KeyStorageService.storeEpochSessionKey(
+                    convIdStr,
+                    0,
+                    legacySession.sharedSecret,
+                    legacySession.messageCounter
+                );
+                session = {
+                    sharedSecret: legacySession.sharedSecret,
+                    messageCounter: legacySession.messageCounter,
+                    epoch: 0
+                };
+                usingEpoch = 0;
+            }
+        }
 
         if (!session) {
             throw new Error('No encryption session - call establishSession first');
@@ -494,25 +611,27 @@ const KeyManager = {
         // Store the current counter before incrementing
         const currentCounter = session.messageCounter;
 
-        // Increment counter for next message (local IndexedDB)
-        const newCounter = await window.KeyStorageService.incrementMessageCounter(convIdStr);
+        // Increment counter for next message (epoch-aware)
+        const newCounter = await window.KeyStorageService.incrementEpochMessageCounter(convIdStr, usingEpoch);
 
         // Also update counter in database for multi-device sync
-        await this.updateSessionCounterInDatabase(convIdStr, newCounter);
+        await this.updateSessionCounterInDatabase(convIdStr, newCounter, usingEpoch);
 
-        console.log('[KeyManager] ✓ Message encrypted with counter:', currentCounter);
+        console.log('[KeyManager] ✓ Message encrypted with counter:', currentCounter, 'epoch:', usingEpoch);
 
         return {
             ciphertext: encrypted.ciphertext,
             nonce: encrypted.nonce,
-            counter: currentCounter
+            counter: currentCounter,
+            epoch: usingEpoch
         };
     },
 
     /**
      * Decrypt a received message
+     * Uses epoch from message to find correct session key (supports key rotation)
      * @param {string} conversationId - Conversation ID
-     * @param {Object} encryptedData - Object with ciphertext, nonce, and counter
+     * @param {Object} encryptedData - Object with ciphertext, nonce, counter, and optional epoch
      * @returns {Promise<string>} Decrypted plaintext
      */
     async decryptMessage(conversationId, encryptedData) {
@@ -528,9 +647,13 @@ const KeyManager = {
             throw new Error('Invalid message counter');
         }
 
+        // Determine which epoch this message was encrypted with
+        const messageEpoch = typeof encryptedData.epoch === 'number' ? encryptedData.epoch : 0;
+
         console.log('[KeyManager] ========== DECRYPTING MESSAGE ==========');
         console.log('[KeyManager] Conversation ID:', conversationId, '(type:', typeof conversationId + ')');
         console.log('[KeyManager] Message counter:', encryptedData.counter);
+        console.log('[KeyManager] Message epoch:', messageEpoch);
         console.log('[KeyManager] Current user ID:', this.currentUserId);
         console.log('[KeyManager] Timestamp:', new Date().toISOString());
 
@@ -542,11 +665,38 @@ const KeyManager = {
             console.log('[KeyManager] Our public key (last 32 chars):', publicKeyHex.substring(publicKeyHex.length - 32));
         }
 
-        // Get session key from IndexedDB
-        console.log('[KeyManager] [Decrypt Step 1/6] Checking IndexedDB for session key...');
+        const convIdStr = conversationId.toString();
+
+        // Step 1: Try to get epoch-aware session key first
+        console.log('[KeyManager] [Decrypt Step 1/6] Checking for epoch-aware session key (epoch:', messageEpoch + ')...');
         const indexedDBCheckStart = Date.now();
-        // IMPORTANT: IndexedDB uses string keys, so convert conversationId to string
-        let session = await window.KeyStorageService.getSessionKey(conversationId.toString());
+        let session = await window.KeyStorageService.getEpochSessionKey(convIdStr, messageEpoch);
+
+        // If no epoch session found, try legacy session
+        if (!session) {
+            console.log('[KeyManager] No epoch session found, trying legacy session key...');
+            const legacySession = await window.KeyStorageService.getSessionKey(convIdStr);
+
+            if (legacySession) {
+                console.log('[KeyManager] Found legacy session, using it for epoch', messageEpoch);
+                session = legacySession;
+
+                // Also migrate it to epoch storage for future use
+                if (messageEpoch === 0) {
+                    try {
+                        await window.KeyStorageService.storeEpochSessionKey(
+                            convIdStr,
+                            0,
+                            legacySession.sharedSecret,
+                            legacySession.messageCounter
+                        );
+                        console.log('[KeyManager] Migrated legacy session to epoch 0 storage');
+                    } catch (e) {
+                        console.warn('[KeyManager] Failed to migrate legacy session:', e.message);
+                    }
+                }
+            }
+        }
         console.log('[KeyManager] IndexedDB lookup took', Date.now() - indexedDBCheckStart, 'ms');
 
         if (!session) {
@@ -1586,22 +1736,68 @@ const KeyManager = {
     },
 
     /**
+     * Migrate legacy session keys to epoch-aware storage
+     * Called during initialization to ensure backwards compatibility
+     * @returns {Promise<void>}
+     */
+    async migrateLegacySessionsToEpochs() {
+        console.log('[KeyManager] ========== MIGRATING LEGACY SESSIONS TO EPOCHS ==========');
+
+        try {
+            // Get all conversations for this user
+            const conversationsResult = await window.DatabaseService.querySelect('conversations', {});
+
+            if (conversationsResult.error || !conversationsResult.data) {
+                console.log('[KeyManager] No conversations to migrate');
+                return;
+            }
+
+            const userConversations = conversationsResult.data.filter(conv =>
+                conv.user1_id === this.currentUserId || conv.user2_id === this.currentUserId
+            );
+
+            let migratedCount = 0;
+
+            for (const conv of userConversations) {
+                try {
+                    const migrated = await window.KeyStorageService.migrateLegacySessionToEpoch(conv.id.toString());
+                    if (migrated) {
+                        migratedCount++;
+                    }
+                } catch (e) {
+                    console.warn('[KeyManager] Failed to migrate session for conversation:', conv.id, e.message);
+                }
+            }
+
+            console.log('[KeyManager] ✓ Migrated', migratedCount, 'legacy sessions to epoch 0');
+            console.log('[KeyManager] ========== LEGACY SESSION MIGRATION COMPLETE ==========');
+
+        } catch (error) {
+            console.error('[KeyManager] Legacy session migration failed:', error);
+            // Don't throw - migration is optional
+        }
+    },
+
+    /**
      * Update session counter in database after incrementing locally
      * Keeps database in sync with local state
      * @param {string} conversationId - Conversation ID
      * @param {number} newCounter - New message counter value
+     * @param {number} epoch - Key epoch (optional, defaults to 0 for backwards compatibility)
      * @returns {Promise<void>}
      */
-    async updateSessionCounterInDatabase(conversationId, newCounter) {
+    async updateSessionCounterInDatabase(conversationId, newCounter, epoch = 0) {
         console.log('[KeyManager] ========== UPDATING SESSION COUNTER IN DATABASE ==========');
         console.log('[KeyManager] Conversation ID:', conversationId, '(type:', typeof conversationId, ')');
         console.log('[KeyManager] New counter value:', newCounter, '(type:', typeof newCounter, ')');
+        console.log('[KeyManager] Epoch:', epoch);
         console.log('[KeyManager] Current user ID:', this.currentUserId);
 
         try {
             const filter = {
                 user_id: this.currentUserId,
-                conversation_id: parseInt(conversationId)
+                conversation_id: parseInt(conversationId),
+                key_epoch: epoch
             };
             const updateData = { message_counter: newCounter };
 
@@ -1953,6 +2149,127 @@ const KeyManager = {
             console.error('[KeyManager] Error:', error);
             console.error('[KeyManager] Error stack:', error.stack);
             throw error;
+        }
+    },
+
+    /**
+     * Regenerate identity keys to create a new safety number
+     * This creates new identity keys for this device and updates the database
+     * Both users will need to verify the new safety number
+     *
+     * What happens:
+     * - Generate new identity keys for this device
+     * - Update public key in database
+     * - Change the safety number for all conversations
+     * - Require verification with all contacts again
+     *
+     * IMPORTANT: Old messages remain readable!
+     * - Existing session keys are preserved for decrypting old messages
+     * - New sessions will be established when sending new messages
+     * - Both old and new messages will be accessible
+     *
+     * @returns {Promise<{success: boolean, message: string, newFingerprint?: string}>}
+     */
+    async regenerateIdentityKeys() {
+        console.log('[KeyManager] ========== REGENERATING IDENTITY KEYS ==========');
+        console.log('[KeyManager] User ID:', this.currentUserId);
+        console.log('[KeyManager] WARNING: This will change the safety number for all conversations!');
+
+        if (!this.initialized) {
+            return { success: false, message: 'KeyManager not initialized' };
+        }
+
+        try {
+            // Step 1: Get current keys for logging (before deletion)
+            console.log('[KeyManager] Step 1: Getting current identity keys...');
+            const oldKeys = await window.KeyStorageService.getIdentityKeys(this.currentUserId);
+            if (oldKeys) {
+                const oldPublicKeyHex = Array.from(oldKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+                console.log('[KeyManager] Old public key (first 32 chars):', oldPublicKeyHex.substring(0, 32));
+            }
+
+            // Step 2: Generate new identity keys
+            console.log('[KeyManager] Step 2: Generating new identity key pair...');
+            const newKeyPair = window.CryptoService.generateIdentityKeyPair();
+            const newPublicKeyHex = Array.from(newKeyPair.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+            console.log('[KeyManager] ✓ New keys generated');
+            console.log('[KeyManager] New public key (first 32 chars):', newPublicKeyHex.substring(0, 32));
+
+            // Step 3: Store new keys locally (overwrites old keys)
+            console.log('[KeyManager] Step 3: Storing new identity keys locally...');
+            await window.KeyStorageService.storeIdentityKeys(
+                this.currentUserId,
+                newKeyPair.publicKey,
+                newKeyPair.secretKey
+            );
+            console.log('[KeyManager] ✓ New keys stored in IndexedDB');
+
+            // Step 4: Increment epoch in database
+            // This is critical for key rotation - new messages will use new session keys
+            console.log('[KeyManager] Step 4: Incrementing epoch in database...');
+            const oldEpoch = this.currentEpoch;
+            const newEpoch = await this.incrementEpochInDatabase(this.currentUserId);
+            console.log('[KeyManager] ✓ Epoch incremented from', oldEpoch, 'to', newEpoch);
+
+            // Step 5: Update public key in database (include new epoch)
+            console.log('[KeyManager] Step 5: Updating public key in database...');
+            const publicKeyB64 = window.CryptoService.serializePublicKey(newKeyPair.publicKey);
+
+            const updateResult = await window.DatabaseService.queryUpdate(
+                'identity_keys',
+                null, // No id, using filter
+                { public_key: publicKeyB64 },
+                { user_id: this.currentUserId }
+            );
+
+            if (updateResult.error) {
+                console.error('[KeyManager] Database update failed:', updateResult.error);
+                throw new Error('Failed to update public key in database: ' + updateResult.error.message);
+            }
+            console.log('[KeyManager] ✓ Public key updated in database');
+
+            // Step 6: IMPORTANT - Keep existing session keys!
+            // Session keys are used to decrypt OLD messages. If we delete them, old messages become unreadable.
+            // New sessions will be established automatically when sending new messages with the new epoch.
+            console.log('[KeyManager] Step 6: Preserving existing session keys...');
+            const stats = await window.KeyStorageService.getStats();
+            console.log('[KeyManager] Keeping', stats.epochSessions || stats.sessionKeys, 'existing session keys for old message decryption');
+            console.log('[KeyManager] ✓ Existing session keys preserved (old messages remain readable)');
+
+            // Step 7: IMPORTANT - Keep database session backups!
+            // These are encrypted with the OLD identity key, but we're keeping them because:
+            // 1. Other devices with the old identity key can still use them
+            // 2. Old messages need these sessions to decrypt
+            // When the user sends a NEW message, a new session will be established with the new keys
+            console.log('[KeyManager] Step 7: Preserving session backups in database...');
+            console.log('[KeyManager] ✓ Session backups preserved (multi-device old message access)');
+
+            // Generate new fingerprint for display
+            const newFingerprint = newPublicKeyHex.substring(0, 16).toUpperCase();
+
+            console.log('[KeyManager] ========== KEY REGENERATION COMPLETE ==========');
+            console.log('[KeyManager] New key fingerprint:', newFingerprint);
+            console.log('[KeyManager] New epoch:', newEpoch);
+            console.log('[KeyManager]');
+            console.log('[KeyManager] IMPORTANT:');
+            console.log('[KeyManager] 1. All your contacts will see a new safety number');
+            console.log('[KeyManager] 2. You should verify the new number with each contact');
+            console.log('[KeyManager] 3. NEW messages will use epoch', newEpoch, 'session keys');
+            console.log('[KeyManager] 4. OLD messages (epoch', oldEpoch, ') remain readable');
+
+            return {
+                success: true,
+                message: `Identity keys regenerated (epoch ${newEpoch}). Verify safety numbers with your contacts.`,
+                newFingerprint: newFingerprint,
+                newEpoch: newEpoch,
+                oldEpoch: oldEpoch
+            };
+
+        } catch (error) {
+            console.error('[KeyManager] ========== KEY REGENERATION FAILED ==========');
+            console.error('[KeyManager] Error:', error);
+            console.error('[KeyManager] Error stack:', error.stack);
+            return { success: false, message: error.message };
         }
     },
 

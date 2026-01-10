@@ -217,6 +217,27 @@
                             <i class="fas fa-fingerprint"></i> Show Safety Number
                         </button>
                     </div>
+
+                    <div style="border: 1px solid #fd7e14; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(253, 126, 20, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-sync-alt"></i> Regenerate Keys</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Generate new identity keys to create a new safety number. Both you and your contact will need to verify the new number.
+                        </p>
+                        <button id="regenerate-keys-btn" class="btn btn-secondary" style="width: 100%; border-color: #fd7e14; color: #fd7e14;">
+                            <i class="fas fa-sync-alt"></i> Regenerate Identity Keys
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #6c757d; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(108, 117, 125, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-bug"></i> Debug Mode</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Show encryption debug info (epoch, session, counter) on each message.
+                        </p>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="checkbox" id="encryption-debug-toggle" style="width: 18px; height: 18px;">
+                            <span id="encryption-debug-label">Enable Debug Mode</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="encryption-admin-status" style="margin-top: var(--spacing-md); padding: var(--spacing-md); border-radius: var(--border-radius); display: none;"></div>
@@ -511,6 +532,90 @@
                 verifyKeysBtn.disabled = false;
                 verifyKeysBtn.innerHTML = '<i class="fas fa-fingerprint"></i> Show Safety Number';
             });
+
+            // Debug Mode toggle
+            const debugToggle = document.getElementById('encryption-debug-toggle');
+            const debugLabel = document.getElementById('encryption-debug-label');
+            if (debugToggle) {
+                // Initialize from sessionStorage
+                const debugEnabled = sessionStorage.getItem('encryption_debug_mode') === 'true';
+                debugToggle.checked = debugEnabled;
+                debugLabel.textContent = debugEnabled ? 'Debug Mode ON' : 'Enable Debug Mode';
+                window.ENCRYPTION_DEBUG_MODE = debugEnabled;
+
+                debugToggle.addEventListener('change', async () => {
+                    const enabled = debugToggle.checked;
+                    sessionStorage.setItem('encryption_debug_mode', enabled.toString());
+                    window.ENCRYPTION_DEBUG_MODE = enabled;
+                    debugLabel.textContent = enabled ? 'Debug Mode ON' : 'Enable Debug Mode';
+
+                    // Reload messages to show/hide debug info
+                    if (window.MessengerController && window.MessengerController.currentConversationId) {
+                        showStatus(
+                            enabled
+                                ? '<strong>Debug Mode Enabled</strong><br>Messages will now show encryption details. Reloading conversation...'
+                                : '<strong>Debug Mode Disabled</strong><br>Encryption details hidden. Reloading conversation...',
+                            false
+                        );
+                        // Reload current conversation to apply debug mode
+                        setTimeout(() => {
+                            window.MessengerController.loadConversation(window.MessengerController.currentConversationId);
+                        }, 500);
+                    }
+                });
+            }
+
+            // Regenerate Keys button
+            const regenerateKeysBtn = document.getElementById('regenerate-keys-btn');
+            if (regenerateKeysBtn) {
+                regenerateKeysBtn.addEventListener('click', async () => {
+                    // Confirm with user before proceeding
+                    const confirmed = confirm(
+                        'Are you sure you want to regenerate your identity keys?\n\n' +
+                        'This will:\n' +
+                        '• Generate new encryption keys for this device\n' +
+                        '• Change the safety number for ALL conversations\n' +
+                        '• Require you to verify numbers with all contacts again\n\n' +
+                        'Your old messages will remain readable.\n' +
+                        'New sessions will be established automatically when you send new messages.'
+                    );
+
+                    if (!confirmed) return;
+
+                    regenerateKeysBtn.disabled = true;
+                    regenerateKeysBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerating...';
+
+                    try {
+                        const result = await window.KeyManager.regenerateIdentityKeys();
+                        if (result.success) {
+                            const successHtml = `
+                                <div style="text-align: center;">
+                                    <strong style="color: #28a745;"><i class="fas fa-check-circle"></i> Keys Regenerated</strong>
+                                    <p style="font-size: 0.85rem; margin: 8px 0;">${result.message}</p>
+                                    <div style="font-family: monospace; font-size: 1.1rem; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                        New Fingerprint: <strong>${result.newFingerprint}</strong>
+                                    </div>
+                                    <p style="font-size: 0.8rem; color: var(--text-color-secondary); margin-top: 12px;">
+                                        <i class="fas fa-info-circle"></i> Click "Show Safety Number" to see your new safety number for verification.
+                                    </p>
+                                </div>
+                            `;
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+                            statusDiv.style.border = '1px solid #28a745';
+                            statusDiv.style.color = 'var(--text-color)';
+                            statusDiv.innerHTML = successHtml;
+                        } else {
+                            showStatus(`<strong>Failed:</strong> ${result.message}`, true);
+                        }
+                    } catch (error) {
+                        showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                    }
+
+                    regenerateKeysBtn.disabled = false;
+                    regenerateKeysBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Regenerate Identity Keys';
+                });
+            }
 
             console.log('[MessengerPage] ✅ Encryption Admin Tools initialized');
         }
