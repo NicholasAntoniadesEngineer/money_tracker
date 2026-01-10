@@ -893,20 +893,7 @@ const DatabaseService = {
      */
     async _handleResponse(response) {
         if (!response.ok) {
-            // Check for authentication failures (401 Unauthorized, 403 Forbidden)
-            if (response.status === 401 || response.status === 403) {
-                console.warn('[DatabaseService] Authentication failed on server (status:', response.status, ')');
-                console.warn('[DatabaseService] This indicates the auth token is invalid or expired');
-                console.warn('[DatabaseService] Redirecting to sign-in...');
-
-                // Clear validation cache in AuthService to force fresh check
-                if (window.AuthService) {
-                    window.AuthService.lastValidation = { timestamp: 0, result: null };
-                    // Redirect to sign-in
-                    window.AuthService._redirectToSignIn();
-                }
-            }
-
+            // Parse error response first to check error type
             const errorText = await response.text();
             let errorObj;
             try {
@@ -914,6 +901,31 @@ const DatabaseService = {
             } catch {
                 errorObj = { message: errorText };
             }
+
+            // Check for authentication failures (401 Unauthorized, 403 Forbidden)
+            // BUT: Distinguish RLS policy violations (code 42501) from auth failures
+            if (response.status === 401 || response.status === 403) {
+                // PostgreSQL error code 42501 = "insufficient privilege" (RLS violation)
+                // This is NOT an auth failure - it's a permissions/policy issue
+                if (errorObj.code === '42501') {
+                    console.warn('[DatabaseService] RLS policy violation (code 42501):', errorObj.message);
+                    console.warn('[DatabaseService] This is a permissions issue, not an auth failure');
+                    // Don't redirect - just return the error for proper handling
+                } else {
+                    // True authentication failure - redirect to sign-in
+                    console.warn('[DatabaseService] Authentication failed on server (status:', response.status, ')');
+                    console.warn('[DatabaseService] This indicates the auth token is invalid or expired');
+                    console.warn('[DatabaseService] Redirecting to sign-in...');
+
+                    // Clear validation cache in AuthService to force fresh check
+                    if (window.AuthService) {
+                        window.AuthService.lastValidation = { timestamp: 0, result: null };
+                        // Redirect to sign-in
+                        window.AuthService._redirectToSignIn();
+                    }
+                }
+            }
+
             return {
                 data: null,
                 count: null,
@@ -2984,22 +2996,22 @@ const DatabaseService = {
                 throw new Error('DatabaseService client not available');
             }
             
-            const functionUrl = `${this.client.supabaseUrl}/functions/v1/find-user-by-email`;
+            const functionUrl = `${this.client.supabaseUrl}/functions/v1/user-lookup`;
             const authHeaders = this._getAuthHeaders();
             const edgeFunctionHeaders = {
                 'apikey': authHeaders.apikey,
                 'Authorization': authHeaders.Authorization,
                 'Content-Type': 'application/json'
             };
-            
-            console.log('[DatabaseService] Calling find-user-by-email Edge Function:', { functionUrl, email });
+
+            console.log('[DatabaseService] Calling user-lookup Edge Function (findByEmail):', { functionUrl, email });
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: edgeFunctionHeaders,
-                body: JSON.stringify({ email: email })
+                body: JSON.stringify({ action: 'findByEmail', email: email })
             });
-            
-            console.log('[DatabaseService] find-user-by-email response status:', response.status, response.statusText);
+
+            console.log('[DatabaseService] user-lookup (findByEmail) response status:', response.status, response.statusText);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -3009,7 +3021,7 @@ const DatabaseService = {
                 } catch (e) {
                     errorData = { error: errorText || 'Failed to find user' };
                 }
-                console.error('[DatabaseService] find-user-by-email error:', { status: response.status, errorData, errorText });
+                console.error('[DatabaseService] user-lookup (findByEmail) error:', { status: response.status, errorData, errorText });
                 
                 if (response.status === 404) {
                     return {
@@ -3071,25 +3083,45 @@ const DatabaseService = {
                 throw new Error('DatabaseService client not available');
             }
             
-            const functionUrl = `${this.client.supabaseUrl}/functions/v1/get-user-email-by-id`;
+            const functionUrl = `${this.client.supabaseUrl}/functions/v1/user-lookup`;
             const authHeaders = this._getAuthHeaders();
             const edgeFunctionHeaders = {
                 'apikey': authHeaders.apikey,
                 'Authorization': authHeaders.Authorization,
                 'Content-Type': 'application/json'
             };
+
+            console.log('[DatabaseService] Calling user-lookup Edge Function (getEmailById):', { functionUrl, userId });
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: edgeFunctionHeaders,
-                body: JSON.stringify({ userId: userId })
+                body: JSON.stringify({ action: 'getEmailById', userId: userId })
             });
+
+            console.log('[DatabaseService] user-lookup (getEmailById) response status:', response.status, response.statusText);
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const errorText = await response.text();
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { error: errorText || 'Failed to get user email' };
+                }
+                console.error('[DatabaseService] user-lookup (getEmailById) error:', { status: response.status, errorData, errorText });
+
+                if (response.status === 404) {
+                    return {
+                        success: false,
+                        email: null,
+                        error: 'User not found'
+                    };
+                }
+
                 return {
                     success: false,
                     email: null,
-                    error: errorData.error || errorData.message || 'Failed to get user email'
+                    error: errorData.error || errorData.message || `Failed to get user email (HTTP ${response.status})`
                 };
             }
             

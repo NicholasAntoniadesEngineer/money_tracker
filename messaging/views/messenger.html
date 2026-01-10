@@ -63,6 +63,9 @@
                     <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
                         <button id="add-friend-conversation-btn" class="btn btn-action btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Add to Friends</button>
                         <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block User</button>
+                        <button id="encryption-admin-btn" class="btn btn-secondary btn-sm" style="flex: 0 1 auto; min-width: 0; max-width: 100%;" title="Encryption Admin Tools">
+                            <i class="fas fa-key"></i> Fix Encryption
+                        </button>
                     </div>
                 </div>
                 <div id="message-thread" class="message-thread">
@@ -226,6 +229,53 @@
         </div>
     </div>
 
+    <!-- Encryption Admin Modal -->
+    <div id="encryption-admin-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                <h3 style="margin: 0;"><i class="fas fa-key"></i> Fix Encryption</h3>
+                <button id="close-encryption-admin-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; border-radius: var(--border-radius); padding: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                    <p style="margin: 0; color: #856404;"><strong>Warning:</strong> These tools are for fixing encryption issues when messages fail to decrypt. Use with caution.</p>
+                </div>
+
+                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                    <label class="form-label">Conversation ID:</label>
+                    <input type="text" id="encryption-admin-conv-id" class="form-input" readonly>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: var(--spacing-md);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;">Option 1: Re-backup from this device (PRIMARY)</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Run this on your PRIMARY device to re-establish the correct encryption key and backup to the database.
+                        </p>
+                        <button id="force-rebackup-btn" class="btn btn-action" style="width: 100%;">
+                            <i class="fas fa-upload"></i> Re-backup Session Key
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: var(--spacing-md);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;">Option 2: Sync from backup (SECONDARY)</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Run this on your SECONDARY device after the primary has fixed the backup.
+                        </p>
+                        <button id="force-sync-btn" class="btn btn-secondary" style="width: 100%;">
+                            <i class="fas fa-download"></i> Sync from Backup
+                        </button>
+                    </div>
+                </div>
+
+                <div id="encryption-admin-status" style="margin-top: var(--spacing-md); padding: var(--spacing-md); border-radius: var(--border-radius); display: none;"></div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                <button id="close-encryption-admin-modal-footer" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <!-- Global Logging Configuration - MUST load first -->
     <script src="../../shared/config/loggingConfig.js"></script>
@@ -372,6 +422,104 @@
             allWindowKeys: Object.keys(window).filter(k => k.includes('Header') || k.includes('Messenger') || k.includes('Database') || k.includes('Auth'))
         });
 
+        // Encryption Admin Tools initialization
+        function initEncryptionAdminTools() {
+            console.log('[MessengerPage] Initializing Encryption Admin Tools...');
+
+            const adminBtn = document.getElementById('encryption-admin-btn');
+            const modal = document.getElementById('encryption-admin-modal');
+            const closeBtn = document.getElementById('close-encryption-admin-modal');
+            const closeFooterBtn = document.getElementById('close-encryption-admin-modal-footer');
+            const convIdInput = document.getElementById('encryption-admin-conv-id');
+            const rebackupBtn = document.getElementById('force-rebackup-btn');
+            const syncBtn = document.getElementById('force-sync-btn');
+            const statusDiv = document.getElementById('encryption-admin-status');
+
+            if (!adminBtn || !modal) {
+                console.warn('[MessengerPage] Encryption admin elements not found');
+                return;
+            }
+
+            // Open modal
+            adminBtn.addEventListener('click', () => {
+                const convId = window.MessengerController?.currentConversationId;
+                if (!convId) {
+                    alert('No conversation selected');
+                    return;
+                }
+                convIdInput.value = convId;
+                statusDiv.style.display = 'none';
+                modal.style.display = 'flex';
+            });
+
+            // Close modal
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+            closeBtn.addEventListener('click', closeModal);
+            closeFooterBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            // Show status
+            const showStatus = (message, isError = false) => {
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = isError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(40, 167, 69, 0.1)';
+                statusDiv.style.border = `1px solid ${isError ? '#dc3545' : '#28a745'}`;
+                statusDiv.style.color = isError ? '#721c24' : '#155724';
+                statusDiv.innerHTML = message;
+            };
+
+            // Re-backup button (PRIMARY device)
+            rebackupBtn.addEventListener('click', async () => {
+                const convId = convIdInput.value;
+                if (!convId) return;
+
+                rebackupBtn.disabled = true;
+                rebackupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Working...';
+
+                try {
+                    const result = await window.KeyManager.forceRebackupSession(convId);
+                    if (result.success) {
+                        showStatus(`<strong>Success!</strong><br>${result.message}<br><br>Shared secret: <code>${result.sharedSecret}</code><br><br>Now run "Sync from Backup" on your other device.`);
+                    } else {
+                        showStatus(`<strong>Failed:</strong> ${result.message}`, true);
+                    }
+                } catch (error) {
+                    showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                }
+
+                rebackupBtn.disabled = false;
+                rebackupBtn.innerHTML = '<i class="fas fa-upload"></i> Re-backup Session Key';
+            });
+
+            // Sync button (SECONDARY device)
+            syncBtn.addEventListener('click', async () => {
+                const convId = convIdInput.value;
+                if (!convId) return;
+
+                syncBtn.disabled = true;
+                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Working...';
+
+                try {
+                    const result = await window.KeyManager.forceSyncFromBackup(convId);
+                    if (result.success) {
+                        showStatus(`<strong>Success!</strong><br>${result.message}<br><br>Shared secret: <code>${result.sharedSecret}</code><br><br>Try reloading the conversation to test decryption.`);
+                    } else {
+                        showStatus(`<strong>Failed:</strong> ${result.message}`, true);
+                    }
+                } catch (error) {
+                    showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                }
+
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = '<i class="fas fa-download"></i> Sync from Backup';
+            });
+
+            console.log('[MessengerPage] ✅ Encryption Admin Tools initialized');
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[MessengerPage] ========== DOMContentLoaded FIRED ==========');
             console.log('[MessengerPage] Document ready state:', document.readyState);
@@ -465,6 +613,10 @@
                     await window.MessengerController.init();
                     const controllerInitTime = Date.now() - controllerInitStart;
                     console.log(`[MessengerPage] ✅ MessengerController.init() completed in ${controllerInitTime}ms`);
+
+                    // Initialize Encryption Admin Tools
+                    initEncryptionAdminTools();
+
                     console.log('[MessengerPage] ========== INITIALIZATION COMPLETE ==========');
                 } else {
                     console.error('[MessengerPage] ❌ MessengerController.init() is not available:', {

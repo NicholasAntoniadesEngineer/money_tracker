@@ -57,10 +57,9 @@ const SubscriptionChecker = {
                 hasSubscription: !!subscription,
                 subscriptionStatus: subscription?.status,
                 planId: subscription?.plan_id,
-                trialStartDate: subscription?.trial_start_date,
-                trialEndDate: subscription?.trial_end_date,
-                subscriptionStartDate: subscription?.subscription_start_date,
-                subscriptionEndDate: subscription?.subscription_end_date
+                trialEnd: subscription?.trial_end,
+                currentPeriodStart: subscription?.current_period_start,
+                currentPeriodEnd: subscription?.current_period_end
             });
             
             if (!subscription) {
@@ -80,8 +79,7 @@ const SubscriptionChecker = {
                                 console.log('[SubscriptionChecker] ✅ Trial subscription created successfully');
                                 console.log('[SubscriptionChecker] checkAccess - New subscription:', {
                                     status: createTrialResult.subscription.status,
-                                    trialStartDate: createTrialResult.subscription.trial_start_date,
-                                    trialEndDate: createTrialResult.subscription.trial_end_date
+                                    trialEnd: createTrialResult.subscription.trial_end
                                 });
                                 
                                 // Now check access again with the newly created subscription

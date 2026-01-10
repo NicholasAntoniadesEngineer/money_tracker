@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
     <link rel="stylesheet" href="../../shared/styles/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         .pairing-container {
             min-height: 100vh;
@@ -21,7 +23,7 @@
             background: var(--surface-color);
             border-radius: var(--border-radius);
             padding: var(--spacing-xl);
-            max-width: 500px;
+            max-width: 600px;
             width: 100%;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
@@ -50,49 +52,88 @@
             display: block;
         }
 
-        .pairing-code-display {
-            font-size: 3rem;
-            font-weight: bold;
-            text-align: center;
-            letter-spacing: 0.5rem;
-            margin: var(--spacing-xl) 0;
+        .method-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .method-card {
             padding: var(--spacing-lg);
-            background: var(--hover-overlay);
+            border: 2px solid var(--border-color);
             border-radius: var(--border-radius);
-            color: var(--primary-color);
-            font-family: monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
         }
 
-        .pairing-timer {
-            text-align: center;
-            font-size: 1.5rem;
+        .method-card:hover {
+            border-color: var(--primary-color);
+            background: var(--hover-overlay);
+        }
+
+        .method-card .method-icon {
+            font-size: 3rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .method-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-color);
+        }
+
+        .method-card p {
+            font-size: 0.9rem;
             color: var(--text-color-secondary);
-            margin-bottom: var(--spacing-lg);
+            line-height: 1.4;
         }
 
-        .pairing-code-input {
-            font-size: 2rem;
+        .qr-code-container {
             text-align: center;
-            letter-spacing: 0.5rem;
-            padding: var(--spacing-lg);
+            margin: var(--spacing-xl) 0;
+        }
+
+        #qr-canvas {
+            max-width: 300px;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        #qr-reader {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .password-input-group {
+            margin: var(--spacing-md) 0;
+        }
+
+        .password-input-group label {
+            display: block;
+            margin-bottom: var(--spacing-sm);
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .password-input-group input {
             width: 100%;
+            padding: var(--spacing-md);
             border: var(--border-width-standard) solid var(--border-color);
             border-radius: var(--border-radius);
-            margin-bottom: var(--spacing-lg);
-            font-family: monospace;
+            font-size: 1rem;
         }
 
-        .pairing-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-md);
+        .password-strength {
+            margin-top: var(--spacing-sm);
+            font-size: 0.875rem;
         }
 
-        .pairing-status {
-            text-align: center;
-            margin-top: var(--spacing-md);
-            min-height: 1.5rem;
-        }
+        .password-strength.weak { color: var(--error-color); }
+        .password-strength.medium { color: #f59e0b; }
+        .password-strength.strong { color: var(--success-color); }
 
         .instruction-text {
             text-align: center;
@@ -101,21 +142,57 @@
             line-height: 1.6;
         }
 
-        .logout-link {
+        .pairing-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .pairing-status {
+            text-align: center;
+            margin-top: var(--spacing-md);
+            min-height: 1.5rem;
+            padding: var(--spacing-sm);
+            border-radius: var(--border-radius);
+        }
+
+        .pairing-status.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .pairing-status.error {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .pairing-status.info {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .back-link {
             text-align: center;
             margin-top: var(--spacing-xl);
             padding-top: var(--spacing-lg);
             border-top: var(--border-width-standard) solid var(--border-color);
         }
 
-        .logout-link a {
+        .back-link a {
             color: var(--text-color-secondary);
             text-decoration: none;
             font-size: 0.9rem;
         }
 
-        .logout-link a:hover {
+        .back-link a:hover {
             color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .method-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -123,158 +200,765 @@
     <div class="pairing-container">
         <div class="pairing-card">
             <div class="pairing-header">
-                <h1>🔐 Device Setup</h1>
-                <p>Secure your messages with end-to-end encryption</p>
+                <h1>🔐 Device Pairing</h1>
+                <p>Sync your encryption keys across devices</p>
             </div>
 
-            <!-- Detection View -->
-            <div id="device-detection-view" class="pairing-view active">
+            <!-- Choose Action View -->
+            <div id="choose-action-view" class="pairing-view active">
                 <div class="instruction-text">
-                    <p>Is this your first time using Money Tracker on this device?</p>
+                    <p><strong>Do you have encryption keys on another device?</strong></p>
                 </div>
                 <div class="pairing-buttons">
-                    <button id="is-primary-device-btn" class="btn btn-primary btn-lg">
-                        <i class="fas fa-key"></i> Yes, set up encryption
+                    <button id="new-device-btn" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i> Setup New Device
                     </button>
-                    <button id="is-secondary-device-btn" class="btn btn-secondary btn-lg">
-                        <i class="fas fa-mobile-alt"></i> No, I have another device
-                    </button>
-                </div>
-            </div>
-
-            <!-- Primary Device View (Show Code) -->
-            <div id="primary-device-view" class="pairing-view">
-                <div class="instruction-text">
-                    <p><strong>Share this code with your other device:</strong></p>
-                </div>
-                <div id="pairing-code-display" class="pairing-code-display">------</div>
-                <div id="pairing-code-timer" class="pairing-timer">5:00</div>
-                <div class="instruction-text">
-                    <p style="font-size: 0.9rem;">Enter this code on your other device to sync your encryption keys.</p>
-                    <p style="font-size: 0.9rem; margin-top: var(--spacing-sm);">Code expires in 5 minutes.</p>
-                </div>
-                <div class="pairing-buttons">
-                    <button id="regenerate-code-btn" class="btn btn-secondary">
-                        <i class="fas fa-redo"></i> Generate New Code
-                    </button>
-                    <button id="continue-without-pairing-btn" class="btn btn-action">
-                        <i class="fas fa-arrow-right"></i> Continue to App
+                    <button id="existing-device-btn" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-mobile-alt"></i> Restore from Another Device
                     </button>
                 </div>
             </div>
 
-            <!-- Secondary Device View (Enter Code) -->
-            <div id="secondary-device-view" class="pairing-view">
+            <!-- Choose Backup Method View (for new device) -->
+            <div id="choose-backup-method-view" class="pairing-view">
                 <div class="instruction-text">
-                    <p><strong>Enter the 6-digit code from your primary device:</strong></p>
+                    <p><strong>Choose how to backup your keys:</strong></p>
                 </div>
-                <input
-                    type="text"
-                    id="pairing-code-input"
-                    class="pairing-code-input"
-                    placeholder="000000"
-                    maxlength="6"
-                    pattern="[0-9]{6}"
-                    autocomplete="off"
-                >
+                <div class="method-grid">
+                    <div class="method-card" id="qr-backup-method">
+                        <div class="method-icon">📱</div>
+                        <h3>QR Code</h3>
+                        <p>Show QR code to pair another device instantly</p>
+                    </div>
+                    <div class="method-card" id="password-backup-method">
+                        <div class="method-icon">🔑</div>
+                        <h3>Password</h3>
+                        <p>Create password-protected backup for recovery</p>
+                    </div>
+                </div>
                 <div class="pairing-buttons">
-                    <button id="submit-pairing-code-btn" class="btn btn-primary btn-lg">
-                        <i class="fas fa-check"></i> Pair Device
-                    </button>
-                    <button id="back-to-detection-btn" class="btn btn-secondary">
+                    <button id="back-to-action-btn" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back
                     </button>
                 </div>
-                <div id="pairing-status" class="pairing-status"></div>
             </div>
 
-            <div class="logout-link">
-                <a href="../../auth/views/auth.html">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+            <!-- Choose Restore Method View (for existing device) -->
+            <div id="choose-restore-method-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Choose how to restore your keys:</strong></p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--spacing-md); margin: var(--spacing-lg) 0;">
+                    <div class="method-card" id="qr-restore-method">
+                        <div class="method-icon">📷</div>
+                        <h3>Scan QR Code</h3>
+                        <p>Scan QR code from your primary device</p>
+                    </div>
+                    <div class="method-card" id="password-restore-method">
+                        <div class="method-icon">🔓</div>
+                        <h3>Password</h3>
+                        <p>Restore from login password</p>
+                    </div>
+                    <div class="method-card" id="recovery-key-restore-method">
+                        <div class="method-icon">🔑</div>
+                        <h3>Recovery Key</h3>
+                        <p>Use your 24-word recovery key</p>
+                    </div>
+                </div>
+                <div class="pairing-buttons">
+                    <button id="back-to-action-btn-2" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- QR Code Generation View -->
+            <div id="qr-generation-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Scan this QR code with your other device:</strong></p>
+                </div>
+                <div class="qr-code-container">
+                    <canvas id="qr-canvas"></canvas>
+                </div>
+                <div class="instruction-text">
+                    <p style="font-size: 0.9rem; color: var(--error-color);">
+                        ⚠️ This QR code expires in 10 minutes for security
+                    </p>
+                    <p style="font-size: 0.9rem; margin-top: var(--spacing-sm);">
+                        Open Device Pairing on your other device and choose "Scan QR Code"
+                    </p>
+                </div>
+                <div class="pairing-buttons">
+                    <button id="done-qr-btn" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Done
+                    </button>
+                    <button id="back-from-qr-gen-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- QR Code Scanning View -->
+            <div id="qr-scanning-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Scan the QR code from your other device:</strong></p>
+                </div>
+                <div id="qr-reader"></div>
+                <div id="qr-scan-status" class="pairing-status"></div>
+                <div class="pairing-buttons">
+                    <button id="back-from-qr-scan-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Password Backup Creation View -->
+            <div id="password-backup-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Create a password to protect your keys:</strong></p>
+                </div>
+                <div class="password-input-group">
+                    <label for="backup-password">Password (min 8 characters)</label>
+                    <input type="password" id="backup-password" placeholder="Enter password">
+                    <div id="password-strength-indicator" class="password-strength"></div>
+                </div>
+                <div class="password-input-group">
+                    <label for="backup-password-confirm">Confirm Password</label>
+                    <input type="password" id="backup-password-confirm" placeholder="Confirm password">
+                </div>
+                <div id="backup-status" class="pairing-status"></div>
+                <div class="pairing-buttons">
+                    <button id="create-backup-btn" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Backup
+                    </button>
+                    <button id="back-from-backup-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Password Restore View -->
+            <div id="password-restore-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Enter your login password to restore keys:</strong></p>
+                </div>
+                <div class="password-input-group">
+                    <label for="restore-password">Password</label>
+                    <input type="password" id="restore-password" placeholder="Enter your login password">
+                </div>
+                <div id="restore-status" class="pairing-status"></div>
+                <div class="pairing-buttons">
+                    <button id="restore-backup-btn" class="btn btn-primary">
+                        <i class="fas fa-unlock"></i> Restore Keys
+                    </button>
+                    <button id="back-from-restore-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recovery Key Restore View -->
+            <div id="recovery-key-restore-view" class="pairing-view">
+                <div class="instruction-text">
+                    <p><strong>Enter your 24-word recovery key:</strong></p>
+                    <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-top: var(--spacing-sm);">
+                        Paste or type all 24 words separated by spaces
+                    </p>
+                </div>
+                <div style="margin: var(--spacing-lg) 0;">
+                    <label for="recovery-key-input" style="display: block; margin-bottom: var(--spacing-sm); font-weight: 500;">Recovery Key</label>
+                    <textarea
+                        id="recovery-key-input"
+                        placeholder="word1 word2 word3 ..."
+                        rows="6"
+                        style="width: 100%; padding: var(--spacing-md); border: 2px solid var(--border-color); border-radius: var(--border-radius); font-family: 'Courier New', monospace; font-size: 1rem; resize: vertical;"
+                    ></textarea>
+                    <div id="recovery-key-word-count" style="font-size: 0.85rem; color: var(--text-color-secondary); margin-top: var(--spacing-xs);">
+                        0 / 24 words
+                    </div>
+                </div>
+                <div id="recovery-restore-status" class="pairing-status"></div>
+                <div class="pairing-buttons">
+                    <button id="restore-recovery-key-btn" class="btn btn-primary" disabled>
+                        <i class="fas fa-key"></i> Restore with Recovery Key
+                    </button>
+                    <button id="back-from-recovery-restore-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </div>
+            </div>
+
+            <div class="back-link">
+                <a href="../../landing/index.html">
+                    <i class="fas fa-home"></i> Return to Dashboard
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Global Logging Configuration -->
+    <!-- Scripts -->
     <script src="../../shared/config/loggingConfig.js"></script>
-
-    <!-- Database and Services -->
     <script src="../../database/config/supabaseConfig.js"></script>
     <script src="../../database/services/databaseService.js"></script>
     <script src="../../shared/services/authService.js"></script>
-
-    <!-- Crypto Libraries -->
     <script src="../crypto/naclLoader.js"></script>
+    <script src="../crypto/cryptoService.js"></script>
     <script src="../crypto/keyStorageService.js"></script>
-    <script src="../crypto/passwordCrypto.js"></script>
-    <script src="../crypto/keyBackupService.js"></script>
     <script src="../crypto/keyManager.js"></script>
 
-    <!-- Password Manager -->
-    <script src="../../shared/utils/passwordManager.js"></script>
-
-    <!-- Device Pairing -->
-    <script src="../services/devicePairingService.js"></script>
-    <script src="../controllers/devicePairingController.js"></script>
-
     <script>
-        console.log('[DevicePairingPage] Page loaded');
+        let qrScanner = null;
 
-        // Wait for services to be ready
-        async function waitFor(condition, name, timeout = 10000) {
-            const startTime = Date.now();
-            while (!condition()) {
-                if (Date.now() - startTime > timeout) {
-                    throw new Error(`Timeout waiting for ${name}`);
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+        // View management
+        function showView(viewId) {
+            document.querySelectorAll('.pairing-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            document.getElementById(viewId).classList.add('active');
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('[DevicePairingPage] DOMContentLoaded');
+        // Password strength checker
+        function checkPasswordStrength(password) {
+            if (!password) return '';
+            if (password.length < 8) return 'Password must be at least 8 characters';
+            if (password.length < 12) return '<span class="weak">Weak - consider longer password</span>';
+            if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+                return '<span class="medium">Medium - add uppercase, lowercase, and numbers</span>';
+            }
+            return '<span class="strong">Strong password!</span>';
+        }
+
+        // Initialize
+        async function initialize() {
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('[DevicePairing] 🔧 PAGE INITIALIZATION STARTED');
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('[DevicePairing] User arrived at device pairing page');
+            console.log('[DevicePairing] Referrer:', document.referrer || 'direct navigation');
 
             try {
-                // Check if user is authenticated
-                console.log('[DevicePairingPage] Checking authentication...');
-                await waitFor(() => typeof window.AuthService !== 'undefined', 'AuthService', 5000);
+                // Initialize services
+                console.log('[DevicePairing] Step 1/6: Initializing AuthService...');
+                await window.AuthService.initialize();
+                console.log('[DevicePairing] ✅ AuthService initialized');
 
-                let authCheckAttempts = 0;
-                const maxAuthChecks = 50;
-                while (authCheckAttempts < maxAuthChecks) {
-                    if (window.AuthService && window.AuthService.isAuthenticated()) {
-                        console.log('[DevicePairingPage] User authenticated');
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    authCheckAttempts++;
+                console.log('[DevicePairing] Step 2/6: Initializing DatabaseService...');
+                await window.DatabaseService.initialize();
+                console.log('[DevicePairing] ✅ DatabaseService initialized');
+
+                console.log('[DevicePairing] Step 3/6: Initializing CryptoService...');
+                await window.CryptoService.initialize();
+                console.log('[DevicePairing] ✅ CryptoService initialized');
+
+                console.log('[DevicePairing] Step 4/6: Initializing KeyStorageService...');
+                await window.KeyStorageService.initialize();
+                console.log('[DevicePairing] ✅ KeyStorageService initialized');
+
+                console.log('[DevicePairing] Step 5/6: Checking user authentication...');
+
+                // Wait for session validation to complete (session check runs in background during init)
+                console.log('[DevicePairing] Validating session...');
+                const sessionValidation = await window.AuthService.validateSession();
+                console.log('[DevicePairing] Session validation result:', sessionValidation);
+
+                const currentUser = window.AuthService.getCurrentUser();
+                console.log('[DevicePairing]   - User authenticated:', !!currentUser);
+                if (currentUser) {
+                    console.log('[DevicePairing]   - User ID:', currentUser.id);
+                    console.log('[DevicePairing]   - User email:', currentUser.email);
                 }
 
-                if (!window.AuthService || !window.AuthService.isAuthenticated()) {
-                    console.warn('[DevicePairingPage] User not authenticated, redirecting to auth');
+                if (!currentUser) {
+                    console.error('[DevicePairing] ❌ No authenticated user found');
+                    alert('Please sign in first');
                     window.location.href = '../../auth/views/auth.html';
                     return;
                 }
+                console.log('[DevicePairing] ✅ User authentication verified');
 
-                // Initialize DevicePairingController
-                console.log('[DevicePairingPage] Initializing pairing controller...');
-                await waitFor(() => typeof window.DevicePairingController !== 'undefined', 'DevicePairingController', 5000);
+                console.log('[DevicePairing] Step 6/6: Initializing KeyManager...');
+                try {
+                    await window.KeyManager.initialize(currentUser.id);
+                    console.log('[DevicePairing] ✅ KeyManager initialized for user:', currentUser.id);
+                } catch (kmError) {
+                    // It's OK if KeyManager fails because keys exist on another device
+                    // That's exactly why the user is on this page - to restore them!
+                    if (kmError.message && kmError.message.includes('keys exist on another device')) {
+                        console.log('[DevicePairing] ⚠️ KeyManager detected keys on another device (expected for second device)');
+                        console.log('[DevicePairing] This is normal - user will restore keys using password/recovery key/QR');
+                        console.log('[DevicePairing] Continuing with page initialization...');
 
-                if (window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
-                    window.DevicePairingController.init();
-                    console.log('[DevicePairingPage] DevicePairingController initialized');
-                } else {
-                    throw new Error('DevicePairingController not available');
+                        // Set user ID so restore functions work
+                        // (restore functions use this.currentUserId to query database)
+                        window.KeyManager.currentUserId = currentUser.id;
+                        console.log('[DevicePairing] ✅ KeyManager configured for restore operations');
+                    } else {
+                        // Some other error - this is a real problem
+                        throw kmError;
+                    }
                 }
 
-                console.log('[DevicePairingPage] Page ready');
+                console.log('[DevicePairing] 🎉 All services initialized successfully');
+                console.log('[DevicePairing] Setting up event listeners...');
+                setupEventListeners();
+                console.log('[DevicePairing] ✅ Event listeners configured');
+                console.log('[DevicePairing] Device pairing page is ready for user interaction');
 
             } catch (error) {
-                console.error('[DevicePairingPage] Initialization error:', error);
-                alert('Error loading device pairing. Please try again or contact support.');
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] ❌❌❌ INITIALIZATION ERROR');
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] Error name:', error.name);
+                console.error('[DevicePairing] Error message:', error.message);
+                console.error('[DevicePairing] Error stack:', error.stack);
+                console.error('[DevicePairing] Full error object:', error);
+                console.error('═══════════════════════════════════════════════════════════');
+                alert('Error initializing: ' + error.message);
             }
-        });
+        }
+
+        function setupEventListeners() {
+            // Main action buttons
+            document.getElementById('new-device-btn').addEventListener('click', () => {
+                showView('choose-backup-method-view');
+            });
+
+            document.getElementById('existing-device-btn').addEventListener('click', () => {
+                showView('choose-restore-method-view');
+            });
+
+            // Backup method selection
+            document.getElementById('qr-backup-method').addEventListener('click', async () => {
+                await generateQRCode();
+            });
+
+            document.getElementById('password-backup-method').addEventListener('click', () => {
+                showView('password-backup-view');
+            });
+
+            // Restore method selection
+            document.getElementById('qr-restore-method').addEventListener('click', () => {
+                startQRScanner();
+            });
+
+            document.getElementById('password-restore-method').addEventListener('click', () => {
+                showView('password-restore-view');
+            });
+
+            document.getElementById('recovery-key-restore-method').addEventListener('click', () => {
+                showView('recovery-key-restore-view');
+            });
+
+            // Recovery key input validation
+            document.getElementById('recovery-key-input').addEventListener('input', (e) => {
+                const text = e.target.value.trim();
+                const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+                const wordCount = words.length;
+
+                const countEl = document.getElementById('recovery-key-word-count');
+                const restoreBtn = document.getElementById('restore-recovery-key-btn');
+
+                countEl.textContent = `${wordCount} / 24 words`;
+
+                if (wordCount === 24) {
+                    countEl.style.color = 'var(--success-color)';
+                    restoreBtn.disabled = false;
+                } else {
+                    countEl.style.color = 'var(--text-color-secondary)';
+                    restoreBtn.disabled = true;
+                }
+            });
+
+            // Password backup
+            document.getElementById('backup-password').addEventListener('input', (e) => {
+                const indicator = document.getElementById('password-strength-indicator');
+                indicator.innerHTML = checkPasswordStrength(e.target.value);
+            });
+
+            document.getElementById('create-backup-btn').addEventListener('click', async () => {
+                await createPasswordBackup();
+            });
+
+            document.getElementById('restore-backup-btn').addEventListener('click', async () => {
+                await restoreFromPassword();
+            });
+
+            document.getElementById('restore-recovery-key-btn').addEventListener('click', async () => {
+                await restoreFromRecoveryKey();
+            });
+
+            // Back buttons
+            document.getElementById('back-to-action-btn').addEventListener('click', () => showView('choose-action-view'));
+            document.getElementById('back-to-action-btn-2').addEventListener('click', () => showView('choose-action-view'));
+            document.getElementById('back-from-qr-gen-btn').addEventListener('click', () => showView('choose-backup-method-view'));
+            document.getElementById('back-from-qr-scan-btn').addEventListener('click', () => {
+                if (qrScanner) qrScanner.stop();
+                showView('choose-restore-method-view');
+            });
+            document.getElementById('back-from-backup-btn').addEventListener('click', () => showView('choose-backup-method-view'));
+            document.getElementById('back-from-restore-btn').addEventListener('click', () => showView('choose-restore-method-view'));
+            document.getElementById('back-from-recovery-restore-btn').addEventListener('click', () => showView('choose-restore-method-view'));
+            document.getElementById('done-qr-btn').addEventListener('click', () => {
+                window.location.href = '../../landing/index.html';
+            });
+        }
+
+        async function generateQRCode() {
+            try {
+                const statusEl = document.querySelector('#qr-generation-view .pairing-status');
+                statusEl.textContent = 'Generating QR code...';
+                statusEl.className = 'pairing-status info';
+
+                const qrData = await window.KeyManager.generateQRCodeForPairing();
+
+                const qr = new QRious({
+                    element: document.getElementById('qr-canvas'),
+                    value: qrData,
+                    size: 300,
+                    level: 'H'
+                });
+
+                showView('qr-generation-view');
+                statusEl.textContent = '';
+                statusEl.className = 'pairing-status';
+
+            } catch (error) {
+                console.error('[DevicePairing] QR generation error:', error);
+                alert('Failed to generate QR code: ' + error.message);
+            }
+        }
+
+        function startQRScanner() {
+            showView('qr-scanning-view');
+
+            const statusEl = document.getElementById('qr-scan-status');
+            statusEl.textContent = 'Initializing camera...';
+            statusEl.className = 'pairing-status info';
+
+            qrScanner = new Html5Qrcode("qr-reader");
+
+            qrScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                async (decodedText) => {
+                    statusEl.textContent = 'QR code detected! Restoring keys...';
+                    statusEl.className = 'pairing-status info';
+
+                    try {
+                        await qrScanner.stop();
+                        await window.KeyManager.restoreFromQRCode(decodedText);
+
+                        statusEl.textContent = '✓ Keys restored successfully!';
+                        statusEl.className = 'pairing-status success';
+
+                        setTimeout(() => {
+                            window.location.href = '../../landing/index.html';
+                        }, 2000);
+
+                    } catch (error) {
+                        console.error('[DevicePairing] QR restore error:', error);
+                        statusEl.textContent = '✗ Error: ' + error.message;
+                        statusEl.className = 'pairing-status error';
+                    }
+                }
+            ).then(() => {
+                statusEl.textContent = 'Point camera at QR code';
+                statusEl.className = 'pairing-status info';
+            }).catch(err => {
+                console.error('[DevicePairing] Camera error:', err);
+                statusEl.textContent = '✗ Camera access denied or unavailable';
+                statusEl.className = 'pairing-status error';
+            });
+        }
+
+        async function createPasswordBackup() {
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('[DevicePairing] 🚀 createPasswordBackup() STARTED');
+            console.log('═══════════════════════════════════════════════════════════');
+
+            const password = document.getElementById('backup-password').value;
+            const confirmPassword = document.getElementById('backup-password-confirm').value;
+            const statusEl = document.getElementById('backup-status');
+
+            console.log('[DevicePairing] Step 0/6: Validating input');
+            console.log('[DevicePairing]   - Password length:', password ? password.length : 0);
+            console.log('[DevicePairing]   - Passwords match:', password === confirmPassword);
+
+            if (!password || password.length < 8) {
+                console.error('[DevicePairing] ❌ Validation failed: Password too short');
+                statusEl.textContent = 'Password must be at least 8 characters';
+                statusEl.className = 'pairing-status error';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                console.error('[DevicePairing] ❌ Validation failed: Passwords do not match');
+                statusEl.textContent = 'Passwords do not match';
+                statusEl.className = 'pairing-status error';
+                return;
+            }
+
+            console.log('[DevicePairing] ✅ Input validation passed');
+
+            try {
+                // Step 1: Verify services are available
+                console.log('[DevicePairing] Step 1/6: Verifying required services');
+                console.log('[DevicePairing]   - AuthService available:', !!window.AuthService);
+                console.log('[DevicePairing]   - KeyStorageService available:', !!window.KeyStorageService);
+                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
+                console.log('[DevicePairing]   - CryptoService available:', !!window.CryptoService);
+
+                if (!window.AuthService) throw new Error('AuthService not available');
+                if (!window.KeyStorageService) throw new Error('KeyStorageService not available');
+                if (!window.KeyManager) throw new Error('KeyManager not available');
+                if (!window.CryptoService) throw new Error('CryptoService not available');
+
+                console.log('[DevicePairing] ✅ All required services available');
+
+                // Step 2: Get and verify current user
+                statusEl.textContent = 'Step 1/5: Verifying authentication...';
+                statusEl.className = 'pairing-status info';
+
+                console.log('[DevicePairing] Step 2/6: Getting current user');
+                const currentUser = window.AuthService.getCurrentUser();
+                console.log('[DevicePairing]   - User authenticated:', !!currentUser);
+                if (currentUser) {
+                    console.log('[DevicePairing]   - User ID:', currentUser.id);
+                    console.log('[DevicePairing]   - User email:', currentUser.email);
+                }
+
+                if (!currentUser) {
+                    throw new Error('Not authenticated - please log in first');
+                }
+                console.log('[DevicePairing] ✅ User authenticated successfully');
+
+                // Step 3: Check and generate identity keys if needed
+                statusEl.textContent = 'Step 2/5: Checking encryption keys...';
+
+                console.log('[DevicePairing] Step 3/6: Checking existing identity keys');
+                const existingKeys = await window.KeyStorageService.getIdentityKeys(currentUser.id);
+                console.log('[DevicePairing]   - Existing keys found:', !!existingKeys);
+                if (existingKeys) {
+                    console.log('[DevicePairing]   - Public key exists:', !!existingKeys.publicKey);
+                    console.log('[DevicePairing]   - Private key exists:', !!existingKeys.privateKey);
+                }
+
+                if (!existingKeys || !existingKeys.publicKey) {
+                    console.log('[DevicePairing] 🔑 Generating new identity keys...');
+                    statusEl.textContent = 'Step 2/5: Generating encryption keys...';
+                    await window.KeyManager.generateAndStoreIdentityKeys(currentUser.id);
+                    console.log('[DevicePairing] ✅ Identity keys generated and stored');
+                } else {
+                    console.log('[DevicePairing] ✅ Identity keys already exist, skipping generation');
+                }
+
+                // Step 4: Generate recovery key
+                statusEl.textContent = 'Step 3/5: Generating recovery key...';
+
+                console.log('[DevicePairing] Step 4/6: Generating 24-word recovery key');
+                const recoveryKey = window.CryptoService.generateRecoveryKey();
+                console.log('[DevicePairing]   - Recovery key generated:', !!recoveryKey);
+                console.log('[DevicePairing]   - Recovery key length:', recoveryKey ? recoveryKey.length : 0);
+                console.log('[DevicePairing]   - Word count:', recoveryKey ? recoveryKey.split(' ').length : 0);
+                console.log('[DevicePairing]   - First 3 words:', recoveryKey ? recoveryKey.split(' ').slice(0, 3).join(' ') + '...' : 'N/A');
+                console.log('[DevicePairing] ✅ Recovery key generated');
+
+                // Step 5: Show recovery key to user
+                console.log('[DevicePairing] Step 5/6: Showing recovery key to user for confirmation');
+                statusEl.textContent = 'Step 4/5: Please save your recovery key...';
+
+                const confirmed = confirm(
+                    `IMPORTANT: Save this 24-word recovery key!\n\n${recoveryKey}\n\n` +
+                    `This is the ONLY way to recover your data if you forget your password.\n\n` +
+                    `Write it down and store it in a safe place.\n\n` +
+                    `Click OK after you've saved it.`
+                );
+
+                console.log('[DevicePairing]   - User confirmed recovery key:', confirmed);
+
+                if (!confirmed) {
+                    console.warn('[DevicePairing] ⚠️ User cancelled setup - did not confirm recovery key');
+                    statusEl.textContent = 'Setup cancelled - recovery key not confirmed';
+                    statusEl.className = 'pairing-status error';
+                    return;
+                }
+                console.log('[DevicePairing] ✅ User confirmed recovery key');
+
+                // Step 6: Create dual backup
+                statusEl.textContent = 'Step 5/5: Creating encrypted backups...';
+
+                console.log('[DevicePairing] Step 6/6: Creating dual backup');
+                console.log('[DevicePairing]   - Password length:', password.length);
+                console.log('[DevicePairing]   - Recovery key word count:', recoveryKey.split(' ').length);
+                console.log('[DevicePairing]   - Calling KeyManager.createDualBackup()...');
+
+                await window.KeyManager.createDualBackup(password, recoveryKey);
+
+                console.log('[DevicePairing] ✅ Dual backup created successfully!');
+                console.log('[DevicePairing] 🎉 Device pairing setup COMPLETE');
+
+                statusEl.textContent = '✓ Backup created successfully!';
+                statusEl.className = 'pairing-status success';
+
+                console.log('[DevicePairing] Redirecting to landing page in 2 seconds...');
+                setTimeout(() => {
+                    window.location.href = '../../landing/index.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] ❌❌❌ CRITICAL ERROR IN createPasswordBackup()');
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] Error name:', error.name);
+                console.error('[DevicePairing] Error message:', error.message);
+                console.error('[DevicePairing] Error stack:', error.stack);
+                console.error('[DevicePairing] Full error object:', error);
+                console.error('[DevicePairing] Error toString:', error.toString());
+                console.error('═══════════════════════════════════════════════════════════');
+
+                statusEl.textContent = '✗ Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+
+                // Also show alert so user definitely sees the error
+                alert(`Setup Error:\n\n${error.message}\n\nCheck the browser console for detailed logs.`);
+            }
+        }
+
+        async function restoreFromPassword() {
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('[DevicePairing] 🔄 restoreFromPassword() STARTED');
+            console.log('═══════════════════════════════════════════════════════════');
+
+            const password = document.getElementById('restore-password').value;
+            const statusEl = document.getElementById('restore-status');
+
+            console.log('[DevicePairing] Step 1/3: Validating password input');
+            console.log('[DevicePairing]   - Password provided:', !!password);
+            console.log('[DevicePairing]   - Password length:', password ? password.length : 0);
+
+            if (!password) {
+                console.error('[DevicePairing] ❌ Validation failed: No password provided');
+                statusEl.textContent = 'Please enter your password';
+                statusEl.className = 'pairing-status error';
+                return;
+            }
+
+            console.log('[DevicePairing] ✅ Password validation passed');
+
+            try {
+                console.log('[DevicePairing] Step 2/3: Verifying KeyManager service');
+                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
+                console.log('[DevicePairing]   - restoreFromPasswordBackup function exists:',
+                    !!(window.KeyManager && window.KeyManager.restoreFromPasswordBackup));
+
+                if (!window.KeyManager) {
+                    throw new Error('KeyManager service not available');
+                }
+
+                statusEl.textContent = 'Restoring keys from backup...';
+                statusEl.className = 'pairing-status info';
+
+                console.log('[DevicePairing] Step 3/3: Calling KeyManager.restoreFromPasswordBackup()');
+                await window.KeyManager.restoreFromPasswordBackup(password);
+                console.log('[DevicePairing] ✅ Password backup restore successful!');
+
+                statusEl.textContent = '✓ Keys restored successfully!';
+                statusEl.className = 'pairing-status success';
+
+                console.log('[DevicePairing] Redirecting to landing page in 2 seconds...');
+                setTimeout(() => {
+                    window.location.href = '../../landing/index.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] ❌❌❌ CRITICAL ERROR IN restoreFromPassword()');
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] Error name:', error.name);
+                console.error('[DevicePairing] Error message:', error.message);
+                console.error('[DevicePairing] Error stack:', error.stack);
+                console.error('[DevicePairing] Full error object:', error);
+                console.error('═══════════════════════════════════════════════════════════');
+
+                statusEl.textContent = '✗ Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+
+                alert(`Restore Error:\n\n${error.message}\n\nCheck the browser console for detailed logs.`);
+            }
+        }
+
+        async function restoreFromRecoveryKey() {
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('[DevicePairing] 🔑 restoreFromRecoveryKey() STARTED');
+            console.log('═══════════════════════════════════════════════════════════');
+
+            const recoveryKeyText = document.getElementById('recovery-key-input').value.trim();
+            const statusEl = document.getElementById('recovery-restore-status');
+
+            console.log('[DevicePairing] Step 1/3: Validating recovery key input');
+            console.log('[DevicePairing]   - Recovery key provided:', !!recoveryKeyText);
+            console.log('[DevicePairing]   - Recovery key length:', recoveryKeyText.length);
+
+            // Validate word count
+            const words = recoveryKeyText.split(/\s+/).filter(w => w.length > 0);
+            console.log('[DevicePairing]   - Word count:', words.length);
+            console.log('[DevicePairing]   - First 3 words:', words.slice(0, 3).join(' ') + '...');
+            console.log('[DevicePairing]   - Last 3 words:', '...' + words.slice(-3).join(' '));
+
+            if (words.length !== 24) {
+                console.error('[DevicePairing] ❌ Validation failed: Expected 24 words, got', words.length);
+                statusEl.textContent = `Please enter exactly 24 words (you have ${words.length})`;
+                statusEl.className = 'pairing-status error';
+                return;
+            }
+
+            console.log('[DevicePairing] ✅ Recovery key validation passed (24 words confirmed)');
+
+            try {
+                console.log('[DevicePairing] Step 2/3: Verifying KeyManager service');
+                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
+                console.log('[DevicePairing]   - restoreFromRecoveryKeyBackup function exists:',
+                    !!(window.KeyManager && window.KeyManager.restoreFromRecoveryKeyBackup));
+
+                if (!window.KeyManager) {
+                    throw new Error('KeyManager service not available');
+                }
+
+                statusEl.textContent = 'Restoring keys from recovery key...';
+                statusEl.className = 'pairing-status info';
+
+                console.log('[DevicePairing] Step 3/3: Calling KeyManager.restoreFromRecoveryKeyBackup()');
+                console.log('[DevicePairing]   - Recovery key word count:', words.length);
+                await window.KeyManager.restoreFromRecoveryKeyBackup(recoveryKeyText);
+                console.log('[DevicePairing] ✅ Recovery key backup restore successful!');
+
+                statusEl.textContent = '✓ Keys restored successfully with recovery key!';
+                statusEl.className = 'pairing-status success';
+
+                console.log('[DevicePairing] Redirecting to landing page in 2 seconds...');
+                setTimeout(() => {
+                    window.location.href = '../../landing/index.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] ❌❌❌ CRITICAL ERROR IN restoreFromRecoveryKey()');
+                console.error('═══════════════════════════════════════════════════════════');
+                console.error('[DevicePairing] Error name:', error.name);
+                console.error('[DevicePairing] Error message:', error.message);
+                console.error('[DevicePairing] Error stack:', error.stack);
+                console.error('[DevicePairing] Full error object:', error);
+                console.error('═══════════════════════════════════════════════════════════');
+
+                statusEl.textContent = '✗ Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+
+                alert(`Recovery Key Restore Error:\n\n${error.message}\n\nCheck the browser console for detailed logs.`);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initialize);
     </script>
 </body>
 </html>

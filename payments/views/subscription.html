@@ -553,7 +553,10 @@
             <div class="header-with-subscription" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); align-items: start; margin-bottom: var(--spacing-lg);">
                 <div class="header-content">
                     <h1 class="section-title">Subscription Management</h1>
-                    
+                    <p style="margin: var(--spacing-sm) 0 var(--spacing-md) 0; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5;">
+                        <strong>New users get a 30-day Premium trial</strong> with full access to all features. After your trial ends, upgrade to Premium ($9.99/month) to keep unlimited features, or continue with the Free plan (limited to 6 months of history).
+                    </p>
+
                     <div class="settings-row" style="gap: 0.5rem;">
                         <button id="update-payment-button" class="btn btn-action">
                             Update Payment Method
@@ -635,19 +638,19 @@
     <script src="../../database/initDatabase.js"></script>
     
     <!-- Payments Module Configuration -->
-    <script src="../config/payments-config-base.js"></script>
-    <script src="../config/money-tracker-config.js"></script>
-    <script src="../utils/config-helper.js"></script>
-    <script src="../payments-module.js"></script>
-    
+    <script src="../config/paymentsConfigBase.js"></script>
+    <script src="../config/moneyTrackerConfig.js"></script>
+    <script src="../utils/configHelper.js"></script>
+    <script src="../paymentsModule.js"></script>
+
     <!-- Payments Services -->
-    <script src="../services/StripeService.js"></script>
-    <script src="../services/PaymentService.js"></script>
-    <script src="../services/SubscriptionService.js"></script>
-    
+    <script src="../services/stripeService.js"></script>
+    <script src="../services/paymentService.js"></script>
+    <script src="../services/subscriptionService.js"></script>
+
     <!-- Initialize Payments Module -->
-    <script src="../init-payments.js"></script>
-    <script src="../utils/wait-for-payments-init.js"></script>
+    <script src="../initPayments.js"></script>
+    <script src="../utils/waitForPaymentsInit.js"></script>
     <script src="../../shared/utils/subscriptionGuard.js"></script>
     <script src="../../shared/utils/authGuard.js"></script>
     <script src="../../shared/utils/networkUtils.js"></script>

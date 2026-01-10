@@ -222,13 +222,12 @@ const UpgradeController = {
                     subscriptionKeys: Object.keys(this.currentSubscription || {}),
                     planKeys: Object.keys(this.currentPlan || {}),
                     planId: this.currentSubscription?.plan_id,
-                    planName: this.currentPlan?.plan_name,
-                    subscriptionType: this.currentSubscription?.subscription_type,
+                    planName: this.currentPlan?.plan_name || this.currentPlan?.name,
                     status: this.currentSubscription?.status,
                     hasStripeSubscriptionId: !!this.currentSubscription?.stripe_subscription_id,
-                    recurringBillingEnabled: this.currentSubscription?.recurring_billing_enabled,
-                    nextBillingDate: this.currentSubscription?.next_billing_date,
-                    subscriptionEndDate: this.currentSubscription?.subscription_end_date
+                    cancelAtPeriodEnd: this.currentSubscription?.cancel_at_period_end,
+                    currentPeriodEnd: this.currentSubscription?.current_period_end,
+                    trialEnd: this.currentSubscription?.trial_end
                 });
                 
                 console.log('[UpgradeController] Step 4: Calling displayCurrentSubscription()...');
@@ -282,7 +281,7 @@ const UpgradeController = {
             
             const result = await window.DatabaseService.querySelect('subscription_plans', {
                 filter: { is_active: true },
-                order: [{ column: 'price_amount', ascending: true }]
+                order: [{ column: 'price_cents', ascending: true }]
             });
             
             if (result.error) {
@@ -334,29 +333,30 @@ const UpgradeController = {
         const sortedPlans = [...this.availablePlans].sort((a, b) => {
             // Paid plans (price > 0) come first, sorted by price descending
             // Free plans (price === 0) come last
-            if (a.price_amount === 0 && b.price_amount > 0) return 1;
-            if (a.price_amount > 0 && b.price_amount === 0) return -1;
+            if (a.price_cents === 0 && b.price_cents > 0) return 1;
+            if (a.price_cents > 0 && b.price_cents === 0) return -1;
             // Both paid or both free: sort by price descending
-            return b.price_amount - a.price_amount;
+            return b.price_cents - a.price_cents;
         });
         
         sortedPlans.forEach((plan, index) => {
             const isCurrentPlan = currentPlanId === plan.id;
             // Recommended is the first paid plan (highest tier) - which is now index 0 after sorting
-            const isRecommended = index === 0 && plan.price_amount > 0;
-            
+            const isRecommended = index === 0 && plan.price_cents > 0;
+
             const planCard = document.createElement('div');
             planCard.className = `plan-card ${isCurrentPlan ? 'current' : ''} ${isRecommended ? 'recommended' : ''}`;
-            
-            const priceInCents = Math.round(plan.price_amount * 100);
-            const priceFormatted = plan.price_amount === 0 ? '0' : plan.price_amount.toFixed(2);
-            const currency = plan.price_currency.toUpperCase();
-            
+
+            const priceInCents = plan.price_cents;
+            const priceInDollars = priceInCents / 100;
+            const priceFormatted = priceInCents === 0 ? '0' : priceInDollars.toFixed(2);
+            const currency = plan.currency ? plan.currency.toUpperCase() : 'USD';
+
             // Determine button text based on upgrade/downgrade direction
             let buttonText = 'Subscribe';
             if (currentPlanId && this.currentPlan) {
-                const currentPrice = this.currentPlan.price_amount || 0;
-                const newPrice = plan.price_amount || 0;
+                const currentPrice = this.currentPlan.price_cents || 0;
+                const newPrice = plan.price_cents || 0;
                 if (newPrice > currentPrice) {
                     buttonText = 'Upgrade';
                 } else if (newPrice < currentPrice) {
@@ -366,8 +366,8 @@ const UpgradeController = {
                 }
             } else if (currentPlanId && !this.currentPlan) {
                 // If we have a current plan ID but no plan details, check subscription
-                const currentPrice = this.currentSubscription?.plan?.price_amount || 0;
-                const newPrice = plan.price_amount || 0;
+                const currentPrice = this.currentSubscription?.plan?.price_cents || 0;
+                const newPrice = plan.price_cents || 0;
                 if (newPrice > currentPrice) {
                     buttonText = 'Upgrade';
                 } else if (newPrice < currentPrice) {
@@ -378,27 +378,26 @@ const UpgradeController = {
             planCard.innerHTML = `
                 <div class="plan-header">
                     <div class="plan-name">
-                        ${plan.plan_name}
+                        ${plan.name}
                         ${isCurrentPlan ? '<span class="current-plan-badge">Current</span>' : ''}
                     </div>
                     <div class="plan-price">
-                        ${plan.price_amount === 0 ? 'Free' : `€${priceFormatted}`}
-                        ${plan.price_amount > 0 ? `<span class="plan-price-period">/${plan.billing_interval}</span>` : ''}
+                        ${plan.price_cents === 0 ? 'Free' : `$${priceFormatted}`}
+                        ${plan.price_cents > 0 ? `<span class="plan-price-period">/${plan.interval}</span>` : ''}
                     </div>
                 </div>
                 <div class="plan-description">
-                    ${plan.plan_description || 'Access to Money Tracker application'}
+                    ${plan.description || (plan.name === 'Free' ? 'Basic features for personal budgeting' : 'Full access with unlimited history and cloud sync')}
                 </div>
                 <ul class="plan-features">
-                    <li>Full access to all features</li>
-                    <li>Monthly budget tracking</li>
-                    <li>Savings pots management</li>
-                    ${plan.price_amount >= 5 ? '<li>Priority support</li><li>Advanced analytics</li>' : ''}
+                    ${plan.features && Array.isArray(plan.features)
+                        ? plan.features.map(feature => `<li>${feature}</li>`).join('')
+                        : '<li>Access to Money Tracker features</li>'}
                 </ul>
                 <div class="plan-actions">
-                    ${isCurrentPlan ? 
+                    ${isCurrentPlan ?
                         `<div class="plan-status current">You are currently on this plan</div>` :
-                        `<button class="btn btn-action upgrade-btn" data-plan-id="${plan.id}" data-plan-name="${plan.plan_name}" data-price-amount="${priceInCents}">
+                        `<button class="btn btn-action upgrade-btn" data-plan-id="${plan.id}" data-plan-name="${plan.name}" data-price-amount="${priceInCents}">
                             ${buttonText}
                         </button>`
                     }
@@ -476,7 +475,7 @@ const UpgradeController = {
             
             // Determine if this is an upgrade or downgrade
             const currentPlan = this.currentPlan;
-            const currentPlanPrice = currentPlan ? (currentPlan.price_amount * 100) : 0; // Convert to cents
+            const currentPlanPrice = currentPlan ? currentPlan.price_cents : 0; // Already in cents
             const isUpgrade = !currentPlan || priceAmount > currentPlanPrice;
             const isDowngrade = currentPlan && priceAmount < currentPlanPrice;
             const isSamePlan = currentPlan && priceAmount === currentPlanPrice;
@@ -508,9 +507,9 @@ const UpgradeController = {
                 
                 // Check if user has an active paid subscription with Stripe
                 const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
-                const hasStripeSubscription = subscriptionResult.success && 
-                    subscriptionResult.subscription && 
-                    subscriptionResult.subscription.subscription_type === 'paid' &&
+                const hasStripeSubscription = subscriptionResult.success &&
+                    subscriptionResult.subscription &&
+                    subscriptionResult.subscription.status === 'active' &&
                     subscriptionResult.subscription.stripe_subscription_id;
                 
                 // If user has a Stripe subscription, cancel it via update-subscription Edge Function
@@ -562,16 +561,17 @@ const UpgradeController = {
                 }
                 
                 // Update subscription directly to Free plan
-                // Clear subscription dates since Free plan has no billing period
+                // Clear Stripe fields since Free plan has no billing
                 const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
                     plan_id: planId,
-                    subscription_type: 'trial', // Free plan is trial type
-                    status: 'active',
+                    status: 'active',  // Free plan is active (not trial)
                     stripe_subscription_id: null, // Clear Stripe subscription ID
-                    subscription_start_date: null, // Clear subscription dates for Free plan
-                    subscription_end_date: null,
-                    next_billing_date: null,
-                    recurring_billing_enabled: false // Disable recurring billing for Free plan
+                    stripe_customer_id: null, // Clear Stripe customer ID
+                    stripe_price_id: null, // Clear Stripe price ID
+                    current_period_start: null, // Clear billing period
+                    current_period_end: null,
+                    trial_end: null, // Clear trial end
+                    cancel_at_period_end: false
                 });
                 
                 if (updateResult.success) {
@@ -622,8 +622,8 @@ const UpgradeController = {
                 
                 // Check if user has an active paid subscription
                 const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
-                if (!subscriptionResult.success || !subscriptionResult.subscription || 
-                    subscriptionResult.subscription.subscription_type !== 'paid' ||
+                if (!subscriptionResult.success || !subscriptionResult.subscription ||
+                    subscriptionResult.subscription.status !== 'active' ||
                     !subscriptionResult.subscription.stripe_subscription_id) {
                     throw new Error('No active paid subscription found. Please subscribe first.');
                 }
@@ -655,7 +655,7 @@ const UpgradeController = {
                         currentSubscriptionId: subscriptionResult.subscription.stripe_subscription_id,
                         newPlanId: planId,
                         changeType: 'downgrade',
-                        recurringBillingEnabled: subscriptionResult.subscription.recurring_billing_enabled !== false
+                        recurringBillingEnabled: !subscriptionResult.subscription.cancel_at_period_end  // Inverted logic
                     }),
                     credentials: 'omit'
                 });
@@ -938,8 +938,7 @@ const UpgradeController = {
             console.log('[UpgradeController] Updating subscription with plan ID:', planId, 'plan name:', planName);
             const updateResult = await window.SubscriptionService.updateSubscription(currentUser.id, {
                 plan_id: parseInt(planId),
-                status: 'active',
-                subscription_type: 'paid',
+                status: 'active',  // Status will be synced from Stripe webhook
                 updated_at: new Date().toISOString()
             });
             
@@ -969,13 +968,13 @@ const UpgradeController = {
                     hasStripeCustomerId: !!(updateResult.subscription && updateResult.subscription.stripe_customer_id),
                     stripeSubscriptionId: updateResult.subscription?.stripe_subscription_id || 'null',
                     stripeCustomerId: updateResult.subscription?.stripe_customer_id || 'null',
-                    subscriptionType: updateResult.subscription?.subscription_type,
-                    status: updateResult.subscription?.status
+                    status: updateResult.subscription?.status,
+                    isPaid: updateResult.subscription?.status === 'active' && !!updateResult.subscription?.stripe_subscription_id
                 });
                 
                 // Attempt to sync subscription dates from Stripe
-                // Try even if stripe_subscription_id is null - the Edge Function can look it up using customer ID
-                if (updateResult.subscription && updateResult.subscription.subscription_type === 'paid') {
+                // Try if user has active Stripe subscription
+                if (updateResult.subscription && updateResult.subscription.status === 'active' && updateResult.subscription.stripe_subscription_id) {
                     console.log('[UpgradeController] ========== ATTEMPTING DATE SYNC ==========');
                     console.log('[UpgradeController] Sync attempt details:', {
                         hasStripeSubscriptionId: !!(updateResult.subscription.stripe_subscription_id),
@@ -1088,7 +1087,7 @@ const UpgradeController = {
                         console.warn('[UpgradeController] Final sync error:', syncResult.error);
                     }
                 } else {
-                    console.log('[UpgradeController] ⏭️ Skipping date sync - subscription type:', updateResult.subscription?.subscription_type);
+                    console.log('[UpgradeController] ⏭️ Skipping date sync - subscription status:', updateResult.subscription?.status);
                 }
                 
                 alert(`Subscription upgrade successful! You are now on the ${planName || 'new'} plan.`);
@@ -1179,8 +1178,8 @@ const UpgradeController = {
             const existingCustomerId = subscription?.stripe_customer_id;
             console.log('[UpgradeController] Subscription state:', {
                 hasSubscription: !!subscription,
-                subscriptionType: subscription?.subscription_type,
                 subscriptionStatus: subscription?.status,
+                isPaid: subscription?.status === 'active' && !!subscription?.stripe_subscription_id,
                 hasCustomerId: !!existingCustomerId,
                 customerId: existingCustomerId || 'none'
             });
@@ -1376,8 +1375,8 @@ const UpgradeController = {
                 subscriptionKeys: this.currentSubscription ? Object.keys(this.currentSubscription) : [],
                 hasStripeCustomerId: !!(this.currentSubscription?.stripe_customer_id),
                 stripeCustomerId: this.currentSubscription?.stripe_customer_id || null,
-                subscriptionType: this.currentSubscription?.subscription_type || null,
-                status: this.currentSubscription?.status || null
+                status: this.currentSubscription?.status || null,
+                isPaid: this.currentSubscription?.status === 'active' && !!this.currentSubscription?.stripe_subscription_id
             });
             if (!this.currentSubscription || !this.currentSubscription.stripe_customer_id) {
                 console.error('[UpgradeController] ❌ No Stripe customer ID found');
@@ -1982,60 +1981,56 @@ const UpgradeController = {
             console.log('[UpgradeController] ⏭️ Skipping Status (status:', subscription.status, ')');
         }
         
-        // Subscription Type
+        // Subscription Type (derived from status and stripe_subscription_id)
         console.log('[UpgradeController] Checking subscription type...', {
-            hasSubscriptionType: !!subscription.subscription_type,
-            subscriptionType: subscription.subscription_type,
-            subscriptionTypeType: typeof subscription.subscription_type
+            status: subscription.status,
+            hasStripeSubscriptionId: !!subscription.stripe_subscription_id
         });
-        if (subscription.subscription_type) {
-            const typeHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1)}</span></div>`;
-            detailsHtml.push(typeHtml);
-            console.log('[UpgradeController] ✅ Added Type:', subscription.subscription_type);
-        } else {
-            console.log('[UpgradeController] ⏭️ Skipping Type (subscription_type:', subscription.subscription_type, ')');
-        }
+        const subscriptionType = subscription.status === 'trial' ? 'Trial' :
+                                subscription.status === 'active' && subscription.stripe_subscription_id ? 'Paid' : 'Free';
+        const typeHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscriptionType}</span></div>`;
+        detailsHtml.push(typeHtml);
+        console.log('[UpgradeController] ✅ Added Type:', subscriptionType);
         
-        // Next Billing Date (if available)
+        // Next Billing Date (current_period_end for paid subscriptions)
         console.log('[UpgradeController] Checking next billing date...', {
-            hasNextBillingDate: !!subscription.next_billing_date,
-            nextBillingDate: subscription.next_billing_date,
-            nextBillingDateType: typeof subscription.next_billing_date
+            hasCurrentPeriodEnd: !!subscription.current_period_end,
+            currentPeriodEnd: subscription.current_period_end
         });
-        if (subscription.next_billing_date) {
-            const nextBilling = new Date(subscription.next_billing_date);
+        if (subscription.current_period_end) {
+            const nextBilling = new Date(subscription.current_period_end);
             const nextBillingHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Next Billing:</strong><span>${nextBilling.toLocaleDateString()}</span></div>`;
             detailsHtml.push(nextBillingHtml);
             console.log('[UpgradeController] ✅ Added Next Billing:', nextBilling.toLocaleDateString());
         } else {
-            console.log('[UpgradeController] ⏭️ Skipping Next Billing (next_billing_date:', subscription.next_billing_date, ')');
+            console.log('[UpgradeController] ⏭️ Skipping Next Billing (no current_period_end)');
         }
         
-        // Subscription End Date (if available)
+        // Subscription End Date (current_period_end for paid, trial_end for trial)
+        const endDateField = subscription.current_period_end || subscription.trial_end;
         console.log('[UpgradeController] Checking subscription end date...', {
-            hasSubscriptionEndDate: !!subscription.subscription_end_date,
-            subscriptionEndDate: subscription.subscription_end_date,
-            subscriptionEndDateType: typeof subscription.subscription_end_date
+            hasEndDate: !!endDateField,
+            endDate: endDateField
         });
-        if (subscription.subscription_end_date) {
-            const endDate = new Date(subscription.subscription_end_date);
+        if (endDateField) {
+            const endDate = new Date(endDateField);
             const endDateHtml = `<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Ends:</strong><span>${endDate.toLocaleDateString()}</span></div>`;
             detailsHtml.push(endDateHtml);
             console.log('[UpgradeController] ✅ Added Ends:', endDate.toLocaleDateString());
         } else {
-            console.log('[UpgradeController] ⏭️ Skipping Ends (subscription_end_date:', subscription.subscription_end_date, ')');
+            console.log('[UpgradeController] ⏭️ Skipping Ends (no end date found)');
         }
         
         // Recurring Billing Toggle (Auto-Renewal) - show for paid subscriptions
+        const isPaidSubscription = subscription.status === 'active' && subscription.stripe_subscription_id;
         console.log('[UpgradeController] Checking recurring billing status...', {
-            subscriptionType: subscription.subscription_type,
-            isPaid: subscription.subscription_type === 'paid',
+            status: subscription.status,
+            isPaid: isPaidSubscription,
             hasStripeSubscriptionId: !!subscription.stripe_subscription_id,
-            recurringBillingEnabled: subscription.recurring_billing_enabled,
-            recurringBillingEnabledType: typeof subscription.recurring_billing_enabled
+            cancelAtPeriodEnd: subscription.cancel_at_period_end
         });
-        if (subscription.subscription_type === 'paid') {
-            const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
+        if (isPaidSubscription) {
+            const recurringBillingEnabled = !subscription.cancel_at_period_end; // Inverted logic
             const toggleId = 'recurring-billing-toggle-upgrade';
             const recurringHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));">
@@ -2049,7 +2044,7 @@ const UpgradeController = {
             detailsHtml.push(recurringHtml);
             console.log('[UpgradeController] ✅ Added Auto-Renewal (Recurring) toggle:', recurringBillingEnabled ? 'Enabled' : 'Disabled', 'with toggle ID:', toggleId);
         } else {
-            console.log('[UpgradeController] ⏭️ Skipping Auto-Renewal (subscription_type:', subscription.subscription_type, 'is not "paid")');
+            console.log('[UpgradeController] ⏭️ Skipping Auto-Renewal (not a paid subscription)');
         }
         
         console.log('[UpgradeController] Step 5: Finalizing HTML generation...');

@@ -11,6 +11,7 @@ const AuthService = {
     session: null,
     authStateListener: null,
     sessionValidationInterval: null,
+    initialized: false, // Track if initialization is complete
     SESSION_CHECK_INTERVAL: 5 * 60 * 1000, // Check every 5 minutes
     SESSION_VALIDATION_CACHE_MS: 60000, // Cache validation results for 1 minute
     initializationInProgress: false,
@@ -28,9 +29,9 @@ const AuthService = {
             console.log('[AuthService] Initialization already in progress, waiting...');
             return await this.initializationPromise;
         }
-        
+
         // If already initialized, return immediately
-        if (this.client && this.authStateListener) {
+        if (this.initialized && this.client && this.authStateListener) {
             console.log('[AuthService] Already initialized, skipping');
             return { success: true };
         }
@@ -382,7 +383,8 @@ const AuthService = {
             } else {
                 console.log('[AuthService] Periodic session validation already set up, skipping');
             }
-            
+
+                this.initialized = true; // Mark as fully initialized
                 console.log('[AuthService] Initialization completed successfully');
                 return { success: true };
             } catch (error) {
@@ -391,6 +393,7 @@ const AuthService = {
                     name: error.name,
                     stack: error.stack
                 });
+                this.initialized = false; // Ensure flag is cleared on error
                 throw error;
             } finally {
                 this.initializationInProgress = false;
@@ -428,10 +431,10 @@ const AuthService = {
                 this.currentUser = session?.user || null;
                 if (this.currentUser) {
                     console.log('[AuthService] User session active:', this.currentUser?.email);
-                    // Only dispatch signin event for actual sign-in events, not INITIAL_SESSION
-                    if (event !== 'INITIAL_SESSION') {
-                        window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
-                    }
+                    // Dispatch signin event for all auth events including INITIAL_SESSION
+                    // This allows pages to detect when session is restored from localStorage
+                    console.log('[AuthService] Dispatching auth:signin event for:', event);
+                    window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser, event: event } }));
                 } else {
                     console.log('[AuthService] No user in session - redirecting to sign-in');
                     // No user in session means session is invalid - redirect to sign-in

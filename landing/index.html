@@ -152,6 +152,7 @@
 
     <!-- Crypto Libraries for E2E Encryption -->
     <script src="../messaging/crypto/naclLoader.js"></script>
+    <script src="../messaging/crypto/cryptoService.js"></script>
     <script src="../messaging/crypto/keyStorageService.js"></script>
 
     <!-- Pairing Guard -->
@@ -176,6 +177,11 @@
             try {
                 console.log('[index.html] Starting initialization...');
 
+                // Initialize CryptoService first (required for KeyStorageService)
+                if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
+                    await window.CryptoService.initialize();
+                }
+
                 // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
                 const [paymentsReady, dbInitResult] = await Promise.all([
                     // Wait for payments module initialization
@@ -198,11 +204,13 @@
                     console.log('[index.html] Checking device pairing status...');
                     const isPaired = await window.PairingGuard.checkPairingStatus();
                     if (!isPaired) {
-                        console.log('[index.html] Device not paired, redirecting to pairing page...');
+                        console.log('[index.html] ⚠️ Device not paired - encryption keys missing');
+                        console.log('[index.html] User is authenticated but needs to set up encryption on this device');
+                        console.log('[index.html] Redirecting to device pairing page for key setup/restore...');
                         window.location.href = '../messaging/views/device-pairing.html';
                         return;
                     }
-                    console.log('[index.html] Device pairing check passed');
+                    console.log('[index.html] ✅ Device pairing check passed - encryption keys present');
                 } else {
                     console.warn('[index.html] PairingGuard not available, skipping pairing check');
                 }

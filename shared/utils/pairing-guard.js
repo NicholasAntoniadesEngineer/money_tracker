@@ -68,15 +68,11 @@ const PairingGuard = {
         if (!isPaired) {
             console.log('[PairingGuard] Device not paired, redirecting to pairing page');
 
-            // Build pairing page URL
-            let pairingUrl = '/messaging/views/device-pairing.html';
-
-            // Add return URL if provided
-            if (returnUrl) {
-                pairingUrl += `?returnUrl=${encodeURIComponent(returnUrl)}`;
-            }
-
-            window.location.href = pairingUrl;
+            // Redirect to auth page for device setup
+            // Auth page will detect the user is authenticated and run handlePostSignIn()
+            // which will set up encryption keys
+            console.log('[PairingGuard] Redirecting to auth page for encryption setup');
+            window.location.href = '/auth/views/auth.html';
             return false;
         }
 

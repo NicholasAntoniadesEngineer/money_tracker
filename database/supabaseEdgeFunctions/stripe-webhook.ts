@@ -301,13 +301,11 @@ async function handleCheckoutSessionCompleted(session: any) {
       customer = await stripe.customers.retrieve(customerId)
     }
 
-    // Update subscription in database
+    // Update subscription in database (NEW OPTIMAL SCHEMA)
     const updateData: any = {
-      subscription_type: "paid",
-      status: "active",
+      status: "active",  // Status is source of truth from Stripe
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
-      last_payment_date: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
 
@@ -316,10 +314,10 @@ async function handleCheckoutSessionCompleted(session: any) {
     }
 
     if (subscription) {
-      updateData.subscription_start_date = new Date(subscription.current_period_start * 1000).toISOString()
-      updateData.subscription_end_date = new Date(subscription.current_period_end * 1000).toISOString()
-      updateData.next_billing_date = new Date(subscription.current_period_end * 1000).toISOString()
+      updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString()
+      updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString()
       updateData.stripe_price_id = subscription.items.data[0]?.price?.id
+      updateData.cancel_at_period_end = subscription.cancel_at_period_end || false
     }
 
     const response = await fetch(`${supabaseClient.url}/rest/v1/subscriptions?user_id=eq.${userId}`, {
@@ -422,28 +420,24 @@ async function handleSubscriptionUpdated(subscription: any) {
     })
 
     const updateData: any = {
-      status: subscription.status === "active" ? "active" : 
+      status: subscription.status === "active" ? "active" :
               subscription.status === "past_due" ? "past_due" :
-              subscription.status === "canceled" ? "cancelled" : "expired",
-      subscription_start_date: new Date(subscription.current_period_start * 1000).toISOString(),
-      subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
-      next_billing_date: new Date(subscription.current_period_end * 1000).toISOString(),
+              subscription.status === "canceled" ? "canceled" : "unpaid",
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       stripe_price_id: subscription.items.data[0]?.price?.id,
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString()
     }
 
-    // Update recurring billing status based on cancel_at_period_end
-    updateData.recurring_billing_enabled = !subscription.cancel_at_period_end
-
     if (subscription.canceled_at) {
-      updateData.cancellation_date = new Date(subscription.canceled_at * 1000).toISOString()
+      updateData.canceled_at = new Date(subscription.canceled_at * 1000).toISOString()
     }
 
     // If this is a scheduled downgrade, update pending plan info
     if (isScheduledCancellation) {
       updateData.pending_plan_id = parseInt(pendingPlanId)
-      updateData.pending_change_date = new Date(subscription.current_period_end * 1000).toISOString()
-      updateData.change_type = 'downgrade'
+      updateData.pending_change_at = new Date(subscription.current_period_end * 1000).toISOString()
       console.log("[stripe-webhook] Scheduled downgrade detected, will take effect at period end")
     }
 
@@ -555,18 +549,17 @@ async function handleSubscriptionDeleted(subscription: any) {
 
           console.log("[stripe-webhook] ✅ New subscription created for downgrade:", newSubscription.id)
 
-          // Update database with new subscription
+          // Update database with new subscription (NEW OPTIMAL SCHEMA)
           const updateData = {
             status: "active",
             plan_id: parseInt(pendingPlanId),
             stripe_subscription_id: newSubscription.id,
             stripe_price_id: newPlan.stripe_price_id,
-            subscription_start_date: new Date(newSubscription.current_period_start * 1000).toISOString(),
-            subscription_end_date: new Date(newSubscription.current_period_end * 1000).toISOString(),
-            next_billing_date: new Date(newSubscription.current_period_end * 1000).toISOString(),
+            current_period_start: new Date(newSubscription.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(newSubscription.current_period_end * 1000).toISOString(),
+            cancel_at_period_end: newSubscription.cancel_at_period_end || false,
             pending_plan_id: null,
-            pending_change_date: null,
-            change_type: null,
+            pending_change_at: null,
             updated_at: new Date().toISOString()
           }
 
@@ -595,11 +588,10 @@ async function handleSubscriptionDeleted(subscription: any) {
 
     // Regular cancellation (not a scheduled downgrade)
     const updateData = {
-      status: "cancelled",
-      cancellation_date: new Date().toISOString(),
+      status: "canceled",
+      canceled_at: new Date().toISOString(),
       pending_plan_id: null,
-      pending_change_date: null,
-      change_type: null,
+      pending_change_at: null,
       updated_at: new Date().toISOString()
     }
 
@@ -663,19 +655,8 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
       }
     })
 
-    // Update subscription last_payment_date
-    await fetch(`${supabaseClient.url}/rest/v1/subscriptions?user_id=eq.${userId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": supabaseClient.key,
-        "Authorization": `Bearer ${supabaseClient.key}`
-      },
-      body: JSON.stringify({
-        last_payment_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-    })
+    // Payment already recorded in payment_history table - no need to update subscription
+    // The subscription status is managed by subscription.updated webhook events
 
     // Send invoice email
     if (customer.email) {

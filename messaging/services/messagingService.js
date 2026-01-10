@@ -530,6 +530,14 @@ const MessagingService = {
                     content = '[ERROR: Message corrupted - missing encryption data]';
                 } else {
                     try {
+                        console.log('[MessagingService] Decrypting message:', {
+                            message_id: msg.id,
+                            conversation_id: conversationId,
+                            sender_id: msg.sender_id,
+                            message_counter: msg.message_counter,
+                            created_at: msg.created_at
+                        });
+
                         // Decrypt the message (all messages are encrypted)
                         const plaintext = await window.KeyManager.decryptMessage(
                             conversationId,
@@ -540,8 +548,12 @@ const MessagingService = {
                             }
                         );
                         content = plaintext;
+                        console.log('[MessagingService] ✓ Message', msg.id, 'decrypted successfully');
+
                     } catch (decryptionError) {
-                        console.error('[MessagingService] Decryption failed for message:', msg.id, decryptionError);
+                        console.error('[MessagingService] ❌ Decryption failed for message:', msg.id);
+                        console.error('[MessagingService] Error:', decryptionError.message);
+                        console.error('[MessagingService] Stack:', decryptionError.stack);
                         content = '[ERROR: Decryption failed - you may not have access to this conversation]';
                     }
                 }
