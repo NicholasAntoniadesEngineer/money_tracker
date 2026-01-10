@@ -627,22 +627,29 @@ const KeyManager = {
             const theirKeyHex = Array.from(theirPublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
 
             console.log('[KeyManager] [SafetyNumber Step 3] Computing safety number...');
-            console.log('[KeyManager] Our key fingerprint:', ourKeyHex.substring(0, 16).toUpperCase());
-            console.log('[KeyManager] Their key fingerprint:', theirKeyHex.substring(0, 16).toUpperCase());
 
-            // Sort to ensure consistent order
-            const [first, second] = [ourKeyHex, theirKeyHex].sort();
+            // Extract fingerprints (first 16 hex chars = 8 bytes of each key)
+            const ourFingerprint = ourKeyHex.substring(0, 16).toUpperCase();
+            const theirFingerprint = theirKeyHex.substring(0, 16).toUpperCase();
+
+            console.log('[KeyManager] Our key fingerprint:', ourFingerprint);
+            console.log('[KeyManager] Their key fingerprint:', theirFingerprint);
+
+            // Sort fingerprints to ensure both users get the same safety number
+            // regardless of who is "user 1" vs "user 2"
+            const [first, second] = [ourFingerprint, theirFingerprint].sort();
+
+            // Combine both fingerprints (16 + 16 = 32 chars)
+            // This ensures the safety number includes data from BOTH keys
             const combined = first + second;
 
-            // Simple hash to create a readable safety number
-            // Using first 32 chars of combined keys (formatted as groups)
-            const safetyNumber = combined.substring(0, 32)
+            // Format as groups of 4 for readability
+            const safetyNumber = combined
                 .match(/.{1,4}/g)
-                .join(' ')
-                .toUpperCase();
+                .join(' ');
 
-            // Also create a visual fingerprint (shorter version)
-            const fingerprint = combined.substring(0, 16).toUpperCase();
+            // Short fingerprint is just the first 16 chars of combined
+            const fingerprint = combined.substring(0, 16);
 
             console.log('[KeyManager] ========== SAFETY NUMBER GENERATED ==========');
             console.log('[KeyManager] Safety number:', safetyNumber);
