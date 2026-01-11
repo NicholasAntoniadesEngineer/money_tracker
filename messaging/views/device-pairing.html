@@ -194,6 +194,44 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Debug panel for mobile - hidden by default */
+        .debug-panel {
+            display: none;
+            background: #1a1a2e;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            word-break: break-all;
+        }
+        .debug-panel.visible {
+            display: block;
+        }
+        .debug-panel .debug-line {
+            margin: 2px 0;
+        }
+        .debug-panel .debug-error {
+            color: #f55;
+        }
+        .debug-panel .debug-success {
+            color: #5f5;
+        }
+        .debug-panel .debug-warn {
+            color: #ff5;
+        }
+        .debug-toggle {
+            font-size: 10px;
+            color: var(--text-color-secondary);
+            cursor: pointer;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -202,7 +240,11 @@
             <div class="pairing-header">
                 <h1>🔐 Device Pairing</h1>
                 <p>Sync your encryption keys across devices</p>
+                <div class="debug-toggle" onclick="toggleDebugPanel()">[ Show Debug Info ]</div>
             </div>
+
+            <!-- Debug panel for mobile troubleshooting -->
+            <div id="debug-panel" class="debug-panel"></div>
 
             <!-- Choose Action View -->
             <div id="choose-action-view" class="pairing-view active">
@@ -216,6 +258,15 @@
                     <button id="existing-device-btn" class="btn btn-secondary btn-lg">
                         <i class="fas fa-mobile-alt"></i> Restore from Another Device
                     </button>
+                </div>
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <p style="font-size: 0.85rem; color: var(--text-color-secondary); margin-bottom: 10px;">
+                        Having trouble? If messages aren't decrypting, try resetting your local keys:
+                    </p>
+                    <button id="reset-keys-btn" class="btn btn-danger" style="font-size: 0.85rem;">
+                        <i class="fas fa-trash"></i> Reset Local Keys
+                    </button>
+                    <div id="reset-status" class="pairing-status" style="margin-top: 10px;"></div>
                 </div>
             </div>
 
@@ -401,13 +452,126 @@
     <script src="../../database/config/supabaseConfig.js"></script>
     <script src="../../database/services/databaseService.js"></script>
     <script src="../../shared/services/authService.js"></script>
-    <script src="../crypto/naclLoader.js"></script>
-    <script src="../crypto/cryptoService.js"></script>
-    <script src="../crypto/keyStorageService.js"></script>
-    <script src="../crypto/keyManager.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../encryption/services/keyDerivationService.js"></script>
+    <script src="../../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../encryption/services/keyStorageService.js"></script>
+    <script src="../../encryption/services/historicalKeysService.js"></script>
+    <script src="../../encryption/services/passwordCryptoService.js"></script>
+    <script src="../../encryption/services/keyBackupService.js"></script>
+    <script src="../../encryption/services/keyManagementService.js"></script>
+    <script src="../../encryption/facade/encryptionFacade.js"></script>
+    <script src="../../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../encryption/encryptionModule.js"></script>
+    <script src="../../encryption/initEncryption.js"></script>
 
     <script>
         let qrScanner = null;
+        let debugVisible = false;
+
+        // Debug panel functions for mobile troubleshooting
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debug-panel');
+            const toggle = document.querySelector('.debug-toggle');
+            debugVisible = !debugVisible;
+            if (debugVisible) {
+                panel.classList.add('visible');
+                toggle.textContent = '[ Hide Debug Info ]';
+            } else {
+                panel.classList.remove('visible');
+                toggle.textContent = '[ Show Debug Info ]';
+            }
+        }
+
+        function debugLog(message, type = 'info') {
+            const panel = document.getElementById('debug-panel');
+            if (!panel) return;
+            const line = document.createElement('div');
+            line.className = 'debug-line' + (type === 'error' ? ' debug-error' : type === 'success' ? ' debug-success' : type === 'warn' ? ' debug-warn' : '');
+            const time = new Date().toLocaleTimeString();
+            line.textContent = `[${time}] ${message}`;
+            panel.appendChild(line);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function debugClear() {
+            const panel = document.getElementById('debug-panel');
+            if (panel) panel.innerHTML = '';
+        }
+
+        // Reset local keys function
+        async function resetLocalKeys() {
+            const statusEl = document.getElementById('reset-status');
+
+            if (!confirm('This will delete all local encryption keys on this device.\n\nYou will need to restore from password backup or QR code afterwards.\n\nContinue?')) {
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Clearing local keys...';
+                statusEl.className = 'pairing-status info';
+                debugLog('Resetting local keys...');
+
+                // Clear IndexedDB stores first using new encryption module
+                if (window.KeyStorageService && window.KeyStorageService.clearAllKeys) {
+                    await window.KeyStorageService.clearAllKeys();
+                    debugLog('KeyStorageService.clearAllKeys() done', 'success');
+                }
+
+                // CRITICAL: Close the database connection before attempting deletion
+                // iOS Safari blocks deletion if there's an open connection
+                if (window.KeyStorageService && window.KeyStorageService._db) {
+                    debugLog('Closing database connection...');
+                    window.KeyStorageService._db.close();
+                    window.KeyStorageService._db = null;
+                    debugLog('Database connection closed', 'success');
+                }
+
+                // Now try to delete the entire database
+                const dbName = 'MoneyTrackerEncryption';
+                await new Promise((resolve) => {
+                    const request = indexedDB.deleteDatabase(dbName);
+                    request.onsuccess = () => {
+                        debugLog(`Deleted IndexedDB: ${dbName}`, 'success');
+                        resolve();
+                    };
+                    request.onerror = () => {
+                        debugLog(`Failed to delete IndexedDB: ${request.error}`, 'error');
+                        resolve(); // Continue anyway - stores were cleared
+                    };
+                    request.onblocked = () => {
+                        debugLog('IndexedDB deletion still blocked - stores were cleared anyway', 'warn');
+                        resolve(); // Continue - the stores were cleared even if DB delete blocked
+                    };
+                });
+
+                // Reset KeyManagementService state
+                if (window.KeyManagementService) {
+                    window.KeyManagementService.initialized = false;
+                    window.KeyManagementService._identityKeyPair = null;
+                }
+
+                statusEl.innerHTML = '✓ Local keys cleared!<br><small>Refreshing page in 2 seconds...</small>';
+                statusEl.className = 'pairing-status success';
+                debugLog('Local keys reset complete', 'success');
+                debugLog('Refreshing page to reinitialize...');
+
+                // Auto-refresh to reinitialize with clean state
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+
+            } catch (error) {
+                console.error('[DevicePairing] Reset keys error:', error);
+                debugLog(`Reset failed: ${error.message}`, 'error');
+                statusEl.textContent = '✗ Error: ' + error.message;
+                statusEl.className = 'pairing-status error';
+            }
+        }
 
         // View management
         function showView(viewId) {
@@ -436,25 +600,87 @@
             console.log('[DevicePairing] User arrived at device pairing page');
             console.log('[DevicePairing] Referrer:', document.referrer || 'direct navigation');
 
+            // Detect mobile device
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            console.log('[DevicePairing] Device type:', isMobile ? 'Mobile' : 'Desktop');
+            console.log('[DevicePairing] User agent:', navigator.userAgent);
+
+            // Log key diagnostic info to debug panel
+            debugLog('=== INITIALIZATION STARTED ===');
+            debugLog(`Device: ${isMobile ? 'MOBILE' : 'Desktop'}`);
+            debugLog(`Protocol: ${window.location.protocol}`);
+            debugLog(`Host: ${window.location.hostname}`);
+            debugLog(`UA: ${navigator.userAgent.substring(0, 50)}...`);
+
             try {
+                // Step 0: Check IndexedDB availability (fails in iOS Safari Private Mode)
+                console.log('[DevicePairing] Step 0: Checking IndexedDB availability...');
+                debugLog('Checking IndexedDB...');
+                try {
+                    const testDB = indexedDB.open('__idb_test__', 1);
+                    await new Promise((resolve, reject) => {
+                        testDB.onerror = () => reject(new Error('IndexedDB not available'));
+                        testDB.onsuccess = () => {
+                            testDB.result.close();
+                            indexedDB.deleteDatabase('__idb_test__');
+                            resolve();
+                        };
+                        // Timeout after 3 seconds
+                        setTimeout(() => reject(new Error('IndexedDB timeout')), 3000);
+                    });
+                    console.log('[DevicePairing] ✅ IndexedDB is available');
+                    debugLog('IndexedDB: OK', 'success');
+                } catch (idbError) {
+                    console.error('[DevicePairing] ❌ IndexedDB check failed:', idbError);
+                    debugLog(`IndexedDB: FAILED - ${idbError.message}`, 'error');
+                    throw new Error(
+                        'IndexedDB is not available. ' +
+                        (isMobile ? 'If you are using Private/Incognito mode, please switch to normal browsing mode. ' : '') +
+                        'Device pairing requires local storage to work.'
+                    );
+                }
+
+                // Step 0.5: Check Web Crypto API availability
+                console.log('[DevicePairing] Step 0.5: Checking Web Crypto API...');
+                debugLog('Checking Web Crypto API...');
+                if (!window.crypto || !window.crypto.subtle) {
+                    debugLog('Web Crypto: FAILED - not available', 'error');
+                    throw new Error(
+                        'Web Crypto API is not available. ' +
+                        'Please ensure you are using HTTPS and a modern browser.'
+                    );
+                }
+                console.log('[DevicePairing] ✅ Web Crypto API is available');
+                debugLog('Web Crypto: OK', 'success');
+
                 // Initialize services
                 console.log('[DevicePairing] Step 1/6: Initializing AuthService...');
+                debugLog('Init AuthService...');
                 await window.AuthService.initialize();
                 console.log('[DevicePairing] ✅ AuthService initialized');
+                debugLog('AuthService: OK', 'success');
 
                 console.log('[DevicePairing] Step 2/6: Initializing DatabaseService...');
+                debugLog('Init DatabaseService...');
                 await window.DatabaseService.initialize();
                 console.log('[DevicePairing] ✅ DatabaseService initialized');
+                debugLog('DatabaseService: OK', 'success');
 
-                console.log('[DevicePairing] Step 3/6: Initializing CryptoService...');
-                await window.CryptoService.initialize();
-                console.log('[DevicePairing] ✅ CryptoService initialized');
+                console.log('[DevicePairing] Step 3/6: Initializing Encryption Module...');
+                debugLog('Init Encryption Module (loading TweetNaCl from CDN)...');
+                await window.CryptoLibraryLoader.load();
+                await window.CryptoPrimitivesService.initialize();
+                console.log('[DevicePairing] ✅ CryptoPrimitivesService initialized');
+                debugLog('CryptoPrimitivesService: OK', 'success');
 
                 console.log('[DevicePairing] Step 4/6: Initializing KeyStorageService...');
-                await window.KeyStorageService.initialize();
+                debugLog('Init KeyStorageService (opening IndexedDB)...');
+                await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
                 console.log('[DevicePairing] ✅ KeyStorageService initialized');
+                debugLog('KeyStorageService: OK', 'success');
 
                 console.log('[DevicePairing] Step 5/6: Checking user authentication...');
+                debugLog('Checking user authentication...');
 
                 // Wait for session validation to complete (session check runs in background during init)
                 console.log('[DevicePairing] Validating session...');
@@ -466,32 +692,66 @@
                 if (currentUser) {
                     console.log('[DevicePairing]   - User ID:', currentUser.id);
                     console.log('[DevicePairing]   - User email:', currentUser.email);
+                    debugLog(`User: ${currentUser.email}`, 'success');
+                    debugLog(`User ID: ${currentUser.id.substring(0, 8)}...`);
                 }
 
                 if (!currentUser) {
                     console.error('[DevicePairing] ❌ No authenticated user found');
+                    debugLog('Auth: FAILED - not logged in', 'error');
                     alert('Please sign in first');
                     window.location.href = '../../auth/views/auth.html';
                     return;
                 }
                 console.log('[DevicePairing] ✅ User authentication verified');
 
-                console.log('[DevicePairing] Step 6/6: Initializing KeyManager...');
+                console.log('[DevicePairing] Step 6/6: Initializing KeyManagementService...');
+                debugLog('Init KeyManagementService...');
                 try {
-                    await window.KeyManager.initialize(currentUser.id);
-                    console.log('[DevicePairing] ✅ KeyManager initialized for user:', currentUser.id);
+                    await window.KeyManagementService.initialize(currentUser.id, MoneyTrackerEncryptionConfig);
+                    console.log('[DevicePairing] ✅ KeyManagementService initialized for user:', currentUser.id);
+                    debugLog('KeyManagementService: OK (has keys)', 'success');
                 } catch (kmError) {
-                    // It's OK if KeyManager fails because keys exist on another device
+                    // It's OK if KeyManagementService fails because keys exist on another device
                     // That's exactly why the user is on this page - to restore them!
                     if (kmError.message && kmError.message.includes('keys exist on another device')) {
-                        console.log('[DevicePairing] ⚠️ KeyManager detected keys on another device (expected for second device)');
+                        console.log('[DevicePairing] ⚠️ KeyManagementService detected keys on another device (expected for second device)');
                         console.log('[DevicePairing] This is normal - user will restore keys using password/recovery key/QR');
                         console.log('[DevicePairing] Continuing with page initialization...');
+                        debugLog('KeyManagementService: needs restore (no local keys)', 'warn');
 
                         // Set user ID so restore functions work
                         // (restore functions use this.currentUserId to query database)
-                        window.KeyManager.currentUserId = currentUser.id;
-                        console.log('[DevicePairing] ✅ KeyManager configured for restore operations');
+                        window.KeyManagementService.currentUserId = currentUser.id;
+                        console.log('[DevicePairing] ✅ KeyManagementService configured for restore operations');
+                    } else if (kmError.message && kmError.message.includes('IDENTITY KEY MISMATCH')) {
+                        // This device has different keys than database - need to clear and re-pair
+                        console.log('[DevicePairing] ⚠️ Identity key mismatch detected!');
+                        console.log('[DevicePairing] This device has different keys than the primary device');
+                        console.log('[DevicePairing] Clearing local keys to allow fresh pairing...');
+                        debugLog('KeyManagementService: KEY MISMATCH detected!', 'error');
+                        debugLog('Clearing stale local keys...', 'warn');
+
+                        // Clear local keys so user can do a fresh pairing
+                        await window.KeyStorageService.clearAllKeys();
+                        console.log('[DevicePairing] ✅ Local keys cleared');
+                        debugLog('Local keys cleared, ready for fresh pairing', 'success');
+
+                        // Set user ID so restore functions work
+                        window.KeyManagementService.currentUserId = currentUser.id;
+                        window.KeyManagementService.initialized = false;
+
+                        // Show a helpful message
+                        const statusMessage = document.createElement('div');
+                        statusMessage.className = 'pairing-status info';
+                        statusMessage.innerHTML = '<strong>Note:</strong> This device had different encryption keys. ' +
+                            'They have been cleared. Please use one of the methods below to sync your keys from your primary device.';
+                        const pairingHeader = document.querySelector('.pairing-header');
+                        if (pairingHeader) {
+                            pairingHeader.appendChild(statusMessage);
+                        }
+
+                        console.log('[DevicePairing] ✅ Ready for fresh device pairing');
                     } else {
                         // Some other error - this is a real problem
                         throw kmError;
@@ -503,6 +763,8 @@
                 setupEventListeners();
                 console.log('[DevicePairing] ✅ Event listeners configured');
                 console.log('[DevicePairing] Device pairing page is ready for user interaction');
+                debugLog('=== INIT COMPLETE ===', 'success');
+                debugLog('Ready for user action');
 
             } catch (error) {
                 console.error('═══════════════════════════════════════════════════════════');
@@ -513,6 +775,24 @@
                 console.error('[DevicePairing] Error stack:', error.stack);
                 console.error('[DevicePairing] Full error object:', error);
                 console.error('═══════════════════════════════════════════════════════════');
+
+                // Log to debug panel
+                debugLog('=== INIT FAILED ===', 'error');
+                debugLog(`Error: ${error.message}`, 'error');
+
+                // Show error in UI (more visible on mobile than alert)
+                const pairingCard = document.querySelector('.pairing-card');
+                if (pairingCard) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'pairing-status error';
+                    errorDiv.style.marginBottom = 'var(--spacing-lg)';
+                    errorDiv.innerHTML = `
+                        <strong>Initialization Error</strong><br>
+                        ${error.message}<br><br>
+                        <small>Please try refreshing the page. If the problem persists, try using a different browser or disabling private/incognito mode.</small>
+                    `;
+                    pairingCard.insertBefore(errorDiv, pairingCard.firstChild);
+                }
                 alert('Error initializing: ' + error.message);
             }
         }
@@ -525,6 +805,11 @@
 
             document.getElementById('existing-device-btn').addEventListener('click', () => {
                 showView('choose-restore-method-view');
+            });
+
+            // Reset keys button
+            document.getElementById('reset-keys-btn').addEventListener('click', async () => {
+                await resetLocalKeys();
             });
 
             // Backup method selection
@@ -609,7 +894,7 @@
                 statusEl.textContent = 'Generating QR code...';
                 statusEl.className = 'pairing-status info';
 
-                const qrData = await window.KeyManager.generateQRCodeForPairing();
+                const qrData = await window.KeyManagementService.generateQRCodeForPairing();
 
                 const qr = new QRious({
                     element: document.getElementById('qr-canvas'),
@@ -646,7 +931,7 @@
 
                     try {
                         await qrScanner.stop();
-                        await window.KeyManager.restoreFromQRCode(decodedText);
+                        await window.KeyManagementService.restoreFromQRCode(decodedText);
 
                         statusEl.textContent = '✓ Keys restored successfully!';
                         statusEl.className = 'pairing-status success';
@@ -705,13 +990,13 @@
                 console.log('[DevicePairing] Step 1/6: Verifying required services');
                 console.log('[DevicePairing]   - AuthService available:', !!window.AuthService);
                 console.log('[DevicePairing]   - KeyStorageService available:', !!window.KeyStorageService);
-                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
-                console.log('[DevicePairing]   - CryptoService available:', !!window.CryptoService);
+                console.log('[DevicePairing]   - KeyManagementService available:', !!window.KeyManagementService);
+                console.log('[DevicePairing]   - CryptoPrimitivesService available:', !!window.CryptoPrimitivesService);
 
                 if (!window.AuthService) throw new Error('AuthService not available');
                 if (!window.KeyStorageService) throw new Error('KeyStorageService not available');
-                if (!window.KeyManager) throw new Error('KeyManager not available');
-                if (!window.CryptoService) throw new Error('CryptoService not available');
+                if (!window.KeyManagementService) throw new Error('KeyManagementService not available');
+                if (!window.CryptoPrimitivesService) throw new Error('CryptoPrimitivesService not available');
 
                 console.log('[DevicePairing] ✅ All required services available');
 
@@ -746,7 +1031,7 @@
                 if (!existingKeys || !existingKeys.publicKey) {
                     console.log('[DevicePairing] 🔑 Generating new identity keys...');
                     statusEl.textContent = 'Step 2/5: Generating encryption keys...';
-                    await window.KeyManager.generateAndStoreIdentityKeys(currentUser.id);
+                    await window.KeyManagementService.generateAndStoreIdentityKeys(currentUser.id);
                     console.log('[DevicePairing] ✅ Identity keys generated and stored');
                 } else {
                     console.log('[DevicePairing] ✅ Identity keys already exist, skipping generation');
@@ -756,7 +1041,7 @@
                 statusEl.textContent = 'Step 3/5: Generating recovery key...';
 
                 console.log('[DevicePairing] Step 4/6: Generating 24-word recovery key');
-                const recoveryKey = window.CryptoService.generateRecoveryKey();
+                const recoveryKey = window.CryptoPrimitivesService.generateRecoveryKey();
                 console.log('[DevicePairing]   - Recovery key generated:', !!recoveryKey);
                 console.log('[DevicePairing]   - Recovery key length:', recoveryKey ? recoveryKey.length : 0);
                 console.log('[DevicePairing]   - Word count:', recoveryKey ? recoveryKey.split(' ').length : 0);
@@ -785,14 +1070,21 @@
                 console.log('[DevicePairing] ✅ User confirmed recovery key');
 
                 // Step 6: Create dual backup
-                statusEl.textContent = 'Step 5/5: Creating encrypted backups...';
+                // Warn user that this may take a while on mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    statusEl.innerHTML = 'Step 5/5: Creating encrypted backups...<br><small>(This may take 15-30 seconds on mobile)</small>';
+                } else {
+                    statusEl.textContent = 'Step 5/5: Creating encrypted backups...';
+                }
 
                 console.log('[DevicePairing] Step 6/6: Creating dual backup');
                 console.log('[DevicePairing]   - Password length:', password.length);
                 console.log('[DevicePairing]   - Recovery key word count:', recoveryKey.split(' ').length);
-                console.log('[DevicePairing]   - Calling KeyManager.createDualBackup()...');
+                console.log('[DevicePairing]   - Device type:', isMobile ? 'Mobile' : 'Desktop');
+                console.log('[DevicePairing]   - Calling KeyManagementService.createDualBackup()...');
 
-                await window.KeyManager.createDualBackup(password, recoveryKey);
+                await window.KeyManagementService.createDualBackup(password, recoveryKey);
 
                 console.log('[DevicePairing] ✅ Dual backup created successfully!');
                 console.log('[DevicePairing] 🎉 Device pairing setup COMPLETE');
@@ -846,26 +1138,39 @@
             console.log('[DevicePairing] ✅ Password validation passed');
 
             try {
-                console.log('[DevicePairing] Step 2/3: Verifying KeyManager service');
-                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
+                console.log('[DevicePairing] Step 2/3: Verifying KeyManagementService');
+                console.log('[DevicePairing]   - KeyManagementService available:', !!window.KeyManagementService);
                 console.log('[DevicePairing]   - restoreFromPasswordBackup function exists:',
-                    !!(window.KeyManager && window.KeyManager.restoreFromPasswordBackup));
+                    !!(window.KeyManagementService && window.KeyManagementService.restoreFromPasswordBackup));
 
-                if (!window.KeyManager) {
-                    throw new Error('KeyManager service not available');
+                if (!window.KeyManagementService) {
+                    throw new Error('KeyManagementService not available');
                 }
 
-                statusEl.textContent = 'Restoring keys from backup...';
+                // Warn user that this may take a while on mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    statusEl.innerHTML = 'Restoring keys from backup...<br><small>(This may take 15-30 seconds on mobile)</small>';
+                } else {
+                    statusEl.textContent = 'Restoring keys from backup...';
+                }
                 statusEl.className = 'pairing-status info';
 
-                console.log('[DevicePairing] Step 3/3: Calling KeyManager.restoreFromPasswordBackup()');
-                await window.KeyManager.restoreFromPasswordBackup(password);
+                console.log('[DevicePairing] Step 3/3: Calling KeyManagementService.restoreFromPasswordBackup()');
+                console.log('[DevicePairing] Device type:', isMobile ? 'Mobile' : 'Desktop');
+                debugLog('Calling restoreFromPasswordBackup...');
+                debugLog('(PBKDF2 600k iterations - may take 15-30s on mobile)', 'warn');
+                const startTime = Date.now();
+                await window.KeyManagementService.restoreFromPasswordBackup(password);
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 console.log('[DevicePairing] ✅ Password backup restore successful!');
+                debugLog(`Restore SUCCESS in ${duration}s`, 'success');
 
                 statusEl.textContent = '✓ Keys restored successfully!';
                 statusEl.className = 'pairing-status success';
 
                 console.log('[DevicePairing] Redirecting to landing page in 2 seconds...');
+                debugLog('Redirecting in 2s...');
                 setTimeout(() => {
                     window.location.href = '../../landing/index.html';
                 }, 2000);
@@ -879,6 +1184,8 @@
                 console.error('[DevicePairing] Error stack:', error.stack);
                 console.error('[DevicePairing] Full error object:', error);
                 console.error('═══════════════════════════════════════════════════════════');
+
+                debugLog(`Restore FAILED: ${error.message}`, 'error');
 
                 statusEl.textContent = '✗ Error: ' + error.message;
                 statusEl.className = 'pairing-status error';
@@ -915,21 +1222,28 @@
             console.log('[DevicePairing] ✅ Recovery key validation passed (24 words confirmed)');
 
             try {
-                console.log('[DevicePairing] Step 2/3: Verifying KeyManager service');
-                console.log('[DevicePairing]   - KeyManager available:', !!window.KeyManager);
+                console.log('[DevicePairing] Step 2/3: Verifying KeyManagementService');
+                console.log('[DevicePairing]   - KeyManagementService available:', !!window.KeyManagementService);
                 console.log('[DevicePairing]   - restoreFromRecoveryKeyBackup function exists:',
-                    !!(window.KeyManager && window.KeyManager.restoreFromRecoveryKeyBackup));
+                    !!(window.KeyManagementService && window.KeyManagementService.restoreFromRecoveryKeyBackup));
 
-                if (!window.KeyManager) {
-                    throw new Error('KeyManager service not available');
+                if (!window.KeyManagementService) {
+                    throw new Error('KeyManagementService not available');
                 }
 
-                statusEl.textContent = 'Restoring keys from recovery key...';
+                // Warn user that this may take a while on mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    statusEl.innerHTML = 'Restoring keys from recovery key...<br><small>(This may take 15-30 seconds on mobile)</small>';
+                } else {
+                    statusEl.textContent = 'Restoring keys from recovery key...';
+                }
                 statusEl.className = 'pairing-status info';
 
-                console.log('[DevicePairing] Step 3/3: Calling KeyManager.restoreFromRecoveryKeyBackup()');
+                console.log('[DevicePairing] Step 3/3: Calling KeyManagementService.restoreFromRecoveryKeyBackup()');
                 console.log('[DevicePairing]   - Recovery key word count:', words.length);
-                await window.KeyManager.restoreFromRecoveryKeyBackup(recoveryKeyText);
+                console.log('[DevicePairing] Device type:', isMobile ? 'Mobile' : 'Desktop');
+                await window.KeyManagementService.restoreFromRecoveryKeyBackup(recoveryKeyText);
                 console.log('[DevicePairing] ✅ Recovery key backup restore successful!');
 
                 statusEl.textContent = '✓ Keys restored successfully with recovery key!';

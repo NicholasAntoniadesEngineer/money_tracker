@@ -526,8 +526,25 @@ CREATE TABLE IF NOT EXISTS identity_keys (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     public_key TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    current_epoch INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+COMMENT ON COLUMN identity_keys.current_epoch IS 'Current key epoch. Incremented on each key regeneration for key rotation support.';
+
+CREATE OR REPLACE FUNCTION update_identity_keys_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_identity_keys_updated_at
+    BEFORE UPDATE ON identity_keys
+    FOR EACH ROW
+    EXECUTE FUNCTION update_identity_keys_updated_at();
 
 CREATE INDEX idx_identity_keys_user_id ON identity_keys(user_id);
 
@@ -547,6 +564,34 @@ CREATE POLICY identity_keys_delete_own ON identity_keys
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON identity_keys TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE identity_keys_id_seq TO authenticated;
+
+-- Public key history (stores historical public keys for epoch-based decryption)
+-- When a user regenerates keys, their old public key is archived here
+CREATE TABLE IF NOT EXISTS public_key_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    epoch INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, epoch)
+);
+
+CREATE INDEX idx_public_key_history_user_epoch ON public_key_history(user_id, epoch);
+
+ALTER TABLE public_key_history ENABLE ROW LEVEL SECURITY;
+
+-- Public keys are readable by all authenticated users (needed for decryption)
+CREATE POLICY public_key_history_select_all ON public_key_history
+    FOR SELECT TO authenticated USING (true);
+
+-- Users can only insert their own historical keys
+CREATE POLICY public_key_history_insert_own ON public_key_history
+    FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+GRANT SELECT, INSERT ON public_key_history TO authenticated;
+
+COMMENT ON TABLE public_key_history IS 'Historical public keys for epoch-based decryption of old messages';
+COMMENT ON COLUMN public_key_history.epoch IS 'Key epoch - increments each time user regenerates keys';
 
 -- User key backups (public keys for safety number verification)
 CREATE TABLE IF NOT EXISTS user_key_backups (
@@ -599,10 +644,13 @@ CREATE TABLE IF NOT EXISTS paired_devices (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     device_name TEXT NOT NULL,
+    device_fingerprint TEXT,
     is_primary BOOLEAN DEFAULT false,
     last_active TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+COMMENT ON COLUMN paired_devices.device_fingerprint IS 'Browser fingerprint for device identification';
 
 CREATE INDEX idx_paired_devices_user_id ON paired_devices(user_id);
 
@@ -854,6 +902,7 @@ CREATE POLICY notifications_insert_for_others ON notifications
     FOR INSERT WITH CHECK (true);
 
 -- Messages (encrypted)
+-- key_epoch tracks which session key version was used to encrypt each message
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,
     conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -862,6 +911,7 @@ CREATE TABLE IF NOT EXISTS messages (
     encrypted_content TEXT NOT NULL,
     encryption_nonce TEXT NOT NULL,
     message_counter BIGINT NOT NULL,
+    key_epoch INTEGER DEFAULT 0,
     is_encrypted BOOLEAN DEFAULT TRUE,
     read BOOLEAN DEFAULT FALSE,
     read_at TIMESTAMPTZ,
@@ -869,11 +919,14 @@ CREATE TABLE IF NOT EXISTS messages (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+COMMENT ON COLUMN messages.key_epoch IS 'Session key epoch used to encrypt this message. Enables decryption with correct key version after key rotations.';
+
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX idx_messages_recipient_unread ON messages(recipient_id, read) WHERE read = FALSE;
 CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_messages_key_epoch ON messages(key_epoch);
 
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
@@ -933,6 +986,7 @@ ALTER TABLE data_shares
 -- ============================================================
 
 -- Session key backup for multi-device message decryption
+-- Supports multiple session keys per conversation (one per epoch) for key rotation
 CREATE TABLE IF NOT EXISTS conversation_session_keys (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -940,12 +994,16 @@ CREATE TABLE IF NOT EXISTS conversation_session_keys (
     encrypted_session_key TEXT NOT NULL,
     encryption_nonce TEXT NOT NULL,
     message_counter BIGINT NOT NULL DEFAULT 0,
+    key_epoch INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, conversation_id)
+    UNIQUE(user_id, conversation_id, key_epoch)
 );
 
+COMMENT ON COLUMN conversation_session_keys.key_epoch IS 'Key epoch this session belongs to. Higher epochs = more recent keys after regeneration.';
+
 CREATE INDEX idx_session_keys_user_conversation ON conversation_session_keys(user_id, conversation_id);
+CREATE INDEX idx_session_keys_epoch ON conversation_session_keys(key_epoch);
 
 ALTER TABLE conversation_session_keys ENABLE ROW LEVEL SECURITY;
 

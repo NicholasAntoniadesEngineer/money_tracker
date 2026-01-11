@@ -88,6 +88,30 @@ const MessengerController = {
                 console.log('[MessengerController] ✓ E2E encryption initialized');
             } catch (encryptionError) {
                 console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
+
+                // Check if this is an identity key mismatch error
+                if (encryptionError.message && encryptionError.message.includes('IDENTITY KEY MISMATCH')) {
+                    console.error('[MessengerController] Identity key mismatch detected - redirecting to device pairing');
+
+                    // Show a detailed alert with instructions
+                    const userChoice = confirm(
+                        'ENCRYPTION KEY MISMATCH DETECTED\n\n' +
+                        'This device has different encryption keys than your other devices. ' +
+                        'Messages from other devices cannot be decrypted here.\n\n' +
+                        'To fix this:\n' +
+                        '1. Go to your PRIMARY device (where messages work)\n' +
+                        '2. Open Settings → Security → Pair New Device\n' +
+                        '3. Use QR code or Recovery Key to sync keys to this device\n\n' +
+                        'Click OK to go to Device Pairing, or Cancel to stay here.'
+                    );
+
+                    if (userChoice) {
+                        // Redirect to device pairing page
+                        window.location.href = 'device-pairing.html';
+                    }
+                    return;
+                }
+
                 alert('Failed to initialize secure messaging. Please refresh the page.');
                 return;
             }
@@ -1056,12 +1080,33 @@ const MessengerController = {
                 // Regular message - use cached email
                 regularMessageCount++;
                 const senderEmail = this.getUserEmail(msg.sender_id);
+
+                // Build debug info HTML if debug mode is enabled
+                let debugInfoHtml = '';
+                if (window.ENCRYPTION_DEBUG_MODE && msg._debugInfo) {
+                    const debug = msg._debugInfo;
+                    const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                    const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                    debugInfoHtml = `
+                        <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                            <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Decryption: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                            ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                            <div>Epoch: ${debug.epoch}</div>
+                            <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                            <div>Message ID: ${debug.messageId}</div>
+                            <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                            <div>Nonce: ${debug.nonceLength} chars</div>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                             <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                             <div style="white-space: pre-line;">${msg.content}</div>
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                            ${debugInfoHtml}
                         </div>
                     </div>
                 `;
@@ -1502,6 +1547,26 @@ const MessengerController = {
             const date = new Date(message.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Build debug info HTML if debug mode is enabled
+            let debugInfoHtml = '';
+            if (window.ENCRYPTION_DEBUG_MODE && message._debugInfo) {
+                const debug = message._debugInfo;
+                const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                const typeLabel = debug.isSentMessage ? ' (Sent)' : '';
+                debugInfoHtml = `
+                    <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                        <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Encryption${typeLabel}: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                        ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                        <div>Epoch: ${debug.epoch}</div>
+                        <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                        <div>Message ID: ${debug.messageId}</div>
+                        <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                        <div>Nonce: ${debug.nonceLength} chars</div>
+                    </div>
+                `;
+            }
+
             // Generate HTML for the new message (regular message only, not share requests)
             const messageHtml = `
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
@@ -1509,6 +1574,7 @@ const MessengerController = {
                         <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                         <div style="white-space: pre-line;">${message.content}</div>
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                        ${debugInfoHtml}
                     </div>
                 </div>
             `;

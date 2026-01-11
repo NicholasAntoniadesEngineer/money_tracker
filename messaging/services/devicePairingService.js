@@ -286,7 +286,7 @@ const DevicePairingService = {
      */
     async _encryptKeys(keys, encryptionKey) {
         const publicKeyB64 = window.CryptoService.serializePublicKey(keys.publicKey);
-        const secretKeyB64 = window.CryptoService.serializeSecretKey(keys.secretKey);
+        const secretKeyB64 = window.CryptoService.serializePublicKey(keys.secretKey);
 
         // For now, store as base64 (in production, should use proper encryption)
         // TODO: Implement proper symmetric encryption using encryptionKey
@@ -307,7 +307,7 @@ const DevicePairingService = {
         // For now, decode from base64 (in production, should decrypt)
         // TODO: Implement proper symmetric decryption using encryptionKey
         const publicKey = window.CryptoService.deserializePublicKey(encryptedKeys.publicKey);
-        const secretKey = window.CryptoService.deserializeSecretKey(encryptedKeys.secretKey);
+        const secretKey = window.CryptoService.deserializePublicKey(encryptedKeys.secretKey);
 
         return { publicKey, secretKey };
     },

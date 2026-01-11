@@ -433,13 +433,22 @@
     <script src="../../payments/initPayments.js"></script>
     <script src="../../payments/utils/waitForPaymentsInit.js"></script>
 
-    <!-- Crypto Libraries for E2E Encryption -->
-    <script src="../../messaging/crypto/naclLoader.js"></script>
-    <script src="../../messaging/crypto/cryptoService.js"></script>
-    <script src="../../messaging/crypto/keyStorageService.js"></script>
-    <script src="../../messaging/crypto/passwordCrypto.js"></script>
-    <script src="../../messaging/crypto/keyBackupService.js"></script>
-    <script src="../../messaging/crypto/keyManager.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../encryption/services/keyDerivationService.js"></script>
+    <script src="../../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../encryption/services/keyStorageService.js"></script>
+    <script src="../../encryption/services/historicalKeysService.js"></script>
+    <script src="../../encryption/services/passwordCryptoService.js"></script>
+    <script src="../../encryption/services/keyBackupService.js"></script>
+    <script src="../../encryption/services/keyManagementService.js"></script>
+    <script src="../../encryption/facade/encryptionFacade.js"></script>
+    <script src="../../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../encryption/encryptionModule.js"></script>
+    <script src="../../encryption/initEncryption.js"></script>
 
     <!-- Device Pairing -->
     <script src="../../messaging/services/devicePairingService.js"></script>
@@ -802,19 +811,20 @@
             console.log('[AuthPage] ========== POST SIGN-IN CHECK ==========');
 
             try {
-                // Step 1: Initialize CryptoService (loads TweetNaCl)
-                console.log('[AuthPage] Step 1: Initializing CryptoService...');
-                if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
-                    await window.CryptoService.initialize();
-                    console.log('[AuthPage] ✓ CryptoService initialized');
+                // Step 1: Initialize Encryption Module (loads TweetNaCl)
+                console.log('[AuthPage] Step 1: Initializing Encryption Module...');
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
+                    console.log('[AuthPage] ✓ CryptoPrimitivesService initialized');
                 } else {
-                    throw new Error('CryptoService not available');
+                    throw new Error('CryptoLibraryLoader not available');
                 }
 
-                // Step 2: Initialize KeyStorageService (needs CryptoService)
+                // Step 2: Initialize KeyStorageService (needs Encryption Module)
                 console.log('[AuthPage] Step 2: Initializing KeyStorageService...');
                 if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
-                    await window.KeyStorageService.initialize();
+                    await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
                     console.log('[AuthPage] ✓ KeyStorageService initialized');
                 } else {
                     throw new Error('KeyStorageService not available');
@@ -856,11 +866,11 @@
                 if (password) {
                     console.log('[AuthPage] Attempting automatic decryption with password...');
 
-                    // Initialize KeyManager
-                    await window.KeyManager.initialize(userId);
+                    // Initialize KeyManagementService
+                    await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
 
                     try {
-                        await window.KeyManager.restoreFromPasswordBackup(password);
+                        await window.KeyManagementService.restoreFromPasswordBackup(password);
                         console.log('[AuthPage] ✓ Keys restored from password backup');
 
                         // Clear temporary password
@@ -917,16 +927,17 @@
             document.getElementById('pairing-error-view').style.display = 'none';
 
             try {
-                // Ensure crypto stack is fully initialized
-                console.log('[AuthPage] Ensuring crypto services are initialized...');
+                // Ensure encryption module is fully initialized
+                console.log('[AuthPage] Ensuring encryption services are initialized...');
 
-                if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
-                    await window.CryptoService.initialize();
-                    console.log('[AuthPage] ✓ CryptoService ready');
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
+                    console.log('[AuthPage] ✓ CryptoPrimitivesService ready');
                 }
 
                 if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
-                    await window.KeyStorageService.initialize();
+                    await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
                     console.log('[AuthPage] ✓ KeyStorageService ready');
                 }
 
@@ -935,9 +946,9 @@
                     console.log('[AuthPage] ✓ DatabaseService ready');
                 }
 
-                // Initialize encryption keys via KeyManager
-                console.log('[AuthPage] Calling KeyManager.initialize()...');
-                const keys = await window.KeyManager.initialize(userId);
+                // Initialize encryption keys via KeyManagementService
+                console.log('[AuthPage] Calling KeyManagementService.initialize()...');
+                const keys = await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
 
                 if (!keys || !keys.publicKey || !keys.secretKey) {
                     throw new Error('Failed to generate encryption keys');
@@ -947,7 +958,7 @@
 
                 // Generate recovery key
                 console.log('[AuthPage] Generating recovery key...');
-                const recoveryKey = window.CryptoService.generateRecoveryKey();
+                const recoveryKey = window.CryptoPrimitivesService.generateRecoveryKey();
                 console.log('[AuthPage] ✓ Recovery key generated');
 
                 // Get password from PasswordManager temporary storage
@@ -963,7 +974,7 @@
                         console.log('[AuthPage] Creating dual backup with', finalRecoveryKey === recoveryKey ? 'generated' : 'custom', 'recovery key');
 
                         // Create encrypted backups with both password and recovery key (use finalRecoveryKey which may be customized)
-                        await window.KeyManager.createDualBackup(password, finalRecoveryKey);
+                        await window.KeyManagementService.createDualBackup(password, finalRecoveryKey);
 
                         console.log('[AuthPage] ✓ Dual backup created');
 
@@ -1360,12 +1371,13 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize CryptoService first (required for KeyStorageService)
-            if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
+            // Initialize Encryption Module first (required for KeyStorageService)
+            if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
                 try {
-                    await window.CryptoService.initialize();
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
                 } catch (error) {
-                    console.warn('[AuthPage] Failed to initialize CryptoService:', error);
+                    console.warn('[AuthPage] Failed to initialize Encryption Module:', error);
                 }
             }
 

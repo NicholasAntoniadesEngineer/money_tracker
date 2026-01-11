@@ -6,6 +6,12 @@
 
 const MessagingService = {
     /**
+     * Encryption facade (set during initialization)
+     * @type {Object|null}
+     */
+    _encryptionFacade: null,
+
+    /**
      * Get database service (requires config)
      * @returns {Object} Database service
      * @throws {Error} If DatabaseConfigHelper is not available or database service is not configured
@@ -28,6 +34,32 @@ const MessagingService = {
             throw new Error('DatabaseConfigHelper not available. Ensure database-config-helper.js is loaded and DatabaseModule.initialize() has been called.');
         }
         return DatabaseConfigHelper.getTableName(this, tableKey);
+    },
+
+    /**
+     * Get the encryption facade from EncryptionModule
+     * @returns {Object} Encryption facade (EncryptionFacade or NullEncryptionFacade)
+     */
+    _getEncryptionFacade() {
+        if (this._encryptionFacade) {
+            return this._encryptionFacade;
+        }
+
+        if (typeof EncryptionModule !== 'undefined' && EncryptionModule.isInitialized()) {
+            this._encryptionFacade = EncryptionModule.getFacade();
+            return this._encryptionFacade;
+        }
+
+        throw new Error('[MessagingService] EncryptionModule not initialized. Call initEncryptionModule() first.');
+    },
+
+    /**
+     * Set the encryption facade (called by EncryptionModule initialization)
+     * @param {Object} facade - The encryption facade to use
+     */
+    setEncryptionFacade(facade) {
+        this._encryptionFacade = facade;
+        console.log('[MessagingService] Encryption facade set:', facade?.isEncryptionEnabled?.() ? 'encrypted' : 'plaintext');
     },
 
     /**
@@ -182,46 +214,62 @@ const MessagingService = {
             const messagesTableName = this._getTableName('messages');
             const conversationsTableName = this._getTableName('conversations');
 
-            // Encrypt message using E2E encryption
+            // Get encryption facade
+            const encryptionFacade = this._getEncryptionFacade();
             let messageData;
-            try {
-                console.log('[MessagingService] Encrypting message...');
 
-                // Ensure encryption session exists
-                await window.KeyManager.establishSession(conversationId, recipientId);
+            if (encryptionFacade.isEncryptionEnabled()) {
+                // Encrypt message using E2E encryption
+                try {
+                    console.log('[MessagingService] Encrypting message...');
 
-                // Encrypt the message
-                const encryptedData = await window.KeyManager.encryptMessage(
-                    conversationId,
-                    content.trim()
-                );
+                    // Encrypt the message using facade
+                    const encryptedData = await encryptionFacade.encryptMessage(
+                        conversationId,
+                        content.trim(),
+                        recipientId
+                    );
 
-                // Create encrypted message (encryption-only, no plain-text content)
+                    // Create encrypted message
+                    messageData = {
+                        conversation_id: conversationId,
+                        sender_id: senderId,
+                        recipient_id: recipientId,
+                        encrypted_content: encryptedData.ciphertext,
+                        encryption_nonce: encryptedData.nonce,
+                        message_counter: encryptedData.counter,
+                        key_epoch: encryptedData.epoch || 0,
+                        is_encrypted: true,
+                        read: false
+                    };
+
+                    console.log('[MessagingService] Message encrypted, inserting...', {
+                        conversationId,
+                        senderId,
+                        recipientId,
+                        counter: encryptedData.counter,
+                        epoch: encryptedData.epoch || 0,
+                        ciphertextLength: encryptedData.ciphertext?.length || 0
+                    });
+
+                } catch (encryptionError) {
+                    console.error('[MessagingService] Encryption error:', encryptionError);
+                    return {
+                        success: false,
+                        message: null,
+                        error: 'Failed to encrypt message: ' + encryptionError.message
+                    };
+                }
+            } else {
+                // Send plaintext message (free users)
+                console.log('[MessagingService] Sending plaintext message (encryption disabled)');
                 messageData = {
                     conversation_id: conversationId,
                     sender_id: senderId,
                     recipient_id: recipientId,
-                    encrypted_content: encryptedData.ciphertext,
-                    encryption_nonce: encryptedData.nonce,
-                    message_counter: encryptedData.counter,
-                    is_encrypted: true,
+                    content: content.trim(),
+                    is_encrypted: false,
                     read: false
-                };
-
-                console.log('[MessagingService] Message encrypted, inserting...', {
-                    conversationId,
-                    senderId,
-                    recipientId,
-                    counter: encryptedData.counter,
-                    ciphertextLength: encryptedData.ciphertext.length
-                });
-
-            } catch (encryptionError) {
-                console.error('[MessagingService] Encryption error:', encryptionError);
-                return {
-                    success: false,
-                    message: null,
-                    error: 'Failed to encrypt message: ' + encryptionError.message
                 };
             }
             
@@ -344,9 +392,24 @@ const MessagingService = {
                 }
             }
 
+            // Add debug info for sent message if debug mode is enabled
+            const returnMessage = { ...newMessage };
+            if (window.ENCRYPTION_DEBUG_MODE) {
+                returnMessage._debugInfo = {
+                    decryptSuccess: true, // Sent message - we have the plaintext
+                    epoch: messageData.key_epoch,
+                    counter: messageData.message_counter,
+                    messageId: newMessage.id,
+                    ciphertextLength: messageData.encrypted_content?.length || 0,
+                    nonceLength: messageData.encryption_nonce?.length || 0,
+                    isSentMessage: true
+                };
+                console.log('[MessagingService] Debug info attached to sent message:', returnMessage._debugInfo);
+            }
+
             return {
                 success: true,
-                message: newMessage,
+                message: returnMessage,
                 error: null
             };
         } catch (error) {
@@ -515,20 +578,31 @@ const MessagingService = {
             const messages = result.data || [];
             console.log(`[MessagingService] Found ${messages.length} messages in conversation ${conversationId}`);
 
-            // Decrypt encrypted messages and fetch sender emails
+            // Get encryption facade
+            const encryptionFacade = this._getEncryptionFacade();
+
+            // Process messages - decrypt if encrypted or return plaintext
             const messagesWithEmailsAndDecrypted = await Promise.all(messages.map(async (msg) => {
                 // Fetch sender email
                 const senderEmailResult = await databaseService.getUserEmailById(msg.sender_id);
                 const sender_email = senderEmailResult.success ? senderEmailResult.email : 'Unknown User';
 
-                // ALL messages MUST be encrypted (enforced by database constraint)
                 let content;
+                let decryptSuccess = false;
+                let decryptError = null;
 
-                // Verify message has required encryption fields
-                if (!msg.encrypted_content || !msg.encryption_nonce) {
+                // Check if message is encrypted or plaintext
+                if (msg.is_encrypted === false && msg.content) {
+                    // Plaintext message (free users)
+                    content = msg.content;
+                    decryptSuccess = true;
+                    console.log('[MessagingService] Plaintext message:', msg.id);
+                } else if (!msg.encrypted_content || !msg.encryption_nonce) {
+                    // Encrypted message missing required fields
                     console.error('[MessagingService] Message missing encryption data:', msg.id);
                     content = '[ERROR: Message corrupted - missing encryption data]';
                 } else {
+                    // Encrypted message - decrypt it
                     try {
                         console.log('[MessagingService] Decrypting message:', {
                             message_id: msg.id,
@@ -538,30 +612,53 @@ const MessagingService = {
                             created_at: msg.created_at
                         });
 
-                        // Decrypt the message (all messages are encrypted)
-                        const plaintext = await window.KeyManager.decryptMessage(
+                        // Decrypt the message using facade
+                        const plaintext = await encryptionFacade.decryptMessage(
                             conversationId,
                             {
                                 ciphertext: msg.encrypted_content,
                                 nonce: msg.encryption_nonce,
-                                counter: msg.message_counter
-                            }
+                                counter: msg.message_counter,
+                                epoch: msg.key_epoch || 0
+                            },
+                            msg.sender_id
                         );
                         content = plaintext;
-                        console.log('[MessagingService] ✓ Message', msg.id, 'decrypted successfully');
+                        decryptSuccess = true;
+                        console.log('[MessagingService] Message', msg.id, 'decrypted successfully (epoch:', msg.key_epoch || 0 + ')');
 
                     } catch (decryptionError) {
-                        console.error('[MessagingService] ❌ Decryption failed for message:', msg.id);
+                        console.error('[MessagingService] Decryption failed for message:', msg.id);
                         console.error('[MessagingService] Error:', decryptionError.message);
-                        console.error('[MessagingService] Stack:', decryptionError.stack);
-                        content = '[ERROR: Decryption failed - you may not have access to this conversation]';
+                        content = '[Encrypted message - unable to decrypt]';
+                        decryptSuccess = false;
+                        decryptError = decryptionError.message;
                     }
+                }
+
+                // Build debug info for this message
+                const debugInfo = {
+                    messageId: msg.id,
+                    epoch: msg.key_epoch || 0,
+                    counter: msg.message_counter,
+                    isEncrypted: msg.is_encrypted,
+                    decryptSuccess: decryptSuccess,
+                    decryptError: decryptError || null,
+                    ciphertextLength: msg.encrypted_content ? msg.encrypted_content.length : 0,
+                    nonceLength: msg.encryption_nonce ? msg.encryption_nonce.length : 0,
+                    timestamp: msg.created_at
+                };
+
+                // Log debug info if debug mode is enabled
+                if (window.ENCRYPTION_DEBUG_MODE) {
+                    console.log('[MessagingService] Debug info for message', msg.id + ':', JSON.stringify(debugInfo, null, 2));
                 }
 
                 return {
                     ...msg,
-                    content, // Decrypted content
-                    sender_email
+                    content, // Decrypted or plaintext content
+                    sender_email,
+                    _debugInfo: debugInfo // Debug info (prefixed with _ to indicate internal)
                 };
             }));
 

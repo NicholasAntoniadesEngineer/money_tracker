@@ -178,6 +178,18 @@
                 <button id="close-encryption-admin-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">&times;</button>
             </div>
             <div class="modal-body">
+                <!-- Key Diagnostics - AT TOP for mobile visibility -->
+                <div style="border: 2px solid #dc3545; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(220, 53, 69, 0.05); margin-bottom: var(--spacing-md);">
+                    <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-stethoscope"></i> Key Diagnostics (Mobile Debug)</h4>
+                    <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                        Compare local vs server keys to diagnose decryption failures.
+                    </p>
+                    <button id="run-key-diagnostics-btn" class="btn btn-danger" style="width: 100%;">
+                        <i class="fas fa-search"></i> Run Key Diagnostics
+                    </button>
+                    <div id="key-diagnostics-output" style="margin-top: var(--spacing-md); display: none; font-family: monospace; font-size: 0.75rem; background: #1a1a1a; color: #0f0; padding: var(--spacing-md); border-radius: 4px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></div>
+                </div>
+
                 <div style="background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; border-radius: var(--border-radius); padding: var(--spacing-md); margin-bottom: var(--spacing-md);">
                     <p style="margin: 0; color: #856404;"><strong>Warning:</strong> These tools are for fixing encryption issues when messages fail to decrypt. Use with caution.</p>
                 </div>
@@ -217,6 +229,41 @@
                             <i class="fas fa-fingerprint"></i> Show Safety Number
                         </button>
                     </div>
+
+                    <div style="border: 1px solid #28a745; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(40, 167, 69, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-clock"></i> Key Rotation</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Periodic key rotation improves security by limiting the window if a key is compromised.
+                        </p>
+                        <div id="rotation-status-display" style="margin-bottom: var(--spacing-sm); padding: var(--spacing-sm); background: var(--background-color); border-radius: var(--border-radius-sm); font-size: 0.85rem;">
+                            <span id="rotation-status-text">Loading rotation status...</span>
+                        </div>
+                        <button id="manual-rotate-btn" class="btn btn-secondary" style="width: 100%; border-color: #28a745; color: #28a745;">
+                            <i class="fas fa-redo"></i> Rotate Keys Now
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #fd7e14; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(253, 126, 20, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-sync-alt"></i> Regenerate Keys (Advanced)</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Generate new identity keys to create a new safety number. Both you and your contact will need to verify the new number.
+                        </p>
+                        <button id="regenerate-keys-btn" class="btn btn-secondary" style="width: 100%; border-color: #fd7e14; color: #fd7e14;">
+                            <i class="fas fa-sync-alt"></i> Regenerate Identity Keys
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #6c757d; border-radius: var(--border-radius); padding: var(--spacing-md); background: rgba(108, 117, 125, 0.05);">
+                        <h4 style="margin: 0 0 var(--spacing-sm) 0;"><i class="fas fa-bug"></i> Debug Mode</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-sm);">
+                            Show encryption debug info (epoch, session, counter) on each message.
+                        </p>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="checkbox" id="encryption-debug-toggle" style="width: 18px; height: 18px;">
+                            <span id="encryption-debug-label">Enable Debug Mode</span>
+                        </label>
+                    </div>
+
                 </div>
 
                 <div id="encryption-admin-status" style="margin-top: var(--spacing-md); padding: var(--spacing-md); border-radius: var(--border-radius); display: none;"></div>
@@ -257,11 +304,22 @@
     <script src="../../database/services/notificationChannelService.js"></script>
     <script src="../../database/services/notificationProcessor.js"></script>
 
-    <!-- E2E Encryption Crypto Services -->
-    <script src="../crypto/naclLoader.js"></script>
-    <script src="../crypto/cryptoService.js"></script>
-    <script src="../crypto/keyStorageService.js"></script>
-    <script src="../crypto/keyManager.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../encryption/services/keyDerivationService.js"></script>
+    <script src="../../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../encryption/services/keyStorageService.js"></script>
+    <script src="../../encryption/services/passwordCryptoService.js"></script>
+    <script src="../../encryption/services/historicalKeysService.js"></script>
+    <script src="../../encryption/services/keyBackupService.js"></script>
+    <script src="../../encryption/services/keyManagementService.js"></script>
+    <script src="../../encryption/facade/encryptionFacade.js"></script>
+    <script src="../../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../encryption/encryptionModule.js"></script>
+    <script src="../../encryption/initEncryption.js"></script>
 
     <!-- Messaging Service -->
     <script src="../services/messagingService.js"></script>
@@ -392,6 +450,43 @@
                 return;
             }
 
+            // Function to update rotation status display
+            const updateRotationStatus = async () => {
+                const rotationStatusText = document.getElementById('rotation-status-text');
+                if (!rotationStatusText) return;
+
+                try {
+                    const facade = window.getEncryptionFacade?.();
+                    if (!facade?.getRotationStatus) {
+                        rotationStatusText.innerHTML = '<i class="fas fa-info-circle"></i> Rotation status not available';
+                        return;
+                    }
+
+                    const status = await facade.getRotationStatus();
+                    if (!status.configured) {
+                        rotationStatusText.innerHTML = '<i class="fas fa-times-circle" style="color: #dc3545;"></i> Not configured';
+                        return;
+                    }
+
+                    if (!status.enabled) {
+                        rotationStatusText.innerHTML = '<i class="fas fa-pause-circle" style="color: #6c757d;"></i> Rotation disabled';
+                        return;
+                    }
+
+                    const rotationHtml = `
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div><i class="fas fa-key" style="color: #28a745;"></i> <strong>Epoch:</strong> ${status.currentEpoch}</div>
+                            <div><i class="fas fa-history" style="color: #17a2b8;"></i> <strong>Last rotated:</strong> ${status.timeSinceHuman || 'Never'} ago</div>
+                            <div><i class="fas fa-clock" style="color: #ffc107;"></i> <strong>Interval:</strong> ${status.intervalHuman}</div>
+                        </div>
+                    `;
+                    rotationStatusText.innerHTML = rotationHtml;
+                } catch (error) {
+                    console.error('[EncryptionAdmin] Failed to get rotation status:', error);
+                    rotationStatusText.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i> Error loading status';
+                }
+            };
+
             // Open modal
             adminBtn.addEventListener('click', () => {
                 const convId = window.MessengerController?.currentConversationId;
@@ -402,6 +497,8 @@
                 convIdInput.value = convId;
                 statusDiv.style.display = 'none';
                 modal.style.display = 'flex';
+                // Update rotation status when modal opens
+                updateRotationStatus();
             });
 
             // Close modal
@@ -512,6 +609,504 @@
                 verifyKeysBtn.innerHTML = '<i class="fas fa-fingerprint"></i> Show Safety Number';
             });
 
+            // Debug Mode toggle
+            const debugToggle = document.getElementById('encryption-debug-toggle');
+            const debugLabel = document.getElementById('encryption-debug-label');
+            if (debugToggle) {
+                // Initialize from sessionStorage
+                const debugEnabled = sessionStorage.getItem('encryption_debug_mode') === 'true';
+                debugToggle.checked = debugEnabled;
+                debugLabel.textContent = debugEnabled ? 'Debug Mode ON' : 'Enable Debug Mode';
+                window.ENCRYPTION_DEBUG_MODE = debugEnabled;
+
+                debugToggle.addEventListener('change', async () => {
+                    const enabled = debugToggle.checked;
+                    sessionStorage.setItem('encryption_debug_mode', enabled.toString());
+                    window.ENCRYPTION_DEBUG_MODE = enabled;
+                    debugLabel.textContent = enabled ? 'Debug Mode ON' : 'Enable Debug Mode';
+
+                    // Reload messages to show/hide debug info
+                    if (window.MessengerController && window.MessengerController.currentConversationId) {
+                        showStatus(
+                            enabled
+                                ? '<strong>Debug Mode Enabled</strong><br>Messages will now show encryption details. Reloading conversation...'
+                                : '<strong>Debug Mode Disabled</strong><br>Encryption details hidden. Reloading conversation...',
+                            false
+                        );
+                        // Reload current conversation to apply debug mode
+                        setTimeout(() => {
+                            window.MessengerController.openConversation(window.MessengerController.currentConversationId);
+                        }, 500);
+                    }
+                });
+            }
+
+            // Regenerate Keys button
+            const regenerateKeysBtn = document.getElementById('regenerate-keys-btn');
+            if (regenerateKeysBtn) {
+                regenerateKeysBtn.addEventListener('click', async () => {
+                    // Confirm with user before proceeding
+                    const confirmed = confirm(
+                        'Are you sure you want to regenerate your identity keys?\n\n' +
+                        'This will:\n' +
+                        '• Generate new encryption keys for this device\n' +
+                        '• Change the safety number for ALL conversations\n' +
+                        '• Require you to verify numbers with all contacts again\n\n' +
+                        'Your old messages will remain readable.\n' +
+                        'New sessions will be established automatically when you send new messages.'
+                    );
+
+                    if (!confirmed) return;
+
+                    regenerateKeysBtn.disabled = true;
+                    regenerateKeysBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerating...';
+
+                    try {
+                        const result = await window.KeyManager.regenerateIdentityKeys();
+                        if (result.success) {
+                            const successHtml = `
+                                <div style="text-align: center;">
+                                    <strong style="color: #28a745;"><i class="fas fa-check-circle"></i> Keys Regenerated</strong>
+                                    <p style="font-size: 0.85rem; margin: 8px 0;">${result.message}</p>
+                                    <div style="font-family: monospace; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; text-align: left;">
+                                        <div style="margin-bottom: 8px;">
+                                            <span style="color: #dc3545;">Old:</span> <code style="text-decoration: line-through;">${result.oldFingerprint}</code>
+                                        </div>
+                                        <div>
+                                            <span style="color: #28a745;">New:</span> <strong>${result.newFingerprint}</strong>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 0.8rem; color: var(--text-color-secondary); margin-top: 12px;">
+                                        <i class="fas fa-info-circle"></i> Click "Show Safety Number" to verify the change. Your safety number should now be different.
+                                    </p>
+                                </div>
+                            `;
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+                            statusDiv.style.border = '1px solid #28a745';
+                            statusDiv.style.color = 'var(--text-color)';
+                            statusDiv.innerHTML = successHtml;
+                        } else {
+                            showStatus(`<strong>Failed:</strong> ${result.message}`, true);
+                        }
+                    } catch (error) {
+                        showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                    }
+
+                    regenerateKeysBtn.disabled = false;
+                    regenerateKeysBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Regenerate Identity Keys';
+                });
+            }
+
+            // Manual Key Rotation button
+            const manualRotateBtn = document.getElementById('manual-rotate-btn');
+            if (manualRotateBtn) {
+                manualRotateBtn.addEventListener('click', async () => {
+                    // Confirm with user
+                    const confirmed = confirm(
+                        'Rotate encryption keys now?\n\n' +
+                        'This will:\n' +
+                        '• Generate new keys for improved security\n' +
+                        '• Old messages remain readable\n' +
+                        '• New sessions will use the new keys\n\n' +
+                        'Note: Key rotation happens automatically on a schedule. ' +
+                        'Manual rotation is useful if you suspect key compromise.'
+                    );
+
+                    if (!confirmed) return;
+
+                    manualRotateBtn.disabled = true;
+                    manualRotateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rotating...';
+
+                    try {
+                        const facade = window.getEncryptionFacade?.();
+                        if (!facade?.checkAndRotateIfNeeded) {
+                            throw new Error('Encryption facade not available');
+                        }
+
+                        // Force rotation by passing 1ms interval (will trigger rotation)
+                        const result = await facade.checkAndRotateIfNeeded(1);
+
+                        if (result.rotated) {
+                            const successHtml = `
+                                <div style="text-align: center;">
+                                    <strong style="color: #28a745;"><i class="fas fa-check-circle"></i> Keys Rotated</strong>
+                                    <p style="font-size: 0.85rem; margin: 8px 0;">
+                                        Keys successfully rotated to epoch <strong>${result.newEpoch}</strong>
+                                    </p>
+                                    <div style="font-family: monospace; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                        New fingerprint: <strong>${result.fingerprint}</strong>
+                                    </div>
+                                </div>
+                            `;
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+                            statusDiv.style.border = '1px solid #28a745';
+                            statusDiv.style.color = 'var(--text-color)';
+                            statusDiv.innerHTML = successHtml;
+
+                            // Update the rotation status display
+                            updateRotationStatus();
+                        } else {
+                            showStatus(`<strong>Note:</strong> ${result.reason === 'not_due' ? 'Keys were recently rotated. Next rotation in ' + result.nextRotationHuman : result.reason}`, false);
+                        }
+                    } catch (error) {
+                        showStatus(`<strong>Error:</strong> ${error.message}`, true);
+                    }
+
+                    manualRotateBtn.disabled = false;
+                    manualRotateBtn.innerHTML = '<i class="fas fa-redo"></i> Rotate Keys Now';
+                });
+            }
+
+            // Key Diagnostics button
+            const keyDiagnosticsBtn = document.getElementById('run-key-diagnostics-btn');
+            const keyDiagnosticsOutput = document.getElementById('key-diagnostics-output');
+            if (keyDiagnosticsBtn && keyDiagnosticsOutput) {
+                keyDiagnosticsBtn.addEventListener('click', async () => {
+                    keyDiagnosticsBtn.disabled = true;
+                    keyDiagnosticsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+                    keyDiagnosticsOutput.style.display = 'block';
+                    keyDiagnosticsOutput.innerHTML = '';
+
+                    const log = (msg, isError = false) => {
+                        const time = new Date().toLocaleTimeString();
+                        const color = isError ? '#f55' : '#0f0';
+                        keyDiagnosticsOutput.innerHTML += `<span style="color:${color}">[${time}] ${msg}</span>\n`;
+                        keyDiagnosticsOutput.scrollTop = keyDiagnosticsOutput.scrollHeight;
+                    };
+
+                    try {
+                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                        log(`=== KEY DIAGNOSTICS ===`);
+                        log(`Device: ${isMobile ? 'MOBILE' : 'Desktop'}`);
+                        log(`UA: ${navigator.userAgent.substring(0, 60)}...`);
+                        log(`Conv ID: ${convIdInput.value}`);
+
+                        const currentUser = window.AuthService?.getCurrentUser();
+                        const userId = currentUser?.id;
+                        log(`User ID: ${userId ? userId.substring(0, 8) + '...' : 'NOT LOGGED IN'}`, !userId);
+
+                        if (!userId) {
+                            log('ERROR: Not logged in', true);
+                            return;
+                        }
+
+                        // 1. Check local IndexedDB keys
+                        log(`\n--- LOCAL KEYS (IndexedDB) ---`);
+                        let localKeys = null;
+                        let localKeyB64 = null;
+                        try {
+                            if (window.KeyStorageService?.db) {
+                                localKeys = await window.KeyStorageService.getIdentityKeys(userId);
+                                if (localKeys && localKeys.publicKey) {
+                                    const pubKeyHex = Array.from(localKeys.publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+                                    localKeyB64 = window.CryptoService?.serializePublicKey?.(localKeys.publicKey) || '';
+                                    log(`Local pub: ${pubKeyHex.substring(0, 16)}...${pubKeyHex.substring(pubKeyHex.length - 16)}`);
+                                    log(`Local B64: ${localKeyB64.substring(0, 20)}...`);
+                                    log(`Has secret: ${!!localKeys.secretKey}`);
+                                } else {
+                                    log('NO LOCAL KEYS FOUND', true);
+                                }
+                            } else {
+                                log('KeyStorageService.db not ready', true);
+                            }
+                        } catch (e) {
+                            log(`Local key error: ${e.message}`, true);
+                        }
+
+                        // 2. Check server public key
+                        log(`\n--- SERVER KEYS (Database) ---`);
+                        let serverPublicKey = null;
+                        let serverEpoch = null;
+                        try {
+                            const result = await window.DatabaseService.querySelect('identity_keys', {
+                                filter: { user_id: userId },
+                                limit: 1
+                            });
+                            if (result.data && result.data[0]?.public_key) {
+                                serverPublicKey = result.data[0].public_key;
+                                serverEpoch = result.data[0].key_epoch;
+                                log(`Server B64: ${serverPublicKey.substring(0, 20)}...`);
+                                log(`Server epoch: ${serverEpoch || 'N/A'}`);
+                                log(`Updated: ${result.data[0].updated_at || 'N/A'}`);
+                            } else {
+                                log('NO SERVER KEY FOUND', true);
+                            }
+                        } catch (e) {
+                            log(`Server key error: ${e.message}`, true);
+                        }
+
+                        // 3. KEY COMPARISON - THE CRITICAL TEST
+                        log(`\n--- KEY COMPARISON (CRITICAL) ---`);
+                        if (localKeyB64 && serverPublicKey) {
+                            const keysMatch = localKeyB64 === serverPublicKey;
+                            if (keysMatch) {
+                                log(`KEYS MATCH: YES ✓`);
+                            } else {
+                                log(`KEYS MATCH: NO - MISMATCH!`, true);
+                                log(`Local:  ${localKeyB64}`, true);
+                                log(`Server: ${serverPublicKey}`, true);
+                            }
+                        } else {
+                            log('Cannot compare - missing keys', true);
+                        }
+
+                        // 4. Check conversation session
+                        const convId = convIdInput.value;
+                        if (convId) {
+                            log(`\n--- CONVERSATION SESSION ---`);
+                            try {
+                                // Check epoch sessions
+                                const epochKeys = await window.KeyStorageService?.getAllEpochSessionKeys?.(convId);
+                                if (epochKeys && epochKeys.length > 0) {
+                                    const epochs = epochKeys.map(k => k.epoch).sort((a, b) => b - a);
+                                    log(`Epochs stored: [${epochs.join(', ')}]`);
+                                    // Show first session details
+                                    const latest = epochKeys.find(k => k.epoch === epochs[0]);
+                                    if (latest && latest.sharedSecret) {
+                                        const secretHex = Array.from(latest.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+                                        log(`Latest (epoch ${epochs[0]}) secret: ${secretHex.substring(0, 16)}...${secretHex.substring(secretHex.length - 16)}`);
+                                    }
+                                } else {
+                                    log('No epoch sessions found', true);
+                                }
+
+                                // Check legacy session
+                                const legacySession = await window.KeyStorageService?.getSessionKey?.(convId);
+                                if (legacySession) {
+                                    log(`Legacy session: exists`);
+                                    if (legacySession.sharedSecret) {
+                                        const legacyHex = Array.from(legacySession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+                                        log(`Legacy secret: ${legacyHex.substring(0, 16)}...${legacyHex.substring(legacyHex.length - 16)}`);
+                                    }
+                                } else {
+                                    log(`Legacy session: none`);
+                                }
+
+                                // CRITICAL: Compare stored secret with freshly derived ECDH
+                                log(`\n--- ECDH VERIFICATION ---`);
+                                try {
+                                    // Get conversation to find other user
+                                    const convResult = await window.DatabaseService.querySelect('conversations', {
+                                        filter: { id: parseInt(convId) }
+                                    });
+                                    if (convResult.data && convResult.data[0]) {
+                                        const conv = convResult.data[0];
+                                        const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
+                                        log(`Other user: ${otherUserId.substring(0, 8)}...`);
+
+                                        // Get other user's public key
+                                        const theirKeyResult = await window.DatabaseService.querySelect('identity_keys', {
+                                            filter: { user_id: otherUserId }
+                                        });
+                                        if (theirKeyResult.data && theirKeyResult.data[0]?.public_key) {
+                                            const theirPubB64 = theirKeyResult.data[0].public_key;
+                                            log(`Their pub key: ${theirPubB64.substring(0, 16)}...`);
+
+                                            // Get our secret key
+                                            const ourKeys = await window.KeyStorageService.getIdentityKeys(userId);
+                                            if (ourKeys && ourKeys.secretKey) {
+                                                // Derive fresh shared secret
+                                                const theirPubKey = window.CryptoService.deserializePublicKey(theirPubB64);
+                                                const freshSecret = window.CryptoService.deriveSharedSecret(ourKeys.secretKey, theirPubKey);
+                                                const freshHex = Array.from(freshSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+                                                log(`Fresh ECDH secret: ${freshHex.substring(0, 16)}...${freshHex.substring(freshHex.length - 16)}`);
+
+                                                // Compare with stored
+                                                const storedSession = legacySession || (epochKeys && epochKeys[0]);
+                                                if (storedSession && storedSession.sharedSecret) {
+                                                    const storedHex = Array.from(storedSession.sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('');
+                                                    const match = freshHex === storedHex;
+                                                    log(`Secrets match: ${match ? 'YES ✓' : 'NO - MISMATCH!'}`, !match);
+                                                    if (!match) {
+                                                        log(`Stored: ${storedHex.substring(0, 20)}...`, true);
+                                                        log(`Fresh:  ${freshHex.substring(0, 20)}...`, true);
+                                                        log(`CAUSE: Session was created with different keys!`, true);
+                                                    }
+                                                }
+                                            } else {
+                                                log(`Cannot verify - no local secret key`, true);
+                                            }
+                                        } else {
+                                            log(`Cannot verify - other user has no key`, true);
+                                        }
+                                    }
+                                } catch (e) {
+                                    log(`ECDH verify error: ${e.message}`, true);
+                                }
+                            } catch (e) {
+                                log(`Session check error: ${e.message}`, true);
+                            }
+
+                            // 5. Check database session backup
+                            log(`\n--- DATABASE SESSION BACKUP ---`);
+                            try {
+                                const backupResult = await window.DatabaseService.querySelect('conversation_session_keys', {
+                                    filter: { user_id: userId, conversation_id: parseInt(convId) }
+                                });
+                                if (backupResult.data && backupResult.data.length > 0) {
+                                    log(`Found ${backupResult.data.length} backup(s)`);
+                                    for (const backup of backupResult.data) {
+                                        log(`  Epoch ${backup.key_epoch || 0}: encrypted_key=${backup.encrypted_session_key ? 'yes' : 'no'}`);
+                                    }
+                                } else {
+                                    log('No session backups found', true);
+                                }
+                            } catch (e) {
+                                log(`Backup check error: ${e.message}`, true);
+                            }
+                        }
+
+                        // 6. Check message epochs vs local epochs
+                        if (convId) {
+                            log(`\n--- MESSAGE EPOCHS (CRITICAL) ---`);
+                            try {
+                                const msgResult = await window.DatabaseService.querySelect('messages', {
+                                    filter: { conversation_id: parseInt(convId) },
+                                    order: [{ column: 'created_at', ascending: false }],
+                                    limit: 10
+                                });
+                                if (msgResult.data && msgResult.data.length > 0) {
+                                    const msgEpochs = [...new Set(msgResult.data.map(m => m.key_epoch || 0))].sort((a,b) => b-a);
+                                    log(`Message epochs used: [${msgEpochs.join(', ')}]`);
+
+                                    // Compare with local epochs
+                                    const localEpochs = await window.KeyStorageService?.getAllEpochSessionKeys?.(convId);
+                                    const storedEpochs = localEpochs ? localEpochs.map(k => k.epoch).sort((a,b) => b-a) : [];
+
+                                    const missingEpochs = msgEpochs.filter(e => !storedEpochs.includes(e));
+                                    if (missingEpochs.length > 0) {
+                                        log(`MISSING EPOCHS: [${missingEpochs.join(', ')}]`, true);
+                                        log(`You need session keys for these epochs to decrypt!`, true);
+                                    } else {
+                                        log(`All message epochs covered ✓`);
+                                    }
+                                }
+                            } catch (e) {
+                                log(`Message epoch check error: ${e.message}`, true);
+                            }
+                        }
+
+                        // 7. KeyManager state
+                        log(`\n--- KEYMANAGER STATE ---`);
+                        log(`Initialized: ${window.KeyManager?.initialized || false}`);
+                        log(`CurrentUserId: ${window.KeyManager?.currentUserId ? window.KeyManager.currentUserId.substring(0, 8) + '...' : 'not set'}`);
+                        log(`Current epoch: ${window.KeyManager?.currentEpoch || 'N/A'}`);
+
+                        // 8. MESSAGE RECOVERY ANALYSIS - Actually try to decrypt one message per epoch
+                        if (convId) {
+                            log(`\n=== MESSAGE RECOVERY ANALYSIS ===`);
+                            log(`Testing actual decryption for each epoch...`);
+                            try {
+                                // Get all messages grouped by epoch
+                                const allMsgResult = await window.DatabaseService.querySelect('messages', {
+                                    filter: { conversation_id: parseInt(convId) },
+                                    order: [{ column: 'created_at', ascending: true }]
+                                });
+                                if (allMsgResult.data && allMsgResult.data.length > 0) {
+                                    // Group by epoch
+                                    const byEpoch = {};
+                                    for (const msg of allMsgResult.data) {
+                                        const epoch = msg.key_epoch || 0;
+                                        if (!byEpoch[epoch]) byEpoch[epoch] = [];
+                                        byEpoch[epoch].push(msg);
+                                    }
+                                    const epochs = Object.keys(byEpoch).map(Number).sort((a,b) => a-b);
+                                    log(`Found messages in epochs: [${epochs.join(', ')}]`);
+                                    log(`Total messages: ${allMsgResult.data.length}`);
+                                    log(``);
+
+                                    let recoverable = 0;
+                                    let lost = 0;
+
+                                    for (const epoch of epochs) {
+                                        const msgs = byEpoch[epoch];
+                                        const testMsg = msgs[0]; // Test first message of this epoch
+                                        log(`--- EPOCH ${epoch} (${msgs.length} messages) ---`);
+                                        log(`  Sender: ${testMsg.sender_id.substring(0, 8)}...`);
+
+                                        // Get session key for this epoch
+                                        let sessionKey = null;
+                                        const epochSession = await window.KeyStorageService?.getEpochSessionKey?.(convId, epoch);
+                                        if (epochSession && epochSession.sharedSecret) {
+                                            sessionKey = epochSession.sharedSecret;
+                                            const keyHex = Array.from(sessionKey).map(b => b.toString(16).padStart(2, '0')).join('');
+                                            log(`  Session key: ${keyHex.substring(0, 12)}...${keyHex.substring(keyHex.length - 8)}`);
+                                        } else if (epoch === 0) {
+                                            // Try legacy session for epoch 0
+                                            const legacySession = await window.KeyStorageService?.getSessionKey?.(convId);
+                                            if (legacySession && legacySession.sharedSecret) {
+                                                sessionKey = legacySession.sharedSecret;
+                                                log(`  Using legacy session for epoch 0`);
+                                            }
+                                        }
+
+                                        if (!sessionKey) {
+                                            log(`  ❌ NO SESSION KEY - Messages LOST`, true);
+                                            log(`  CAUSE: No session key stored for epoch ${epoch}`, true);
+                                            lost += msgs.length;
+                                            continue;
+                                        }
+
+                                        // Try to decrypt
+                                        try {
+                                            const messageKey = window.CryptoService.deriveMessageKey(sessionKey, testMsg.message_counter);
+                                            const decrypted = window.CryptoService.decryptMessage(
+                                                testMsg.encrypted_content,
+                                                testMsg.encryption_nonce,
+                                                messageKey
+                                            );
+                                            log(`  ✓ DECRYPTION SUCCESS`);
+                                            log(`  Content preview: "${decrypted.substring(0, 20)}${decrypted.length > 20 ? '...' : ''}"`);
+                                            recoverable += msgs.length;
+                                        } catch (decryptErr) {
+                                            log(`  ❌ DECRYPTION FAILED`, true);
+                                            log(`  Error: ${decryptErr.message}`, true);
+
+                                            // Diagnose WHY
+                                            if (decryptErr.message.includes('authentication')) {
+                                                log(`  CAUSE: Wrong session key (key was re-derived with new identity keys)`, true);
+                                                log(`  This epoch's messages are PERMANENTLY LOST unless:`, true);
+                                                log(`    1. Another device has the original session key, OR`, true);
+                                                log(`    2. Historical public keys were preserved (not implemented)`, true);
+                                            }
+                                            lost += msgs.length;
+                                        }
+                                        log(``);
+                                    }
+
+                                    log(`=== RECOVERY SUMMARY ===`);
+                                    log(`Recoverable: ${recoverable} messages`);
+                                    if (lost > 0) {
+                                        log(`LOST: ${lost} messages`, true);
+                                        log(``, true);
+                                        log(`WHY ARE MESSAGES LOST?`, true);
+                                        log(`When identity keys are regenerated, old session keys`, true);
+                                        log(`become invalid because they were derived from the old keys.`, true);
+                                        log(`The session backups in the database were encrypted with`, true);
+                                        log(`old identity keys and cannot be decrypted anymore.`, true);
+                                    } else {
+                                        log(`All messages can be decrypted! ✓`);
+                                    }
+                                }
+                            } catch (e) {
+                                log(`Recovery analysis error: ${e.message}`, true);
+                            }
+                        }
+
+                        log(`\n=== DIAGNOSTICS COMPLETE ===`);
+
+                    } catch (error) {
+                        log(`FATAL ERROR: ${error.message}`, true);
+                        log(error.stack, true);
+                    } finally {
+                        keyDiagnosticsBtn.disabled = false;
+                        keyDiagnosticsBtn.innerHTML = '<i class="fas fa-search"></i> Run Key Diagnostics';
+                    }
+                });
+            }
+
             console.log('[MessengerPage] ✅ Encryption Admin Tools initialized');
         }
 
@@ -612,6 +1207,54 @@
                     // Initialize Encryption Admin Tools
                     initEncryptionAdminTools();
 
+                    // Set up periodic key rotation check (every 5 minutes)
+                    // This checks if YOUR keys need rotation based on the configured interval
+                    // Other user's key rotations are handled transparently via epoch-based decryption
+                    const ROTATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+                    let lastRotationCheck = 0;
+
+                    const checkKeyRotation = async () => {
+                        const now = Date.now();
+                        // Throttle: only check if 5 minutes have passed since last check
+                        if (now - lastRotationCheck < ROTATION_CHECK_INTERVAL) {
+                            return;
+                        }
+                        lastRotationCheck = now;
+
+                        try {
+                            const facade = window.getEncryptionFacade?.();
+                            if (!facade?.checkAndRotateIfNeeded) return;
+
+                            const result = await facade.checkAndRotateIfNeeded();
+                            if (result.rotated) {
+                                console.log(`[MessengerPage] Auto-rotated keys to epoch ${result.newEpoch}`);
+                            }
+                        } catch (error) {
+                            console.warn('[MessengerPage] Key rotation check failed:', error);
+                        }
+                    };
+
+                    // Check rotation on page load (already done in EncryptionModule, but also do it here)
+                    checkKeyRotation();
+
+                    // Set up periodic check while page is open
+                    setInterval(checkKeyRotation, ROTATION_CHECK_INTERVAL);
+
+                    // Also check on message receive (throttled by the function above)
+                    const originalSubscribe = window.MessagingService?.subscribeToMessages;
+                    if (originalSubscribe) {
+                        window.MessagingService.subscribeToMessages = async function(userId, callback) {
+                            const wrappedCallback = (payload) => {
+                                // Check rotation on new message (throttled)
+                                checkKeyRotation();
+                                // Call original callback
+                                if (callback) callback(payload);
+                            };
+                            return originalSubscribe.call(this, userId, wrappedCallback);
+                        };
+                    }
+
+                    console.log('[MessengerPage] ✅ Key rotation monitoring enabled (checks every 5 min)');
                     console.log('[MessengerPage] ========== INITIALIZATION COMPLETE ==========');
                 } else {
                     console.error('[MessengerPage] ❌ MessengerController.init() is not available:', {
