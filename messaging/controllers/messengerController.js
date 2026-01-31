@@ -851,13 +851,20 @@ const MessengerController = {
                             ? currentUserId
                             : conversation?.other_user_id;
 
+                        console.log('[MessengerController] Decrypting with:', {
+                            messageId: newMessage.id,
+                            counter: newMessage.message_counter,
+                            epoch: newMessage.key_epoch,
+                            senderId: newMessage.sender_id?.slice(0, 8)
+                        });
+
                         content = await encryptionFacade.decryptMessage(
                             conversationId,
                             {
                                 ciphertext: newMessage.encrypted_content,
                                 nonce: newMessage.encryption_nonce,
-                                counter: newMessage.encryption_counter || 0,
-                                epoch: newMessage.encryption_epoch || 0
+                                counter: newMessage.message_counter,
+                                epoch: newMessage.key_epoch || 0
                             },
                             newMessage.sender_id,
                             recipientId
