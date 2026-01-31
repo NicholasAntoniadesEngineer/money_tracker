@@ -20,24 +20,6 @@ const AttachmentService = {
     MAX_FILE_SIZE: 15 * 1024 * 1024, // 15MB default
 
     /**
-     * Allowed MIME types
-     */
-    ALLOWED_TYPES: [
-        // Images
-        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-        // Documents
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        // Text
-        'text/plain', 'text/csv',
-        // Archives
-        'application/zip'
-    ],
-
-    /**
      * Get database service
      */
     _getDatabaseService() {
@@ -89,16 +71,11 @@ const AttachmentService = {
             return { valid: false, reason: canUploadCheck.reason };
         }
 
-        // Check file size
+        // Check file size only - any file type is allowed since we encrypt everything
         if (file.size > canUploadCheck.maxSizeBytes) {
             const maxMB = Math.round(canUploadCheck.maxSizeBytes / (1024 * 1024));
             const fileMB = (file.size / (1024 * 1024)).toFixed(1);
             return { valid: false, reason: `File size (${fileMB}MB) exceeds limit of ${maxMB}MB` };
-        }
-
-        // Check file type
-        if (!this.ALLOWED_TYPES.includes(file.type)) {
-            return { valid: false, reason: `File type "${file.type}" is not allowed` };
         }
 
         return { valid: true, reason: null };
