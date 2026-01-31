@@ -1578,15 +1578,17 @@ const MessengerController = {
                         const fileName = att.fileName || att.file_name || 'Attachment';
                         const attId = att.id;
                         return `
-                            <div class="message-attachment" data-attachment-id="${attId}" style="display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs); margin-top: var(--spacing-xs); background: rgba(255,255,255,0.1); border-radius: 4px; cursor: pointer;" onclick="MessengerController.downloadAttachment(${attId})">
-                                <i class="fas ${iconClass}"></i>
-                                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${fileName}</span>
-                                <span style="font-size: 0.75rem; opacity: 0.7;">${fileSize}</span>
-                                <i class="fas fa-download" style="opacity: 0.7;"></i>
+                            <div class="message-attachment" data-attachment-id="${attId}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; cursor: pointer; transition: background 0.2s;" onclick="MessengerController.downloadAttachment(${attId})" onmouseover="this.style.background='rgba(0,0,0,0.25)'" onmouseout="this.style.background='rgba(0,0,0,0.15)'">
+                                <i class="fas ${iconClass}" style="font-size: 1.1em;"></i>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em;">${fileName}</div>
+                                    <div style="font-size: 0.75em; opacity: 0.7;">${fileSize}</div>
+                                </div>
+                                <i class="fas fa-download" style="opacity: 0.6;"></i>
                             </div>
                         `;
                     }).join('');
-                    attachmentsHtml = `<div class="message-attachments" style="margin-top: var(--spacing-sm);">${attachmentItems}</div>`;
+                    attachmentsHtml = `<div class="message-attachments">${attachmentItems}</div>`;
                 }
 
                 // Build debug info HTML if debug mode is enabled
@@ -1929,7 +1931,10 @@ const MessengerController = {
             conversationId: this.currentConversationId,
             hasAttachment: !!this._selectedAttachment
         });
+
         const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-message-button');
+
         if (!messageInput || !this.currentConversationId) {
             console.warn('[MessengerController] Cannot send message:', {
                 hasInput: !!messageInput,
@@ -1941,16 +1946,20 @@ const MessengerController = {
         const content = messageInput.value.trim();
         const hasAttachment = !!this._selectedAttachment;
 
-        // Must have either content or attachment
         if (!content && !hasAttachment) {
             console.warn('[MessengerController] Message content is empty and no attachment');
             return;
         }
 
+        // Disable send button and show sending state
+        if (sendButton) {
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
         console.log('[MessengerController] Sending message:', {
             conversationId: this.currentConversationId,
             contentLength: content.length,
-            contentPreview: content.substring(0, 50),
             hasAttachment,
             attachmentName: this._selectedAttachment?.name
         });
@@ -1960,7 +1969,6 @@ const MessengerController = {
                 throw new Error('DatabaseService not available');
             }
 
-            // Get conversation to find recipient
             const conversation = this.conversations.find(c => c.id === this.currentConversationId);
             if (!conversation) {
                 throw new Error('Conversation not found');
@@ -1971,12 +1979,10 @@ const MessengerController = {
                 throw new Error('User not authenticated');
             }
 
-            // Use MessagingService directly
             if (typeof window.MessagingService === 'undefined') {
                 throw new Error('MessagingService not available');
             }
 
-            // Send message with or without content
             const messageContent = content || (hasAttachment ? '[Attachment]' : '');
             const result = await window.MessagingService.sendMessage(
                 this.currentConversationId,
@@ -1986,8 +1992,6 @@ const MessengerController = {
             );
 
             if (result.success && result.message) {
-                // SECURITY: Verify the message was actually encrypted before displaying
-                // This provides defense-in-depth against encryption failures
                 const msg = result.message;
                 if (!msg.is_encrypted || !msg.encrypted_content || msg.content) {
                     console.error('[MessengerController] SECURITY: Message encryption verification failed!', {
@@ -1995,19 +1999,22 @@ const MessengerController = {
                         hasEncryptedContent: !!msg.encrypted_content,
                         hasPlaintextContent: !!msg.content
                     });
-                    throw new Error('Message encryption verification failed - message may not be secure');
+                    throw new Error('Message encryption verification failed');
                 }
 
-                console.log('[MessengerController] ✓ Message encryption verified:', {
-                    is_encrypted: msg.is_encrypted,
-                    ciphertextLength: msg.encrypted_content?.length,
+                console.log('[MessengerController] ✓ Message encrypted:', {
                     counter: msg.message_counter
                 });
 
-                // Upload attachment if present
                 let attachmentInfo = null;
                 if (hasAttachment && window.AttachmentService) {
                     console.log('[MessengerController] Uploading attachment...');
+
+                    // Update button to show upload progress
+                    if (sendButton) {
+                        sendButton.innerHTML = '<i class="fas fa-upload fa-spin"></i>';
+                    }
+
                     const uploadResult = await window.AttachmentService.uploadAttachment(
                         this._selectedAttachment,
                         result.message.id,
@@ -2019,16 +2026,13 @@ const MessengerController = {
                         attachmentInfo = uploadResult.attachment;
                     } else {
                         console.error('[MessengerController] Attachment upload failed:', uploadResult.error);
-                        // Message was sent, but attachment failed - notify user
-                        alert(`Message sent, but attachment upload failed: ${uploadResult.error}`);
+                        alert(`Message sent, but attachment failed: ${uploadResult.error}`);
                     }
                 }
 
                 messageInput.value = '';
                 this.clearSelectedAttachment();
 
-                // Append the new message to the thread without reloading everything
-                // Use original plaintext content for sender's view (result.message contains only ciphertext)
                 const messageForDisplay = {
                     ...result.message,
                     content: content || (attachmentInfo ? '[Attachment]' : ''),
@@ -2040,7 +2044,13 @@ const MessengerController = {
             }
         } catch (error) {
             console.error('[MessengerController] Error sending message:', error);
-            alert(`Error sending message: ${error.message}`);
+            alert(`Error: ${error.message}`);
+        } finally {
+            // Restore send button
+            if (sendButton) {
+                sendButton.disabled = false;
+                sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            }
         }
     },
 
@@ -2053,15 +2063,27 @@ const MessengerController = {
 
         if (!window.AttachmentService) {
             console.error('[MessengerController] AttachmentService not available');
-            alert('Attachment service not available');
             return;
+        }
+
+        // Find and update the attachment element to show loading state
+        const attachmentEl = document.querySelector(`[data-attachment-id="${attachmentId}"]`);
+        const originalContent = attachmentEl?.innerHTML;
+
+        if (attachmentEl) {
+            attachmentEl.style.opacity = '0.7';
+            attachmentEl.style.pointerEvents = 'none';
+            const downloadIcon = attachmentEl.querySelector('.fa-download');
+            if (downloadIcon) {
+                downloadIcon.classList.remove('fa-download');
+                downloadIcon.classList.add('fa-spinner', 'fa-spin');
+            }
         }
 
         try {
             const result = await window.AttachmentService.downloadAttachment(attachmentId);
 
             if (result.success && result.data) {
-                // Create download link
                 const url = URL.createObjectURL(result.data);
                 const a = document.createElement('a');
                 a.href = url;
@@ -2070,13 +2092,24 @@ const MessengerController = {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                console.log('[MessengerController] ✓ Attachment downloaded:', result.fileName);
+                console.log('[MessengerController] ✓ Downloaded:', result.fileName);
             } else {
                 throw new Error(result.error || 'Download failed');
             }
         } catch (error) {
             console.error('[MessengerController] Download error:', error);
-            alert(`Failed to download attachment: ${error.message}`);
+            alert(`Download failed: ${error.message}`);
+        } finally {
+            // Restore attachment element
+            if (attachmentEl) {
+                attachmentEl.style.opacity = '';
+                attachmentEl.style.pointerEvents = '';
+                const spinnerIcon = attachmentEl.querySelector('.fa-spinner');
+                if (spinnerIcon) {
+                    spinnerIcon.classList.remove('fa-spinner', 'fa-spin');
+                    spinnerIcon.classList.add('fa-download');
+                }
+            }
         }
     },
 

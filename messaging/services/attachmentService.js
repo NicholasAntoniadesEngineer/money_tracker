@@ -115,9 +115,6 @@ const AttachmentService = {
      * @returns {Promise<{valid: boolean, reason: string|null}>}
      */
     async validateFile(file) {
-        console.log('[AttachmentService] Validating file:', file.name, file.size, file.type);
-
-        // Check permission
         const canUploadCheck = await this.canUpload();
         if (!canUploadCheck.allowed) {
             return { valid: false, reason: canUploadCheck.reason };
@@ -219,13 +216,6 @@ const AttachmentService = {
      * @returns {Promise<{success: boolean, attachment?: Object, error?: string}>}
      */
     async uploadAttachment(file, messageId, conversationId) {
-        console.log('[AttachmentService] uploadAttachment() called:', {
-            fileName: file.name,
-            fileSize: file.size,
-            messageId,
-            conversationId
-        });
-
         try {
             // Validate file
             const validation = await this.validateFile(file);
@@ -247,32 +237,25 @@ const AttachmentService = {
             // Read file data
             const fileData = await file.arrayBuffer();
 
-            // Generate file encryption key
+            // Encrypt file with random key
             const fileKey = this._generateFileKey();
-            console.log('[AttachmentService] Generated file key');
-
-            // Encrypt file
             const { ciphertext, nonce } = this._encryptFile(fileData, fileKey);
-            console.log('[AttachmentService] File encrypted, ciphertext size:', ciphertext.length);
 
-            // Prepend nonce to ciphertext for storage (nonce is 24 bytes)
+            // Prepend nonce to ciphertext for storage
             const dataWithNonce = new Uint8Array(24 + ciphertext.length);
             dataWithNonce.set(nonce, 0);
             dataWithNonce.set(ciphertext, 24);
 
             // Encrypt file key with conversation session key
             const { encryptedKey, nonce: keyNonce } = await this._encryptFileKey(fileKey, conversationId);
-            console.log('[AttachmentService] File key encrypted');
 
             // Generate unique storage path
             const timestamp = Date.now();
             const randomId = Math.random().toString(36).substring(2, 10);
             const storagePath = `${conversationId}/${timestamp}-${randomId}`;
 
-            // Upload encrypted file to Supabase Storage (nonce prepended to ciphertext)
-            // Convert Uint8Array to Blob for Supabase Storage
+            // Upload encrypted file
             const encryptedBlob = new Blob([dataWithNonce], { type: 'application/octet-stream' });
-            console.log('[AttachmentService] Uploading to storage:', storagePath, 'size:', encryptedBlob.size);
 
             const { data: uploadData, error: uploadError } = await client.storage
                 .from(this.BUCKET_NAME)
@@ -282,12 +265,9 @@ const AttachmentService = {
                 });
 
             if (uploadError) {
-                console.error('[AttachmentService] Storage upload error:', uploadError);
-                console.error('[AttachmentService] Upload error details:', JSON.stringify(uploadError, null, 2));
-                throw new Error(`Upload failed: ${uploadError.message || uploadError.error || 'Unknown error'}`);
+                console.error('[AttachmentService] Upload failed:', uploadError.message);
+                throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
             }
-
-            console.log('[AttachmentService] File uploaded to storage');
 
             // Create attachment record in database
             const attachmentRecord = {
@@ -314,7 +294,7 @@ const AttachmentService = {
                 throw new Error(`Database error: ${dbError.message}`);
             }
 
-            console.log('[AttachmentService] Attachment record created:', attachment.id);
+            console.log('[AttachmentService] ✓ Uploaded:', file.name, '(' + this.formatFileSize(file.size) + ')');
 
             return {
                 success: true,
@@ -327,7 +307,7 @@ const AttachmentService = {
                 }
             };
         } catch (error) {
-            console.error('[AttachmentService] Upload error:', error);
+            console.error('[AttachmentService] Upload failed:', error.message);
             return { success: false, error: error.message };
         }
     },
@@ -338,8 +318,6 @@ const AttachmentService = {
      * @returns {Promise<{success: boolean, data?: Blob, fileName?: string, error?: string}>}
      */
     async downloadAttachment(attachmentId) {
-        console.log('[AttachmentService] downloadAttachment() called:', attachmentId);
-
         try {
             const client = this._getClient();
             if (!client) {
@@ -362,8 +340,6 @@ const AttachmentService = {
                 throw new Error('Attachment has expired');
             }
 
-            console.log('[AttachmentService] Downloading from storage:', attachment.storage_path);
-
             // Download encrypted file from storage
             const { data: fileData, error: downloadError } = await client.storage
                 .from(this.BUCKET_NAME)
@@ -373,28 +349,17 @@ const AttachmentService = {
                 throw new Error(`Download failed: ${downloadError.message}`);
             }
 
-            // Get encrypted file as ArrayBuffer
+            // Decrypt file
             const encryptedData = new Uint8Array(await fileData.arrayBuffer());
-            console.log('[AttachmentService] Downloaded encrypted data, size:', encryptedData.length);
-
-            // Decrypt file key
             const fileKey = await this._decryptFileKey(
                 attachment.encrypted_file_key,
                 attachment.file_key_nonce,
                 attachment.conversation_id
             );
-            console.log('[AttachmentService] File key decrypted');
 
-            // We need the nonce that was used for file encryption
-            // It's stored as the first 24 bytes of the ciphertext
+            // Extract nonce (first 24 bytes) and ciphertext
             const nonce = encryptedData.slice(0, 24);
             const ciphertext = encryptedData.slice(24);
-
-            // Actually, we stored ciphertext directly. Need to rethink...
-            // The nonce was generated during encryption but we didn't store it with the file
-            // Let me fix the upload to prepend nonce to ciphertext
-
-            // For now, decrypt with the approach where nonce is prepended
             const decryptedData = this._decryptFile(ciphertext, nonce, fileKey);
 
             // Update download count
@@ -403,14 +368,11 @@ const AttachmentService = {
                 .update({ downloaded_count: attachment.downloaded_count + 1 })
                 .eq('id', attachmentId);
 
-            // Create blob with original MIME type
-            const blob = new Blob([decryptedData], { type: attachment.mime_type });
-
-            console.log('[AttachmentService] File decrypted successfully');
+            console.log('[AttachmentService] ✓ Downloaded:', attachment.file_name);
 
             return {
                 success: true,
-                data: blob,
+                data: new Blob([decryptedData], { type: attachment.mime_type }),
                 fileName: attachment.file_name
             };
         } catch (error) {
