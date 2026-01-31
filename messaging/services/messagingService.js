@@ -999,6 +999,86 @@ const MessagingService = {
                 error: error.message || 'An unexpected error occurred'
             };
         }
+    },
+
+    /**
+     * Subscribe to real-time message updates for a specific conversation
+     * Listens for both sent and received messages in the conversation
+     * @param {number|string} conversationId - Conversation ID
+     * @param {Function} callback - Callback function to call when messages change
+     * @returns {Promise<{success: boolean, subscription: Object|null, error: string|null}>}
+     */
+    async subscribeToConversation(conversationId, callback) {
+        console.log('[MessagingService] subscribeToConversation() called', { conversationId });
+        try {
+            const databaseService = this._getDatabaseService();
+            if (!databaseService || !databaseService.client) {
+                throw new Error('DatabaseService or client not available');
+            }
+
+            const messagesTableName = this._getTableName('messages');
+
+            if (!databaseService.client.channel || typeof databaseService.client.channel !== 'function') {
+                console.error('[MessagingService] Real-time not available');
+                throw new Error('Real-time subscriptions not available');
+            }
+
+            // Create unique channel name for this conversation
+            const channelName = `conversation:${conversationId}`;
+            console.log(`[MessagingService] Creating channel: ${channelName}`);
+
+            const channel = databaseService.client.channel(channelName)
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: messagesTableName,
+                    filter: `conversation_id=eq.${conversationId}`
+                }, (payload) => {
+                    console.log('[MessagingService] Real-time NEW message in conversation:', payload);
+                    if (callback) {
+                        callback(payload);
+                    }
+                })
+                .subscribe((status) => {
+                    console.log(`[MessagingService] Subscription status for ${channelName}:`, status);
+                });
+
+            console.log(`[MessagingService] Subscribed to conversation ${conversationId}`);
+            return {
+                success: true,
+                subscription: channel,
+                error: null
+            };
+        } catch (error) {
+            console.error('[MessagingService] Exception subscribing to conversation:', error);
+            return {
+                success: false,
+                subscription: null,
+                error: error.message || 'An unexpected error occurred'
+            };
+        }
+    },
+
+    /**
+     * Unsubscribe from a real-time channel
+     * @param {Object} subscription - The subscription/channel object to unsubscribe
+     * @returns {Promise<void>}
+     */
+    async unsubscribe(subscription) {
+        if (!subscription) {
+            return;
+        }
+
+        console.log('[MessagingService] Unsubscribing from channel...');
+        try {
+            const databaseService = this._getDatabaseService();
+            if (databaseService && databaseService.client && typeof databaseService.client.removeChannel === 'function') {
+                await databaseService.client.removeChannel(subscription);
+                console.log('[MessagingService] Unsubscribed successfully');
+            }
+        } catch (error) {
+            console.warn('[MessagingService] Error unsubscribing:', error);
+        }
     }
 };
 

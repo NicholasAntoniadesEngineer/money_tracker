@@ -16,6 +16,8 @@ const MessengerController = {
     isOpeningConversation: false, // Guard to prevent multiple simultaneous opens
     openingConversationId: null, // Track which conversation is being opened
     isInitializing: false,
+    // Real-time subscription for current conversation
+    _conversationSubscription: null,
 
     /**
      * Initialize the messenger page
@@ -509,6 +511,9 @@ const MessengerController = {
      * Handle back to conversations button click
      */
     async handleBackToConversations() {
+        // Unsubscribe from real-time updates for this conversation
+        await this._unsubscribeFromConversation();
+
         const conversationsList = document.getElementById('conversations-list');
         const messageThreadContainer = document.getElementById('message-thread-container');
 
@@ -522,7 +527,7 @@ const MessengerController = {
 
         // Clear current conversation ID
         this.currentConversationId = null;
-        
+
         // Clear message input
         const messageInput = document.getElementById('message-input');
         if (messageInput) {
@@ -737,6 +742,9 @@ const MessengerController = {
                         console.warn('[MessengerController] Error refreshing conversations:', error);
                     }
                 });
+
+                // Subscribe to real-time updates for this conversation
+                await this._subscribeToConversation(conversationId);
             } else {
                 console.error('[MessengerController] Failed to load messages:', result.error);
                 throw new Error(result.error || 'Failed to load messages');
@@ -752,6 +760,177 @@ const MessengerController = {
             this.isOpeningConversation = false;
             this.openingConversationId = null;
         }
+    },
+
+    /**
+     * Subscribe to real-time message updates for the current conversation
+     * @param {number|string} conversationId - Conversation ID
+     */
+    async _subscribeToConversation(conversationId) {
+        // Unsubscribe from any existing subscription first
+        await this._unsubscribeFromConversation();
+
+        console.log('[MessengerController] Setting up real-time subscription for conversation:', conversationId);
+
+        if (!window.MessagingService) {
+            console.error('[MessengerController] MessagingService not available');
+            return;
+        }
+
+        const result = await window.MessagingService.subscribeToConversation(conversationId, async (payload) => {
+            console.log('[MessengerController] Real-time message received:', payload);
+
+            // Only handle INSERT events (new messages)
+            if (payload.eventType !== 'INSERT') {
+                console.log('[MessengerController] Ignoring non-INSERT event:', payload.eventType);
+                return;
+            }
+
+            const newMessage = payload.new;
+            if (!newMessage) {
+                console.warn('[MessengerController] No message data in payload');
+                return;
+            }
+
+            // Get current user to determine if this is our own message
+            const currentUser = window.AuthService?.getCurrentUser();
+            const currentUserId = currentUser?.id;
+
+            // Skip if this is our own message (we already added it when sending)
+            if (newMessage.sender_id === currentUserId) {
+                console.log('[MessengerController] Skipping own message (already displayed)');
+                return;
+            }
+
+            console.log('[MessengerController] Processing incoming message from other user');
+
+            // Decrypt the message
+            let content = newMessage.content;
+            if (newMessage.is_encrypted && newMessage.encrypted_content) {
+                try {
+                    const encryptionFacade = window.EncryptionModule?.getFacade();
+                    if (encryptionFacade && encryptionFacade.isSetUp()) {
+                        // Find the conversation to get recipient ID for decryption
+                        const conversation = this.conversations.find(c => c.id === conversationId);
+                        const recipientId = conversation?.other_user_id === newMessage.sender_id
+                            ? currentUserId
+                            : conversation?.other_user_id;
+
+                        content = await encryptionFacade.decryptMessage(
+                            conversationId,
+                            {
+                                ciphertext: newMessage.encrypted_content,
+                                nonce: newMessage.encryption_nonce,
+                                counter: newMessage.encryption_counter || 0,
+                                epoch: newMessage.encryption_epoch || 0
+                            },
+                            newMessage.sender_id,
+                            recipientId
+                        );
+                        console.log('[MessengerController] Message decrypted successfully');
+                    }
+                } catch (decryptError) {
+                    console.error('[MessengerController] Failed to decrypt real-time message:', decryptError);
+                    content = '[Cannot decrypt message]';
+                }
+            }
+
+            // Get sender email
+            let senderEmail = this.emailCache.get(newMessage.sender_id);
+            if (!senderEmail) {
+                try {
+                    const emailResult = await window.DatabaseService.getUserEmail(newMessage.sender_id);
+                    senderEmail = emailResult.success ? emailResult.email : 'Unknown';
+                    this.emailCache.set(newMessage.sender_id, senderEmail);
+                } catch (e) {
+                    senderEmail = 'Unknown';
+                }
+            }
+
+            // Append the new message to the thread
+            this._appendMessageToThread({
+                id: newMessage.id,
+                sender_id: newMessage.sender_id,
+                sender_email: senderEmail,
+                content: content,
+                created_at: newMessage.created_at,
+                is_encrypted: newMessage.is_encrypted
+            });
+
+            // Mark conversation as read since we're viewing it
+            try {
+                await window.DatabaseService.markConversationAsRead(conversationId);
+            } catch (e) {
+                console.warn('[MessengerController] Failed to mark as read:', e);
+            }
+        });
+
+        if (result.success) {
+            this._conversationSubscription = result.subscription;
+            console.log('[MessengerController] Real-time subscription active');
+        } else {
+            console.error('[MessengerController] Failed to subscribe:', result.error);
+        }
+    },
+
+    /**
+     * Unsubscribe from the current conversation's real-time updates
+     */
+    async _unsubscribeFromConversation() {
+        if (this._conversationSubscription) {
+            console.log('[MessengerController] Unsubscribing from conversation');
+            await window.MessagingService?.unsubscribe(this._conversationSubscription);
+            this._conversationSubscription = null;
+        }
+    },
+
+    /**
+     * Append a single message to the message thread (for real-time updates)
+     * @param {Object} message - The message to append
+     */
+    _appendMessageToThread(message) {
+        const messageThread = document.getElementById('message-thread');
+        if (!messageThread) {
+            console.error('[MessengerController] Message thread element not found');
+            return;
+        }
+
+        const currentUser = window.AuthService?.getCurrentUser();
+        const currentUserId = currentUser?.id;
+        const isOwnMessage = message.sender_id === currentUserId;
+
+        // Create message HTML
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message-item ${isOwnMessage ? 'own-message' : ''}`;
+        messageDiv.dataset.messageId = message.id;
+
+        const timestamp = new Date(message.created_at).toLocaleString();
+
+        messageDiv.innerHTML = `
+            <div class="message-sender">${this._escapeHtml(message.sender_email)}</div>
+            <div class="message-content">${this._escapeHtml(message.content)}</div>
+            <div class="message-timestamp">${timestamp}</div>
+        `;
+
+        // Append to thread
+        messageThread.appendChild(messageDiv);
+
+        // Scroll to bottom to show new message
+        messageThread.scrollTop = messageThread.scrollHeight;
+
+        console.log('[MessengerController] New message appended to thread');
+    },
+
+    /**
+     * Escape HTML to prevent XSS
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped text
+     */
+    _escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
 
     /**
