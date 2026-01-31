@@ -330,7 +330,7 @@ const AttachmentService = {
                 .single();
 
             if (dbError) {
-                // Try to clean up uploaded file
+                console.error('[AttachmentService] Database insert failed:', dbError.message);
                 await client.storage.from(this.BUCKET_NAME).remove([storagePath]);
                 throw new Error(`Database error: ${dbError.message}`);
             }
