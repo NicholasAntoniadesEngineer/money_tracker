@@ -411,20 +411,26 @@ const KeyManagementService = {
         // CRITICAL: Derive public key FROM the secret key to ensure they match
         // Using nacl.box.keyPair.fromSecretKey() ensures cryptographic consistency
         console.log('[KeyManagementService] Deriving public key from restored secret key...');
+        const secretKeyB64 = CryptoPrimitivesService.serializeKey(secretKey);
+        console.log(`[KeyManagementService] Restored secret key (prefix): ${secretKeyB64.substring(0, 20)}...`);
+
         const keyPair = CryptoPrimitivesService.keyPairFromSecretKey(secretKey);
         const publicKey = keyPair.publicKey;
         const derivedPublicKeyB64 = CryptoPrimitivesService.serializeKey(publicKey);
-        console.log(`[KeyManagementService] Derived public key: ${derivedPublicKeyB64.substring(0, 20)}...`);
+        console.log(`[KeyManagementService] Derived public key (FULL): ${derivedPublicKeyB64}`);
 
         // Verify it matches what's in the database (for debugging)
         const dbPublicKeyB64 = await HistoricalKeysService.getCurrentKey(this.currentUserId);
+        console.log(`[KeyManagementService] Database public key (FULL): ${dbPublicKeyB64 || 'NULL'}`);
+
         if (dbPublicKeyB64) {
             if (dbPublicKeyB64 === derivedPublicKeyB64) {
                 console.log('[KeyManagementService] ✓ Derived public key matches database');
             } else {
                 console.error('[KeyManagementService] ✗ PUBLIC KEY MISMATCH!');
-                console.error(`[KeyManagementService]   Database: ${dbPublicKeyB64.substring(0, 20)}...`);
-                console.error(`[KeyManagementService]   Derived:  ${derivedPublicKeyB64.substring(0, 20)}...`);
+                console.error('[KeyManagementService] This means the secret key was corrupted during backup/restore!');
+                console.error(`[KeyManagementService]   Database: ${dbPublicKeyB64}`);
+                console.error(`[KeyManagementService]   Derived:  ${derivedPublicKeyB64}`);
                 console.log('[KeyManagementService] Updating database with correct derived public key...');
                 // Update database with the correct derived public key
                 await this._uploadPublicKeyToServer(this.currentUserId, derivedPublicKeyB64);
@@ -441,10 +447,14 @@ const KeyManagementService = {
         await this._fetchCurrentEpoch(this.currentUserId);
 
         // Restore the session backup key (required for multi-device sync)
+        console.log('[KeyManagementService] Restoring session backup key...');
         this._sessionBackupKey = await KeyBackupService.restoreSessionBackupKey(this.currentUserId, password);
 
         if (!this._sessionBackupKey) {
-            throw new Error('[KeyManagementService] Failed to restore session backup key - backup may be corrupted');
+            console.warn('[KeyManagementService] No session backup key available - sessions will be derived via ECDH');
+        } else {
+            const backupKeyPreview = Array.from(this._sessionBackupKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+            console.log(`[KeyManagementService] Session backup key restored (8 bytes): ${backupKeyPreview}`);
         }
 
         // Sync session keys from database
@@ -825,29 +835,31 @@ const KeyManagementService = {
         if (!theirPublicKeyB64) {
             throw new Error(`Other user (${otherUserId.substring(0, 8)}...) has no public key - they may not have set up encryption yet`);
         }
-        console.log(`[KeyManagementService] establishSession: Got their public key: ${theirPublicKeyB64.substring(0, 20)}...`);
+        console.log(`[KeyManagementService] establishSession: Their public key (FULL): ${theirPublicKeyB64}`);
 
         // Get our keys
         const ourKeys = await KeyStorageService.getIdentityKeys(this.currentUserId);
         if (!ourKeys) {
             throw new Error('No local identity keys - run device pairing first');
         }
+        const ourSecretKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.secretKey);
         const ourPublicKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.publicKey);
-        console.log(`[KeyManagementService] establishSession: Our public key: ${ourPublicKeyB64.substring(0, 20)}...`);
+        console.log(`[KeyManagementService] establishSession: Our public key (FULL): ${ourPublicKeyB64}`);
+        console.log(`[KeyManagementService] establishSession: Our secret key prefix: ${ourSecretKeyB64.substring(0, 12)}...`);
 
         // ECDH key agreement
         const theirPublicKey = CryptoPrimitivesService.deserializeKey(theirPublicKeyB64);
         console.log(`[KeyManagementService] establishSession: Computing ECDH shared secret...`);
         const sharedSecret = CryptoPrimitivesService.deriveSharedSecret(ourKeys.secretKey, theirPublicKey);
 
-        // Log first bytes of shared secret for debugging (safe to log - derived, not the keys)
-        const sharedSecretPreview = Array.from(sharedSecret.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] establishSession: Shared secret prefix: ${sharedSecretPreview}...`);
+        // Log more bytes of shared secret for debugging (safe to log - derived, not the keys)
+        const sharedSecretPreview = Array.from(sharedSecret.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] establishSession: Shared secret (8 bytes): ${sharedSecretPreview}`);
 
         // Derive session key (always epoch 0)
         const sessionKey = await KeyDerivationService.deriveSessionKey(sharedSecret, epoch);
-        const sessionKeyPreview = Array.from(sessionKey.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] establishSession: Session key prefix: ${sessionKeyPreview}...`);
+        const sessionKeyPreview = Array.from(sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] establishSession: Session key (8 bytes): ${sessionKeyPreview}`);
 
         // Store locally
         await KeyStorageService.storeSessionKey(conversationId, epoch, sessionKey, 0);
@@ -906,12 +918,19 @@ const KeyManagementService = {
             throw new Error('Message counter overflow');
         }
 
+        // Log session key being used for encryption
+        const sessionKeyPreview = Array.from(session.sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] encryptMessage: Using session key (8 bytes): ${sessionKeyPreview}`);
+        console.log(`[KeyManagementService] encryptMessage: Deriving message key for epoch=${epoch}, counter=${session.counter}...`);
+
         // Derive message-specific key
         const messageKey = await KeyDerivationService.deriveMessageKey(
             session.sessionKey,
             epoch,
             session.counter
         );
+        const messageKeyPreview = Array.from(messageKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] encryptMessage: Message key (8 bytes): ${messageKeyPreview}`);
 
         // Encrypt
         const encrypted = CryptoPrimitivesService.encrypt(plaintext, messageKey);
@@ -998,12 +1017,16 @@ const KeyManagementService = {
         }
 
         // Derive message key
-        console.log(`[KeyManagementService] decryptMessage: Deriving message key for counter=${counter}...`);
+        const sessionKeyPreview = Array.from(session.sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] decryptMessage: Using session key (8 bytes): ${sessionKeyPreview}`);
+        console.log(`[KeyManagementService] decryptMessage: Deriving message key for epoch=${epoch}, counter=${counter}...`);
         const messageKey = await KeyDerivationService.deriveMessageKey(
             session.sessionKey,
             epoch,
             counter
         );
+        const messageKeyPreview = Array.from(messageKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] decryptMessage: Message key (8 bytes): ${messageKeyPreview}`);
 
         // Decrypt
         console.log(`[KeyManagementService] decryptMessage: Attempting decryption...`);
@@ -1198,10 +1221,19 @@ const KeyManagementService = {
             return;
         }
 
+        const backupKeyPreview = Array.from(this._sessionBackupKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] _syncSessionKeys: Using session backup key (8 bytes): ${backupKeyPreview}`);
+
         let sessions = [];
         try {
             sessions = await KeyBackupService.restoreSessionKeys(userId, this._sessionBackupKey);
             console.log(`[KeyManagementService] Restored ${sessions.length} sessions from backup`);
+
+            // Log each restored session for debugging
+            for (const session of sessions) {
+                const sessionKeyPreview = Array.from(session.sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+                console.log(`[KeyManagementService] _syncSessionKeys: Restored session conv=${session.conversationId}, epoch=${session.epoch}, counter=${session.counter}, key=${sessionKeyPreview}`);
+            }
         } catch (error) {
             console.error('[KeyManagementService] Failed to restore sessions:', error.message);
             throw new Error(`Failed to restore session keys: ${error.message}`);
@@ -1297,7 +1329,7 @@ const KeyManagementService = {
             console.error(`[KeyManagementService] _deriveSessionFromHistory: This user may not have set up encryption yet`);
             return null;
         }
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Their public key: ${theirPublicKeyB64.substring(0, 20)}...`);
+        console.log(`[KeyManagementService] _deriveSessionFromHistory: Their public key (FULL): ${theirPublicKeyB64}`);
 
         // Get our keys from local storage
         const ourKeys = await KeyStorageService.getIdentityKeys(this.currentUserId);
@@ -1306,22 +1338,24 @@ const KeyManagementService = {
             console.error(`[KeyManagementService] _deriveSessionFromHistory: User needs to restore keys via device pairing`);
             return null;
         }
+        const ourSecretKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.secretKey);
         const ourPublicKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.publicKey);
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Our public key: ${ourPublicKeyB64.substring(0, 20)}...`);
+        console.log(`[KeyManagementService] _deriveSessionFromHistory: Our public key (FULL): ${ourPublicKeyB64}`);
+        console.log(`[KeyManagementService] _deriveSessionFromHistory: Our secret key prefix: ${ourSecretKeyB64.substring(0, 12)}...`);
 
         // ECDH key agreement
         const theirPublicKey = CryptoPrimitivesService.deserializeKey(theirPublicKeyB64);
         console.log(`[KeyManagementService] _deriveSessionFromHistory: Computing ECDH...`);
         const sharedSecret = CryptoPrimitivesService.deriveSharedSecret(ourKeys.secretKey, theirPublicKey);
 
-        // Log first bytes of shared secret for debugging (safe to log - derived, not the keys)
-        const sharedSecretPreview = Array.from(sharedSecret.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Shared secret prefix: ${sharedSecretPreview}...`);
+        // Log more bytes of shared secret for debugging (safe to log - derived, not the keys)
+        const sharedSecretPreview = Array.from(sharedSecret.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] _deriveSessionFromHistory: Shared secret (8 bytes): ${sharedSecretPreview}`);
 
         // Derive session key (always epoch 0)
         const sessionKey = await KeyDerivationService.deriveSessionKey(sharedSecret, 0);
-        const sessionKeyPreview = Array.from(sessionKey.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Session key prefix: ${sessionKeyPreview}...`);
+        const sessionKeyPreview = Array.from(sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log(`[KeyManagementService] _deriveSessionFromHistory: Session key (8 bytes): ${sessionKeyPreview}`);
 
         // Cache for future use
         await KeyStorageService.storeSessionKey(conversationId, 0, sessionKey, 0);
