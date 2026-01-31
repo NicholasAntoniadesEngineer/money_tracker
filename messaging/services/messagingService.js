@@ -625,16 +625,27 @@ const MessagingService = {
                     } catch (decryptionError) {
                         console.error('[MessagingService] ❌ DECRYPTION FAILED for message:', msg.id);
                         console.error('[MessagingService] Error:', decryptionError.message);
-                        console.error('[MessagingService] This usually means:');
-                        console.error('[MessagingService]   1. The sender used different keys than expected');
-                        console.error('[MessagingService]   2. Local keys were regenerated without clearing old sessions');
-                        console.error('[MessagingService]   3. Message was encrypted with a key epoch that no longer exists');
-                        console.error('[MessagingService] To fix: Both users should go to Device Pairing and reset/restore their keys');
+                        console.error('[MessagingService] Message encrypted with keys that no longer exist - auto-deleting');
 
-                        // Show error with actionable information instead of hiding it
-                        content = `[DECRYPTION FAILED: ${decryptionError.message}. Go to Device Pairing to fix.]`;
-                        decryptSuccess = false;
-                        decryptError = decryptionError.message;
+                        // AUTO-DELETE: Remove undecryptable messages from database
+                        // These messages were encrypted with old keys that no longer exist
+                        // and cannot be recovered - deleting them provides a clean slate
+                        try {
+                            await databaseService.queryDelete(messagesTableName, {
+                                filter: { id: msg.id }
+                            });
+                            console.log('[MessagingService] Auto-deleted undecryptable message:', msg.id);
+
+                            // Mark this message for exclusion from results
+                            content = null;
+                            decryptSuccess = false;
+                            decryptError = 'auto_deleted';
+                        } catch (deleteError) {
+                            console.error('[MessagingService] Failed to auto-delete message:', deleteError.message);
+                            content = '[Message encrypted with old keys - cannot decrypt]';
+                            decryptSuccess = false;
+                            decryptError = decryptionError.message;
+                        }
                     }
                 }
 
@@ -664,9 +675,18 @@ const MessagingService = {
                 };
             }));
 
+            // Filter out auto-deleted messages (content === null)
+            const validMessages = messagesWithEmailsAndDecrypted.filter(msg => msg.content !== null);
+            const deletedCount = messagesWithEmailsAndDecrypted.length - validMessages.length;
+
+            if (deletedCount > 0) {
+                console.log(`[MessagingService] Auto-deleted ${deletedCount} undecryptable messages from conversation ${conversationId}`);
+            }
+
             return {
                 success: true,
-                messages: messagesWithEmailsAndDecrypted,
+                messages: validMessages,
+                deletedCount: deletedCount,
                 error: null
             };
         } catch (error) {
