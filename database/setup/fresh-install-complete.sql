@@ -1031,6 +1031,46 @@ CREATE TRIGGER trigger_update_messages_updated_at
 GRANT SELECT, INSERT ON messages TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE messages_id_seq TO authenticated;
 
+-- ============================================================
+-- REALTIME CONFIGURATION FOR MESSAGES
+-- ============================================================
+-- Enable Supabase Realtime on the messages table
+-- REPLICA IDENTITY FULL is required for filters to work with Realtime
+ALTER TABLE messages REPLICA IDENTITY FULL;
+
+-- Add the messages table to the supabase_realtime publication
+-- This enables real-time subscriptions for the messages table
+-- Note: Run this command. If the publication doesn't exist, create it first.
+DO $$
+BEGIN
+    -- Check if the publication exists
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        -- Add the table to existing publication (ignore if already added)
+        BEGIN
+            ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+        EXCEPTION WHEN duplicate_object THEN
+            -- Table already in publication, that's fine
+            NULL;
+        END;
+    ELSE
+        -- Create the publication with the messages table
+        CREATE PUBLICATION supabase_realtime FOR TABLE messages;
+    END IF;
+END $$;
+
+-- Also enable for conversations table (for unread counts, etc.)
+ALTER TABLE conversations REPLICA IDENTITY FULL;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        BEGIN
+            ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+        EXCEPTION WHEN duplicate_object THEN
+            NULL;
+        END;
+    END IF;
+END $$;
+
 -- Link conversations to data shares
 ALTER TABLE data_shares
     ADD CONSTRAINT fk_conversation

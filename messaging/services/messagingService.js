@@ -1027,28 +1027,50 @@ const MessagingService = {
             const channelName = `conversation:${conversationId}`;
             console.log(`[MessagingService] Creating channel: ${channelName}`);
 
-            const channel = databaseService.client.channel(channelName)
-                .on('postgres_changes', {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: messagesTableName,
-                    filter: `conversation_id=eq.${conversationId}`
-                }, (payload) => {
-                    console.log('[MessagingService] Real-time NEW message in conversation:', payload);
-                    if (callback) {
-                        callback(payload);
-                    }
-                })
-                .subscribe((status) => {
-                    console.log(`[MessagingService] Subscription status for ${channelName}:`, status);
-                });
+            // Create a promise that resolves when subscription is confirmed
+            return new Promise((resolve) => {
+                const channel = databaseService.client.channel(channelName)
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: messagesTableName,
+                        filter: `conversation_id=eq.${conversationId}`
+                    }, (payload) => {
+                        console.log('[MessagingService] Real-time NEW message in conversation:', payload);
+                        if (callback) {
+                            callback(payload);
+                        }
+                    })
+                    .subscribe((status, err) => {
+                        console.log(`[MessagingService] Subscription status for ${channelName}:`, status, err || '');
 
-            console.log(`[MessagingService] Subscribed to conversation ${conversationId}`);
-            return {
-                success: true,
-                subscription: channel,
-                error: null
-            };
+                        if (status === 'SUBSCRIBED') {
+                            console.log(`[MessagingService] ✓ Successfully subscribed to conversation ${conversationId}`);
+                            resolve({
+                                success: true,
+                                subscription: channel,
+                                error: null
+                            });
+                        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                            console.error(`[MessagingService] ✗ Subscription failed for conversation ${conversationId}:`, err);
+                            resolve({
+                                success: false,
+                                subscription: null,
+                                error: err?.message || `Subscription ${status}`
+                            });
+                        }
+                        // For other statuses (CLOSED, etc.), we wait
+                    });
+
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    resolve({
+                        success: false,
+                        subscription: channel,
+                        error: 'Subscription timeout - channel may still connect'
+                    });
+                }, 10000);
+            });
         } catch (error) {
             console.error('[MessagingService] Exception subscribing to conversation:', error);
             return {
