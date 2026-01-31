@@ -27,13 +27,18 @@ const PermissionService = {
 
     /**
      * Feature permissions configuration
+     *
+     * IMPORTANT: This must reflect ACTUALLY IMPLEMENTED features only.
+     *
      * Each feature defines:
      * - requiredTier: minimum tier needed
      * - limit: optional numeric limit (null = unlimited)
      * - description: human-readable description
      */
     FEATURE_PERMISSIONS: {
-        // Data storage limits
+        // ============================================================
+        // BUDGET DATA - Core feature
+        // ============================================================
         'months.create': {
             free: { allowed: true, limit: 2 },
             trial: { allowed: true, limit: null },
@@ -47,7 +52,9 @@ const PermissionService = {
             description: 'View historical months'
         },
 
-        // Data sharing
+        // ============================================================
+        // DATA SHARING - Implemented via DataSharingService
+        // ============================================================
         'sharing.create': {
             free: { allowed: false },
             trial: { allowed: true, limit: null },
@@ -61,7 +68,9 @@ const PermissionService = {
             description: 'Receive shared data from others'
         },
 
-        // Messaging
+        // ============================================================
+        // MESSAGING - E2E encrypted messaging via MessagingService
+        // ============================================================
         'messaging.send': {
             free: { allowed: false },
             trial: { allowed: true, limit: null },
@@ -74,17 +83,19 @@ const PermissionService = {
             premium: { allowed: true, limit: null },
             description: 'Receive messages'
         },
-
-        // File attachments in messages
+        // File attachments - NOT YET IMPLEMENTED (placeholder for future)
         'messaging.attachments': {
             free: { allowed: false, maxSizeBytes: 0 },
             trial: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 },  // 15MB
             premium: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 }, // 15MB
             description: 'Send file attachments in messages',
-            fileRetentionHours: 24  // Files auto-deleted after 24 hours
+            fileRetentionHours: 24,  // Files auto-deleted after 24 hours
+            implemented: false  // Mark as not yet implemented
         },
 
-        // Devices
+        // ============================================================
+        // DEVICE PAIRING - Multi-device sync via DevicePairingService
+        // ============================================================
         'devices.pair': {
             free: { allowed: true, limit: 1 },
             trial: { allowed: true, limit: null },
@@ -92,15 +103,9 @@ const PermissionService = {
             description: 'Number of paired devices'
         },
 
-        // Cloud features
-        'cloud.sync': {
-            free: { allowed: false },
-            trial: { allowed: true, limit: null },
-            premium: { allowed: true, limit: null },
-            description: 'Cloud synchronization'
-        },
-
-        // Pots (savings goals)
+        // ============================================================
+        // POTS - Savings goals within monthly budgets
+        // ============================================================
         'pots.create': {
             free: { allowed: true, limit: 3 },
             trial: { allowed: true, limit: null },
@@ -108,32 +113,36 @@ const PermissionService = {
             description: 'Number of savings pots'
         },
 
-        // Export features
+        // ============================================================
+        // EXPORT - JSON, CSV, HTML export via ExportService
+        // ============================================================
+        'export.json': {
+            free: { allowed: true, limit: null },
+            trial: { allowed: true, limit: null },
+            premium: { allowed: true, limit: null },
+            description: 'Export data to JSON'
+        },
         'export.csv': {
             free: { allowed: true, limit: null },
             trial: { allowed: true, limit: null },
             premium: { allowed: true, limit: null },
             description: 'Export data to CSV'
         },
-        'export.pdf': {
-            free: { allowed: false },
-            trial: { allowed: true, limit: null },
-            premium: { allowed: true, limit: null },
-            description: 'Export reports to PDF'
-        },
-
-        // Notifications
-        'notifications.push': {
-            free: { allowed: false },
-            trial: { allowed: true, limit: null },
-            premium: { allowed: true, limit: null },
-            description: 'Push notifications'
-        },
-        'notifications.email': {
+        'export.html': {
             free: { allowed: true, limit: null },
             trial: { allowed: true, limit: null },
             premium: { allowed: true, limit: null },
-            description: 'Email notifications'
+            description: 'Export printable HTML reports'
+        },
+
+        // ============================================================
+        // NOTIFICATIONS - In-app notifications (email/push NOT implemented)
+        // ============================================================
+        'notifications.inapp': {
+            free: { allowed: true, limit: null },
+            trial: { allowed: true, limit: null },
+            premium: { allowed: true, limit: null },
+            description: 'In-app notifications'
         }
     },
 
