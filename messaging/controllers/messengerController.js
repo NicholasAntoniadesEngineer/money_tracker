@@ -1023,18 +1023,7 @@ const MessengerController = {
                 }
             }
 
-            // Fetch attachments for this message
-            let attachments = [];
-            if (window.AttachmentService) {
-                try {
-                    attachments = await window.AttachmentService.getMessageAttachments(newMessage.id);
-                    console.log('[MessengerController] Fetched attachments for realtime message:', attachments.length);
-                } catch (e) {
-                    console.warn('[MessengerController] Failed to fetch attachments:', e);
-                }
-            }
-
-            // Append the new message to the thread
+            // Append the new message to the thread first (for responsiveness)
             this._appendMessageToThread({
                 id: newMessage.id,
                 sender_id: newMessage.sender_id,
@@ -1042,8 +1031,32 @@ const MessengerController = {
                 content: content,
                 created_at: newMessage.created_at,
                 is_encrypted: newMessage.is_encrypted,
-                attachments: attachments
+                attachments: []
             });
+
+            // Fetch attachments with retry (attachment may still be uploading)
+            if (window.AttachmentService) {
+                const fetchAttachments = async () => {
+                    const maxRetries = 5;
+                    const retryDelay = 800;
+                    for (let attempt = 0; attempt < maxRetries; attempt++) {
+                        try {
+                            const attachments = await window.AttachmentService.getMessageAttachments(newMessage.id);
+                            console.log('[MessengerController] Attachment fetch attempt', attempt + 1, '- found:', attachments.length);
+                            if (attachments.length > 0) {
+                                this._updateMessageAttachments(newMessage.id, attachments);
+                                return;
+                            }
+                            if (attempt < maxRetries - 1) {
+                                await new Promise(r => setTimeout(r, retryDelay));
+                            }
+                        } catch (e) {
+                            console.warn('[MessengerController] Failed to fetch attachments:', e);
+                        }
+                    }
+                };
+                fetchAttachments();
+            }
 
             // Mark conversation as read since we're viewing it
             try {
@@ -1196,6 +1209,59 @@ const MessengerController = {
         messageThread.scrollTop = messageThread.scrollHeight;
 
         console.log('[MessengerController] New message appended to thread');
+    },
+
+    /**
+     * Update attachments for an existing message in the thread
+     * @param {number|string} messageId - Message ID
+     * @param {Array} attachments - Attachments to add
+     */
+    _updateMessageAttachments(messageId, attachments) {
+        const messageThread = document.getElementById('message-thread');
+        if (!messageThread) return;
+
+        const messageEl = messageThread.querySelector(`[data-message-id="${messageId}"]`);
+        if (!messageEl) {
+            console.warn('[MessengerController] Cannot find message element to update attachments:', messageId);
+            return;
+        }
+
+        // Check if attachments already rendered
+        if (messageEl.querySelector('.message-attachments')) {
+            return;
+        }
+
+        // Build attachment HTML
+        const attachmentItems = attachments.map(att => {
+            const iconClass = window.AttachmentService?.getFileIcon(att.mimeType || att.mime_type) || 'fa-file';
+            const fileSize = window.AttachmentService?.formatFileSize(att.fileSize || att.file_size) || '';
+            const fileName = att.fileName || att.file_name || 'Attachment';
+            const attId = att.id;
+            return `
+                <div class="message-attachment" data-attachment-id="${attId}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; cursor: pointer; transition: background 0.2s;" onclick="MessengerController.downloadAttachment(${attId})" onmouseover="this.style.background='rgba(0,0,0,0.25)'" onmouseout="this.style.background='rgba(0,0,0,0.15)'">
+                    <i class="fas ${iconClass}" style="font-size: 1.1em;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em;">${fileName}</div>
+                        <div style="font-size: 0.75em; opacity: 0.7;">${fileSize}</div>
+                    </div>
+                    <i class="fas fa-download" style="opacity: 0.6;"></i>
+                </div>
+            `;
+        }).join('');
+
+        const attachmentsDiv = document.createElement('div');
+        attachmentsDiv.className = 'message-attachments';
+        attachmentsDiv.innerHTML = attachmentItems;
+
+        // Insert before timestamp
+        const timestampEl = messageEl.querySelector('.message-timestamp');
+        if (timestampEl) {
+            timestampEl.parentNode.insertBefore(attachmentsDiv, timestampEl);
+        } else {
+            messageEl.appendChild(attachmentsDiv);
+        }
+
+        console.log('[MessengerController] Updated message with', attachments.length, 'attachment(s)');
     },
 
     /**
