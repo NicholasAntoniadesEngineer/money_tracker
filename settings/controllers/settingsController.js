@@ -1323,7 +1323,10 @@ const SettingsController = {
                 const detailsHtml = [];
                 
                 // Subscription Type (always show - clearly distinguishes trial vs paid)
-                const subscriptionType = window.SubscriptionService ? window.SubscriptionService.getSubscriptionTypeDescription(subscription) : (subscription.subscription_type ? subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1) : 'Unknown');
+                const subscriptionType = window.SubscriptionService ?
+                    window.SubscriptionService.getSubscriptionTypeDescription(subscription) :
+                    (subscription.status === 'trial' ? 'Trial' :
+                     subscription.status === 'active' && subscription.stripe_subscription_id ? 'Paid' : 'Free');
                 detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscriptionType}</span></div>`);
                 
                 // Days Remaining (calculate and show)
@@ -1339,21 +1342,21 @@ const SettingsController = {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Days Remaining:</strong><span>${daysText}</span></div>`);
                 }
                 
-                // Subscription Start (show if available - prefer subscription_start_date, fallback to trial_start_date)
-                const subscriptionStartDate = subscription.subscription_start_date || subscription.trial_start_date;
+                // Subscription Start (show if available - for paid subscriptions)
+                const subscriptionStartDate = subscription.current_period_start;
                 if (subscriptionStartDate) {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription Start:</strong><span>${this.formatDate(subscriptionStartDate)}</span></div>`);
                 }
-                
-                // Subscription End (show if available - prefer subscription_end_date, fallback to trial_end_date)
-                const subscriptionEndDate = subscription.subscription_end_date || subscription.trial_end_date;
+
+                // Subscription End (show end date: current_period_end for paid, trial_end for trial)
+                const subscriptionEndDate = subscription.current_period_end || subscription.trial_end;
                 if (subscriptionEndDate) {
                     detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscriptionEndDate)}</span></div>`);
                 }
-                
-                // Recurring Billing Toggle (only for paid subscriptions)
-                if (subscription.subscription_type === 'paid' && subscription.stripe_subscription_id) {
-                    const recurringBillingEnabled = subscription.recurring_billing_enabled !== false; // Default to true if not set
+
+                // Recurring Billing Toggle (only for paid subscriptions with active status)
+                if (subscription.status === 'active' && subscription.stripe_subscription_id) {
+                    const recurringBillingEnabled = !subscription.cancel_at_period_end; // Inverted logic
                     const toggleId = 'recurring-billing-toggle';
                     detailsHtml.push(`
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));">
@@ -1544,8 +1547,8 @@ const SettingsController = {
             const existingCustomerId = subscription?.stripe_customer_id;
             console.log('[SettingsController] Subscription state:', {
                 hasSubscription: !!subscription,
-                subscriptionType: subscription?.subscription_type,
                 subscriptionStatus: subscription?.status,
+                isPaid: subscription?.status === 'active' && !!subscription?.stripe_subscription_id,
                 hasCustomerId: !!existingCustomerId,
                 customerId: existingCustomerId || 'none'
             });

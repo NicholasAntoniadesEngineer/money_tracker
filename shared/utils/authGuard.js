@@ -354,44 +354,9 @@ const AuthGuard = {
             sessionStorage.removeItem(redirectTimestamp);
         }, 3000);
 
-        // Check if device needs pairing (encryption keys)
-        console.log('[AuthGuard] Checking device pairing status...');
-        if (window.PairingGuard) {
-            try {
-                const isPaired = await window.PairingGuard.checkPairingStatus();
-                if (!isPaired) {
-                    console.log('[AuthGuard] Device not paired, redirecting to pairing page');
-
-                    // Determine the correct path to pairing page
-                    const currentPath = window.location.pathname;
-                    let pairingPath = '';
-
-                    // If we're in auth/views/
-                    if (currentPath.includes('/auth/views/')) {
-                        pairingPath = '../../messaging/views/device-pairing.html';
-                    }
-                    // If we're in any other module's views/
-                    else if (currentPath.includes('/views/')) {
-                        pairingPath = '../../messaging/views/device-pairing.html';
-                    }
-                    // Fallback
-                    else {
-                        pairingPath = '/messaging/views/device-pairing.html';
-                    }
-
-                    console.log('[AuthGuard] Redirecting to pairing page:', pairingPath);
-                    sessionStorage.removeItem(redirectTimestamp);
-                    window.location.href = pairingPath;
-                    return;
-                }
-                console.log('[AuthGuard] Device is paired, proceeding with normal redirect');
-            } catch (error) {
-                console.error('[AuthGuard] Error checking pairing status:', error);
-                // Continue with normal redirect if pairing check fails
-            }
-        } else {
-            console.warn('[AuthGuard] PairingGuard not available, skipping pairing check');
-        }
+        // NOTE: Device pairing is now handled on auth.html immediately after sign-in
+        // This redirect only happens from pages other than auth.html that call redirectAfterAuth()
+        console.log('[AuthGuard] Device pairing handled on auth page - proceeding with redirect');
 
         const returnUrl = this.getReturnUrl();
         console.log('[AuthGuard] Return URL from query params:', returnUrl);

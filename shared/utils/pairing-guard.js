@@ -68,20 +68,47 @@ const PairingGuard = {
         if (!isPaired) {
             console.log('[PairingGuard] Device not paired, redirecting to pairing page');
 
-            // Build pairing page URL
-            let pairingUrl = '/messaging/views/device-pairing.html';
+            // Redirect to auth page for device setup
+            // Auth page will detect the user is authenticated and run handlePostSignIn()
+            // which will set up encryption keys
+            console.log('[PairingGuard] Redirecting to auth page for encryption setup');
 
-            // Add return URL if provided
-            if (returnUrl) {
-                pairingUrl += `?returnUrl=${encodeURIComponent(returnUrl)}`;
-            }
-
-            window.location.href = pairingUrl;
+            // Calculate relative path dynamically based on current location
+            const authUrl = this._calculateAuthUrl();
+            console.log('[PairingGuard] Calculated auth URL:', authUrl);
+            window.location.href = authUrl;
             return false;
         }
 
         console.log('[PairingGuard] Device is paired, allowing access');
         return true;
+    },
+
+    /**
+     * Calculate the auth page URL relative to current location
+     * @private
+     * @returns {string} The auth page URL
+     */
+    _calculateAuthUrl() {
+        const currentPath = window.location.pathname;
+        const baseUrl = window.location.origin;
+        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
+
+        // Get all module names from registry if available
+        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
+
+        // Find the base path (everything before any known module or 'ui')
+        let basePathParts = [];
+        for (let i = 0; i < pathParts.length; i++) {
+            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
+                break;
+            }
+            basePathParts.push(pathParts[i]);
+        }
+
+        // Construct the auth URL
+        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
+        return `${baseUrl}/${basePath}auth/views/auth.html`;
     },
 
     /**

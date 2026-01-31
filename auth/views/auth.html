@@ -179,7 +179,7 @@
     <main class="auth-main" role="main">
         <section class="auth-header-section">
             <h1>Money Tracker</h1>
-            <p>Sign in to access your financial data</p>
+            <p>Secure, encrypted financial tracking</p>
         </section>
         
         <section class="form-section">
@@ -238,6 +238,139 @@
                     Sign Up
                 </button>
             </form>
+
+            <!-- Device Pairing UI (shown after sign-in if no encryption keys) -->
+            <div id="device-pairing-section" class="auth-form" style="display: none;">
+                <div class="auth-header-section">
+                    <h1>🔐 Encrypting Your Data</h1>
+                    <p>Setting up end-to-end encryption for complete privacy</p>
+                </div>
+
+                <div id="pairing-setup-view" style="text-align: center; padding: var(--spacing-lg) 0;">
+                    <p style="color: var(--primary-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
+                        Generating encryption keys...
+                    </p>
+                    <p style="color: var(--text-secondary);">
+                        All your data will be encrypted. Only you can access it.
+                    </p>
+                </div>
+
+                <div id="pairing-success-view" style="display: none; text-align: center; padding: var(--spacing-lg) 0;">
+                    <p style="color: var(--success-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
+                        ✓ Encryption keys generated successfully!
+                    </p>
+                    <p style="color: var(--text-secondary);">
+                        Your data is now fully encrypted. Redirecting...
+                    </p>
+                </div>
+
+                <div id="pairing-error-view" style="display: none; text-align: center; padding: var(--spacing-lg) 0;">
+                    <p style="color: var(--error-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
+                        ⚠ Encryption setup failed
+                    </p>
+                    <p id="pairing-error-message" style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
+                    </p>
+                    <button id="retry-pairing-btn" class="btn btn-primary">
+                        Try Again
+                    </button>
+                </div>
+
+                <div id="pairing-multi-device-view" style="display: none; padding: var(--spacing-lg) 0;">
+                    <div style="text-align: center; margin-bottom: var(--spacing-xl);">
+                        <h2 style="color: var(--text-color); margin-bottom: var(--spacing-md);">
+                            🔐 Encryption Required
+                        </h2>
+                        <p style="color: var(--text-primary); font-size: 1rem; line-height: 1.5; margin-bottom: var(--spacing-sm); font-weight: 600;">
+                            All data in Money Tracker is fully encrypted.
+                        </p>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">
+                            You have encryption keys on another device.<br>
+                            <strong>You must sync your encryption keys to access your data.</strong>
+                        </p>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-md); max-width: 450px; margin: 0 auto;">
+                        <button id="pair-with-qr-btn" class="btn btn-primary btn-lg" style="width: 100%; padding: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: var(--spacing-sm);">
+                                <span style="font-size: 1.5rem;">📷</span>
+                                <div style="text-align: left;">
+                                    <div style="font-weight: 600;">Pair This Device</div>
+                                    <div style="font-size: 0.875rem; opacity: 0.9;">Scan QR code or enter password</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-color);">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: var(--spacing-sm);">
+                            <strong>Why is encryption required?</strong>
+                        </p>
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5;">
+                            All your data (budgets, expenses, messages) is end-to-end encrypted.<br>
+                            Only you have the keys to decrypt your information.<br>
+                            No one else, including us, can access your data.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Recovery Key Modal (shown after key generation) -->
+                <div id="recovery-key-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center;">
+                    <div style="background: var(--background-color); border-radius: var(--border-radius); padding: var(--spacing-xl); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                        <h2 style="color: var(--text-color); margin-bottom: var(--spacing-md); text-align: center;">
+                            🔑 Save Your Recovery Key
+                        </h2>
+                        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-lg); text-align: center; line-height: 1.6;">
+                            <strong style="color: var(--error-color);">CRITICAL: Write down these 24 words and store them safely.</strong><br>
+                            If you forget your password, this is the ONLY way to recover your data.<br>
+                            Losing both your password and recovery key means <strong>permanent data loss</strong>.
+                        </p>
+
+                        <div style="background: var(--secondary-background); border: 2px solid var(--border-color-dark); border-radius: var(--border-radius); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
+                            <div id="recovery-key-display-container">
+                                <pre id="recovery-key-display" style="font-family: 'Courier New', monospace; font-size: 1.1rem; line-height: 1.8; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); margin: 0;"></pre>
+                                <textarea
+                                    id="recovery-key-edit"
+                                    style="display: none; width: 100%; font-family: 'Courier New', monospace; font-size: 1.1rem; line-height: 1.8; padding: var(--spacing-sm); border: 2px solid var(--border-color); border-radius: var(--border-radius); resize: vertical; min-height: 150px;"
+                                    placeholder="Enter your custom 24-word recovery key..."
+                                ></textarea>
+                            </div>
+                            <div id="recovery-key-word-count-display" style="font-size: 0.85rem; color: var(--text-color-secondary); margin-top: var(--spacing-xs); display: none;">
+                                Word count: <span id="recovery-key-custom-count">0</span> / 24
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg);">
+                            <button id="edit-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
+                                ✏️ Customize
+                            </button>
+                            <button id="copy-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
+                                📋 Copy
+                            </button>
+                            <button id="download-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
+                                💾 Download
+                            </button>
+                            <button id="print-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
+                                🖨️ Print
+                            </button>
+                        </div>
+
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); cursor: pointer;">
+                            <input type="checkbox" id="recovery-key-saved-checkbox" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span style="color: var(--text-primary); font-size: 1rem;">
+                                I have saved my recovery key in a safe place
+                            </span>
+                        </label>
+
+                        <button id="recovery-key-continue-btn" class="btn btn-primary" style="width: 100%;" disabled>
+                            Continue to App
+                        </button>
+
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-md); text-align: center; line-height: 1.5;">
+                            ⚠️ Store your recovery key offline: write it on paper, store in a password manager, or use a secure encrypted backup. Never store it in plain text on your computer or cloud storage.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -300,10 +433,25 @@
     <script src="../../payments/initPayments.js"></script>
     <script src="../../payments/utils/waitForPaymentsInit.js"></script>
 
-    <!-- Crypto Libraries for E2E Encryption -->
-    <script src="../../messaging/crypto/naclLoader.js"></script>
-    <script src="../../messaging/crypto/cryptoService.js"></script>
-    <script src="../../messaging/crypto/keyStorageService.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../encryption/services/keyDerivationService.js"></script>
+    <script src="../../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../encryption/services/keyStorageService.js"></script>
+    <script src="../../encryption/services/historicalKeysService.js"></script>
+    <script src="../../encryption/services/passwordCryptoService.js"></script>
+    <script src="../../encryption/services/keyBackupService.js"></script>
+    <script src="../../encryption/services/keyManagementService.js"></script>
+    <script src="../../encryption/facade/encryptionFacade.js"></script>
+    <script src="../../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../encryption/encryptionModule.js"></script>
+    <script src="../../encryption/initEncryption.js"></script>
+
+    <!-- Device Pairing -->
+    <script src="../../messaging/services/devicePairingService.js"></script>
 
     <!-- Pairing Guard -->
     <script src="../../shared/utils/pairing-guard.js"></script>
@@ -392,8 +540,8 @@
                         });
                         
                         if (isAuthenticated) {
-                            console.log('[AuthPage] User already authenticated, redirecting...');
-                            window.AuthGuard.redirectAfterAuth();
+                            console.log('[AuthPage] User already authenticated, checking encryption setup...');
+                            await handlePostSignIn();
                         }
                     }
                 } catch (error) {
@@ -493,7 +641,442 @@
                 }
             }
         }
-        
+
+        // Show recovery key modal and wait for user confirmation
+        function showRecoveryKeyModal(recoveryKey, onConfirm) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('recovery-key-modal');
+                const displayEl = document.getElementById('recovery-key-display');
+                const editEl = document.getElementById('recovery-key-edit');
+                const wordCountDisplay = document.getElementById('recovery-key-word-count-display');
+                const wordCountSpan = document.getElementById('recovery-key-custom-count');
+                const checkboxEl = document.getElementById('recovery-key-saved-checkbox');
+                const continueBtn = document.getElementById('recovery-key-continue-btn');
+                const editBtn = document.getElementById('edit-recovery-key-btn');
+                const copyBtn = document.getElementById('copy-recovery-key-btn');
+                const downloadBtn = document.getElementById('download-recovery-key-btn');
+                const printBtn = document.getElementById('print-recovery-key-btn');
+
+                // Track current recovery key (can be modified by user)
+                let currentRecoveryKey = recoveryKey;
+                let isEditMode = false;
+                const originalRecoveryKey = recoveryKey;
+
+                // Display recovery key
+                displayEl.textContent = recoveryKey;
+
+                // Show modal
+                modal.style.display = 'flex';
+
+                // Enable/disable continue button based on checkbox
+                checkboxEl.checked = false;
+                continueBtn.disabled = true;
+
+                checkboxEl.onchange = () => {
+                    // Only enable if checkbox is checked AND (not in edit mode OR has exactly 24 words)
+                    if (isEditMode) {
+                        const words = editEl.value.trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                        continueBtn.disabled = !checkboxEl.checked || words.length !== 24;
+                    } else {
+                        continueBtn.disabled = !checkboxEl.checked;
+                    }
+                };
+
+                // Customize/Use Generated button
+                editBtn.onclick = () => {
+                    if (!isEditMode) {
+                        // Enter edit mode
+                        isEditMode = true;
+                        displayEl.style.display = 'none';
+                        editEl.style.display = 'block';
+                        wordCountDisplay.style.display = 'block';
+                        editEl.value = currentRecoveryKey;
+                        editBtn.innerHTML = '🔄 Use Generated';
+
+                        // Trigger word count update
+                        editEl.dispatchEvent(new Event('input'));
+
+                        // Update continue button state
+                        const words = editEl.value.trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                        continueBtn.disabled = !checkboxEl.checked || words.length !== 24;
+                    } else {
+                        // Exit edit mode - restore original
+                        isEditMode = false;
+                        currentRecoveryKey = originalRecoveryKey;
+                        displayEl.textContent = originalRecoveryKey;
+                        displayEl.style.display = 'block';
+                        editEl.style.display = 'none';
+                        wordCountDisplay.style.display = 'none';
+                        editBtn.innerHTML = '✏️ Customize';
+
+                        // Update continue button state
+                        continueBtn.disabled = !checkboxEl.checked;
+                    }
+                };
+
+                // Word count validation for custom keys
+                editEl.oninput = () => {
+                    const text = editEl.value.trim().toLowerCase();
+                    const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+                    const wordCount = words.length;
+
+                    wordCountSpan.textContent = wordCount;
+
+                    if (wordCount === 24) {
+                        wordCountDisplay.style.color = 'var(--success-color)';
+                        currentRecoveryKey = words.join(' ');
+                        // Update continue button state
+                        continueBtn.disabled = !checkboxEl.checked;
+                    } else {
+                        wordCountDisplay.style.color = 'var(--text-color-secondary)';
+                        // Disable continue if word count is wrong
+                        continueBtn.disabled = true;
+                        checkboxEl.checked = false;
+                    }
+                };
+
+                // Copy button
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(currentRecoveryKey);
+                        copyBtn.textContent = '✓ Copied!';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '📋 Copy';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                        alert('Failed to copy to clipboard');
+                    }
+                };
+
+                // Download button
+                downloadBtn.onclick = () => {
+                    const blob = new Blob([`Money Tracker Recovery Key\n\nSave these 24 words in a safe place:\n\n${currentRecoveryKey}\n\nDate: ${new Date().toISOString()}\n\nIMPORTANT: This is the ONLY way to recover your data if you forget your password.`], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `money-tracker-recovery-key-${Date.now()}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+
+                // Print button
+                printBtn.onclick = () => {
+                    const printWindow = window.open('', '_blank');
+                    printWindow.document.write(`
+                        <html>
+                        <head>
+                            <title>Money Tracker Recovery Key</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; padding: 40px; }
+                                h1 { color: #333; }
+                                .recovery-key { font-family: 'Courier New', monospace; font-size: 16px; line-height: 2; background: #f5f5f5; padding: 20px; border: 2px solid #333; margin: 20px 0; }
+                                .warning { color: #d32f2f; font-weight: bold; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>Money Tracker Recovery Key</h1>
+                            <p class="warning">⚠️ KEEP THIS SAFE AND SECURE</p>
+                            <p>If you forget your password, these 24 words are the ONLY way to recover your data.</p>
+                            <div class="recovery-key">${currentRecoveryKey}</div>
+                            <p>Date: ${new Date().toISOString()}</p>
+                            <p><strong>Store this document in a secure location.</strong></p>
+                        </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                    printWindow.print();
+                };
+
+                // Continue button
+                continueBtn.onclick = async () => {
+                    continueBtn.disabled = true;
+                    continueBtn.textContent = 'Processing...';
+                    try {
+                        // Pass the current recovery key (which may have been customized) to the callback
+                        await onConfirm(currentRecoveryKey);
+                        resolve();
+                    } catch (error) {
+                        console.error('[RecoveryKeyModal] Error:', error);
+                        alert('Failed to complete setup: ' + error.message);
+                        continueBtn.disabled = false;
+                        continueBtn.textContent = 'Continue to App';
+                    }
+                };
+            });
+        }
+
+        // Handle post sign-in: check for encryption keys and set up if needed
+        async function handlePostSignIn() {
+            console.log('[AuthPage] ========== POST SIGN-IN CHECK ==========');
+
+            try {
+                // Step 1: Initialize Encryption Module (loads TweetNaCl)
+                console.log('[AuthPage] Step 1: Initializing Encryption Module...');
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
+                    console.log('[AuthPage] ✓ CryptoPrimitivesService initialized');
+                } else {
+                    throw new Error('CryptoLibraryLoader not available');
+                }
+
+                // Step 2: Initialize DatabaseService (needed for encryption services)
+                console.log('[AuthPage] Step 2: Initializing DatabaseService...');
+                if (window.DatabaseService && typeof window.DatabaseService.initialize === 'function') {
+                    await window.DatabaseService.initialize();
+                    console.log('[AuthPage] ✓ DatabaseService initialized');
+                } else {
+                    throw new Error('DatabaseService not available');
+                }
+
+                // Prepare config with services before any encryption initialization
+                MoneyTrackerEncryptionConfig.prepareWithServices();
+                console.log('[AuthPage] ✓ Config prepared with services');
+
+                // Step 3: Initialize KeyStorageService (needs Encryption Module)
+                console.log('[AuthPage] Step 3: Initializing KeyStorageService...');
+                if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
+                    await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
+                    console.log('[AuthPage] ✓ KeyStorageService initialized');
+                } else {
+                    throw new Error('KeyStorageService not available');
+                }
+
+                // Step 4: Get current user
+                const currentUser = window.AuthService.getCurrentUser();
+                if (!currentUser) {
+                    console.error('[AuthPage] No current user after sign-in');
+                    window.location.href = '../../landing/index.html';
+                    return;
+                }
+
+                const userId = currentUser.id;
+                console.log('[AuthPage] Step 4: Checking encryption keys for user:', userId);
+
+                // Step 5: Check for existing keys in local IndexedDB
+                let keys = await window.KeyStorageService.getIdentityKeys(userId);
+
+                if (keys && keys.publicKey && keys.secretKey) {
+                    console.log('[AuthPage] ✓ Encryption keys found in local storage - redirecting to landing');
+                    window.location.href = '../../landing/index.html';
+                    return;
+                }
+
+                console.log('[AuthPage] No encryption keys in local storage');
+
+                // Step 6: Try to restore from password backup
+                const password = window.PasswordManager?.retrieve();
+                if (password) {
+                    console.log('[AuthPage] Attempting automatic decryption with password...');
+
+                    // Initialize KeyManagementService
+                    await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
+
+                    try {
+                        await window.KeyManagementService.restoreFromPassword(password);
+                        console.log('[AuthPage] ✓ Keys restored from password backup');
+
+                        // Clear temporary password
+                        window.PasswordManager?.clear();
+
+                        // Redirect to landing
+                        window.location.href = '../../landing/index.html';
+                        return;
+
+                    } catch (restoreError) {
+                        console.log('[AuthPage] Password restore failed:', restoreError.message);
+
+                        // Check if it's because no backup exists (first device)
+                        if (restoreError.message && restoreError.message.includes('No password backup found')) {
+                            console.log('[AuthPage] No backup found - this is first device, generating keys');
+                            await setupDeviceEncryption(userId);
+                        } else {
+                            // Other error (wrong password, corruption, multi-device) - show pairing
+                            console.log('[AuthPage] Restore failed - showing device pairing options');
+                            await setupDeviceEncryption(userId);
+                        }
+                    }
+                } else {
+                    console.log('[AuthPage] No password available - setting up device');
+                    await setupDeviceEncryption(userId);
+                }
+
+            } catch (error) {
+                console.error('[AuthPage] ========== POST SIGN-IN CHECK FAILED ==========');
+                console.error('[AuthPage] Error name:', error.name);
+                console.error('[AuthPage] Error message:', error.message);
+                console.error('[AuthPage] Error stack:', error.stack);
+                console.error('[AuthPage] Full error object:', error);
+
+                // Redirect to device pairing for key setup/restore
+                // (user may be on a new device and needs to restore keys)
+                console.log('[AuthPage] Redirecting to device pairing page for encryption setup...');
+                window.location.href = '../../messaging/views/device-pairing.html';
+            }
+        }
+
+        // Set up device encryption keys
+        async function setupDeviceEncryption(userId) {
+            console.log('[AuthPage] ========== SETTING UP DEVICE ENCRYPTION ==========');
+            console.log('[AuthPage] User ID:', userId);
+
+            // Hide auth forms, show device pairing UI
+            document.querySelectorAll('.auth-form').forEach(el => el.style.display = 'none');
+            const authTabs = document.querySelector('.auth-tabs');
+            if (authTabs) authTabs.style.display = 'none';
+            document.getElementById('device-pairing-section').style.display = 'block';
+            document.getElementById('pairing-setup-view').style.display = 'block';
+            document.getElementById('pairing-success-view').style.display = 'none';
+            document.getElementById('pairing-error-view').style.display = 'none';
+
+            try {
+                // Ensure encryption module is fully initialized
+                console.log('[AuthPage] Ensuring encryption services are initialized...');
+
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
+                    console.log('[AuthPage] ✓ CryptoPrimitivesService ready');
+                }
+
+                if (window.DatabaseService && typeof window.DatabaseService.initialize === 'function') {
+                    await window.DatabaseService.initialize();
+                    console.log('[AuthPage] ✓ DatabaseService ready');
+                }
+
+                // Prepare config with services before any encryption initialization
+                MoneyTrackerEncryptionConfig.prepareWithServices();
+                console.log('[AuthPage] ✓ Config prepared with services');
+
+                if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
+                    await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
+                    console.log('[AuthPage] ✓ KeyStorageService ready');
+                }
+
+                // Initialize KeyManagementService and check for existing keys
+                console.log('[AuthPage] Calling KeyManagementService.initialize()...');
+                const initResult = await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
+
+                if (!initResult.success && initResult.needsRestore) {
+                    // User has keys backed up but needs to restore them on this device
+                    console.log('[AuthPage] Keys need restoration - redirecting to device pairing');
+                    window.location.href = '../../messaging/views/device-pairing.html?restore=true';
+                    return;
+                }
+
+                // Generate identity keys if they don't exist yet
+                if (!initResult.keysExist) {
+                    console.log('[AuthPage] No existing keys - generating new identity keys...');
+                    const keyResult = await window.KeyManagementService.generateAndStoreIdentityKeys(userId);
+                    if (!keyResult.success) {
+                        throw new Error('Failed to generate encryption keys');
+                    }
+                    console.log('[AuthPage] ✓ Encryption keys generated');
+                } else {
+                    console.log('[AuthPage] ✓ Encryption keys already exist');
+                }
+
+                // Generate recovery key
+                console.log('[AuthPage] Generating recovery key...');
+                const recoveryKeyB64 = window.PasswordCryptoService.generateRecoveryKey();
+                const recoveryKeyFormatted = window.PasswordCryptoService.formatRecoveryKey(recoveryKeyB64);
+                console.log('[AuthPage] ✓ Recovery key generated');
+
+                // Get password from PasswordManager temporary storage
+                const password = window.PasswordManager?.retrieve();
+                if (!password) {
+                    throw new Error('Password not available for key encryption');
+                }
+
+                // Show recovery key modal and wait for user confirmation (show formatted version)
+                await showRecoveryKeyModal(recoveryKeyFormatted, async (finalRecoveryKey) => {
+                    try {
+                        console.log('[AuthPage] User confirmed recovery key saved');
+                        // If user kept the generated key, use original base64; otherwise parse their custom input
+                        const recoveryKeyToUse = finalRecoveryKey === recoveryKeyFormatted
+                            ? recoveryKeyB64
+                            : window.PasswordCryptoService.parseRecoveryKey(finalRecoveryKey);
+                        console.log('[AuthPage] Creating dual backup with', finalRecoveryKey === recoveryKeyFormatted ? 'generated' : 'custom', 'recovery key');
+
+                        // Create encrypted backups with both password and recovery key
+                        await window.KeyManagementService.createDualBackup(password, recoveryKeyToUse);
+
+                        console.log('[AuthPage] ✓ Dual backup created');
+
+                        // Register device
+                        const deviceName = window.DevicePairingService?.getDeviceName() || 'Primary Device';
+                        console.log('[AuthPage] Registering device:', deviceName);
+                        await window.DevicePairingService.registerDevice(userId, deviceName, true);
+
+                        console.log('[AuthPage] ✓ Device registered');
+                        console.log('[AuthPage] ========== ENCRYPTION SETUP COMPLETE ==========');
+
+                        // Clear temporary password
+                        window.PasswordManager?.clear();
+
+                        // Show success and redirect
+                        document.getElementById('recovery-key-modal').style.display = 'none';
+                        document.getElementById('pairing-setup-view').style.display = 'none';
+                        document.getElementById('pairing-success-view').style.display = 'block';
+
+                        setTimeout(() => {
+                            window.location.href = '../../landing/index.html';
+                        }, 1500);
+
+                    } catch (backupError) {
+                        console.error('[AuthPage] Backup creation failed:', backupError);
+                        document.getElementById('recovery-key-modal').style.display = 'none';
+                        throw backupError;
+                    }
+                });
+
+            } catch (error) {
+                console.error('[AuthPage] ========== ENCRYPTION SETUP FAILED ==========');
+                console.error('[AuthPage] Error:', error);
+                console.error('[AuthPage] Error stack:', error.stack);
+
+                // Check if this is a multi-device scenario
+                const isMultiDeviceError = error.message && error.message.includes('encryption keys exist on another device');
+
+                if (isMultiDeviceError) {
+                    // Show multi-device pairing options
+                    console.log('[AuthPage] Multi-device scenario detected - encryption required to proceed');
+                    document.getElementById('pairing-setup-view').style.display = 'none';
+                    document.getElementById('pairing-error-view').style.display = 'none';
+                    document.getElementById('pairing-multi-device-view').style.display = 'block';
+
+                    // Set up pairing button - user MUST pair to access app
+                    const qrBtn = document.getElementById('pair-with-qr-btn');
+                    if (qrBtn) {
+                        qrBtn.onclick = () => {
+                            console.log('[AuthPage] Redirecting to device pairing page (required for access)...');
+                            window.location.href = '../../messaging/views/device-pairing.html';
+                        };
+                    }
+                } else {
+                    // Show generic error view
+                    document.getElementById('pairing-setup-view').style.display = 'none';
+                    document.getElementById('pairing-error-view').style.display = 'block';
+
+                    const errorMsg = document.getElementById('pairing-error-message');
+                    if (errorMsg) {
+                        errorMsg.textContent = error.message || 'An error occurred during encryption setup';
+                    }
+
+                    // Set up retry button
+                    const retryBtn = document.getElementById('retry-pairing-btn');
+                    if (retryBtn) {
+                        retryBtn.onclick = async () => {
+                            document.getElementById('pairing-error-view').style.display = 'none';
+                            document.getElementById('pairing-setup-view').style.display = 'block';
+                            await setupDeviceEncryption(userId);
+                        };
+                    }
+                }
+            }
+        }
+
         // Sign In Form Handler
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -612,8 +1195,8 @@
                 
                 if (result.success) {
                     console.log('[AuthPage] ========== SIGN IN SUCCESSFUL ==========');
-                    console.log('[AuthPage] Showing success message and preparing redirect...');
-                    showSuccess('signin-success', 'Sign in successful! Redirecting...');
+                    console.log('[AuthPage] Showing success message and checking encryption setup...');
+                    showSuccess('signin-success', 'Sign in successful!');
 
                     // Store password temporarily for key encryption
                     if (window.PasswordManager) {
@@ -621,10 +1204,9 @@
                         window.PasswordManager.storeTemporarily(password);
                     }
 
-                    // Wait a moment for user to see success message
-                    setTimeout(() => {
-                        console.log('[AuthPage] Redirecting to main page...');
-                        window.AuthGuard.redirectAfterAuth();
+                    // Check for encryption keys - if none, set up device pairing
+                    setTimeout(async () => {
+                        await handlePostSignIn();
                     }, 1000);
                 } else {
                     console.error('[AuthPage] ========== SIGN IN FAILED ==========');
@@ -781,9 +1363,12 @@
                             showSuccess('signup-success', 'Account created successfully! Signing you in...');
                         }
                         
+                        // Set flag to prevent handlePostSignIn from running on page load after signup
+                        redirectCheckDone = true;
+
                         setTimeout(() => {
-                            console.log('[AuthPage] Redirecting after auth...');
-                            window.AuthGuard.redirectAfterAuth();
+                            console.log('[AuthPage] New user signup - redirecting to device pairing for encryption setup...');
+                            window.location.href = '../../messaging/views/device-pairing.html';
                         }, 2000);
                     } else {
                         console.log('[AuthPage] Account created but needs sign in');
@@ -812,12 +1397,13 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize CryptoService first (required for KeyStorageService)
-            if (window.CryptoService && typeof window.CryptoService.initialize === 'function') {
+            // Initialize Encryption Module first (required for KeyStorageService)
+            if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
                 try {
-                    await window.CryptoService.initialize();
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
                 } catch (error) {
-                    console.warn('[AuthPage] Failed to initialize CryptoService:', error);
+                    console.warn('[AuthPage] Failed to initialize Encryption Module:', error);
                 }
             }
 

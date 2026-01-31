@@ -166,65 +166,7 @@
         </div>
     </div>
 
-    <!-- Device Pairing Modal -->
-    <div id="device-pairing-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3 id="pairing-modal-title">Device Pairing</h3>
-                <button class="modal-close" id="close-pairing-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <!-- Primary Device View -->
-                <div id="primary-device-view" style="display: none; text-align: center;">
-                    <p style="margin-bottom: var(--spacing-md);">To pair a new device, enter this code on your other device:</p>
-                    <div style="font-size: 3rem; font-weight: bold; letter-spacing: 0.5rem; margin: var(--spacing-lg) 0; color: var(--primary-color); font-family: monospace;">
-                        <span id="pairing-code-display">------</span>
-                    </div>
-                    <p style="font-size: 0.9rem; color: var(--text-color-secondary); margin-bottom: var(--spacing-md);">
-                        Code expires in <span id="pairing-code-timer">5:00</span>
-                    </p>
-                    <button id="regenerate-code-btn" class="btn btn-secondary" style="margin-top: var(--spacing-sm);">
-                        Generate New Code
-                    </button>
-                </div>
 
-                <!-- Secondary Device View -->
-                <div id="secondary-device-view" style="display: none;">
-                    <p style="margin-bottom: var(--spacing-md);">Enter the 6-digit pairing code from your primary device:</p>
-                    <input
-                        type="text"
-                        id="pairing-code-input"
-                        class="form-input"
-                        placeholder="000000"
-                        maxlength="6"
-                        pattern="[0-9]{6}"
-                        style="font-size: 2rem; text-align: center; letter-spacing: 0.5rem; font-family: monospace;"
-                    >
-                    <div id="pairing-status" style="margin-top: var(--spacing-md); min-height: 24px;"></div>
-                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
-                        <button id="cancel-pairing-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
-                        <button id="submit-pairing-code-btn" class="btn btn-primary" style="flex: 1;">Pair Device</button>
-                    </div>
-                </div>
-
-                <!-- Detection View -->
-                <div id="device-detection-view" style="display: none; text-align: center;">
-                    <div style="margin: var(--spacing-lg) 0;">
-                        <i class="fas fa-mobile-alt" style="font-size: 4rem; color: var(--primary-color); margin-bottom: var(--spacing-md);"></i>
-                        <p style="margin-bottom: var(--spacing-lg);">Is this your first time using messenger on this device?</p>
-                        <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                            <button id="is-primary-device-btn" class="btn btn-primary">
-                                Yes, this is my primary device
-                            </button>
-                            <button id="is-secondary-device-btn" class="btn btn-secondary">
-                                No, I have another device already
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Scripts -->
     <!-- Global Logging Configuration - MUST load first -->
@@ -256,11 +198,22 @@
     <script src="../../database/services/notificationChannelService.js"></script>
     <script src="../../database/services/notificationProcessor.js"></script>
 
-    <!-- E2E Encryption Crypto Services -->
-    <script src="../crypto/naclLoader.js"></script>
-    <script src="../crypto/cryptoService.js"></script>
-    <script src="../crypto/keyStorageService.js"></script>
-    <script src="../crypto/keyManager.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../encryption/services/keyDerivationService.js"></script>
+    <script src="../../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../encryption/services/keyStorageService.js"></script>
+    <script src="../../encryption/services/passwordCryptoService.js"></script>
+    <script src="../../encryption/services/historicalKeysService.js"></script>
+    <script src="../../encryption/services/keyBackupService.js"></script>
+    <script src="../../encryption/services/keyManagementService.js"></script>
+    <script src="../../encryption/facade/encryptionFacade.js"></script>
+    <script src="../../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../encryption/encryptionModule.js"></script>
+    <script src="../../encryption/initEncryption.js"></script>
 
     <!-- Messaging Service -->
     <script src="../services/messagingService.js"></script>
@@ -436,13 +389,12 @@
                     });
                 }
 
-                console.log('[MessengerPage] Step 3: Initializing DevicePairingController...');
-                if (window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
-                    console.log('[MessengerPage] Calling DevicePairingController.init()...');
+                // Only initialize DevicePairingController if the pairing container exists on this page
+                const hasPairingContainer = document.getElementById('device-pairing-modal') || document.querySelector('.pairing-container');
+                if (hasPairingContainer && window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
+                    console.log('[MessengerPage] Step 3: Initializing DevicePairingController...');
                     window.DevicePairingController.init();
                     console.log('[MessengerPage] ✅ DevicePairingController.init() completed');
-                } else {
-                    console.warn('[MessengerPage] ⚠️ DevicePairingController not available');
                 }
 
                 console.log('[MessengerPage] Step 4: Waiting for MessengerController to be available...');
@@ -465,6 +417,60 @@
                     await window.MessengerController.init();
                     const controllerInitTime = Date.now() - controllerInitStart;
                     console.log(`[MessengerPage] ✅ MessengerController.init() completed in ${controllerInitTime}ms`);
+
+                    // Set up periodic key rotation check (every 5 minutes)
+                    // This checks if YOUR keys need rotation based on the configured interval
+                    // Other user's key rotations are handled transparently via epoch-based decryption
+                    const ROTATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+                    let lastRotationCheck = 0;
+
+                    const checkKeyRotation = async () => {
+                        const now = Date.now();
+                        // Throttle: only check if 5 minutes have passed since last check
+                        if (now - lastRotationCheck < ROTATION_CHECK_INTERVAL) {
+                            return;
+                        }
+                        lastRotationCheck = now;
+
+                        try {
+                            // Check if EncryptionModule is initialized
+                            if (!window.EncryptionModule?.isInitialized?.()) {
+                                return; // Skip rotation check if module not initialized
+                            }
+
+                            const facade = window.getEncryptionFacade?.();
+                            if (!facade?.checkAndRotateIfNeeded) return;
+
+                            const result = await facade.checkAndRotateIfNeeded();
+                            if (result.rotated) {
+                                console.log(`[MessengerPage] Auto-rotated keys to epoch ${result.newEpoch}`);
+                            }
+                        } catch (error) {
+                            console.warn('[MessengerPage] Key rotation check failed:', error);
+                        }
+                    };
+
+                    // Check rotation on page load (already done in EncryptionModule, but also do it here)
+                    checkKeyRotation();
+
+                    // Set up periodic check while page is open
+                    setInterval(checkKeyRotation, ROTATION_CHECK_INTERVAL);
+
+                    // Also check on message receive (throttled by the function above)
+                    const originalSubscribe = window.MessagingService?.subscribeToMessages;
+                    if (originalSubscribe) {
+                        window.MessagingService.subscribeToMessages = async function(userId, callback) {
+                            const wrappedCallback = (payload) => {
+                                // Check rotation on new message (throttled)
+                                checkKeyRotation();
+                                // Call original callback
+                                if (callback) callback(payload);
+                            };
+                            return originalSubscribe.call(this, userId, wrappedCallback);
+                        };
+                    }
+
+                    console.log('[MessengerPage] ✅ Key rotation monitoring enabled (checks every 5 min)');
                     console.log('[MessengerPage] ========== INITIALIZATION COMPLETE ==========');
                 } else {
                     console.error('[MessengerPage] ❌ MessengerController.init() is not available:', {
