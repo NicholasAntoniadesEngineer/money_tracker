@@ -218,17 +218,21 @@ const AttachmentService = {
             const storagePath = `${conversationId}/${timestamp}-${randomId}`;
 
             // Upload encrypted file to Supabase Storage (nonce prepended to ciphertext)
-            console.log('[AttachmentService] Uploading to storage:', storagePath);
+            // Convert Uint8Array to Blob for Supabase Storage
+            const encryptedBlob = new Blob([dataWithNonce], { type: 'application/octet-stream' });
+            console.log('[AttachmentService] Uploading to storage:', storagePath, 'size:', encryptedBlob.size);
+
             const { data: uploadData, error: uploadError } = await client.storage
                 .from(this.BUCKET_NAME)
-                .upload(storagePath, dataWithNonce, {
-                    contentType: 'application/octet-stream', // Always binary for encrypted data
+                .upload(storagePath, encryptedBlob, {
+                    contentType: 'application/octet-stream',
                     upsert: false
                 });
 
             if (uploadError) {
                 console.error('[AttachmentService] Storage upload error:', uploadError);
-                throw new Error(`Upload failed: ${uploadError.message}`);
+                console.error('[AttachmentService] Upload error details:', JSON.stringify(uploadError, null, 2));
+                throw new Error(`Upload failed: ${uploadError.message || uploadError.error || 'Unknown error'}`);
             }
 
             console.log('[AttachmentService] File uploaded to storage');
