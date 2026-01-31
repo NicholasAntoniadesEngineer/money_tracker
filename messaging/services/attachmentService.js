@@ -193,13 +193,12 @@ const AttachmentService = {
 
         console.log('[AttachmentService] _encryptFileKey: Session key retrieved, encrypting file key');
 
-        // Encrypt file key with session key
-        const nonce = window.CryptoPrimitivesService.randomBytes(24);
-        const encrypted = window.CryptoPrimitivesService.encrypt(fileKey, nonce, sessionKey);
+        // Encrypt file key with session key using encryptBytes (for binary data)
+        const { ciphertext, nonce } = window.CryptoPrimitivesService.encryptBytes(fileKey, sessionKey);
 
         // Base64 encode for storage
         return {
-            encryptedKey: btoa(String.fromCharCode(...encrypted)),
+            encryptedKey: btoa(String.fromCharCode(...ciphertext)),
             nonce: btoa(String.fromCharCode(...nonce))
         };
     },
@@ -227,13 +226,13 @@ const AttachmentService = {
         }
 
         // Decode from base64
-        const encryptedKey = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
+        const ciphertext = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
         const nonce = Uint8Array.from(atob(nonceBase64), c => c.charCodeAt(0));
 
         console.log('[AttachmentService] _decryptFileKey: Decrypting file key');
 
-        // Decrypt
-        return window.CryptoPrimitivesService.decrypt(encryptedKey, nonce, sessionKey);
+        // Decrypt using decryptBytes (for binary data)
+        return window.CryptoPrimitivesService.decryptBytes(ciphertext, nonce, sessionKey);
     },
 
     /**
