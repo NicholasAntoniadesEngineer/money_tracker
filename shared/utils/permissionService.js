@@ -86,8 +86,8 @@ const PermissionService = {
         // File attachments - encrypted client-side, 24hr retention
         'messaging.attachments': {
             free: { allowed: false, maxSizeBytes: 0 },
-            trial: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 },  // 15MB
-            premium: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 }, // 15MB
+            trial: { allowed: true, maxSizeBytes: 1 * 1024 * 1024 },  // 1MB
+            premium: { allowed: true, maxSizeBytes: 1 * 1024 * 1024 }, // 1MB
             description: 'Send file attachments in messages',
             fileRetentionHours: 24  // Files auto-deleted after 24 hours
         },

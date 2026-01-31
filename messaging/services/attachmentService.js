@@ -17,7 +17,12 @@ const AttachmentService = {
     /**
      * Max file size (from PermissionService)
      */
-    MAX_FILE_SIZE: 15 * 1024 * 1024, // 15MB default
+    MAX_FILE_SIZE: 1 * 1024 * 1024, // 1MB default
+
+    /**
+     * Whether the storage bucket is available
+     */
+    _bucketAvailable: null,
 
     /**
      * Get database service
@@ -35,10 +40,57 @@ const AttachmentService = {
     },
 
     /**
+     * Check if storage bucket exists and is accessible
+     * @returns {Promise<boolean>}
+     */
+    async checkBucketAvailable() {
+        if (this._bucketAvailable !== null) {
+            return this._bucketAvailable;
+        }
+
+        try {
+            const client = this._getClient();
+            if (!client) {
+                console.warn('[AttachmentService] Database client not available for bucket check');
+                this._bucketAvailable = false;
+                return false;
+            }
+
+            // Try to list files in the bucket (will fail if bucket doesn't exist)
+            const { data, error } = await client.storage
+                .from(this.BUCKET_NAME)
+                .list('', { limit: 1 });
+
+            if (error) {
+                console.error('[AttachmentService] ✗ Storage bucket check failed:', error.message);
+                console.error('[AttachmentService] ✗ Bucket "' + this.BUCKET_NAME + '" not found or not accessible');
+                console.error('[AttachmentService] ✗ File attachments will be disabled');
+                console.error('[AttachmentService] ✗ See database/setup/supabase-storage-setup.md for setup instructions');
+                this._bucketAvailable = false;
+                return false;
+            }
+
+            console.log('[AttachmentService] ✓ Storage bucket "' + this.BUCKET_NAME + '" is accessible');
+            this._bucketAvailable = true;
+            return true;
+        } catch (err) {
+            console.error('[AttachmentService] ✗ Error checking storage bucket:', err);
+            this._bucketAvailable = false;
+            return false;
+        }
+    },
+
+    /**
      * Check if user can upload attachments
      * @returns {Promise<{allowed: boolean, maxSizeBytes: number, reason: string|null}>}
      */
     async canUpload() {
+        // Check if storage bucket is available
+        const bucketOk = await this.checkBucketAvailable();
+        if (!bucketOk) {
+            return { allowed: false, maxSizeBytes: 0, reason: 'Storage not configured' };
+        }
+
         if (!window.PermissionService) {
             console.warn('[AttachmentService] PermissionService not available');
             return { allowed: false, maxSizeBytes: 0, reason: 'Permission service unavailable' };
