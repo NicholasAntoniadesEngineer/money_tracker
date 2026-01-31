@@ -1122,6 +1122,30 @@ const KeyManagementService = {
     },
 
     /**
+     * Get the session key for a conversation
+     * Used by AttachmentService for file encryption
+     * @param {number|string} conversationId - Conversation ID
+     * @returns {Promise<Uint8Array|null>} Session key or null if not available
+     */
+    async getSessionKey(conversationId) {
+        if (!this.initialized) {
+            console.error('[KeyManagementService] getSessionKey: Service not initialized');
+            return null;
+        }
+
+        // Always use epoch 0
+        const epoch = 0;
+        const session = await KeyStorageService.getSessionKey(conversationId, epoch);
+
+        if (session && session.sessionKey) {
+            return session.sessionKey;
+        }
+
+        console.warn(`[KeyManagementService] getSessionKey: No session found for conversation ${conversationId}`);
+        return null;
+    },
+
+    /**
      * Get safety number for a conversation
      * @param {string} otherUserId - Other user's ID
      * @returns {Promise<string>} Formatted safety number

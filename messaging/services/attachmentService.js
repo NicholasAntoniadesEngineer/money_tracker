@@ -169,11 +169,29 @@ const AttachmentService = {
      * @returns {Promise<{encryptedKey: string, nonce: string}>}
      */
     async _encryptFileKey(fileKey, conversationId) {
+        console.log('[AttachmentService] _encryptFileKey: Getting session key for conversation', conversationId);
+
+        // Validate inputs
+        if (!fileKey || !(fileKey instanceof Uint8Array)) {
+            throw new Error('Invalid file key - must be Uint8Array');
+        }
+        if (!conversationId) {
+            throw new Error('Conversation ID is required');
+        }
+
         // Get session key for conversation
         const sessionKey = await window.KeyManagementService.getSessionKey(conversationId);
         if (!sessionKey) {
-            throw new Error('No session key available for conversation');
+            console.error('[AttachmentService] _encryptFileKey: No session key returned for conversation', conversationId);
+            throw new Error('No session key available for conversation - ensure encryption is set up');
         }
+
+        if (!(sessionKey instanceof Uint8Array)) {
+            console.error('[AttachmentService] _encryptFileKey: Session key is not Uint8Array, got:', typeof sessionKey);
+            throw new Error('Invalid session key type');
+        }
+
+        console.log('[AttachmentService] _encryptFileKey: Session key retrieved, encrypting file key');
 
         // Encrypt file key with session key
         const nonce = window.CryptoPrimitivesService.randomBytes(24);
@@ -194,15 +212,25 @@ const AttachmentService = {
      * @returns {Promise<Uint8Array>} Decrypted file key
      */
     async _decryptFileKey(encryptedKeyBase64, nonceBase64, conversationId) {
+        console.log('[AttachmentService] _decryptFileKey: Getting session key for conversation', conversationId);
+
         // Get session key
         const sessionKey = await window.KeyManagementService.getSessionKey(conversationId);
         if (!sessionKey) {
+            console.error('[AttachmentService] _decryptFileKey: No session key for conversation', conversationId);
             throw new Error('No session key available for conversation');
+        }
+
+        if (!(sessionKey instanceof Uint8Array)) {
+            console.error('[AttachmentService] _decryptFileKey: Session key is not Uint8Array');
+            throw new Error('Invalid session key type');
         }
 
         // Decode from base64
         const encryptedKey = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
         const nonce = Uint8Array.from(atob(nonceBase64), c => c.charCodeAt(0));
+
+        console.log('[AttachmentService] _decryptFileKey: Decrypting file key');
 
         // Decrypt
         return window.CryptoPrimitivesService.decrypt(encryptedKey, nonce, sessionKey);
@@ -216,10 +244,18 @@ const AttachmentService = {
      * @returns {Promise<{success: boolean, attachment?: Object, error?: string}>}
      */
     async uploadAttachment(file, messageId, conversationId) {
+        console.log('[AttachmentService] uploadAttachment: Starting upload', {
+            fileName: file?.name,
+            fileSize: file?.size,
+            messageId,
+            conversationId
+        });
+
         try {
             // Validate file
             const validation = await this.validateFile(file);
             if (!validation.valid) {
+                console.error('[AttachmentService] uploadAttachment: Validation failed:', validation.reason);
                 return { success: false, error: validation.reason };
             }
 
@@ -234,8 +270,12 @@ const AttachmentService = {
                 throw new Error('User not authenticated');
             }
 
+            console.log('[AttachmentService] uploadAttachment: Reading file data');
+
             // Read file data
             const fileData = await file.arrayBuffer();
+
+            console.log('[AttachmentService] uploadAttachment: Encrypting file');
 
             // Encrypt file with random key
             const fileKey = this._generateFileKey();
@@ -245,6 +285,8 @@ const AttachmentService = {
             const dataWithNonce = new Uint8Array(24 + ciphertext.length);
             dataWithNonce.set(nonce, 0);
             dataWithNonce.set(ciphertext, 24);
+
+            console.log('[AttachmentService] uploadAttachment: Encrypting file key with session key');
 
             // Encrypt file key with conversation session key
             const { encryptedKey, nonce: keyNonce } = await this._encryptFileKey(fileKey, conversationId);
