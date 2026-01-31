@@ -710,7 +710,6 @@
                 if (!currentUser) {
                     console.error('[DevicePairing] ❌ No authenticated user found');
                     debugLog('Auth: FAILED - not logged in', 'error');
-                    alert('Please sign in first');
                     window.location.href = '../../auth/views/auth.html';
                     return;
                 }

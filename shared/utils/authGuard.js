@@ -124,22 +124,21 @@ const AuthGuard = {
                         console.log('[AuthGuard] ⚠️ User does NOT have active subscription');
                         console.log('[AuthGuard] Subscription status:', accessCheck.status);
                         console.log('[AuthGuard] Error (if any):', accessCheck.error);
-                        
-                        // Show user-friendly notification
+
+                        // Log status for debugging
                         const statusMessage = window.SubscriptionChecker.getStatusMessage(accessCheck);
-                        console.log('[AuthGuard] Status message for user:', statusMessage);
-                        
-                        // Show alert to user before redirecting
+                        console.log('[AuthGuard] Status message:', statusMessage);
+
+                        // Allow expired trial users to continue with reduced privileges
+                        // Only redirect for no_subscription (never had one) or cancelled
                         if (accessCheck.status === 'no_subscription') {
-                            alert('Welcome! You need to subscribe to access the application.\n\nYou will be redirected to the subscription page.');
-                        } else if (accessCheck.status === 'trial_expired') {
-                            alert('Your trial has expired. Please subscribe to continue using the application.\n\nYou will be redirected to the subscription page.');
-                        } else {
-                            alert(`Subscription required: ${statusMessage}\n\nYou will be redirected to the subscription page.`);
+                            console.log('[AuthGuard] No subscription found, redirecting to payment page');
+                            this.redirectToPayment();
+                            return false;
                         }
-                        
-                        this.redirectToPayment();
-                        return false;
+
+                        // For trial_expired, subscription_expired, cancelled - allow access with reduced privileges
+                        console.log('[AuthGuard] Allowing access with reduced privileges for status:', accessCheck.status);
                     }
                     console.log('[AuthGuard] ✅ User has active subscription:', accessCheck.status);
                     if (accessCheck.details?.daysRemaining !== null && accessCheck.details?.daysRemaining !== undefined) {
