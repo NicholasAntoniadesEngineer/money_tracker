@@ -1023,6 +1023,17 @@ const MessengerController = {
                 }
             }
 
+            // Fetch attachments for this message
+            let attachments = [];
+            if (window.AttachmentService) {
+                try {
+                    attachments = await window.AttachmentService.getMessageAttachments(newMessage.id);
+                    console.log('[MessengerController] Fetched attachments for realtime message:', attachments.length);
+                } catch (e) {
+                    console.warn('[MessengerController] Failed to fetch attachments:', e);
+                }
+            }
+
             // Append the new message to the thread
             this._appendMessageToThread({
                 id: newMessage.id,
@@ -1030,7 +1041,8 @@ const MessengerController = {
                 sender_email: senderEmail,
                 content: content,
                 created_at: newMessage.created_at,
-                is_encrypted: newMessage.is_encrypted
+                is_encrypted: newMessage.is_encrypted,
+                attachments: attachments
             });
 
             // Mark conversation as read since we're viewing it
@@ -1140,6 +1152,29 @@ const MessengerController = {
         const currentUserId = currentUser?.id;
         const isOwnMessage = message.sender_id === currentUserId;
 
+        // Build attachment HTML
+        let attachmentsHtml = '';
+        const attachments = message.attachments || [];
+        if (attachments.length > 0) {
+            const attachmentItems = attachments.map(att => {
+                const iconClass = window.AttachmentService?.getFileIcon(att.mimeType || att.mime_type) || 'fa-file';
+                const fileSize = window.AttachmentService?.formatFileSize(att.fileSize || att.file_size) || '';
+                const fileName = att.fileName || att.file_name || 'Attachment';
+                const attId = att.id;
+                return `
+                    <div class="message-attachment" data-attachment-id="${attId}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; cursor: pointer; transition: background 0.2s;" onclick="MessengerController.downloadAttachment(${attId})" onmouseover="this.style.background='rgba(0,0,0,0.25)'" onmouseout="this.style.background='rgba(0,0,0,0.15)'">
+                        <i class="fas ${iconClass}" style="font-size: 1.1em;"></i>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em;">${fileName}</div>
+                            <div style="font-size: 0.75em; opacity: 0.7;">${fileSize}</div>
+                        </div>
+                        <i class="fas fa-download" style="opacity: 0.6;"></i>
+                    </div>
+                `;
+            }).join('');
+            attachmentsHtml = `<div class="message-attachments">${attachmentItems}</div>`;
+        }
+
         // Create message HTML
         const messageDiv = document.createElement('div');
         messageDiv.className = `message-item ${isOwnMessage ? 'own-message' : ''}`;
@@ -1150,6 +1185,7 @@ const MessengerController = {
         messageDiv.innerHTML = `
             <div class="message-sender">${this._escapeHtml(message.sender_email)}</div>
             <div class="message-content">${this._escapeHtml(message.content)}</div>
+            ${attachmentsHtml}
             <div class="message-timestamp">${timestamp}</div>
         `;
 
