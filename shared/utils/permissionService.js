@@ -83,14 +83,13 @@ const PermissionService = {
             premium: { allowed: true, limit: null },
             description: 'Receive messages'
         },
-        // File attachments - NOT YET IMPLEMENTED (placeholder for future)
+        // File attachments - encrypted client-side, 24hr retention
         'messaging.attachments': {
             free: { allowed: false, maxSizeBytes: 0 },
             trial: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 },  // 15MB
             premium: { allowed: true, maxSizeBytes: 15 * 1024 * 1024 }, // 15MB
             description: 'Send file attachments in messages',
-            fileRetentionHours: 24,  // Files auto-deleted after 24 hours
-            implemented: false  // Mark as not yet implemented
+            fileRetentionHours: 24  // Files auto-deleted after 24 hours
         },
 
         // ============================================================

@@ -70,7 +70,20 @@
                 </div>
                 <div id="message-input-container" class="message-input-container">
                     <textarea id="message-input" class="form-input" placeholder="Type your message..." rows="3"></textarea>
-                    <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
+                    <!-- Attachment preview area -->
+                    <div id="attachment-preview" style="display: none; margin: var(--spacing-sm) 0; padding: var(--spacing-sm); background: var(--surface-color-light); border-radius: var(--border-radius); border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <i id="attachment-preview-icon" class="fas fa-file"></i>
+                            <span id="attachment-preview-name" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                            <span id="attachment-preview-size" style="color: var(--text-muted); font-size: 0.85em;"></span>
+                            <button id="remove-attachment-btn" class="btn btn-secondary btn-sm" style="padding: 2px 8px; min-width: auto;" title="Remove attachment">×</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%; align-items: center;">
+                        <input type="file" id="attachment-input" style="display: none;" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv,application/zip">
+                        <button id="attach-file-button" class="btn btn-secondary" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;" title="Attach file (Premium)">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
                         <button id="share-data-button" class="btn btn-secondary" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;" title="Share data with this user">Share Data</button>
                         <button id="send-message-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Send</button>
                     </div>
@@ -218,6 +231,7 @@
     <!-- Messaging Service -->
     <script src="../services/messagingService.js"></script>
     <script src="../services/devicePairingService.js"></script>
+    <script src="../services/attachmentService.js"></script>
 
     <!-- Initialize Database Module -->
     <script src="../../database/initDatabase.js"></script>
