@@ -77,9 +77,9 @@ const PaymentController = {
                     console.log('[PaymentController] ✅ Subscription loaded successfully:', {
                         status: this.currentSubscription.status,
                         planId: this.currentSubscription.plan_id,
-                        trialStartDate: this.currentSubscription.trial_start_date,
-                        trialEndDate: this.currentSubscription.trial_end_date,
-                        planName: this.currentPlan?.plan_name
+                        trialEnd: this.currentSubscription.trial_end,
+                        currentPeriodEnd: this.currentSubscription.current_period_end,
+                        planName: this.currentPlan?.plan_name || this.currentPlan?.name
                     });
                 } else {
                     console.log('[PaymentController] ⚠️ Subscription query succeeded but returned null subscription');
@@ -188,8 +188,8 @@ const PaymentController = {
         const planName = plan ? (plan.plan_name || 'Standard') : 'Standard';
         
         console.log('[PaymentController] Subscription data:', {
-            subscriptionType: subscription.subscription_type,
             status: subscription.status,
+            isPaid: subscription.status === 'active' && !!subscription.stripe_subscription_id,
             hasStripeCustomerId: !!subscription.stripe_customer_id,
             stripeCustomerId: subscription.stripe_customer_id,
             hasStripeSubscriptionId: !!subscription.stripe_subscription_id,
@@ -314,7 +314,10 @@ const PaymentController = {
             const detailsHtml = [];
             
             // Subscription Type (always show - clearly distinguishes trial vs paid)
-            const subscriptionType = window.SubscriptionService ? window.SubscriptionService.getSubscriptionTypeDescription(subscription) : (subscription.subscription_type ? subscription.subscription_type.charAt(0).toUpperCase() + subscription.subscription_type.slice(1) : 'Unknown');
+            const subscriptionType = window.SubscriptionService ?
+                window.SubscriptionService.getSubscriptionTypeDescription(subscription) :
+                (subscription.status === 'trial' ? 'Trial' :
+                 subscription.status === 'active' && subscription.stripe_subscription_id ? 'Paid' : 'Free');
             detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Type:</strong><span>${subscriptionType}</span></div>`);
             
             // Days Remaining (calculate and show)
@@ -330,14 +333,14 @@ const PaymentController = {
                 detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Days Remaining:</strong><span>${daysText}</span></div>`);
             }
             
-            // Subscription Start (show if available - prefer subscription_start_date, fallback to trial_start_date)
-            const subscriptionStartDate = subscription.subscription_start_date || subscription.trial_start_date;
+            // Subscription Start (show if available - for paid subscriptions)
+            const subscriptionStartDate = subscription.current_period_start;
             if (subscriptionStartDate) {
                 detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription Start:</strong><span>${this.formatDate(subscriptionStartDate)}</span></div>`);
             }
-            
-            // Subscription End (show if available - prefer subscription_end_date, fallback to trial_end_date)
-            const subscriptionEndDate = subscription.subscription_end_date || subscription.trial_end_date;
+
+            // Subscription End (show end date: current_period_end for paid, trial_end for trial)
+            const subscriptionEndDate = subscription.current_period_end || subscription.trial_end;
             if (subscriptionEndDate) {
                 detailsHtml.push(`<div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));"><strong>Subscription End:</strong><span>${this.formatDate(subscriptionEndDate)}</span></div>`);
             }
@@ -568,8 +571,8 @@ const PaymentController = {
             const existingCustomerId = this.currentSubscription?.stripe_customer_id;
             console.log('[PaymentController] Subscription state:', {
                 hasSubscription: hasSubscription,
-                subscriptionType: this.currentSubscription?.subscription_type,
                 subscriptionStatus: this.currentSubscription?.status,
+                isPaid: this.currentSubscription?.status === 'active' && !!this.currentSubscription?.stripe_subscription_id,
                 hasCustomerId: !!existingCustomerId,
                 customerId: existingCustomerId || 'none'
             });

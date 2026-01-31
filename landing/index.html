@@ -150,9 +150,22 @@
     <script src="../payments/utils/waitForPaymentsInit.js"></script>
     <script src="../shared/utils/subscriptionGuard.js"></script>
 
-    <!-- Crypto Libraries for E2E Encryption -->
-    <script src="../messaging/crypto/naclLoader.js"></script>
-    <script src="../messaging/crypto/keyStorageService.js"></script>
+    <!-- E2E Encryption Module -->
+    <script src="../encryption/config/encryptionConfigBase.js"></script>
+    <script src="../encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../encryption/services/keyDerivationService.js"></script>
+    <script src="../encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../encryption/services/keyStorageService.js"></script>
+    <script src="../encryption/services/historicalKeysService.js"></script>
+    <script src="../encryption/services/passwordCryptoService.js"></script>
+    <script src="../encryption/services/keyBackupService.js"></script>
+    <script src="../encryption/services/keyManagementService.js"></script>
+    <script src="../encryption/facade/encryptionFacade.js"></script>
+    <script src="../encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../encryption/encryptionModule.js"></script>
+    <script src="../encryption/initEncryption.js"></script>
 
     <!-- Pairing Guard -->
     <script src="../shared/utils/pairing-guard.js"></script>
@@ -176,6 +189,12 @@
             try {
                 console.log('[index.html] Starting initialization...');
 
+                // Initialize Encryption Module (required for pairing checks)
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                    await window.CryptoPrimitivesService.initialize();
+                }
+
                 // PERFORMANCE OPTIMIZATION: Run independent initializations in parallel
                 const [paymentsReady, dbInitResult] = await Promise.all([
                     // Wait for payments module initialization
@@ -198,11 +217,13 @@
                     console.log('[index.html] Checking device pairing status...');
                     const isPaired = await window.PairingGuard.checkPairingStatus();
                     if (!isPaired) {
-                        console.log('[index.html] Device not paired, redirecting to pairing page...');
+                        console.log('[index.html] ⚠️ Device not paired - encryption keys missing');
+                        console.log('[index.html] User is authenticated but needs to set up encryption on this device');
+                        console.log('[index.html] Redirecting to device pairing page for key setup/restore...');
                         window.location.href = '../messaging/views/device-pairing.html';
                         return;
                     }
-                    console.log('[index.html] Device pairing check passed');
+                    console.log('[index.html] ✅ Device pairing check passed - encryption keys present');
                 } else {
                     console.warn('[index.html] PairingGuard not available, skipping pairing check');
                 }

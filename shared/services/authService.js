@@ -11,11 +11,12 @@ const AuthService = {
     session: null,
     authStateListener: null,
     sessionValidationInterval: null,
+    initialized: false, // Track if initialization is complete
     SESSION_CHECK_INTERVAL: 5 * 60 * 1000, // Check every 5 minutes
-    SESSION_VALIDATION_CACHE_MS: 60000, // Cache validation results for 1 minute
+    // REMOVED: SESSION_VALIDATION_CACHE_MS - caching removed for "works every time" reliability
+    // REMOVED: lastValidation cache - always check server for reliable session state
     initializationInProgress: false,
     initializationPromise: null,
-    lastValidation: { timestamp: 0, result: null }, // Validation cache
 
     /**
      * Initialize the authentication service
@@ -28,9 +29,9 @@ const AuthService = {
             console.log('[AuthService] Initialization already in progress, waiting...');
             return await this.initializationPromise;
         }
-        
+
         // If already initialized, return immediately
-        if (this.client && this.authStateListener) {
+        if (this.initialized && this.client && this.authStateListener) {
             console.log('[AuthService] Already initialized, skipping');
             return { success: true };
         }
@@ -382,7 +383,8 @@ const AuthService = {
             } else {
                 console.log('[AuthService] Periodic session validation already set up, skipping');
             }
-            
+
+                this.initialized = true; // Mark as fully initialized
                 console.log('[AuthService] Initialization completed successfully');
                 return { success: true };
             } catch (error) {
@@ -391,6 +393,7 @@ const AuthService = {
                     name: error.name,
                     stack: error.stack
                 });
+                this.initialized = false; // Ensure flag is cleared on error
                 throw error;
             } finally {
                 this.initializationInProgress = false;
@@ -428,10 +431,10 @@ const AuthService = {
                 this.currentUser = session?.user || null;
                 if (this.currentUser) {
                     console.log('[AuthService] User session active:', this.currentUser?.email);
-                    // Only dispatch signin event for actual sign-in events, not INITIAL_SESSION
-                    if (event !== 'INITIAL_SESSION') {
-                        window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser } }));
-                    }
+                    // Dispatch signin event for all auth events including INITIAL_SESSION
+                    // This allows pages to detect when session is restored from localStorage
+                    console.log('[AuthService] Dispatching auth:signin event for:', event);
+                    window.dispatchEvent(new CustomEvent('auth:signin', { detail: { user: this.currentUser, event: event } }));
                 } else {
                     console.log('[AuthService] No user in session - redirecting to sign-in');
                     // No user in session means session is invalid - redirect to sign-in
@@ -1716,23 +1719,12 @@ const AuthService = {
     /**
      * Validate and refresh the current session
      * Checks if session exists and is valid, refreshes if needed
+     * IMPORTANT: No caching - always checks server for "works every time" reliability
      * @param {boolean} autoRedirect - If true, automatically redirect to sign-in on validation failure (default: false)
-     * @param {boolean} bypassCache - If true, bypass validation cache and force fresh check (default: false)
      * @returns {Promise<{valid: boolean, session: Object|null, error: string|null}>}
      */
-    async validateSession(autoRedirect = false, bypassCache = false) {
+    async validateSession(autoRedirect = false) {
         try {
-            // Check validation cache first (unless bypassed)
-            if (!bypassCache) {
-                const now = Date.now();
-                if (this.lastValidation.result &&
-                    now - this.lastValidation.timestamp < this.SESSION_VALIDATION_CACHE_MS &&
-                    this.lastValidation.result.valid) {
-                    console.log('[AuthService] Using cached validation result (age:', now - this.lastValidation.timestamp, 'ms)');
-                    return this.lastValidation.result;
-                }
-            }
-
             if (!this.client) {
                 console.warn('[AuthService] Client not initialized during session validation');
                 const result = { valid: false, session: null, error: 'Auth service not initialized' };
@@ -1744,22 +1736,26 @@ const AuthService = {
                 return result;
             }
 
-            // Get current session from Supabase
+            // Get current session from Supabase - ALWAYS check server
             let sessionData, error;
             try {
                 const response = await this.client.auth.getSession();
                 sessionData = response.data;
                 error = response.error;
             } catch (networkError) {
-                // Network error - preserve existing session and return as valid
-                console.warn('[AuthService] Network error during session check, preserving existing session:', networkError.message);
+                // CHANGED: Network error INVALIDATES session instead of preserving
+                // This ensures "works every time" reliability - no stale sessions
+                console.error('[AuthService] Network error during session check - invalidating session:', networkError.message);
                 const result = {
-                    valid: this.session !== null,
-                    session: this.session,
-                    error: 'Network error - using cached session',
-                    fromCache: true
+                    valid: false,
+                    session: null,
+                    error: 'Network error - cannot verify session'
                 };
-                // Don't cache network errors
+                if (autoRedirect) {
+                    this.currentUser = null;
+                    this.session = null;
+                    this._redirectToSignIn();
+                }
                 return result;
             }
 
@@ -1771,7 +1767,6 @@ const AuthService = {
                     this.session = null;
                     this._redirectToSignIn();
                 }
-                // Don't cache errors
                 return result;
             }
 
@@ -1785,8 +1780,6 @@ const AuthService = {
                     this.session = null;
                     this._redirectToSignIn();
                 }
-                // Cache negative result
-                this.lastValidation = { timestamp: Date.now(), result };
                 return result;
             }
 
@@ -1803,15 +1796,10 @@ const AuthService = {
                             this.session = null;
                             this._redirectToSignIn();
                         }
-                        // Cache negative result
-                        this.lastValidation = { timestamp: Date.now(), result };
                         return result;
                     }
                     // Refresh successful, return updated session
-                    const result = { valid: true, session: this.session, error: null };
-                    // Cache positive result
-                    this.lastValidation = { timestamp: Date.now(), result };
-                    return result;
+                    return { valid: true, session: this.session, error: null };
                 } catch (refreshError) {
                     console.error('[AuthService] Session refresh exception:', refreshError);
                     const result = { valid: false, session: null, error: 'Session refresh failed' };
@@ -1820,7 +1808,6 @@ const AuthService = {
                         this.session = null;
                         this._redirectToSignIn();
                     }
-                    // Don't cache exceptions
                     return result;
                 }
             }
@@ -1828,24 +1815,12 @@ const AuthService = {
             // Session is valid - update local state
             this.session = session;
             this.currentUser = session.user;
-            const result = { valid: true, session: session, error: null };
+            return { valid: true, session: session, error: null };
 
-            // Cache positive result
-            this.lastValidation = { timestamp: Date.now(), result };
-
-            return result;
         } catch (error) {
+            // CHANGED: Exceptions INVALIDATE session instead of preserving
+            // This ensures consistent security behavior
             console.error('[AuthService] Session validation exception:', error);
-            // On exception, preserve existing session if we have one
-            if (this.session && this.currentUser) {
-                console.log('[AuthService] Preserving existing session despite validation exception');
-                return {
-                    valid: true,
-                    session: this.session,
-                    error: 'Validation exception - using cached session',
-                    fromCache: true
-                };
-            }
             const result = { valid: false, session: null, error: error.message || 'Session validation failed' };
             if (autoRedirect) {
                 this.currentUser = null;

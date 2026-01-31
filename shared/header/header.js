@@ -190,6 +190,10 @@ class Header {
                             <i class="fa-regular fa-message user-dropdown-icon"></i>
                             <span>Messenger</span>
                         </button>
+                        <button class="user-dropdown-item user-dropdown-device-pairing" id="header-device-pairing-button" aria-label="Device Pairing">
+                            <i class="fa-solid fa-mobile-screen user-dropdown-icon"></i>
+                            <span>Device Pairing</span>
+                        </button>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                             <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                             <span>Sign Out</span>
@@ -540,6 +544,33 @@ class Header {
     static handleMessengerButtonClick() {
         const messengerUrl = this.getModulePath('messaging') + 'messenger.html';
         window.location.href = messengerUrl;
+    }
+
+    /**
+     * Initialize device pairing button
+     */
+    static initDevicePairingButton() {
+        try {
+            const devicePairingButton = document.getElementById('header-device-pairing-button');
+
+            if (devicePairingButton) {
+                devicePairingButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.handleDevicePairingButtonClick();
+                });
+            }
+        } catch (error) {
+            console.error('[Header] Error initializing device pairing button:', error);
+        }
+    }
+
+    /**
+     * Handle device pairing button click
+     */
+    static handleDevicePairingButtonClick() {
+        const devicePairingUrl = this.getModulePath('messaging') + 'device-pairing.html';
+        window.location.href = devicePairingUrl;
     }
 
     /**
@@ -1074,6 +1105,10 @@ class Header {
                             <i class="fa-regular fa-message user-dropdown-icon"></i>
                             <span>Messenger</span>
                         </button>
+                        <button class="user-dropdown-item user-dropdown-device-pairing" id="header-device-pairing-button" aria-label="Device Pairing">
+                            <i class="fa-solid fa-mobile-screen user-dropdown-icon"></i>
+                            <span>Device Pairing</span>
+                        </button>
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                                 <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                                 <span>Sign Out</span>
@@ -1085,7 +1120,8 @@ class Header {
                 this.initSignOutButton();
                 this.initNotificationBell(); // Initialize notifications button click handler
                 this.initMessengerButton(); // Initialize messenger button click handler
-                
+                this.initDevicePairingButton(); // Initialize device pairing button click handler
+
                 // Note: updateNotificationCount and subscriptions are already set up in init()
                 // Only set up subscriptions if they haven't been set up yet
                 try {

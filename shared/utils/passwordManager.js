@@ -92,6 +92,9 @@ const PasswordManager = {
      * Clear stored password
      */
     clear() {
+        const stack = new Error().stack;
+        console.log('[PasswordManager] ========== PASSWORD BEING CLEARED ==========');
+        console.log('[PasswordManager] Clear called from:', stack);
         sessionStorage.removeItem(this.STORAGE_KEY);
         console.log('[PasswordManager] Password cleared from memory');
     },
@@ -161,10 +164,11 @@ const PasswordManager = {
 // Make available globally
 window.PasswordManager = PasswordManager;
 
-// Clear password on page unload (safety net)
-window.addEventListener('beforeunload', () => {
-    PasswordManager.clear();
-});
+// NOTE: Do NOT clear password on page unload - sessionStorage needs to persist across
+// page navigations for device pairing to work. Password already has:
+// 1. 10-minute expiry timer (MAX_AGE_MS)
+// 2. Clear on logout (auth:signout event)
+// 3. Automatic clear on tab/window close (sessionStorage behavior)
 
 // Clear password on logout event
 window.addEventListener('auth:signout', () => {

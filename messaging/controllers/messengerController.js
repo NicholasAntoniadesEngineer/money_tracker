@@ -84,35 +84,142 @@ const MessengerController = {
             }
 
             try {
-                await window.KeyManager.initialize(currentUserId);
+                // Initialize crypto library first
+                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                    await window.CryptoLibraryLoader.load();
+                }
+                if (window.CryptoPrimitivesService && typeof window.CryptoPrimitivesService.initialize === 'function') {
+                    await window.CryptoPrimitivesService.initialize();
+                }
+
+                // Prepare config with services
+                if (window.MoneyTrackerEncryptionConfig && typeof window.MoneyTrackerEncryptionConfig.prepareWithServices === 'function') {
+                    window.MoneyTrackerEncryptionConfig.prepareWithServices();
+                }
+
+                // Initialize the full EncryptionModule (required for sendMessage encryption)
+                console.log('[MessengerController] Checking EncryptionModule availability:', {
+                    hasEncryptionModule: !!window.EncryptionModule,
+                    hasInitialize: !!(window.EncryptionModule && typeof window.EncryptionModule.initialize === 'function'),
+                    isAlreadyInitialized: !!(window.EncryptionModule && window.EncryptionModule.isInitialized && window.EncryptionModule.isInitialized())
+                });
+
+                if (window.EncryptionModule && typeof window.EncryptionModule.initialize === 'function') {
+                    // Check if already initialized
+                    if (window.EncryptionModule.isInitialized && window.EncryptionModule.isInitialized()) {
+                        console.log('[MessengerController] EncryptionModule already initialized, skipping initialize()');
+                    } else {
+                        console.log('[MessengerController] Calling EncryptionModule.initialize()...');
+                        const initResult = await window.EncryptionModule.initialize(window.MoneyTrackerEncryptionConfig);
+                        console.log('[MessengerController] EncryptionModule.initialize() result:', initResult);
+                    }
+
+                    console.log('[MessengerController] Calling EncryptionModule.initializeForUser()...');
+                    let userResult = await window.EncryptionModule.initializeForUser(currentUserId);
+                    console.log('[MessengerController] EncryptionModule.initializeForUser() result:', userResult);
+
+                    // Handle key mismatch that requires restore
+                    if (!userResult.success && userResult.needsRestore && userResult.hasBackup) {
+                        console.log('[MessengerController] Key mismatch detected - prompting for password to restore...');
+                        const password = prompt(
+                            'Your encryption keys need to be restored.\n\n' +
+                            'Please enter your encryption password to restore your keys and decrypt your messages:'
+                        );
+
+                        if (password) {
+                            console.log('[MessengerController] Attempting key restoration...');
+                            const restoreResult = await window.EncryptionModule.restoreFromPassword(password);
+                            console.log('[MessengerController] Restore result:', restoreResult);
+
+                            if (restoreResult.success) {
+                                console.log('[MessengerController] Keys restored successfully, re-initializing...');
+                                userResult = await window.EncryptionModule.initializeForUser(currentUserId);
+                                console.log('[MessengerController] Re-initialization result:', userResult);
+                            } else {
+                                console.error('[MessengerController] Key restoration failed:', restoreResult.error);
+                                alert('Failed to restore encryption keys. Please check your password and try again.');
+                            }
+                        } else {
+                            console.warn('[MessengerController] User cancelled password prompt');
+                        }
+                    }
+
+                    console.log('[MessengerController] ✓ EncryptionModule initialized');
+                } else {
+                    console.error('[MessengerController] EncryptionModule not available!', {
+                        windowEncryptionModule: window.EncryptionModule,
+                        typeofInitialize: window.EncryptionModule ? typeof window.EncryptionModule.initialize : 'N/A'
+                    });
+                }
+
                 console.log('[MessengerController] ✓ E2E encryption initialized');
             } catch (encryptionError) {
                 console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
-                alert('Failed to initialize secure messaging. Your device may not be paired. Please go back to home and set up device pairing.');
+
+                // Check if this is an identity key mismatch error
+                if (encryptionError.message && encryptionError.message.includes('IDENTITY KEY MISMATCH')) {
+                    console.error('[MessengerController] Identity key mismatch detected - redirecting to device pairing');
+
+                    // Show a detailed alert with instructions
+                    const userChoice = confirm(
+                        'ENCRYPTION KEY MISMATCH DETECTED\n\n' +
+                        'This device has different encryption keys than your other devices. ' +
+                        'Messages from other devices cannot be decrypted here.\n\n' +
+                        'To fix this:\n' +
+                        '1. Go to your PRIMARY device (where messages work)\n' +
+                        '2. Open Settings → Security → Pair New Device\n' +
+                        '3. Use QR code or Recovery Key to sync keys to this device\n\n' +
+                        'Click OK to go to Device Pairing, or Cancel to stay here.'
+                    );
+
+                    if (userChoice) {
+                        // Redirect to device pairing page
+                        window.location.href = 'device-pairing.html';
+                    }
+                    return;
+                }
+
+                alert('Failed to initialize secure messaging. Please refresh the page.');
                 return;
             }
 
+            console.log('[MessengerController] ========== POST-ENCRYPTION INITIALIZATION ==========');
+            console.log('[MessengerController] Step 1: Setting up event listeners...');
             this.setupEventListeners();
+            console.log('[MessengerController] ✓ Event listeners set up');
 
             // Check URL for conversation ID parameter
             const urlParams = new URLSearchParams(window.location.search);
             const conversationIdParam = urlParams.get('conversationId');
+            console.log('[MessengerController] URL conversation ID param:', conversationIdParam);
 
             // Load conversations
+            console.log('[MessengerController] Step 2: Loading conversations...');
             await this.loadConversations();
+            console.log('[MessengerController] ✓ Conversations loaded');
             
             // If conversation ID in URL, open that conversation
             if (conversationIdParam) {
+                console.log('[MessengerController] Step 3: Opening conversation from URL param...');
                 const conversationId = parseInt(conversationIdParam, 10);
                 if (conversationId && this.conversations.find(c => c.id === conversationId)) {
                     await this.openConversation(conversationId);
+                    console.log('[MessengerController] ✓ Conversation opened from URL');
+                } else {
+                    console.warn('[MessengerController] Conversation ID in URL not found:', conversationId);
                 }
             }
+
+            console.log('[MessengerController] ========== INITIALIZATION COMPLETE ==========');
+            console.log('[MessengerController] Total conversations:', this.conversations.length);
         } catch (error) {
-            console.error('[MessengerController] Error initializing:', error);
+            console.error('[MessengerController] ========== INITIALIZATION FAILED ==========');
+            console.error('[MessengerController] Error:', error);
+            console.error('[MessengerController] Error stack:', error.stack);
             alert('Error loading messenger. Please check console for details.');
         } finally {
             this.isInitializing = false;
+            console.log('[MessengerController] isInitializing set to false');
         }
     },
 
@@ -261,19 +368,17 @@ const MessengerController = {
      * Prevents duplicate concurrent calls by reusing the same promise
      */
     async loadConversations() {
+        console.log('[MessengerController] ========== LOAD CONVERSATIONS CALLED ==========');
+
         // If already loading, return the existing promise
         if (this.conversationsLoadPromise) {
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] loadConversations() - reusing existing promise');
-            }
+            console.log('[MessengerController] loadConversations() - reusing existing promise');
             return this.conversationsLoadPromise;
         }
 
         // If currently loading, wait for it to complete
         if (this.isLoadingConversations) {
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] loadConversations() - waiting for existing load');
-            }
+            console.log('[MessengerController] loadConversations() - waiting for existing load');
             while (this.isLoadingConversations && this.conversationsLoadPromise) {
                 await this.conversationsLoadPromise;
             }
@@ -281,28 +386,43 @@ const MessengerController = {
         }
 
         // Start loading
+        console.log('[MessengerController] Starting fresh load of conversations...');
         this.isLoadingConversations = true;
         this.conversationsLoadPromise = (async () => {
             try {
+                console.log('[MessengerController] Checking DatabaseService availability...');
                 if (typeof window.DatabaseService === 'undefined') {
                     throw new Error('DatabaseService not available');
                 }
+                console.log('[MessengerController] ✓ DatabaseService available');
 
+                console.log('[MessengerController] Calling DatabaseService.getConversations()...');
                 const result = await window.DatabaseService.getConversations();
+                console.log('[MessengerController] getConversations() result:', {
+                    success: result.success,
+                    hasConversations: !!result.conversations,
+                    conversationCount: result.conversations?.length || 0,
+                    error: result.error
+                });
+
                 if (result.success) {
                     this.conversations = result.conversations || [];
+                    console.log('[MessengerController] Conversations stored, calling renderConversations()...');
                     this.renderConversations();
+                    console.log('[MessengerController] ✓ renderConversations() completed');
                 } else {
                     throw new Error(result.error || 'Failed to load conversations');
                 }
             } catch (error) {
-                console.error('[MessengerController] Error loading conversations:', error);
+                console.error('[MessengerController] ✗ Error loading conversations:', error);
+                console.error('[MessengerController] Error stack:', error.stack);
                 const list = document.getElementById('conversations-list');
                 if (list) {
                     list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
                 }
             } finally {
                 // Clear loading state
+                console.log('[MessengerController] Clearing loading state');
                 this.isLoadingConversations = false;
                 this.conversationsLoadPromise = null;
             }
@@ -315,29 +435,36 @@ const MessengerController = {
      * Render conversations list
      */
     renderConversations() {
-        if (this.enableVerboseLogging) {
-            console.log('[MessengerController] renderConversations() called', { 
-                count: this.conversations.length,
-                conversations: this.conversations.map(c => ({ id: c.id, other_user_email: c.other_user_email, unread_count: c.unread_count }))
-            });
-        }
+        console.log('[MessengerController] ========== RENDER CONVERSATIONS CALLED ==========');
+        console.log('[MessengerController] Conversation count:', this.conversations.length);
+        console.log('[MessengerController] Conversations:', this.conversations.map(c => ({
+            id: c.id,
+            other_user_email: c.other_user_email,
+            unread_count: c.unread_count
+        })));
+
         const list = document.getElementById('conversations-list');
         if (!list) {
-            console.warn('[MessengerController] conversations-list element not found');
+            console.error('[MessengerController] ✗ conversations-list element not found in DOM!');
+            console.log('[MessengerController] Available elements with id:',
+                Array.from(document.querySelectorAll('[id]')).map(el => el.id));
             return;
         }
+        console.log('[MessengerController] ✓ conversations-list element found');
 
         if (this.conversations.length === 0) {
+            console.log('[MessengerController] No conversations found, showing empty message');
             list.innerHTML = '<p>No conversations yet. Start a new conversation to begin messaging.</p>';
             return;
         }
 
+        console.log('[MessengerController] Generating HTML for', this.conversations.length, 'conversations...');
         const conversationsHtml = this.conversations.map(conv => {
-            const unreadBadge = conv.unread_count > 0 
+            const unreadBadge = conv.unread_count > 0
                 ? `<span style="background: var(--primary-color); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.75rem; margin-left: var(--spacing-xs);">${conv.unread_count}</span>`
                 : '';
-            const lastMessageDate = conv.last_message_at 
-                ? new Date(conv.last_message_at).toLocaleDateString() 
+            const lastMessageDate = conv.last_message_at
+                ? new Date(conv.last_message_at).toLocaleDateString()
                 : '';
 
             return `
@@ -353,19 +480,29 @@ const MessengerController = {
             `;
         });
 
+        console.log('[MessengerController] Injecting HTML into conversations-list...');
         list.innerHTML = conversationsHtml.join('');
+        console.log('[MessengerController] ✓ HTML injected');
 
         // Setup click listeners (clone and replace to remove old listeners)
+        console.log('[MessengerController] Setting up click listeners...');
         const newList = list.cloneNode(true);
         list.parentNode.replaceChild(newList, list);
-        
+
         // Attach listeners to the new list
-        newList.querySelectorAll('.conversation-item').forEach(item => {
+        const conversationItems = newList.querySelectorAll('.conversation-item');
+        console.log('[MessengerController] Found', conversationItems.length, 'conversation items');
+
+        conversationItems.forEach(item => {
             item.addEventListener('click', () => {
                 const conversationId = parseInt(item.dataset.conversationId, 10);
+                console.log('[MessengerController] Conversation clicked:', conversationId);
                 this.openConversation(conversationId);
             });
         });
+
+        console.log('[MessengerController] ✓ Click listeners attached');
+        console.log('[MessengerController] ========== RENDER CONVERSATIONS COMPLETE ==========');
     },
 
     /**
@@ -411,19 +548,19 @@ const MessengerController = {
      * Open a conversation thread
      */
     async openConversation(conversationId) {
+        console.log('[MessengerController] ========== OPEN CONVERSATION CALLED ==========');
+        console.log('[MessengerController] Conversation ID:', conversationId, '(type:', typeof conversationId + ')');
+        console.log('[MessengerController] Timestamp:', new Date().toISOString());
+
         // Guard: Prevent multiple simultaneous opens
         if (this.isOpeningConversation) {
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] openConversation() - already opening, ignoring duplicate call');
-            }
+            console.log('[MessengerController] Already opening a conversation, ignoring duplicate call');
             return;
         }
 
         // Guard: If already opening the same conversation, ignore
         if (this.openingConversationId === conversationId && this.currentConversationId === conversationId) {
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] openConversation() - already open, ignoring');
-            }
+            console.log('[MessengerController] Already viewing this conversation, ignoring');
             return;
         }
 
@@ -431,12 +568,7 @@ const MessengerController = {
         this.openingConversationId = conversationId;
 
         try {
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] openConversation() called', { 
-                    conversationId,
-                    previousConversationId: this.currentConversationId
-                });
-            }
+            console.log('[MessengerController] Setting currentConversationId to:', conversationId);
             this.currentConversationId = conversationId;
 
             const conversationsList = document.getElementById('conversations-list');
@@ -511,21 +643,34 @@ const MessengerController = {
                 })();
             }
 
-            if (this.enableVerboseLogging) {
-                console.log('[MessengerController] Fetching messages for conversation:', conversationId);
-            }
+            console.log('[MessengerController] ========== FETCHING MESSAGES ==========');
+            console.log('[MessengerController] Fetching messages for conversation:', conversationId);
+            console.log('[MessengerController] Calling DatabaseService.getMessages()...');
+
+            const getMessagesStart = Date.now();
             const result = await window.DatabaseService.getMessages(conversationId);
+            console.log('[MessengerController] getMessages() completed in', Date.now() - getMessagesStart, 'ms');
+
             if (result.success) {
                 const messages = result.messages || [];
-                if (this.enableVerboseLogging) {
-                    console.log('[MessengerController] Loaded messages:', { 
-                        conversationId, 
-                        messageCount: messages.length
+                console.log('[MessengerController] ✓ Messages loaded successfully');
+                console.log('[MessengerController] Message count:', messages.length);
+
+                // Log each message's decryption status
+                messages.forEach((msg, i) => {
+                    const isDecrypted = !msg.content.includes('[ERROR:');
+                    console.log(`[MessengerController] Message ${i + 1}/${messages.length}:`, {
+                        id: msg.id,
+                        sender: msg.sender_email,
+                        decrypted: isDecrypted,
+                        contentPreview: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : '')
                     });
-                }
-                
+                });
+
                 // Render messages immediately - don't wait for share message creation
+                console.log('[MessengerController] Rendering message thread...');
                 await this.renderMessageThread(messages);
+                console.log('[MessengerController] ✓ Message thread rendered');
                 
                 // Create messages for shares in background (non-blocking)
                 // This will update the conversation if new share messages are created
@@ -1002,12 +1147,33 @@ const MessengerController = {
                 // Regular message - use cached email
                 regularMessageCount++;
                 const senderEmail = this.getUserEmail(msg.sender_id);
+
+                // Build debug info HTML if debug mode is enabled
+                let debugInfoHtml = '';
+                if (window.ENCRYPTION_DEBUG_MODE && msg._debugInfo) {
+                    const debug = msg._debugInfo;
+                    const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                    const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                    debugInfoHtml = `
+                        <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                            <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Decryption: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                            ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                            <div>Epoch: ${debug.epoch}</div>
+                            <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                            <div>Message ID: ${debug.messageId}</div>
+                            <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                            <div>Nonce: ${debug.nonceLength} chars</div>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                             <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                             <div style="white-space: pre-line;">${msg.content}</div>
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                            ${debugInfoHtml}
                         </div>
                     </div>
                 `;
@@ -1369,10 +1535,33 @@ const MessengerController = {
             );
 
             if (result.success && result.message) {
+                // SECURITY: Verify the message was actually encrypted before displaying
+                // This provides defense-in-depth against encryption failures
+                const msg = result.message;
+                if (!msg.is_encrypted || !msg.encrypted_content || msg.content) {
+                    console.error('[MessengerController] SECURITY: Message encryption verification failed!', {
+                        is_encrypted: msg.is_encrypted,
+                        hasEncryptedContent: !!msg.encrypted_content,
+                        hasPlaintextContent: !!msg.content
+                    });
+                    throw new Error('Message encryption verification failed - message may not be secure');
+                }
+
+                console.log('[MessengerController] ✓ Message encryption verified:', {
+                    is_encrypted: msg.is_encrypted,
+                    ciphertextLength: msg.encrypted_content?.length,
+                    counter: msg.message_counter
+                });
+
                 messageInput.value = '';
-                
+
                 // Append the new message to the thread without reloading everything
-                await this.appendMessageToThread(result.message, conversation);
+                // Use original plaintext content for sender's view (result.message contains only ciphertext)
+                const messageForDisplay = {
+                    ...result.message,
+                    content: content  // Use plaintext for display only (never stored/transmitted)
+                };
+                await this.appendMessageToThread(messageForDisplay, conversation);
             } else {
                 throw new Error(result.error || 'Failed to send message');
             }
@@ -1425,28 +1614,24 @@ const MessengerController = {
             const date = new Date(message.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // ALL messages MUST be encrypted (enforced by database constraint)
-            let displayContent;
-
-            // Verify message has required encryption fields
-            if (!message.encrypted_content || !message.encryption_nonce) {
-                console.error('[MessengerController] Message missing encryption data:', message.id);
-                displayContent = '[ERROR: Message corrupted - missing encryption data]';
-            } else {
-                try {
-                    // Decrypt the message (all messages are encrypted)
-                    displayContent = await window.KeyManager.decryptMessage(
-                        conversation.id,
-                        {
-                            ciphertext: message.encrypted_content,
-                            nonce: message.encryption_nonce,
-                            counter: message.message_counter
-                        }
-                    );
-                } catch (decryptionError) {
-                    console.error('[MessengerController] Decryption failed in appendMessageToThread:', decryptionError);
-                    displayContent = '[ERROR: Decryption failed - you may not have access to this conversation]';
-                }
+            // Build debug info HTML if debug mode is enabled
+            let debugInfoHtml = '';
+            if (window.ENCRYPTION_DEBUG_MODE && message._debugInfo) {
+                const debug = message._debugInfo;
+                const statusColor = debug.decryptSuccess ? '#4CAF50' : '#F44336';
+                const statusIcon = debug.decryptSuccess ? '✓' : '✗';
+                const typeLabel = debug.isSentMessage ? ' (Sent)' : '';
+                debugInfoHtml = `
+                    <div class="message-debug-info" style="font-size: 0.7rem; margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0,0,0,0.15); border-radius: 4px; font-family: monospace;">
+                        <div style="color: ${statusColor}; font-weight: bold;">${statusIcon} Encryption${typeLabel}: ${debug.decryptSuccess ? 'Success' : 'Failed'}</div>
+                        ${debug.decryptError ? `<div style="color: #F44336;">Error: ${debug.decryptError}</div>` : ''}
+                        <div>Epoch: ${debug.epoch}</div>
+                        <div>Counter: ${debug.counter !== undefined ? debug.counter : 'N/A'}</div>
+                        <div>Message ID: ${debug.messageId}</div>
+                        <div>Ciphertext: ${debug.ciphertextLength} chars</div>
+                        <div>Nonce: ${debug.nonceLength} chars</div>
+                    </div>
+                `;
             }
 
             // Generate HTML for the new message (regular message only, not share requests)
@@ -1454,8 +1639,9 @@ const MessengerController = {
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                     <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                         <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                        <div style="white-space: pre-line;">${displayContent}</div>
+                        <div style="white-space: pre-line;">${message.content}</div>
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
+                        ${debugInfoHtml}
                     </div>
                 </div>
             `;

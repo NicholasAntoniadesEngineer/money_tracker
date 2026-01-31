@@ -16,14 +16,20 @@ const DevicePairingController = {
     init() {
         console.log('[DevicePairingController] Initializing...');
 
-        this.modal = document.getElementById('device-pairing-modal');
+        // Can work with either modal or full-page view
+        this.modal = document.getElementById('device-pairing-modal') || document.querySelector('.pairing-container');
         if (!this.modal) {
-            console.warn('[DevicePairingController] Pairing modal not found');
+            console.error('[DevicePairingController] Pairing container not found');
             return;
         }
 
+        console.log('[DevicePairingController] Container found:', this.modal.id || 'pairing-container');
         this.setupEventListeners();
-        console.log('[DevicePairingController] Initialized');
+
+        // Show the device detection view by default
+        this.showDeviceDetection();
+
+        console.log('[DevicePairingController] ✓ Initialized successfully');
     },
 
     /**
@@ -39,7 +45,23 @@ const DevicePairingController = {
         // Primary device button
         const primaryBtn = document.getElementById('is-primary-device-btn');
         if (primaryBtn) {
-            primaryBtn.addEventListener('click', () => this.handlePrimaryDevice());
+            console.log('[DevicePairingController] ✓ Primary device button found, attaching click handler');
+            primaryBtn.addEventListener('click', async () => {
+                console.log('[DevicePairingController] ========== PRIMARY DEVICE BUTTON CLICKED ==========');
+                try {
+                    await this.handlePrimaryDevice();
+                } catch (error) {
+                    console.error('[DevicePairingController] ========== BUTTON CLICK ERROR ==========');
+                    console.error('[DevicePairingController] Error in handlePrimaryDevice:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name
+                    });
+                    alert('Error setting up encryption: ' + error.message);
+                }
+            });
+        } else {
+            console.warn('[DevicePairingController] ⚠️ Primary device button NOT found');
         }
 
         // Secondary device button
@@ -119,6 +141,7 @@ const DevicePairingController = {
      * Handle primary device selection
      */
     async handlePrimaryDevice() {
+        console.log('[DevicePairingController] ========== PRIMARY DEVICE SETUP STARTED ==========');
         console.log('[DevicePairingController] User selected primary device');
 
         this.hideAllViews();
@@ -131,33 +154,77 @@ const DevicePairingController = {
         }
 
         try {
+            // Ensure AuthService is ready (wait up to 10 seconds)
+            console.log('[DevicePairingController] Step 1: Waiting for AuthService...');
+            const authStartTime = Date.now();
+            while (!window.AuthService?.initialized && Date.now() - authStartTime < 10000) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            if (!window.AuthService || !window.AuthService.initialized) {
+                console.error('[DevicePairingController] AuthService not ready after 10 seconds');
+                alert('Authentication service not ready. Please try again.');
+                window.location.href = '../../auth/views/auth.html';
+                return;
+            }
+            console.log('[DevicePairingController] ✓ AuthService ready');
+
             // Get current user
+            console.log('[DevicePairingController] Step 2: Getting current user...');
             const currentUser = await window.AuthService.getCurrentUser();
             if (!currentUser) {
-                throw new Error('User not authenticated');
+                console.error('[DevicePairingController] User not authenticated');
+                alert('You must be signed in to set up encryption.');
+                window.location.href = '../../auth/views/auth.html';
+                return;
             }
 
             const userId = currentUser.id;
+            console.log('[DevicePairingController] ✓ Current user:', { userId, email: currentUser.email });
+
+            // Check if password is available for backup
+            console.log('[DevicePairingController] Step 3: Checking for stored password...');
+            const hasPassword = window.PasswordManager && window.PasswordManager.retrieve();
+            console.log('[DevicePairingController] Password available for backup:', !!hasPassword);
+            if (!hasPassword) {
+                console.warn('[DevicePairingController] ⚠️ No password found - backup may not be created!');
+            }
 
             // Initialize keys as primary device
-            const keys = await window.KeyManager.initialize(userId);
+            console.log('[DevicePairingController] Step 4: Initializing KeyManager...');
+            const keys = await window.KeyManagementService.initialize(userId);
+            console.log('[DevicePairingController] ✓ Keys initialized:', {
+                hasKeys: !!keys,
+                hasPublicKey: !!keys?.publicKey,
+                hasSecretKey: !!keys?.secretKey
+            });
 
             // Register this device as primary
+            console.log('[DevicePairingController] Step 5: Registering device...');
             const deviceName = window.DevicePairingService.getDeviceName();
+            console.log('[DevicePairingController] Device name:', deviceName);
             await window.DevicePairingService.registerDevice(userId, deviceName, true);
+            console.log('[DevicePairingController] ✓ Device registered as primary');
 
             // Show success and redirect
+            console.log('[DevicePairingController] ========== PRIMARY DEVICE SETUP COMPLETE ==========');
             if (detectionView) {
                 detectionView.innerHTML = '<p style="text-align: center; color: var(--success-color);">Encryption set up successfully! Redirecting...</p>';
             }
 
             // Redirect to home page
             setTimeout(() => {
+                console.log('[DevicePairingController] Redirecting to home page...');
                 window.location.href = '../../landing/index.html';
             }, 1500);
 
         } catch (error) {
-            console.error('[DevicePairingController] Error setting up primary device:', error);
+            console.error('[DevicePairingController] ========== PRIMARY DEVICE SETUP FAILED ==========');
+            console.error('[DevicePairingController] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             alert('Error setting up primary device: ' + error.message);
 
             // Restore detection view
@@ -354,7 +421,7 @@ const DevicePairingController = {
             );
 
             // Upload public key to database
-            await window.KeyManager.uploadPublicKey(userId, result.keys.publicKey);
+            await window.KeyManagementService.uploadPublicKey(userId, result.keys.publicKey);
 
             // Register this device
             const deviceName = window.DevicePairingService.getDeviceName();

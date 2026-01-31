@@ -56,7 +56,8 @@ const DevicePairingService = {
                 device_id: deviceId,
                 device_name: deviceName,
                 public_key: encryptedKeys.publicKey,
-                encrypted_secret_key: encryptedKeys.secretKey,
+                encrypted_secret_key: encryptedKeys.encryptedSecretKey,
+                encryption_nonce: encryptedKeys.nonce,
                 pairing_code: code,
                 expires_at: expiresAt.toISOString(),
                 is_primary: false
@@ -134,7 +135,8 @@ const DevicePairingService = {
             const encryptionKey = await this._derivePairingKey(code, userId);
             const decryptedKeys = await this._decryptKeys({
                 publicKey: pairingRequest.public_key,
-                secretKey: pairingRequest.encrypted_secret_key
+                encryptedSecretKey: pairingRequest.encrypted_secret_key,
+                nonce: pairingRequest.encryption_nonce
             }, encryptionKey);
 
             // Delete the pairing request (single use)
@@ -278,36 +280,62 @@ const DevicePairingService = {
     },
 
     /**
-     * Encrypt keys for pairing
+     * Encrypt keys for pairing using XSalsa20-Poly1305
      * @private
-     * @param {Object} keys - Keys to encrypt
-     * @param {Uint8Array} encryptionKey - Encryption key
-     * @returns {Promise<Object>} Encrypted keys
+     * @param {Object} keys - Keys to encrypt { publicKey: Uint8Array, secretKey: Uint8Array }
+     * @param {Uint8Array} encryptionKey - 32-byte encryption key derived from pairing code
+     * @returns {Promise<Object>} { publicKey: string, encryptedSecretKey: string, nonce: string }
      */
     async _encryptKeys(keys, encryptionKey) {
-        const publicKeyB64 = window.CryptoService.serializePublicKey(keys.publicKey);
-        const secretKeyB64 = window.CryptoService.serializeSecretKey(keys.secretKey);
+        // Ensure CryptoPrimitivesService is available and initialized
+        if (!window.CryptoPrimitivesService || !window.CryptoPrimitivesService.initialized) {
+            throw new Error('CryptoPrimitivesService not available or not initialized');
+        }
 
-        // For now, store as base64 (in production, should use proper encryption)
-        // TODO: Implement proper symmetric encryption using encryptionKey
+        const cryptoService = window.CryptoPrimitivesService;
+
+        // Serialize the public key (stored unencrypted - it's public)
+        const publicKeyB64 = cryptoService.serializeKey(keys.publicKey);
+
+        // Serialize the secret key to base64 first
+        const secretKeyB64 = cryptoService.serializeKey(keys.secretKey);
+
+        // Encrypt the secret key using XSalsa20-Poly1305 authenticated encryption
+        const encrypted = cryptoService.encrypt(secretKeyB64, encryptionKey);
+
         return {
             publicKey: publicKeyB64,
-            secretKey: secretKeyB64
+            encryptedSecretKey: encrypted.ciphertext,
+            nonce: encrypted.nonce
         };
     },
 
     /**
-     * Decrypt keys from pairing
+     * Decrypt keys from pairing using XSalsa20-Poly1305
      * @private
-     * @param {Object} encryptedKeys - Encrypted keys
-     * @param {Uint8Array} encryptionKey - Decryption key
-     * @returns {Promise<Object>} Decrypted keys
+     * @param {Object} encryptedKeys - { publicKey: string, encryptedSecretKey: string, nonce: string }
+     * @param {Uint8Array} encryptionKey - 32-byte decryption key derived from pairing code
+     * @returns {Promise<Object>} { publicKey: Uint8Array, secretKey: Uint8Array }
      */
     async _decryptKeys(encryptedKeys, encryptionKey) {
-        // For now, decode from base64 (in production, should decrypt)
-        // TODO: Implement proper symmetric decryption using encryptionKey
-        const publicKey = window.CryptoService.deserializePublicKey(encryptedKeys.publicKey);
-        const secretKey = window.CryptoService.deserializeSecretKey(encryptedKeys.secretKey);
+        // Ensure CryptoPrimitivesService is available and initialized
+        if (!window.CryptoPrimitivesService || !window.CryptoPrimitivesService.initialized) {
+            throw new Error('CryptoPrimitivesService not available or not initialized');
+        }
+
+        const cryptoService = window.CryptoPrimitivesService;
+
+        // Public key is stored unencrypted
+        const publicKey = cryptoService.deserializeKey(encryptedKeys.publicKey);
+
+        // Decrypt the secret key
+        const secretKeyB64 = cryptoService.decrypt(
+            encryptedKeys.encryptedSecretKey,
+            encryptedKeys.nonce,
+            encryptionKey
+        );
+
+        const secretKey = cryptoService.deserializeKey(secretKeyB64);
 
         return { publicKey, secretKey };
     },
