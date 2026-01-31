@@ -80,10 +80,12 @@ const KeyManagementService = {
 
             // Check for existing local keys
             let keys = await KeyStorageService.getIdentityKeys(userId);
+            console.log(`[KeyManagementService] Local keys exist: ${!!keys}`);
 
             if (!keys) {
                 // No local keys - check if we have a backup in database
                 const hasBackup = await KeyBackupService.hasBackup(userId);
+                console.log(`[KeyManagementService] No local keys, has backup: ${hasBackup}`);
 
                 if (hasBackup) {
                     console.log('[KeyManagementService] Keys exist in database - restoration required');
@@ -100,6 +102,9 @@ const KeyManagementService = {
             // Verify local keys match database and auto-repair if missing
             const localPublicKeyB64 = CryptoPrimitivesService.serializeKey(keys.publicKey);
             const dbPublicKey = await HistoricalKeysService.getCurrentKey(userId);
+            console.log(`[KeyManagementService] LOCAL public key: ${localPublicKeyB64}`);
+            console.log(`[KeyManagementService] DB public key: ${dbPublicKey || 'NULL'}`);
+            console.log(`[KeyManagementService] Keys match: ${localPublicKeyB64 === dbPublicKey}`);
 
             if (!dbPublicKey) {
                 // Server key missing - AUTO-REPAIR: upload local key to server
