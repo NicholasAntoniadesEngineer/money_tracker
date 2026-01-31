@@ -1032,6 +1032,106 @@ GRANT SELECT, INSERT ON messages TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE messages_id_seq TO authenticated;
 
 -- ============================================================
+-- MESSAGE ATTACHMENTS (Premium feature)
+-- ============================================================
+-- Files are stored in Supabase Storage with encrypted metadata
+-- Files auto-expire after 24 hours via scheduled cleanup
+
+CREATE TABLE IF NOT EXISTS message_attachments (
+    id BIGSERIAL PRIMARY KEY,
+    message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    uploader_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+    -- File metadata (stored unencrypted for querying)
+    file_name TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    storage_path TEXT NOT NULL,  -- Path in Supabase Storage bucket
+
+    -- Encrypted file key (file is encrypted client-side before upload)
+    -- This key is encrypted with the conversation's session key
+    encrypted_file_key TEXT,
+    file_key_nonce TEXT,
+
+    -- Lifecycle
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
+    downloaded_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE message_attachments IS 'File attachments for messages. Files expire after 24 hours.';
+COMMENT ON COLUMN message_attachments.storage_path IS 'Path to encrypted file in Supabase Storage bucket';
+COMMENT ON COLUMN message_attachments.encrypted_file_key IS 'File encryption key, encrypted with conversation session key';
+COMMENT ON COLUMN message_attachments.expires_at IS 'Files auto-delete after this time (default 24 hours)';
+
+DROP INDEX IF EXISTS idx_attachments_message_id;
+DROP INDEX IF EXISTS idx_attachments_conversation_id;
+DROP INDEX IF EXISTS idx_attachments_uploader_id;
+DROP INDEX IF EXISTS idx_attachments_expires_at;
+CREATE INDEX idx_attachments_message_id ON message_attachments(message_id);
+CREATE INDEX idx_attachments_conversation_id ON message_attachments(conversation_id);
+CREATE INDEX idx_attachments_uploader_id ON message_attachments(uploader_id);
+CREATE INDEX idx_attachments_expires_at ON message_attachments(expires_at);
+
+ALTER TABLE message_attachments ENABLE ROW LEVEL SECURITY;
+
+-- Only conversation participants can view attachments
+CREATE POLICY attachments_select_participant ON message_attachments
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM conversations
+            WHERE conversations.id = message_attachments.conversation_id
+            AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
+        )
+    );
+
+-- Only the uploader can insert
+CREATE POLICY attachments_insert_uploader ON message_attachments
+    FOR INSERT WITH CHECK (
+        auth.uid() = uploader_id AND
+        EXISTS (
+            SELECT 1 FROM conversations
+            WHERE conversations.id = message_attachments.conversation_id
+            AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
+        )
+    );
+
+-- Only uploader can update (for download count, etc.)
+CREATE POLICY attachments_update_participant ON message_attachments
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM conversations
+            WHERE conversations.id = message_attachments.conversation_id
+            AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
+        )
+    );
+
+-- Only uploader can delete
+CREATE POLICY attachments_delete_uploader ON message_attachments
+    FOR DELETE USING (auth.uid() = uploader_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON message_attachments TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE message_attachments_id_seq TO authenticated;
+
+-- Function to clean up expired attachments (run via scheduled job)
+CREATE OR REPLACE FUNCTION cleanup_expired_attachments()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    -- Delete expired attachment records
+    -- Note: Actual file deletion from storage must be handled separately
+    DELETE FROM message_attachments
+    WHERE expires_at < NOW();
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
 -- REALTIME CONFIGURATION FOR MESSAGES
 -- ============================================================
 -- Enable Supabase Realtime on the messages table

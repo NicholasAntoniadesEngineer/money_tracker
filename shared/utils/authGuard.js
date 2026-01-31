@@ -157,7 +157,16 @@ const AuthGuard = {
                 console.warn('[AuthGuard] SubscriptionChecker not available, skipping subscription check');
             }
             console.log('[AuthGuard] ========== SUBSCRIPTION CHECK COMPLETE ==========');
-            
+
+            // Initialize PermissionService
+            if (window.PermissionService) {
+                console.log('[AuthGuard] Initializing PermissionService...');
+                await window.PermissionService.initialize();
+                console.log('[AuthGuard] PermissionService initialized');
+            } else {
+                console.warn('[AuthGuard] PermissionService not available');
+            }
+
             return true;
         } catch (error) {
             console.error('[AuthGuard] Error checking authentication:', error);

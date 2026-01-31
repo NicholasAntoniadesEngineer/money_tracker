@@ -118,6 +118,35 @@ const DatabaseService = {
     },
     
     /**
+     * Get count of user's months in the database
+     * Used for enforcing tier limits on number of months
+     * @param {string} userId - User ID to count months for
+     * @returns {Promise<number>} Number of months
+     */
+    async getUserMonthCount(userId) {
+        try {
+            console.log('[DatabaseService] getUserMonthCount() for user:', userId?.slice(0, 8));
+
+            if (!this.client) {
+                await this.initialize();
+            }
+
+            const tableName = this._getTableName('userMonths');
+            const result = await this.querySelect(tableName, {
+                select: 'id',
+                filter: { user_id: userId }
+            });
+
+            const count = result.data?.length || 0;
+            console.log('[DatabaseService] User month count:', count);
+            return count;
+        } catch (error) {
+            console.error('[DatabaseService] Error counting user months:', error);
+            return 0;
+        }
+    },
+
+    /**
      * Synchronous version of _getCurrentUserId for backward compatibility
      * Note: This does not validate session - use async version when possible
      * @returns {string|null} User ID or null if not authenticated
@@ -2155,7 +2184,26 @@ const DatabaseService = {
                     throw new Error('User not authenticated - cannot save to user_months without authentication');
                 }
                 console.log(`[DatabaseService] User ID for user_months: ${userId}`);
-                
+
+                // Check permission to create months (free tier limited to 2)
+                if (window.PermissionService) {
+                    // Check if this month already exists (updating vs creating)
+                    const existingMonth = await this.getMonth(monthKey);
+                    const isNewMonth = !existingMonth;
+
+                    if (isNewMonth) {
+                        // Count existing user months
+                        const monthCount = await this.getUserMonthCount(userId);
+                        console.log(`[DatabaseService] User has ${monthCount} months, checking permission...`);
+
+                        const limitCheck = await window.PermissionService.hasReachedLimit('months.create', monthCount);
+                        if (limitCheck.reachedLimit) {
+                            console.warn(`[DatabaseService] Month limit reached: ${limitCheck.reason}`);
+                            throw new Error(`Month limit reached: Free plan allows ${limitCheck.limit} months. Upgrade to Premium for unlimited months.`);
+                        }
+                    }
+                }
+
                 // Check if this is shared data - if so, verify write permission
                 if (monthData.isShared && monthData.sharedOwnerId && monthData.sharedOwnerId !== userId) {
                     if (!window.DataSharingService) {
