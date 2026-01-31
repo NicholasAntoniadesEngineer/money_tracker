@@ -196,6 +196,14 @@ const KeyManagementService = {
             this.currentUserId = userId;
         }
 
+        // CRITICAL: Check if backup already exists - prevent overwriting keys from another device
+        const hasExistingBackup = await KeyBackupService.hasBackup(userId);
+        if (hasExistingBackup) {
+            console.error('[KeyManagementService] ❌ BLOCKED: Cannot generate new keys - backup already exists!');
+            console.error('[KeyManagementService] User must restore from password backup instead');
+            throw new Error('Encryption keys already exist. Use "Restore from Another Device" to sync your keys.');
+        }
+
         console.log('[KeyManagementService] Generating and storing identity keys...');
 
         // CRITICAL: Clear any old session keys from IndexedDB
@@ -318,6 +326,14 @@ const KeyManagementService = {
     async generateKeys(password) {
         if (!this.currentUserId) {
             throw new Error('[KeyManagementService] No user ID set');
+        }
+
+        // CRITICAL: Check if backup already exists - prevent overwriting keys from another device
+        const hasExistingBackup = await KeyBackupService.hasBackup(this.currentUserId);
+        if (hasExistingBackup) {
+            console.error('[KeyManagementService] ❌ BLOCKED: Cannot generate new keys - backup already exists!');
+            console.error('[KeyManagementService] User must restore from password backup instead');
+            throw new Error('Encryption keys already exist. Use "Restore from Another Device" to sync your keys.');
         }
 
         console.log('[KeyManagementService] Generating new identity keys...');

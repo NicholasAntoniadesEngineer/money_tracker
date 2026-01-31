@@ -248,6 +248,13 @@
 
             <!-- Choose Action View -->
             <div id="choose-action-view" class="pairing-view active">
+                <!-- Message shown when backup exists (secondary device) -->
+                <div id="backup-exists-notice" style="display: none; background: var(--primary-color); color: white; padding: var(--spacing-md); border-radius: var(--border-radius); margin-bottom: var(--spacing-lg); text-align: center;">
+                    <p style="margin: 0;"><strong>🔑 Encryption keys found!</strong></p>
+                    <p style="margin: var(--spacing-sm) 0 0 0; font-size: 0.9rem;">
+                        You already have encryption set up on another device. Restore your keys to sync encrypted messages.
+                    </p>
+                </div>
                 <div class="instruction-text">
                     <p><strong>Do you have encryption keys on another device?</strong></p>
                 </div>
@@ -759,6 +766,46 @@
                 console.log('[DevicePairing] Setting up event listeners...');
                 setupEventListeners();
                 console.log('[DevicePairing] ✅ Event listeners configured');
+
+                // CRITICAL: Check if user already has a backup in the database
+                // If so, they MUST restore - generating new keys would break multi-device sync
+                console.log('[DevicePairing] Checking for existing key backup...');
+                debugLog('Checking for existing backup...');
+                const hasExistingBackup = await window.KeyBackupService.hasBackup(currentUser.id);
+                console.log('[DevicePairing] Has existing backup:', hasExistingBackup);
+                debugLog(`Has backup: ${hasExistingBackup}`, hasExistingBackup ? 'warn' : 'info');
+
+                if (hasExistingBackup) {
+                    console.log('[DevicePairing] ⚠️ EXISTING BACKUP FOUND - User must restore, not generate new keys');
+                    debugLog('BACKUP EXISTS - must restore!', 'warn');
+
+                    // Show notice that backup exists
+                    const backupNotice = document.getElementById('backup-exists-notice');
+                    if (backupNotice) {
+                        backupNotice.style.display = 'block';
+                    }
+
+                    // Hide "Setup New Device" button - only allow restore
+                    const newDeviceBtn = document.getElementById('new-device-btn');
+                    if (newDeviceBtn) {
+                        newDeviceBtn.style.display = 'none';
+                    }
+
+                    // Rename the existing device button to be clearer
+                    const existingDeviceBtn = document.getElementById('existing-device-btn');
+                    if (existingDeviceBtn) {
+                        existingDeviceBtn.innerHTML = '<i class="fas fa-key"></i> Restore My Keys';
+                        existingDeviceBtn.classList.remove('btn-secondary');
+                        existingDeviceBtn.classList.add('btn-primary');
+                    }
+
+                    // Update instruction text
+                    const instructionText = document.querySelector('#choose-action-view .instruction-text p');
+                    if (instructionText) {
+                        instructionText.innerHTML = '<strong>Restore your encryption keys to access your messages</strong>';
+                    }
+                }
+
                 console.log('[DevicePairing] Device pairing page is ready for user interaction');
                 debugLog('=== INIT COMPLETE ===', 'success');
                 debugLog('Ready for user action');
@@ -887,6 +934,18 @@
 
         async function generateQRCode() {
             try {
+                // CRITICAL SAFETY CHECK: Prevent generating new keys if backup already exists
+                const currentUser = window.AuthService.getCurrentUser();
+                if (currentUser) {
+                    const hasExistingBackup = await window.KeyBackupService.hasBackup(currentUser.id);
+                    if (hasExistingBackup) {
+                        console.error('[DevicePairing] ❌ BLOCKED: Cannot generate QR - backup already exists!');
+                        alert('You already have encryption keys. Please use "Restore from Another Device" instead.');
+                        showView('choose-action-view');
+                        return;
+                    }
+                }
+
                 const statusEl = document.querySelector('#qr-generation-view .pairing-status');
                 statusEl.textContent = 'Generating QR code...';
                 statusEl.className = 'pairing-status info';
@@ -961,6 +1020,20 @@
             const password = document.getElementById('backup-password').value;
             const confirmPassword = document.getElementById('backup-password-confirm').value;
             const statusEl = document.getElementById('backup-status');
+
+            // CRITICAL SAFETY CHECK: Prevent generating new keys if backup already exists
+            // This prevents accidentally overwriting keys from another device
+            const currentUser = window.AuthService.getCurrentUser();
+            if (currentUser) {
+                const hasExistingBackup = await window.KeyBackupService.hasBackup(currentUser.id);
+                if (hasExistingBackup) {
+                    console.error('[DevicePairing] ❌ BLOCKED: Cannot generate new keys - backup already exists!');
+                    console.error('[DevicePairing] User must use "Restore from Another Device" instead');
+                    statusEl.textContent = 'You already have encryption keys. Please use "Restore from Another Device" instead.';
+                    statusEl.className = 'pairing-status error';
+                    return;
+                }
+            }
 
             console.log('[DevicePairing] Step 0/6: Validating input');
             console.log('[DevicePairing]   - Password length:', password ? password.length : 0);
