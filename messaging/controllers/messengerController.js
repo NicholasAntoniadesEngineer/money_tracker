@@ -1037,8 +1037,8 @@ const MessengerController = {
             // Fetch attachments with retry (attachment may still be uploading)
             if (window.AttachmentService) {
                 const fetchAttachments = async () => {
-                    const maxRetries = 5;
-                    const retryDelay = 800;
+                    const maxRetries = 30;
+                    const retryDelay = 100;
                     for (let attempt = 0; attempt < maxRetries; attempt++) {
                         try {
                             const attachments = await window.AttachmentService.getMessageAttachments(newMessage.id);
