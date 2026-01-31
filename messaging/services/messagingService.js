@@ -625,27 +625,13 @@ const MessagingService = {
                     } catch (decryptionError) {
                         console.error('[MessagingService] ❌ DECRYPTION FAILED for message:', msg.id);
                         console.error('[MessagingService] Error:', decryptionError.message);
-                        console.error('[MessagingService] Message encrypted with keys that no longer exist - auto-deleting');
+                        console.error('[MessagingService] This device may not have the correct keys to decrypt this message');
+                        console.error('[MessagingService] Try restoring keys via Device Pairing on this device');
 
-                        // AUTO-DELETE: Remove undecryptable messages from database
-                        // These messages were encrypted with old keys that no longer exist
-                        // and cannot be recovered - deleting them provides a clean slate
-                        try {
-                            await databaseService.queryDelete(messagesTableName, {
-                                filter: { id: msg.id }
-                            });
-                            console.log('[MessagingService] Auto-deleted undecryptable message:', msg.id);
-
-                            // Mark this message for exclusion from results
-                            content = null;
-                            decryptSuccess = false;
-                            decryptError = 'auto_deleted';
-                        } catch (deleteError) {
-                            console.error('[MessagingService] Failed to auto-delete message:', deleteError.message);
-                            content = '[Message encrypted with old keys - cannot decrypt]';
-                            decryptSuccess = false;
-                            decryptError = decryptionError.message;
-                        }
+                        // Show error - don't delete messages as other devices may be able to decrypt them
+                        content = '[Cannot decrypt on this device - try Device Pairing to restore keys]';
+                        decryptSuccess = false;
+                        decryptError = decryptionError.message;
                     }
                 }
 
@@ -675,18 +661,9 @@ const MessagingService = {
                 };
             }));
 
-            // Filter out auto-deleted messages (content === null)
-            const validMessages = messagesWithEmailsAndDecrypted.filter(msg => msg.content !== null);
-            const deletedCount = messagesWithEmailsAndDecrypted.length - validMessages.length;
-
-            if (deletedCount > 0) {
-                console.log(`[MessagingService] Auto-deleted ${deletedCount} undecryptable messages from conversation ${conversationId}`);
-            }
-
             return {
                 success: true,
-                messages: validMessages,
-                deletedCount: deletedCount,
+                messages: messagesWithEmailsAndDecrypted,
                 error: null
             };
         } catch (error) {
