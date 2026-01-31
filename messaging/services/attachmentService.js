@@ -145,10 +145,9 @@ const AttachmentService = {
      * @returns {{ciphertext: Uint8Array, nonce: Uint8Array}}
      */
     _encryptFile(fileData, key) {
-        const nonce = window.CryptoPrimitivesService.randomBytes(24);
         const plaintext = new Uint8Array(fileData);
-        const ciphertext = window.CryptoPrimitivesService.encrypt(plaintext, nonce, key);
-        return { ciphertext, nonce };
+        // Use encryptBytes for binary data (files)
+        return window.CryptoPrimitivesService.encryptBytes(plaintext, key);
     },
 
     /**
@@ -159,7 +158,8 @@ const AttachmentService = {
      * @returns {Uint8Array} Decrypted file data
      */
     _decryptFile(ciphertext, nonce, key) {
-        return window.CryptoPrimitivesService.decrypt(ciphertext, nonce, key);
+        // Use decryptBytes for binary data (files)
+        return window.CryptoPrimitivesService.decryptBytes(ciphertext, nonce, key);
     },
 
     /**
