@@ -1114,6 +1114,33 @@ CREATE POLICY attachments_delete_uploader ON message_attachments
 GRANT SELECT, INSERT, UPDATE, DELETE ON message_attachments TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE message_attachments_id_seq TO authenticated;
 
+-- ============================================================
+-- STORAGE BUCKET POLICIES FOR MESSAGE ATTACHMENTS
+-- ============================================================
+-- These policies control access to the 'message-attachments' storage bucket.
+-- The bucket must be created manually in Supabase Dashboard > Storage.
+
+-- Allow authenticated users to upload to message-attachments bucket
+DROP POLICY IF EXISTS "Users can upload attachments" ON storage.objects;
+CREATE POLICY "Users can upload attachments"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'message-attachments');
+
+-- Allow authenticated users to read from message-attachments bucket
+DROP POLICY IF EXISTS "Users can read attachments" ON storage.objects;
+CREATE POLICY "Users can read attachments"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (bucket_id = 'message-attachments');
+
+-- Allow authenticated users to delete from message-attachments bucket
+DROP POLICY IF EXISTS "Users can delete attachments" ON storage.objects;
+CREATE POLICY "Users can delete attachments"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'message-attachments');
+
 -- Function to clean up expired attachments (run via scheduled job)
 CREATE OR REPLACE FUNCTION cleanup_expired_attachments()
 RETURNS INTEGER AS $$

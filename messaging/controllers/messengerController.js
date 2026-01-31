@@ -2176,12 +2176,36 @@ const MessengerController = {
                 `;
             }
 
+            // Build attachment HTML if attachments exist
+            let attachmentsHtml = '';
+            const attachments = message.attachments || [];
+            if (attachments.length > 0) {
+                const attachmentItems = attachments.map(att => {
+                    const iconClass = window.AttachmentService?.getFileIcon(att.mimeType || att.mime_type) || 'fa-file';
+                    const fileSize = window.AttachmentService?.formatFileSize(att.fileSize || att.file_size) || '';
+                    const fileName = att.fileName || att.file_name || 'Attachment';
+                    const attId = att.id;
+                    return `
+                        <div class="message-attachment" data-attachment-id="${attId}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; cursor: pointer; transition: background 0.2s;" onclick="MessengerController.downloadAttachment(${attId})" onmouseover="this.style.background='rgba(0,0,0,0.25)'" onmouseout="this.style.background='rgba(0,0,0,0.15)'">
+                            <i class="fas ${iconClass}" style="font-size: 1.1em;"></i>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em;">${fileName}</div>
+                                <div style="font-size: 0.75em; opacity: 0.7;">${fileSize}</div>
+                            </div>
+                            <i class="fas fa-download" style="opacity: 0.6;"></i>
+                        </div>
+                    `;
+                }).join('');
+                attachmentsHtml = `<div class="message-attachments">${attachmentItems}</div>`;
+            }
+
             // Generate HTML for the new message (regular message only, not share requests)
             const messageHtml = `
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                     <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
                         <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
                         <div style="white-space: pre-line;">${message.content}</div>
+                        ${attachmentsHtml}
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
                         ${debugInfoHtml}
                     </div>
