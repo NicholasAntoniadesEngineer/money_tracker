@@ -771,6 +771,7 @@ const MessengerController = {
 
     /**
      * Subscribe to real-time message updates for the current conversation
+     * Uses the user's global message subscription (which works) and filters by conversation ID
      * @param {number|string} conversationId - Conversation ID
      */
     async _subscribeToConversation(conversationId) {
@@ -784,27 +785,43 @@ const MessengerController = {
             return;
         }
 
+        // Get current user ID
+        const currentUser = window.AuthService?.getCurrentUser();
+        const currentUserId = currentUser?.id;
+        if (!currentUserId) {
+            console.error('[MessengerController] No current user ID');
+            return;
+        }
+
         // Store the conversation ID we're subscribing to for validation
         this._subscribedConversationId = conversationId;
 
-        const result = await window.MessagingService.subscribeToConversation(conversationId, async (payload) => {
-            console.log('[MessengerController] Real-time message received:', payload);
-
-            // Validate we're still viewing this conversation
-            if (this.currentConversationId !== conversationId) {
-                console.log('[MessengerController] Ignoring message - conversation changed');
-                return;
-            }
+        // Use the global message subscription (filter by recipient_id which we know works)
+        // and filter for this specific conversation in the callback
+        const result = await window.MessagingService.subscribeToMessages(currentUserId, async (payload) => {
+            console.log('[MessengerController] Real-time message event:', payload.eventType);
 
             // Only handle INSERT events (new messages)
             if (payload.eventType !== 'INSERT') {
-                console.log('[MessengerController] Ignoring non-INSERT event:', payload.eventType);
                 return;
             }
 
             const newMessage = payload.new;
             if (!newMessage) {
-                console.warn('[MessengerController] No message data in payload');
+                return;
+            }
+
+            // Filter for this specific conversation
+            if (newMessage.conversation_id !== conversationId) {
+                console.log('[MessengerController] Message for different conversation, ignoring');
+                return;
+            }
+
+            console.log('[MessengerController] Real-time message received for current conversation:', newMessage.id);
+
+            // Validate we're still viewing this conversation
+            if (this.currentConversationId !== conversationId) {
+                console.log('[MessengerController] Ignoring message - conversation changed');
                 return;
             }
 
@@ -813,10 +830,6 @@ const MessengerController = {
                 console.log('[MessengerController] Message already in thread, skipping:', newMessage.id);
                 return;
             }
-
-            // Get current user to determine if this is our own message
-            const currentUser = window.AuthService?.getCurrentUser();
-            const currentUserId = currentUser?.id;
 
             // Skip if this is our own message (we already added it when sending)
             if (newMessage.sender_id === currentUserId) {
@@ -889,7 +902,7 @@ const MessengerController = {
 
         if (result.success) {
             this._conversationSubscription = result.subscription;
-            console.log('[MessengerController] Real-time subscription active');
+            console.log('[MessengerController] Real-time subscription active for conversation:', conversationId);
         } else {
             console.error('[MessengerController] Failed to subscribe:', result.error);
         }
