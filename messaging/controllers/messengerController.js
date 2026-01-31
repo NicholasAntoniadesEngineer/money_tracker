@@ -16,8 +16,10 @@ const MessengerController = {
     isOpeningConversation: false, // Guard to prevent multiple simultaneous opens
     openingConversationId: null, // Track which conversation is being opened
     isInitializing: false,
-    // Real-time subscription for current conversation
-    _conversationSubscription: null,
+    // Real-time subscriptions
+    _conversationSubscription: null, // For current open conversation
+    _subscribedConversationId: null, // Track which conversation we're subscribed to
+    _userMessagesSubscription: null, // For all incoming messages (conversation list updates)
 
     /**
      * Initialize the messenger page
@@ -211,6 +213,11 @@ const MessengerController = {
                     console.warn('[MessengerController] Conversation ID in URL not found:', conversationId);
                 }
             }
+
+            // Subscribe to all incoming messages for conversation list updates
+            console.log('[MessengerController] Step 4: Setting up global message subscription...');
+            await this._subscribeToUserMessages(currentUserId);
+            console.log('[MessengerController] ✓ Global message subscription active');
 
             console.log('[MessengerController] ========== INITIALIZATION COMPLETE ==========');
             console.log('[MessengerController] Total conversations:', this.conversations.length);
@@ -777,8 +784,17 @@ const MessengerController = {
             return;
         }
 
+        // Store the conversation ID we're subscribing to for validation
+        this._subscribedConversationId = conversationId;
+
         const result = await window.MessagingService.subscribeToConversation(conversationId, async (payload) => {
             console.log('[MessengerController] Real-time message received:', payload);
+
+            // Validate we're still viewing this conversation
+            if (this.currentConversationId !== conversationId) {
+                console.log('[MessengerController] Ignoring message - conversation changed');
+                return;
+            }
 
             // Only handle INSERT events (new messages)
             if (payload.eventType !== 'INSERT') {
@@ -789,6 +805,12 @@ const MessengerController = {
             const newMessage = payload.new;
             if (!newMessage) {
                 console.warn('[MessengerController] No message data in payload');
+                return;
+            }
+
+            // Check if message already exists in DOM (prevent duplicates)
+            if (this._isMessageInThread(newMessage.id)) {
+                console.log('[MessengerController] Message already in thread, skipping:', newMessage.id);
                 return;
             }
 
@@ -870,6 +892,71 @@ const MessengerController = {
             console.log('[MessengerController] Real-time subscription active');
         } else {
             console.error('[MessengerController] Failed to subscribe:', result.error);
+        }
+    },
+
+    /**
+     * Check if a message already exists in the thread
+     * @param {number|string} messageId - Message ID to check
+     * @returns {boolean} True if message exists
+     */
+    _isMessageInThread(messageId) {
+        const messageThread = document.getElementById('message-thread');
+        if (!messageThread) return false;
+        return !!messageThread.querySelector(`[data-message-id="${messageId}"]`);
+    },
+
+    /**
+     * Subscribe to all incoming messages for this user
+     * Updates the conversation list when new messages arrive in other conversations
+     * @param {string} userId - Current user ID
+     */
+    async _subscribeToUserMessages(userId) {
+        // Unsubscribe from any existing global subscription
+        if (this._userMessagesSubscription) {
+            await window.MessagingService?.unsubscribe(this._userMessagesSubscription);
+            this._userMessagesSubscription = null;
+        }
+
+        console.log('[MessengerController] Setting up global message subscription for user:', userId);
+
+        if (!window.MessagingService) {
+            console.error('[MessengerController] MessagingService not available');
+            return;
+        }
+
+        const result = await window.MessagingService.subscribeToMessages(userId, async (payload) => {
+            console.log('[MessengerController] Global message event:', payload.eventType);
+
+            // Only handle new messages
+            if (payload.eventType !== 'INSERT') return;
+
+            const newMessage = payload.new;
+            if (!newMessage) return;
+
+            const messageConversationId = newMessage.conversation_id;
+
+            // If this message is for the currently open conversation, the conversation subscription handles it
+            if (this.currentConversationId === messageConversationId) {
+                console.log('[MessengerController] Message is for open conversation, handled by conversation subscription');
+                return;
+            }
+
+            // Message is for a different conversation - refresh conversation list to show unread indicator
+            console.log('[MessengerController] New message in conversation:', messageConversationId, '- refreshing list');
+            await this.loadConversations();
+
+            // Update notification count
+            if (typeof window.Header !== 'undefined') {
+                window.Header.updateNotificationCount();
+            }
+        });
+
+        if (result.success) {
+            this._userMessagesSubscription = result.subscription;
+            console.log('[MessengerController] Global message subscription active');
+        } else {
+            console.warn('[MessengerController] Failed to set up global subscription:', result.error);
         }
     },
 
