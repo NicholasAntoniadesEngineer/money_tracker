@@ -7,10 +7,19 @@
 -- Can be run on existing database - drops and recreates all tables
 -- ============================================================
 
+DO $$
+BEGIN
+    RAISE NOTICE '============================================================';
+    RAISE NOTICE 'FRESH INSTALL - Starting complete database setup...';
+    RAISE NOTICE '============================================================';
+END $$;
+
 -- ============================================================
 -- CLEANUP: DROP ALL EXISTING TABLES (in dependency order)
 -- ============================================================
 -- This ensures a true fresh install by removing all existing data
+
+DO $$ BEGIN RAISE NOTICE '[1/16] Dropping existing tables, functions, and policies...'; END $$;
 
 -- Drop tables with foreign key dependencies first
 DROP TABLE IF EXISTS message_attachments CASCADE;
@@ -65,6 +74,8 @@ DROP POLICY IF EXISTS "Users can delete attachments" ON storage.objects;
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+DO $$ BEGIN RAISE NOTICE '[2/16] Creating budget data tables (user_months, example_months, pots)...'; END $$;
 
 -- ============================================================
 -- BUDGET DATA TABLES (JSONB Structure)
@@ -183,6 +194,8 @@ CREATE POLICY pots_delete_own ON pots
 GRANT SELECT, INSERT, UPDATE, DELETE ON pots TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE pots_id_seq TO authenticated;
 
+DO $$ BEGIN RAISE NOTICE '[3/16] Creating settings table...'; END $$;
+
 -- ============================================================
 -- SETTINGS & CONFIGURATION
 -- ============================================================
@@ -214,6 +227,8 @@ CREATE POLICY settings_update_own ON settings
 
 GRANT SELECT, INSERT, UPDATE ON settings TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE settings_id_seq TO authenticated;
+
+DO $$ BEGIN RAISE NOTICE '[4/16] Creating subscription system (plans, subscriptions, payments)...'; END $$;
 
 -- ============================================================
 -- SUBSCRIPTION SYSTEM
@@ -335,6 +350,8 @@ ON CONFLICT (name) DO UPDATE SET
     features = EXCLUDED.features,
     is_active = EXCLUDED.is_active;
 
+DO $$ BEGIN RAISE NOTICE '[5/16] Creating subscription helper functions...'; END $$;
+
 -- ============================================================
 -- SUBSCRIPTION HELPER FUNCTIONS (Derived Data)
 -- ============================================================
@@ -455,6 +472,8 @@ CREATE TRIGGER trigger_create_trial_subscription
     FOR EACH ROW
     EXECUTE FUNCTION create_trial_subscription();
 
+DO $$ BEGIN RAISE NOTICE '[6/16] Creating data sharing system (data_shares, field_locks)...'; END $$;
+
 -- ============================================================
 -- DATA SHARING
 -- ============================================================
@@ -555,6 +574,8 @@ CREATE POLICY field_locks_delete_own ON field_locks
 GRANT SELECT, INSERT, DELETE ON field_locks TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE field_locks_id_seq TO authenticated;
 
+DO $$ BEGIN RAISE NOTICE '[7/16] Creating friends system...'; END $$;
+
 -- ============================================================
 -- FRIENDS SYSTEM
 -- ============================================================
@@ -585,6 +606,8 @@ CREATE POLICY friends_delete_involved ON friends
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON friends TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE friends_id_seq TO authenticated;
+
+DO $$ BEGIN RAISE NOTICE '[8/16] Creating blocked users system...'; END $$;
 
 -- ============================================================
 -- BLOCKED USERS
@@ -619,6 +642,8 @@ CREATE POLICY blocked_users_delete_own ON blocked_users
 
 GRANT SELECT, INSERT, DELETE ON blocked_users TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE blocked_users_id_seq TO authenticated;
+
+DO $$ BEGIN RAISE NOTICE '[9/16] Creating E2E encryption system (identity_keys, public_key_history, devices)...'; END $$;
 
 -- ============================================================
 -- E2E ENCRYPTION SYSTEM
@@ -899,6 +924,8 @@ CREATE POLICY conversations_update_participant ON conversations
         auth.uid() = user1_id OR auth.uid() = user2_id
     );
 
+DO $$ BEGIN RAISE NOTICE '[10/16] Creating notifications system...'; END $$;
+
 -- ============================================================
 -- NOTIFICATIONS SYSTEM
 -- ============================================================
@@ -1141,6 +1168,8 @@ CREATE TRIGGER trigger_update_messages_updated_at
 GRANT SELECT, INSERT ON messages TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE messages_id_seq TO authenticated;
 
+DO $$ BEGIN RAISE NOTICE '[11/16] Creating message attachments system...'; END $$;
+
 -- ============================================================
 -- MESSAGE ATTACHMENTS (Premium feature)
 -- ============================================================
@@ -1224,6 +1253,8 @@ CREATE POLICY attachments_delete_uploader ON message_attachments
 GRANT SELECT, INSERT, UPDATE, DELETE ON message_attachments TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE message_attachments_id_seq TO authenticated;
 
+DO $$ BEGIN RAISE NOTICE '[12/16] Creating storage bucket policies...'; END $$;
+
 -- ============================================================
 -- STORAGE BUCKET POLICIES FOR MESSAGE ATTACHMENTS
 -- ============================================================
@@ -1272,6 +1303,8 @@ BEGIN
 END;
 $$;
 
+DO $$ BEGIN RAISE NOTICE '[13/16] Configuring realtime for messages and conversations...'; END $$;
+
 -- ============================================================
 -- REALTIME CONFIGURATION FOR MESSAGES
 -- ============================================================
@@ -1318,6 +1351,8 @@ ALTER TABLE data_shares
     FOREIGN KEY (conversation_id)
     REFERENCES conversations(id)
     ON DELETE SET NULL;
+
+DO $$ BEGIN RAISE NOTICE '[14/16] Creating multi-device encryption support (session keys, backups)...'; END $$;
 
 -- ============================================================
 -- MULTI-DEVICE ENCRYPTION SUPPORT
@@ -1487,6 +1522,8 @@ CREATE TRIGGER trigger_share_status_update
     FOR EACH ROW
     EXECUTE FUNCTION update_share_status();
 
+DO $$ BEGIN RAISE NOTICE '[15/16] Populating example data (4 example months)...'; END $$;
+
 -- ============================================================
 -- POPULATE EXAMPLE DATA
 -- ============================================================
@@ -1651,6 +1688,8 @@ ON CONFLICT (year, month) DO UPDATE SET
     pots = EXCLUDED.pots,
     updated_at = NOW();
 
+DO $$ BEGIN RAISE NOTICE '[16/16] Creating performance indexes...'; END $$;
+
 -- ============================================================
 -- ADDITIONAL INDEXES FOR PERFORMANCE
 -- ============================================================
@@ -1664,16 +1703,38 @@ CREATE INDEX IF NOT EXISTS idx_public_key_history_user_epoch ON public_key_histo
 -- ============================================================
 -- FRESH INSTALL COMPLETE
 -- ============================================================
--- Database is now ready with:
--- ✓ Budget management (user_months, example_months, pots with JSONB structure)
--- ✓ Settings (user preferences)
--- ✓ Subscription system (plans, subscriptions, payments with Free & Premium)
--- ✓ Data sharing (data_shares with field locks)
--- ✓ Friends system
--- ✓ Blocked users system
--- ✓ Notifications system (with create_notification RPC)
--- ✓ E2E encryption (identity keys, conversations, messages)
--- ✓ Multi-device support (paired devices, device keys, session key backups)
--- ✓ Password + Recovery key + Session backup key encryption system
--- ✓ Key rotation locks for concurrency safety
--- ============================================================
+
+DO $$
+DECLARE
+    table_count INTEGER;
+    function_count INTEGER;
+    policy_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO table_count FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+
+    SELECT COUNT(*) INTO function_count FROM information_schema.routines
+    WHERE routine_schema = 'public' AND routine_type = 'FUNCTION';
+
+    SELECT COUNT(*) INTO policy_count FROM pg_policies
+    WHERE schemaname = 'public';
+
+    RAISE NOTICE '============================================================';
+    RAISE NOTICE 'FRESH INSTALL COMPLETE';
+    RAISE NOTICE '============================================================';
+    RAISE NOTICE 'Created % tables in public schema', table_count;
+    RAISE NOTICE 'Created % functions in public schema', function_count;
+    RAISE NOTICE 'Created % RLS policies', policy_count;
+    RAISE NOTICE '------------------------------------------------------------';
+    RAISE NOTICE 'Database is now ready with:';
+    RAISE NOTICE '  - Budget management (user_months, example_months, pots)';
+    RAISE NOTICE '  - Settings (user preferences)';
+    RAISE NOTICE '  - Subscription system (plans, subscriptions, payments)';
+    RAISE NOTICE '  - Data sharing (data_shares with field locks)';
+    RAISE NOTICE '  - Friends and blocked users systems';
+    RAISE NOTICE '  - Notifications system (with create_notification RPC)';
+    RAISE NOTICE '  - E2E encryption (identity keys, conversations, messages)';
+    RAISE NOTICE '  - Multi-device support (paired devices, session key backups)';
+    RAISE NOTICE '  - Message attachments with storage policies';
+    RAISE NOTICE '============================================================';
+END $$;
