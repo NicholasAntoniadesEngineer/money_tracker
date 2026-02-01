@@ -1,66 +1,38 @@
 # Supabase Storage Setup
 
-This document describes the Supabase Storage buckets required for the application.
+Storage buckets must be created manually in the Supabase Dashboard before running `fresh-install-complete.sql`.
 
-## Required Buckets
+## Required Bucket: `message-attachments`
 
-### 1. `message-attachments`
+**Purpose**: Stores encrypted file attachments for messages (24-hour retention).
 
-**Purpose**: Stores encrypted file attachments for messages.
+### Setup Steps
 
-**Configuration**:
-- **Name**: `message-attachments`
-- **Public**: No (private bucket)
-- **File size limit**: 1MB (1048576 bytes)
-- **Allowed MIME types**: Not restricted (files are encrypted client-side)
-
-**Setup Steps**:
-1. Go to your Supabase dashboard
+1. Go to your Supabase Dashboard
 2. Navigate to **Storage** in the left sidebar
 3. Click **New bucket**
-4. Enter `message-attachments` as the bucket name
-5. Keep **Public bucket** unchecked (private)
-6. Click **Create bucket**
+4. Configure:
+   - **Name**: `message-attachments`
+   - **Public bucket**: Unchecked (private)
+   - **File size limit**: 1MB
+5. Click **Create bucket**
 
-**RLS Policies** (apply in SQL Editor):
-```sql
--- Allow authenticated users to upload to their conversation folders
-CREATE POLICY "Users can upload attachments"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (
-    bucket_id = 'message-attachments'
-);
+### RLS Policies
 
--- Allow authenticated users to read attachments from their conversations
-CREATE POLICY "Users can read attachments"
-ON storage.objects FOR SELECT
-TO authenticated
-USING (
-    bucket_id = 'message-attachments'
-);
-
--- Allow users to delete their own uploads
-CREATE POLICY "Users can delete own attachments"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (
-    bucket_id = 'message-attachments'
-);
-```
+The storage bucket RLS policies are included in `fresh-install-complete.sql` and will be applied automatically when you run that script. No additional SQL is needed.
 
 ## Verification
 
-After setup, the application will log the following on successful detection:
+After setup, the application logs:
 ```
 [AttachmentService] ✓ Storage bucket 'message-attachments' is accessible
 ```
 
-If the bucket is missing, you'll see:
+If the bucket is missing:
 ```
 [AttachmentService] ✗ Storage bucket 'message-attachments' not found - file attachments disabled
 ```
 
 ## File Retention
 
-Files in `message-attachments` are automatically deleted after 24 hours via a database trigger on the `message_attachments` table. See `fresh-install-complete.sql` for the cleanup function.
+Files auto-delete after 24 hours via the `cleanup_expired_attachments()` function in the database.
