@@ -53,12 +53,15 @@ CREATE POLICY user_months_delete_own ON user_months
     FOR DELETE USING (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_user_months_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_user_months_updated_at
     BEFORE UPDATE ON user_months
@@ -85,6 +88,12 @@ CREATE TABLE IF NOT EXISTS example_months (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(year, month)
 );
+
+-- Enable RLS but allow all authenticated users to read (public example data)
+ALTER TABLE example_months ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY example_months_select_all ON example_months
+    FOR SELECT TO authenticated USING (true);
 
 GRANT SELECT ON example_months TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE example_months_id_seq TO authenticated;
@@ -166,6 +175,12 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Enable RLS but allow all authenticated users to read (public plan data)
+ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY subscription_plans_select_all ON subscription_plans
+    FOR SELECT TO authenticated USING (true);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -216,12 +231,15 @@ CREATE POLICY subscriptions_insert_own ON subscriptions
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_subscriptions_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_subscriptions_updated_at
     BEFORE UPDATE ON subscriptions
@@ -267,31 +285,47 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- Check if subscription is on Free plan
 CREATE OR REPLACE FUNCTION is_free_plan(sub_plan_id BIGINT)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
 BEGIN
     RETURN (SELECT name FROM subscription_plans WHERE id = sub_plan_id) = 'Free';
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 -- Check if subscription is on trial
 CREATE OR REPLACE FUNCTION is_on_trial(sub_status TEXT, trial_end_date TIMESTAMPTZ)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
 BEGIN
     RETURN sub_status = 'trial' AND trial_end_date > NOW();
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 -- Get plan price in dollars (for display)
 CREATE OR REPLACE FUNCTION get_price_dollars(sub_plan_id BIGINT)
-RETURNS NUMERIC AS $$
+RETURNS NUMERIC
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
 BEGIN
     RETURN (SELECT price_cents FROM subscription_plans WHERE id = sub_plan_id) / 100.0;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 -- Get subscription type (derived from plan and status)
 CREATE OR REPLACE FUNCTION get_subscription_type(sub_plan_id BIGINT, sub_status TEXT)
-RETURNS TEXT AS $$
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
 BEGIN
     IF sub_status = 'trial' THEN
         RETURN 'trial';
@@ -301,15 +335,19 @@ BEGIN
         RETURN 'paid';
     END IF;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 -- Check if recurring billing is enabled (inverse of cancel_at_period_end)
 CREATE OR REPLACE FUNCTION is_recurring_billing_enabled(cancel_at_end BOOLEAN)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public
+AS $$
 BEGIN
     RETURN NOT cancel_at_end;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$;
 
 GRANT EXECUTE ON FUNCTION is_free_plan(BIGINT) TO authenticated;
 GRANT EXECUTE ON FUNCTION is_on_trial(TEXT, TIMESTAMPTZ) TO authenticated;
@@ -323,18 +361,22 @@ GRANT EXECUTE ON FUNCTION is_recurring_billing_enabled(BOOLEAN) TO authenticated
 
 -- Automatically create a 30-day Premium trial when user signs up
 CREATE OR REPLACE FUNCTION create_trial_subscription()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     premium_plan_id BIGINT;
 BEGIN
-    -- Get Premium plan ID (schema-qualified for cross-schema trigger)
+    -- Get Premium plan ID
     SELECT id INTO premium_plan_id
-    FROM public.subscription_plans
+    FROM subscription_plans
     WHERE name = 'Premium'
     LIMIT 1;
 
-    -- Create trial subscription for new user (schema-qualified)
-    INSERT INTO public.subscriptions (
+    -- Create trial subscription for new user
+    INSERT INTO subscriptions (
         user_id,
         plan_id,
         status,
@@ -348,7 +390,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Trigger on user creation
 DROP TRIGGER IF EXISTS trigger_create_trial_subscription ON auth.users;
@@ -539,12 +581,15 @@ CREATE TABLE IF NOT EXISTS identity_keys (
 COMMENT ON COLUMN identity_keys.current_epoch IS 'Current key epoch. Incremented on each key regeneration for key rotation support.';
 
 CREATE OR REPLACE FUNCTION update_identity_keys_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_identity_keys_updated_at
     BEFORE UPDATE ON identity_keys
@@ -737,12 +782,15 @@ ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 -- Note: RLS policy for conversations is created after conversation_participants table
 
 CREATE OR REPLACE FUNCTION update_conversations_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_conversations_updated_at
     BEFORE UPDATE ON conversations
@@ -839,12 +887,15 @@ CREATE POLICY notifications_delete_own ON notifications
     FOR DELETE USING (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_notifications_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_notifications_updated_at
     BEFORE UPDATE ON notifications
@@ -894,6 +945,7 @@ CREATE OR REPLACE FUNCTION create_notification(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_notification_id BIGINT;
@@ -948,9 +1000,8 @@ $$;
 
 GRANT EXECUTE ON FUNCTION create_notification TO authenticated;
 
--- Allow the RPC function (running as SECURITY DEFINER) to insert notifications
-CREATE POLICY notifications_insert_for_others ON notifications
-    FOR INSERT WITH CHECK (true);
+-- Note: The create_notification function uses SECURITY DEFINER which bypasses RLS.
+-- No separate insert policy needed for system notifications.
 
 -- Messages (encrypted)
 -- key_epoch tracks which session key version was used to encrypt each message
@@ -1016,12 +1067,15 @@ CREATE POLICY messages_update_participant ON messages
     );
 
 CREATE OR REPLACE FUNCTION update_messages_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_messages_updated_at
     BEFORE UPDATE ON messages
@@ -1143,7 +1197,11 @@ USING (bucket_id = 'message-attachments');
 
 -- Function to clean up expired attachments (run via scheduled job)
 CREATE OR REPLACE FUNCTION cleanup_expired_attachments()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
@@ -1156,7 +1214,7 @@ BEGIN
 
     RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================
 -- REALTIME CONFIGURATION FOR MESSAGES
@@ -1246,12 +1304,15 @@ CREATE POLICY session_keys_delete_own ON conversation_session_keys
     FOR DELETE USING (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_session_keys_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_session_keys_updated_at
     BEFORE UPDATE ON conversation_session_keys
@@ -1302,12 +1363,15 @@ CREATE POLICY key_backups_delete_own ON identity_key_backups
     FOR DELETE USING (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_key_backups_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_key_backups_updated_at
     BEFORE UPDATE ON identity_key_backups
@@ -1322,7 +1386,11 @@ GRANT USAGE, SELECT ON SEQUENCE identity_key_backups_id_seq TO authenticated;
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION update_share_status()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
         INSERT INTO notifications (user_id, type, title, message, data)
@@ -1355,7 +1423,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS trigger_share_status_update ON data_shares;
 CREATE TRIGGER trigger_share_status_update
