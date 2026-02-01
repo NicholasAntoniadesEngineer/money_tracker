@@ -1015,7 +1015,7 @@ const MessengerController = {
             let senderEmail = this.emailCache.get(newMessage.sender_id);
             if (!senderEmail) {
                 try {
-                    const emailResult = await window.DatabaseService.getUserEmail(newMessage.sender_id);
+                    const emailResult = await window.DatabaseService.getUserEmailById(newMessage.sender_id);
                     senderEmail = emailResult.success ? emailResult.email : 'Unknown';
                     this.emailCache.set(newMessage.sender_id, senderEmail);
                 } catch (e) {
