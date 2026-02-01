@@ -14,9 +14,10 @@
 -- ============================================================
 
 -- Encryption and messaging tables
+DROP TABLE IF EXISTS message_attachments CASCADE;
+DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS identity_key_backups CASCADE;
 DROP TABLE IF EXISTS conversation_session_keys CASCADE;
-DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS conversation_participants CASCADE;
 DROP TABLE IF EXISTS conversations CASCADE;
 DROP TABLE IF EXISTS key_rotation_locks CASCADE;
@@ -70,6 +71,19 @@ DROP FUNCTION IF EXISTS is_on_trial(TEXT, TIMESTAMPTZ) CASCADE;
 DROP FUNCTION IF EXISTS get_price_dollars(BIGINT) CASCADE;
 DROP FUNCTION IF EXISTS get_subscription_type(BIGINT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS is_recurring_billing_enabled(BOOLEAN) CASCADE;
+
+-- Messaging and attachment functions
+DROP FUNCTION IF EXISTS update_identity_keys_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS create_notification(UUID, TEXT, UUID, BIGINT, TEXT, BIGINT, BIGINT, BIGINT, BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS cleanup_expired_attachments() CASCADE;
+DROP FUNCTION IF EXISTS debug_attachment_rls(BIGINT, UUID) CASCADE;
+
+-- ============================================================
+-- DROP STORAGE POLICIES
+-- ============================================================
+DROP POLICY IF EXISTS "Users can upload attachments" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read attachments" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete attachments" ON storage.objects;
 
 -- ============================================================
 -- CLEAR ALL USERS
