@@ -543,18 +543,29 @@ const NotificationsController = {
      * Render a single conversation item for the all view
      */
     async renderConversationItem(conversation) {
-        const unreadBadge = conversation.unread_count > 0 
-            ? `<span class="badge badge-primary" style="margin-left: var(--spacing-xs);">${conversation.unread_count}</span>`
+        const hasUnread = conversation.unread_count > 0;
+        const unreadBadge = hasUnread
+            ? `<span class="notification-badge">${conversation.unread_count}</span>`
             : '';
-        
+
+        // Get initials from email for avatar
+        const email = conversation.other_user_email || 'Unknown User';
+        const initials = email.charAt(0).toUpperCase();
+
         return `
-            <div class="notification-item conversation-item" data-conversation-id="${conversation.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm);">
-                <div style="flex: 1 1 auto; min-width: 0; max-width: 100%;">
-                    <strong>${conversation.other_user_email || 'Unknown User'}</strong>${unreadBadge}
-                    ${conversation.last_message ? `<div style="color: var(--text-color-secondary); font-size: 0.9em; margin-top: var(--spacing-xs); word-wrap: break-word;">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</div>` : ''}
+            <div class="notification-item conversation-item ${hasUnread ? 'unread' : ''}" data-conversation-id="${conversation.id}">
+                <div class="notification-icon message">
+                    ${initials}
                 </div>
-                <div style="color: var(--text-color-secondary); font-size: 0.85em; flex-shrink: 0;">
-                    ${conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleDateString() : ''}
+                <div class="notification-content">
+                    <div class="notification-header">
+                        <span class="notification-title">${email}</span>
+                        ${unreadBadge}
+                    </div>
+                    ${conversation.last_message ? `<p class="notification-message">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</p>` : ''}
+                </div>
+                <div class="notification-meta">
+                    <span class="notification-time">${conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleDateString() : ''}</span>
                 </div>
             </div>
         `;
@@ -664,57 +675,78 @@ const NotificationsController = {
             // Use cached email (should be pre-fetched in batch)
             const fromUserEmail = this.getUserEmail(notification.from_user_id);
 
-            const typeConfig = typeof window.NotificationTypeRegistry !== 'undefined' 
+            const typeConfig = typeof window.NotificationTypeRegistry !== 'undefined'
                 ? window.NotificationTypeRegistry.getType(notification.type)
                 : null;
 
             const typeName = typeConfig ? typeConfig.name : notification.type;
             const readClass = notification.read ? 'read' : 'unread';
-            const readIcon = notification.read ? 'fa-check-circle' : 'fa-circle';
+
+            // Determine icon class based on notification type
+            let iconClass = 'fa-bell';
+            let iconTypeClass = '';
+            if (notification.type === 'share_request' || notification.type === 'share_accepted') {
+                iconClass = 'fa-share-alt';
+                iconTypeClass = 'sharing';
+            } else if (notification.type === 'message_received') {
+                iconClass = 'fa-comment';
+                iconTypeClass = 'message';
+            } else if (notification.type === 'payment_success' || notification.type === 'subscription_updated') {
+                iconClass = 'fa-credit-card';
+                iconTypeClass = 'payments';
+            }
+
+            // Get initials from email for avatar
+            const initials = fromUserEmail ? fromUserEmail.charAt(0).toUpperCase() : '?';
 
             let actionButtons = '';
             let replyButton = '';
             if (notification.type === 'share_request' && notification.share_id && !notification.read) {
                 actionButtons = `
-                    <div class="notification-actions" style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 100%;">
-                        <button class="btn btn-primary btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Accept</button>
-                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Decline</button>
-                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}" style="padding: 4px 8px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block</button>
+                    <div class="notification-actions">
+                        <button class="btn btn-action btn-sm accept-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Accept</button>
+                        <button class="btn btn-secondary btn-sm decline-share-btn" data-share-id="${notification.share_id}" data-notification-id="${notification.id}">Decline</button>
+                        <button class="btn btn-danger btn-sm block-user-btn" data-user-id="${notification.from_user_id}" data-notification-id="${notification.id}">Block</button>
                     </div>
                 `;
             } else if (notification.type === 'message_received' && notification.conversation_id) {
-                replyButton = `<button class="btn btn-primary btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Reply</button>`;
+                replyButton = `<button class="btn btn-action btn-sm reply-message-btn" data-conversation-id="${notification.conversation_id}" data-notification-id="${notification.id}">Reply</button>`;
             }
 
             const date = new Date(notification.created_at);
             const dateString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return `
-                <div class="notification-item ${readClass}" data-notification-id="${notification.id}" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs); background: ${notification.read ? 'var(--surface-color)' : 'var(--hover-overlay)'};">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0;">
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: 2px;">
-                                <i class="fa-regular ${readIcon}" style="color: ${notification.read ? 'var(--text-color-secondary)' : 'var(--primary-color)'}; font-size: 0.85rem;"></i>
-                                <strong style="font-size: 0.9rem;">${typeName}</strong>
-                            </div>
-                            <p style="margin: 0; color: var(--text-primary); font-size: 0.85rem; line-height: 1.3;">From: ${fromUserEmail}</p>
-                            ${notification.message ? `<p style="margin: 2px 0 0 0; color: var(--text-color-secondary); font-size: 0.85rem; line-height: 1.3;">${notification.message}</p>` : ''}
-                            ${actionButtons}
+                <div class="notification-item ${readClass}" data-notification-id="${notification.id}">
+                    <div class="notification-icon ${iconTypeClass}">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-header">
+                            <span class="notification-title">${typeName}</span>
+                            ${!notification.read ? '<span class="notification-badge">New</span>' : ''}
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: end; gap: 2px; margin-left: var(--spacing-sm); flex-shrink: 0;">
-                            <span style="font-size: 0.75rem; color: var(--text-color-secondary);">${dateString}</span>
-                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap; max-width: 100%;">
-                                ${replyButton}
-                                <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}" style="padding: 2px 6px; font-size: 0.75rem; flex: 0 1 auto; min-width: 0; max-width: 100%;">Delete</button>
-                            </div>
+                        <p class="notification-message">From: ${fromUserEmail}${notification.message ? ' - ' + notification.message : ''}</p>
+                        ${actionButtons}
+                    </div>
+                    <div class="notification-meta">
+                        <span class="notification-time">${dateString}</span>
+                        <div class="notification-actions">
+                            ${replyButton}
+                            <button class="btn btn-sm btn-secondary delete-notification-btn" data-notification-id="${notification.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
         } catch (error) {
             console.error('[NotificationsController] Error rendering notification item:', error);
-            return `<div class="notification-item" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
-                <p>Error loading notification: ${error.message}</p>
+            return `<div class="notification-item">
+                <div class="notification-icon"><i class="fas fa-exclamation"></i></div>
+                <div class="notification-content">
+                    <p class="notification-message">Error loading notification: ${error.message}</p>
+                </div>
             </div>`;
         }
     },

@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monthly Budget - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
-    <link rel="stylesheet" href="../styles/monthlyBudget.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -99,6 +98,56 @@
                 </div>
             </section>
 
+            <section class="summary-section form-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;"><i class="fas fa-chart-pie"></i> Monthly Summary</h2>
+                    <button class="help-button" data-help-id="summary-section-help" aria-label="Help for Monthly Summary section">?</button>
+                </div>
+                <table class="data-table" id="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Total Income</strong></td>
+                            <td id="summary-income-estimated"><strong>0.00</strong></td>
+                            <td id="summary-income-actual"><strong>0.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Fixed Costs</td>
+                            <td id="summary-fixed-costs-estimated">0.00</td>
+                            <td id="summary-fixed-costs-actual">0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Variable Costs</td>
+                            <td id="summary-variable-costs-estimated">0.00</td>
+                            <td id="summary-variable-costs-actual">0.00</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Expenses</strong></td>
+                            <td id="summary-expenses-estimated"><strong>0.00</strong></td>
+                            <td id="summary-expenses-actual"><strong>0.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Unplanned</td>
+                            <td>—</td>
+                            <td id="summary-unplanned-actual">0.00</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="savings-row" id="savings-highlight">
+                            <td><i class="fas fa-piggy-bank"></i> <strong>Savings</strong></td>
+                            <td id="summary-savings-estimated" class="savings-cell"><strong>0.00</strong></td>
+                            <td id="summary-savings-actual" class="savings-cell savings-actual"><strong id="savings-display">0.00</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
             <section class="income-section form-section">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                     <h2 class="section-title" style="margin: 0;">1. Income</h2>
@@ -107,12 +156,11 @@
                 <table class="data-table" id="income-table">
                     <thead>
                         <tr>
-                            <th>Revenue Source</th>
-                            <th>Estimated Amount</th>
-                            <th>Actual Amount</th>
+                            <th>Source</th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
                             <th>Date</th>
                             <th>Description</th>
-                            <th>Comments</th>
                             <th class="delete-column-header"></th>
                         </tr>
                     </thead>
@@ -130,19 +178,17 @@
 
             <section class="fixed-costs-section form-section">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <h2 class="section-title" style="margin: 0;">2. Fixed Costs </h2>
+                    <h2 class="section-title" style="margin: 0;">2. Fixed Costs</h2>
                     <button class="help-button" data-help-id="fixed-costs-section-help" aria-label="Help for Fixed Costs section">?</button>
                 </div>
                 <table class="data-table" id="fixed-costs-table">
                     <thead>
                         <tr>
-                            <th>Expense Category</th>
-                            <th>Estimated Amount</th>
-                            <th>Actual Amount</th>
+                            <th>Name</th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
                             <th>Date</th>
                             <th>Card</th>
-                            <th>Paid</th>
-                            <th>Comments</th>
                             <th class="delete-column-header"></th>
                         </tr>
                     </thead>
@@ -160,17 +206,16 @@
 
             <section class="variable-costs-section form-section">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <h2 class="section-title" style="margin: 0;">3. Variable Costs </h2>
+                    <h2 class="section-title" style="margin: 0;">3. Variable Costs</h2>
                     <button class="help-button" data-help-id="variable-costs-section-help" aria-label="Help for Variable Costs section">?</button>
                 </div>
                 <table class="data-table" id="variable-costs-table">
                     <thead>
                         <tr>
                             <th>Category</th>
-                            <th>Monthly Budget</th>
-                            <th>Actual Spent</th>
+                            <th>Budget</th>
+                            <th>Spent</th>
                             <th>Remaining</th>
-                            <th>Comments</th>
                             <th class="delete-column-header"></th>
                         </tr>
                     </thead>
@@ -198,8 +243,6 @@
                             <th>Amount</th>
                             <th>Date</th>
                             <th>Card</th>
-                            <th>Paid</th>
-                            <th>Comments</th>
                             <th class="delete-column-header"></th>
                         </tr>
                     </thead>
@@ -213,54 +256,6 @@
                     <button id="copy-unplanned-button" class="btn btn-action">Copy</button>
                     <button id="add-unplanned-expense-button" class="btn btn-action">Add Unplanned Expense</button>
                 </div>
-            </section>
-
-            <section class="summary-section form-section">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <h2 class="section-title" style="margin: 0;">5. End-of-Month Summary</h2>
-                    <button class="help-button" data-help-id="summary-section-help" aria-label="Help for End-of-Month Summary section">?</button>
-                </div>
-                <table class="data-table" id="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Estimated Amount</th>
-                            <th>Actual Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Total Income</strong></td>
-                            <td id="summary-income-estimated"><strong><em>0.00</em></strong></td>
-                            <td id="summary-income-actual"><strong><em>0.00</em></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Total Fixed Costs</td>
-                            <td id="summary-fixed-costs-estimated"><em>0.00</em></td>
-                            <td id="summary-fixed-costs-actual"><em>0.00</em></td>
-                        </tr>
-                        <tr>
-                            <td>Total Variable Costs</td>
-                            <td id="summary-variable-costs-estimated"><em>0.00</em></td>
-                            <td id="summary-variable-costs-actual"><em>0.00</em></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Total Expenses</strong></td>
-                            <td id="summary-expenses-estimated"><strong><em>0.00</em></strong></td>
-                            <td id="summary-expenses-actual"><strong><em>0.00</em></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Total Unplanned Expenses</td>
-                            <td>—</td>
-                            <td id="summary-unplanned-actual"><em>0.00</em></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong><em>Grand Savings Total</em></strong></td>
-                            <td id="summary-savings-estimated"><strong><em>0.00</em></strong></td>
-                            <td id="summary-savings-actual"><strong><em>0.00</em></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
             </section>
 
             <section class="save-section form-section">
@@ -370,10 +365,6 @@
             </div>
         </div>
     </div>
-
-    <footer class="main-footer" role="contentinfo">
-        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
-    </footer>
 
     <!-- Database Layer -->
     <!-- Global Logging Configuration - MUST load first -->

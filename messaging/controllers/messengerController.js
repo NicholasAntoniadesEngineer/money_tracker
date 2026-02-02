@@ -578,21 +578,26 @@ const MessengerController = {
         console.log('[MessengerController] Generating HTML for', this.conversations.length, 'conversations...');
         const conversationsHtml = this.conversations.map(conv => {
             const unreadBadge = conv.unread_count > 0
-                ? `<span style="background: var(--primary-color); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.75rem; margin-left: var(--spacing-xs);">${conv.unread_count}</span>`
+                ? `<span class="conversation-unread-badge">${conv.unread_count}</span>`
                 : '';
             const lastMessageDate = conv.last_message_at
                 ? new Date(conv.last_message_at).toLocaleDateString()
                 : '';
 
+            // Get initials from email for avatar
+            const email = conv.other_user_email || '';
+            const initials = email.split('@')[0].substring(0, 2).toUpperCase();
+
+            const unreadClass = conv.unread_count > 0 ? ' unread' : '';
+
             return `
-                <div class="conversation-item" data-conversation-id="${conv.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; background: ${conv.unread_count > 0 ? 'var(--hover-overlay)' : 'var(--surface-color)'};">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${conv.other_user_email}</strong>
-                            ${unreadBadge}
-                        </div>
-                        <span style="font-size: 0.85rem; color: var(--text-color-secondary);">${lastMessageDate}</span>
+                <div class="conversation-card${unreadClass}" data-conversation-id="${conv.id}">
+                    <div class="conversation-avatar">${initials}</div>
+                    <div class="conversation-info">
+                        <div class="conversation-name">${conv.other_user_email}${unreadBadge}</div>
+                        ${conv.last_message_preview ? '<div class="conversation-preview">New message available</div>' : ''}
                     </div>
+                    <div class="conversation-time">${lastMessageDate}</div>
                 </div>
             `;
         });
@@ -607,8 +612,8 @@ const MessengerController = {
         list.parentNode.replaceChild(newList, list);
 
         // Attach listeners to the new list
-        const conversationItems = newList.querySelectorAll('.conversation-item');
-        console.log('[MessengerController] Found', conversationItems.length, 'conversation items');
+        const conversationItems = newList.querySelectorAll('.conversation-card');
+        console.log('[MessengerController] Found', conversationItems.length, 'conversation cards');
 
         conversationItems.forEach(item => {
             item.addEventListener('click', () => {

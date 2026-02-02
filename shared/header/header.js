@@ -173,10 +173,10 @@ class Header {
                         <span class="avatar-notification-badge" id="avatar-notification-badge" style="display: none;">0</span>
                     </button>
                     <div class="user-dropdown-menu" id="user-dropdown-menu">
-                        <div class="user-dropdown-item user-dropdown-username">
+                        <a href="${this.getModulePath('payments')}subscription.html" class="user-dropdown-item user-dropdown-username">
                             <i class="fa-regular fa-user user-dropdown-icon"></i>
                             <span>${userEmail}</span>
-                        </div>
+                        </a>
                         <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
                             <i class="fa-regular fa-gear user-dropdown-icon"></i>
                             <span>Settings</span>
@@ -189,10 +189,6 @@ class Header {
                         <button class="user-dropdown-item user-dropdown-messenger" id="header-messenger-button" aria-label="Messenger">
                             <i class="fa-regular fa-message user-dropdown-icon"></i>
                             <span>Messenger</span>
-                        </button>
-                        <button class="user-dropdown-item user-dropdown-device-pairing" id="header-device-pairing-button" aria-label="Device Pairing">
-                            <i class="fa-solid fa-mobile-screen user-dropdown-icon"></i>
-                            <span>Device Pairing</span>
                         </button>
                         <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                             <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
@@ -1088,10 +1084,10 @@ class Header {
                         <span class="avatar-notification-badge" id="avatar-notification-badge" style="display: none;">0</span>
                         </button>
                         <div class="user-dropdown-menu" id="user-dropdown-menu">
-                            <div class="user-dropdown-item user-dropdown-username">
+                            <a href="${this.getModulePath('payments')}subscription.html" class="user-dropdown-item user-dropdown-username">
                                 <i class="fa-regular fa-user user-dropdown-icon"></i>
                                 <span>${userEmail}</span>
-                            </div>
+                            </a>
                             <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
                                 <i class="fa-regular fa-gear user-dropdown-icon"></i>
                                 <span>Settings</span>
@@ -1105,10 +1101,6 @@ class Header {
                             <i class="fa-regular fa-message user-dropdown-icon"></i>
                             <span>Messenger</span>
                         </button>
-                        <button class="user-dropdown-item user-dropdown-device-pairing" id="header-device-pairing-button" aria-label="Device Pairing">
-                            <i class="fa-solid fa-mobile-screen user-dropdown-icon"></i>
-                            <span>Device Pairing</span>
-                        </button>
                             <button class="user-dropdown-item user-dropdown-signout" id="header-signout-button" aria-label="Sign out">
                                 <i class="fa-solid fa-right-from-bracket user-dropdown-icon"></i>
                                 <span>Sign Out</span>
@@ -1120,7 +1112,6 @@ class Header {
                 this.initSignOutButton();
                 this.initNotificationBell(); // Initialize notifications button click handler
                 this.initMessengerButton(); // Initialize messenger button click handler
-                this.initDevicePairingButton(); // Initialize device pairing button click handler
 
                 // Note: updateNotificationCount and subscriptions are already set up in init()
                 // Only set up subscriptions if they haven't been set up yet

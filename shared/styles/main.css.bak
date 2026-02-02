@@ -1281,38 +1281,6 @@
         margin-right: var(--space-2);
     }
 
-    /* Mobile: Compact message button layout */
-    @media (max-width: 768px) {
-        .message-actions {
-            gap: var(--space-2);
-            margin-top: var(--space-2);
-        }
-
-        .message-action-btn {
-            width: 36px;
-            height: 36px;
-            font-size: var(--text-sm);
-        }
-
-        .message-send-btn {
-            height: 36px;
-            padding: 0 var(--space-3);
-            flex-shrink: 0;
-        }
-
-        .message-send-btn i {
-            margin-right: var(--space-1);
-        }
-
-        .message-actions-spacer {
-            display: none;
-        }
-
-        .message-actions {
-            justify-content: space-between;
-        }
-    }
-
     /* Attachment preview */
     .attachment-preview {
         display: none;

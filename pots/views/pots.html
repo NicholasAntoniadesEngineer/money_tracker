@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pots & Investments - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
-    <link rel="stylesheet" href="../styles/pots.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -42,61 +41,71 @@
 <body>
     <!-- Header will be injected by Header.js -->
 
-    <main class="pots-main" role="main">
-        <section class="hero-section hero-section-pots">
-            <h2 class="hero-title">Pots & Investments</h2>
-        </section>
+    <main class="page-container" role="main">
+        <div class="hero-section">
+            <h1 class="hero-title">Pots & Investments</h1>
+        </div>
 
-        <section class="summary-section">
-            <div class="summary-grid">
-                <div class="summary-card">
-                    <div class="summary-card-title">Total Pots (Estimated)</div>
-                    <div id="total-pots-estimated" class="summary-card-value">0.00</div>
+        <div class="pots-layout">
+            <!-- Summary Cards -->
+            <section class="pots-summary-section">
+                <div class="pots-summary-grid">
+                    <div class="pot-summary-card">
+                        <div class="pot-summary-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="pot-summary-content">
+                            <span class="pot-summary-label">Estimated Total</span>
+                            <span class="pot-summary-value" id="total-pots-estimated">0.00</span>
+                        </div>
+                    </div>
+                    <div class="pot-summary-card pot-summary-actual">
+                        <div class="pot-summary-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="pot-summary-content">
+                            <span class="pot-summary-label">Actual Total</span>
+                            <span class="pot-summary-value" id="total-pots-actual">0.00</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="summary-card">
-                    <div class="summary-card-title">Total Pots (Actual)</div>
-                    <div id="total-pots-actual" class="summary-card-value">0.00</div>
+            </section>
+
+            <!-- All Pots Section -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-list"></i> All Pots</h2>
+                    <button id="add-pot-button" class="btn btn-action btn-sm">
+                        <i class="fas fa-plus"></i> Add Pot
+                    </button>
                 </div>
-            </div>
-        </section>
+                <table class="data-table" id="pots-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Estimated</th>
+                            <th>Actual</th>
+                            <th class="delete-column-header"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="pots-tbody"></tbody>
+                </table>
+            </section>
 
-        <section class="pots-list-section form-section" style="margin-bottom: 1rem;">
-            <h2 class="section-title">All Pots</h2>
-            <div class="pots-table-container" style="background-color: rgba(213, 213, 213, 0.85); padding: 1rem; border-radius: 0px; border: var(--border-width-thin) solid var(--border-color-black);">
-                <table class="data-table" id="pots-table" style="background-color: rgba(213, 213, 213, 0.85);">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Estimated Amount</th>
-                        <th>Actual Amount</th>
-                        <th class="delete-column-header"></th>
-                    </tr>
-                </thead>
-                <tbody id="pots-tbody">
-                </tbody>
-            </table>
-            </div>
-            <div style="margin-top: 1rem;">
-                <button id="add-pot-button" class="btn btn-action">Add New Pot</button>
-            </div>
-        </section>
-
-        <section class="pots-by-month-section form-section">
-            <h2 class="section-title">Pots by Month</h2>
-            <div style="margin-bottom: 1rem;">
-                <select id="month-selector-pots" class="form-select">
-                    <option value="">Select a month...</option>
-                </select>
-            </div>
-            <div id="pots-by-month-container">
-                <p class="empty-message">Please select a month to view pots.</p>
-            </div>
-        </section>
+            <!-- Pots by Month Section -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-calendar-alt"></i> Monthly View</h2>
+                    <select id="month-selector-pots" class="form-select month-filter-select">
+                        <option value="">Select month...</option>
+                    </select>
+                </div>
+                <div id="pots-by-month-container" class="pots-month-view">
+                    <p class="empty-message">Select a month to view pot allocations.</p>
+                </div>
+            </section>
+        </div>
     </main>
-
-    <footer class="main-footer" role="contentinfo">
-        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
-    </footer>
 
     <!-- Database Layer -->
     <!-- Global Logging Configuration - MUST load first -->

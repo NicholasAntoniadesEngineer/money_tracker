@@ -5,388 +5,187 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Money Tracker - Sign In</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
         (function() {
+            console.log('[Auth] Font size initialization...');
             const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
             document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-            
-            // Sync with database once services are available
-            async function syncFontSizeFromDatabase() {
-                try {
-                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
-                        const settings = await window.DatabaseService.getSettings();
-                        if (settings && settings.fontSize) {
-                            const fontSize = settings.fontSize;
-                            document.documentElement.style.fontSize = fontSize + 'px';
-                            localStorage.setItem('money_tracker_fontSize', fontSize);
-                        }
-                    } else if (document.readyState !== 'complete') {
-                        setTimeout(syncFontSizeFromDatabase, 100);
-                    }
-                } catch (error) {
-                    // Silently fail - use cached value
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
-            } else {
-                syncFontSizeFromDatabase();
-            }
         })();
     </script>
-    <style>
-        .auth-main {
-            max-width: 500px;
-            margin: 0 auto;
-            padding: var(--spacing-md);
-            padding-top: calc(2rem + 70px);
-            padding-bottom: 2rem;
-        }
-        
-        .auth-header-section {
-            text-align: center;
-            margin-bottom: var(--spacing-md);
-        }
-        
-        .auth-header-section h1 {
-            color: var(--text-primary);
-            margin-bottom: var(--spacing-xs);
-            font-size: 1.75rem;
-        }
-        
-        .auth-header-section p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-        
-        .auth-tabs {
-            display: flex;
-            border-bottom: var(--border-width-standard) solid var(--border-color);
-            margin-bottom: var(--spacing-md);
-            background-color: rgba(220, 220, 220, 0.85);
-            border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)) calc(var(--border-radius) * var(--border-radius-multiplier)) 0 0;
-            padding: 0 var(--spacing-sm);
-        }
-        
-        .auth-tab {
-            flex: 1;
-            padding: var(--spacing-sm);
-            text-align: center;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 1rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            transition: var(--transition);
-            border-bottom: var(--border-width-thick) solid transparent;
-            margin-bottom: -1px;
-        }
-        
-        .auth-tab.active {
-            color: var(--text-primary);
-            border-bottom-color: var(--border-color-dark);
-        }
-        
-        .auth-tab:hover {
-            color: var(--text-primary);
-        }
-        
-        .auth-form {
-            display: none;
-        }
-        
-        .auth-form.active {
-            display: block;
-        }
-        
-        .info-message {
-            background-color: rgba(123, 171, 138, 0.2);
-            border: var(--border-width-standard) solid var(--success-color);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-sm);
-            margin-bottom: var(--spacing-sm);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-            display: none;
-        }
-        
-        .info-message.show {
-            display: block;
-        }
-        
-        .error-message {
-            background-color: rgba(181, 138, 138, 0.2);
-            border: var(--border-width-standard) solid var(--danger-color);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-sm);
-            margin-bottom: var(--spacing-sm);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-            display: none;
-        }
-        
-        .error-message.show {
-            display: block;
-        }
-        
-        .success-message {
-            background-color: rgba(123, 171, 138, 0.2);
-            border: var(--border-width-standard) solid var(--success-color);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-sm);
-            margin-bottom: var(--spacing-sm);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-            display: none;
-        }
-        
-        .success-message.show {
-            display: block;
-        }
-        
-        .form-input.error {
-            border-color: var(--danger-color);
-        }
-        
-        .btn-auth {
-            width: 100%;
-            margin-top: var(--spacing-sm);
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid var(--text-white);
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 0.6s linear infinite;
-            margin-right: var(--spacing-xs);
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
 </head>
-<body>
-    <!-- Header will be injected by Header.js -->
-
-    <main class="auth-main" role="main">
-        <section class="auth-header-section">
-            <h1>Money Tracker</h1>
-            <p>Secure, encrypted financial tracking</p>
-        </section>
-        
-        <section class="form-section">
-            <div class="auth-tabs">
-                <button class="auth-tab active" data-tab="signin">Sign In</button>
-                <button class="auth-tab" data-tab="signup">Sign Up</button>
+<body class="auth-container">
+    <main class="auth-card" role="main">
+        <header class="auth-header">
+            <div class="auth-logo">
+                <i class="fas fa-wallet"></i>
             </div>
-            
+            <h1 class="auth-title">Money Tracker</h1>
+        </header>
+
+        <section class="auth-body">
+            <div class="tab-group">
+                <button class="tab tab-active" data-tab="signin">Sign In</button>
+                <button class="tab" data-tab="signup">Sign Up</button>
+            </div>
+
             <!-- Sign In Form -->
             <form id="signin-form" class="auth-form active">
                 <div class="form-group">
-                    <label for="signin-email" class="form-label">Email</label>
-                    <input type="email" id="signin-email" name="email" class="form-input" required autocomplete="email">
-                    <div class="error-message" id="signin-email-error"></div>
+                    <label for="signin-email" class="label">Email</label>
+                    <input type="email" id="signin-email" name="email" class="input" required autocomplete="email">
+                    <div class="form-error hidden" id="signin-email-error"></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="signin-password" class="form-label">Password</label>
-                    <input type="password" id="signin-password" name="password" class="form-input" required autocomplete="current-password">
-                    <div class="error-message" id="signin-password-error"></div>
+                    <label for="signin-password" class="label">Password</label>
+                    <input type="password" id="signin-password" name="password" class="input" required autocomplete="current-password">
+                    <div class="form-error hidden" id="signin-password-error"></div>
                 </div>
-                
-                <div class="error-message" id="signin-error"></div>
-                <div class="success-message" id="signin-success"></div>
-                
-                <button type="submit" class="btn btn-action btn-auth" id="signin-button">
+
+                <div class="form-error hidden" id="signin-error"></div>
+                <div class="status-success hidden" id="signin-success"></div>
+
+                <button type="submit" class="btn btn-primary w-full mt-4" id="signin-button">
                     Sign In
                 </button>
             </form>
-            
+
             <!-- Sign Up Form -->
-            <form id="signup-form" class="auth-form">
+            <form id="signup-form" class="auth-form hidden">
                 <div class="form-group">
-                    <label for="signup-email" class="form-label">Email</label>
-                    <input type="email" id="signup-email" name="email" class="form-input" required autocomplete="email">
-                    <div class="error-message" id="signup-email-error"></div>
+                    <label for="signup-email" class="label">Email</label>
+                    <input type="email" id="signup-email" name="email" class="input" required autocomplete="email">
+                    <div class="form-error hidden" id="signup-email-error"></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="signup-password" class="form-label">Password</label>
-                    <input type="password" id="signup-password" name="password" class="form-input" required autocomplete="new-password" minlength="6">
-                    <div class="error-message" id="signup-password-error"></div>
+                    <label for="signup-password" class="label">Password</label>
+                    <input type="password" id="signup-password" name="password" class="input" required autocomplete="new-password" minlength="6">
+                    <div class="form-error hidden" id="signup-password-error"></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="signup-password-confirm" class="form-label">Confirm Password</label>
-                    <input type="password" id="signup-password-confirm" name="password-confirm" class="form-input" required autocomplete="new-password" minlength="6">
-                    <div class="error-message" id="signup-password-confirm-error"></div>
+                    <label for="signup-password-confirm" class="label">Confirm Password</label>
+                    <input type="password" id="signup-password-confirm" name="password-confirm" class="input" required autocomplete="new-password" minlength="6">
+                    <div class="form-error hidden" id="signup-password-confirm-error"></div>
                 </div>
-                
-                <div class="info-message" id="signup-info"></div>
-                <div class="error-message" id="signup-error"></div>
-                <div class="success-message" id="signup-success"></div>
-                
-                <button type="submit" class="btn btn-action btn-auth" id="signup-button">
+
+                <div class="status-info hidden" id="signup-info"></div>
+                <div class="form-error hidden" id="signup-error"></div>
+                <div class="status-success hidden" id="signup-success"></div>
+
+                <button type="submit" class="btn btn-primary w-full mt-4" id="signup-button">
                     Sign Up
                 </button>
             </form>
 
-            <!-- Device Pairing UI (shown after sign-in if no encryption keys) -->
-            <div id="device-pairing-section" class="auth-form" style="display: none;">
-                <div class="auth-header-section">
-                    <h1>🔐 Encrypting Your Data</h1>
-                    <p>Setting up end-to-end encryption for complete privacy</p>
+        </section>
+
+        <!-- Device Pairing UI -->
+        <div id="device-pairing-section" class="hidden">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-semibold text-slate-800 mb-2">Encrypting Your Data</h2>
+                    <p class="text-slate-500">Setting up end-to-end encryption for complete privacy</p>
                 </div>
 
-                <div id="pairing-setup-view" style="text-align: center; padding: var(--spacing-lg) 0;">
-                    <p style="color: var(--primary-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
-                        Generating encryption keys...
-                    </p>
-                    <p style="color: var(--text-secondary);">
-                        All your data will be encrypted. Only you can access it.
-                    </p>
+                <div id="pairing-setup-view" class="text-center py-8">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-slate-600 text-lg mb-4">Generating encryption keys...</p>
+                    <p class="text-slate-500 text-sm">All your data will be encrypted. Only you can access it.</p>
                 </div>
 
-                <div id="pairing-success-view" style="display: none; text-align: center; padding: var(--spacing-lg) 0;">
-                    <p style="color: var(--success-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
-                        ✓ Encryption keys generated successfully!
-                    </p>
-                    <p style="color: var(--text-secondary);">
-                        Your data is now fully encrypted. Redirecting...
-                    </p>
+                <div id="pairing-success-view" class="hidden text-center py-8">
+                    <div class="text-success text-4xl mb-4"><i class="fas fa-check-circle"></i></div>
+                    <p class="text-success text-lg mb-4">Encryption keys generated successfully!</p>
+                    <p class="text-slate-500">Your data is now fully encrypted. Redirecting...</p>
                 </div>
 
-                <div id="pairing-error-view" style="display: none; text-align: center; padding: var(--spacing-lg) 0;">
-                    <p style="color: var(--error-color); font-size: 1.1rem; margin-bottom: var(--spacing-lg);">
-                        ⚠ Encryption setup failed
-                    </p>
-                    <p id="pairing-error-message" style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
-                    </p>
-                    <button id="retry-pairing-btn" class="btn btn-primary">
-                        Try Again
-                    </button>
+                <div id="pairing-error-view" class="hidden text-center py-8">
+                    <div class="text-danger text-4xl mb-4"><i class="fas fa-exclamation-triangle"></i></div>
+                    <p class="text-danger text-lg mb-4">Encryption setup failed</p>
+                    <p id="pairing-error-message" class="text-slate-500 mb-4"></p>
+                    <button id="retry-pairing-btn" class="btn btn-primary">Try Again</button>
                 </div>
 
-                <div id="pairing-multi-device-view" style="display: none; padding: var(--spacing-lg) 0;">
-                    <div style="text-align: center; margin-bottom: var(--spacing-xl);">
-                        <h2 style="color: var(--text-color); margin-bottom: var(--spacing-md);">
-                            🔐 Encryption Required
-                        </h2>
-                        <p style="color: var(--text-primary); font-size: 1rem; line-height: 1.5; margin-bottom: var(--spacing-sm); font-weight: 600;">
-                            All data in Money Tracker is fully encrypted.
-                        </p>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">
-                            You have encryption keys on another device.<br>
-                            <strong>You must sync your encryption keys to access your data.</strong>
-                        </p>
+                <div id="pairing-multi-device-view" class="hidden py-6">
+                    <div class="text-center mb-6">
+                        <h2 class="text-lg font-semibold text-slate-800 mb-2">Encryption Required</h2>
+                        <p class="text-slate-600 mb-2">All data in Money Tracker is fully encrypted.</p>
+                        <p class="text-slate-500 text-sm">You have encryption keys on another device. You must sync your encryption keys to access your data.</p>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: var(--spacing-md); max-width: 450px; margin: 0 auto;">
-                        <button id="pair-with-qr-btn" class="btn btn-primary btn-lg" style="width: 100%; padding: var(--spacing-md);">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: var(--spacing-sm);">
-                                <span style="font-size: 1.5rem;">📷</span>
-                                <div style="text-align: left;">
-                                    <div style="font-weight: 600;">Pair This Device</div>
-                                    <div style="font-size: 0.875rem; opacity: 0.9;">Scan QR code or enter password</div>
+                    <button id="pair-with-qr-btn" class="btn btn-primary btn-lg w-full">
+                        <i class="fas fa-camera mr-2"></i>
+                        Pair This Device
+                    </button>
+
+                    <div class="text-center mt-6 pt-6 border-t border-slate-200">
+                        <p class="text-slate-500 text-sm">All your data is end-to-end encrypted. Only you have the keys to decrypt your information.</p>
+                    </div>
+                </div>
+
+                <!-- Recovery Key Modal -->
+                <div id="recovery-key-modal" class="modal-overlay hidden">
+                    <div class="modal-content max-w-lg">
+                        <div class="modal-header">
+                            <h2 class="modal-title">Save Your Recovery Key</h2>
+                        </div>
+                        <div class="modal-body">
+                            <div class="status-warning mb-4">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <div>
+                                    <strong>Write down these 24 words and store them safely.</strong><br>
+                                    If you forget your password, this is the ONLY way to recover your data.
                                 </div>
                             </div>
-                        </button>
-                    </div>
 
-                    <div style="text-align: center; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-color);">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: var(--spacing-sm);">
-                            <strong>Why is encryption required?</strong>
-                        </p>
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5;">
-                            All your data (budgets, expenses, messages) is end-to-end encrypted.<br>
-                            Only you have the keys to decrypt your information.<br>
-                            No one else, including us, can access your data.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Recovery Key Modal (shown after key generation) -->
-                <div id="recovery-key-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center;">
-                    <div style="background: var(--background-color); border-radius: var(--border-radius); padding: var(--spacing-xl); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
-                        <h2 style="color: var(--text-color); margin-bottom: var(--spacing-md); text-align: center;">
-                            🔑 Save Your Recovery Key
-                        </h2>
-                        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-lg); text-align: center; line-height: 1.6;">
-                            <strong style="color: var(--error-color);">CRITICAL: Write down these 24 words and store them safely.</strong><br>
-                            If you forget your password, this is the ONLY way to recover your data.<br>
-                            Losing both your password and recovery key means <strong>permanent data loss</strong>.
-                        </p>
-
-                        <div style="background: var(--secondary-background); border: 2px solid var(--border-color-dark); border-radius: var(--border-radius); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
-                            <div id="recovery-key-display-container">
-                                <pre id="recovery-key-display" style="font-family: 'Courier New', monospace; font-size: 1.1rem; line-height: 1.8; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); margin: 0;"></pre>
-                                <textarea
-                                    id="recovery-key-edit"
-                                    style="display: none; width: 100%; font-family: 'Courier New', monospace; font-size: 1.1rem; line-height: 1.8; padding: var(--spacing-sm); border: 2px solid var(--border-color); border-radius: var(--border-radius); resize: vertical; min-height: 150px;"
-                                    placeholder="Enter your custom 24-word recovery key..."
-                                ></textarea>
+                            <div class="recovery-key-display mb-4" id="recovery-key-display-container">
+                                <pre id="recovery-key-display" class="whitespace-pre-wrap"></pre>
+                                <textarea id="recovery-key-edit" class="input hidden" rows="5" placeholder="Enter your custom 24-word recovery key..."></textarea>
                             </div>
-                            <div id="recovery-key-word-count-display" style="font-size: 0.85rem; color: var(--text-color-secondary); margin-top: var(--spacing-xs); display: none;">
+
+                            <div id="recovery-key-word-count-display" class="text-sm text-slate-500 hidden mb-4">
                                 Word count: <span id="recovery-key-custom-count">0</span> / 24
                             </div>
+
+                            <div class="flex gap-2 mb-4">
+                                <button id="edit-recovery-key-btn" class="btn btn-secondary flex-1 btn-sm">
+                                    <i class="fas fa-edit"></i> Customize
+                                </button>
+                                <button id="copy-recovery-key-btn" class="btn btn-secondary flex-1 btn-sm">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <button id="download-recovery-key-btn" class="btn btn-secondary flex-1 btn-sm">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                                <button id="print-recovery-key-btn" class="btn btn-secondary flex-1 btn-sm">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            </div>
+
+                            <label class="checkbox-label mb-4">
+                                <input type="checkbox" id="recovery-key-saved-checkbox" class="checkbox">
+                                <span>I have saved my recovery key in a safe place</span>
+                            </label>
                         </div>
-
-                        <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg);">
-                            <button id="edit-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
-                                ✏️ Customize
-                            </button>
-                            <button id="copy-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
-                                📋 Copy
-                            </button>
-                            <button id="download-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
-                                💾 Download
-                            </button>
-                            <button id="print-recovery-key-btn" class="btn btn-secondary" style="flex: 1;">
-                                🖨️ Print
+                        <div class="modal-footer">
+                            <button id="recovery-key-continue-btn" class="btn btn-primary w-full" disabled>
+                                Continue to App
                             </button>
                         </div>
-
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); cursor: pointer;">
-                            <input type="checkbox" id="recovery-key-saved-checkbox" style="width: 20px; height: 20px; cursor: pointer;">
-                            <span style="color: var(--text-primary); font-size: 1rem;">
-                                I have saved my recovery key in a safe place
-                            </span>
-                        </label>
-
-                        <button id="recovery-key-continue-btn" class="btn btn-primary" style="width: 100%;" disabled>
-                            Continue to App
-                        </button>
-
-                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-md); text-align: center; line-height: 1.5;">
-                            ⚠️ Store your recovery key offline: write it on paper, store in a password manager, or use a secure encrypted backup. Never store it in plain text on your computer or cloud storage.
-                        </p>
                     </div>
                 </div>
-            </div>
-        </section>
+        </div>
     </main>
 
-    <footer class="main-footer" role="contentinfo">
-        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-    <!-- Global Logging Configuration - MUST load first -->
+    <!-- Global Logging Configuration -->
     <script src="../../shared/config/loggingConfig.js"></script>
-
     <script src="../../database/config/supabaseConfig.js"></script>
     <script src="../../shared/services/authService.js"></script>
-    
-    <!-- Database Module Configuration -->
+
+    <!-- Database Module -->
     <script src="../../database/config/databaseConfigBase.js"></script>
     <script src="../../database/config/moneyTrackerDatabaseConfig.js"></script>
     <script src="../../database/utils/databaseConfigHelper.js"></script>
@@ -399,7 +198,7 @@
     <script src="../../shared/utils/errorHandler.js"></script>
     <script src="../../shared/utils/validators.js"></script>
 
-    <!-- Database Service -->
+    <!-- Database Services -->
     <script src="../../database/services/databaseService.js"></script>
     <script src="../../database/services/dataSharingService.js"></script>
     <script src="../../database/services/fieldLockingService.js"></script>
@@ -416,20 +215,16 @@
 
     <!-- Messaging Service -->
     <script src="../../messaging/services/messagingService.js"></script>
-    
-    <!-- Payments Module Configuration -->
+
+    <!-- Payments Module -->
     <script src="../../payments/config/paymentsConfigBase.js"></script>
     <script src="../../payments/config/moneyTrackerConfig.js"></script>
     <script src="../../payments/utils/configHelper.js"></script>
     <script src="../../payments/paymentsModule.js"></script>
-    
-    <!-- Payments Services -->
     <script src="../../payments/services/stripeService.js"></script>
     <script src="../../payments/services/paymentService.js"></script>
     <script src="../../payments/services/subscriptionService.js"></script>
     <script src="../../payments/utils/subscriptionChecker.js"></script>
-    
-    <!-- Initialize Payments Module -->
     <script src="../../payments/initPayments.js"></script>
     <script src="../../payments/utils/waitForPaymentsInit.js"></script>
 
@@ -452,76 +247,60 @@
 
     <!-- Device Pairing -->
     <script src="../../messaging/services/devicePairingService.js"></script>
-
-    <!-- Pairing Guard -->
     <script src="../../shared/utils/pairing-guard.js"></script>
-
-    <!-- Password Manager for Key Encryption -->
     <script src="../../shared/utils/passwordManager.js"></script>
-
     <script src="../../shared/utils/authGuard.js"></script>
     <script src="../../shared/header/header.js"></script>
+
     <script>
-        // Initialize AuthService
+        console.log('[Auth] Script initialization starting...');
+
         let authServiceInitialized = false;
         let redirectCheckDone = false;
         let initializationInProgress = false;
         let initializationPromise = null;
-        
+
         async function initializeAuth() {
-            // Prevent multiple simultaneous initializations
             if (initializationInProgress && initializationPromise) {
-                console.log('[AuthPage] Initialization already in progress, waiting...');
+                console.log('[Auth] Initialization already in progress, waiting...');
                 return await initializationPromise;
             }
-            
+
             if (authServiceInitialized) {
-                console.log('[AuthPage] AuthService already initialized');
+                console.log('[Auth] AuthService already initialized');
                 return;
             }
-            
-            console.log('[AuthPage] initializeAuth() called');
+
+            console.log('[Auth] initializeAuth() called');
             initializationInProgress = true;
-            
+
             initializationPromise = (async () => {
                 try {
-                    console.log('[AuthPage] Checking if AuthService is available:', !!window.AuthService);
                     if (!window.AuthService) {
-                        console.error('[AuthPage] AuthService not available');
+                        console.error('[Auth] AuthService not available');
                         return;
                     }
-                    
-                    // Wait for SupabaseConfig to be available before initializing AuthService
-                    console.log('[AuthPage] Waiting for SupabaseConfig to be available...');
+
                     let waitCount = 0;
-                    const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
-                    while (!window.SupabaseConfig && waitCount < maxWait) {
+                    while (!window.SupabaseConfig && waitCount < 50) {
                         await new Promise(resolve => setTimeout(resolve, 100));
                         waitCount++;
                     }
-                    
+
                     if (!window.SupabaseConfig) {
-                        console.error('[AuthPage] SupabaseConfig not available after waiting, cannot initialize AuthService');
+                        console.error('[Auth] SupabaseConfig not available');
                         return;
                     }
-                    
-                    console.log('[AuthPage] SupabaseConfig available, calling AuthService.initialize()...');
-                    const initStartTime = Date.now();
+
                     await window.AuthService.initialize();
-                    const initDuration = Date.now() - initStartTime;
-                    console.log('[AuthPage] AuthService.initialize() completed in', initDuration, 'ms');
-                    
                     authServiceInitialized = true;
-                    console.log('[AuthPage] AuthService initialized successfully');
-                    
-                    // Wait a bit for session to be fully loaded
+                    console.log('[Auth] AuthService initialized');
+
                     await new Promise(resolve => setTimeout(resolve, 200));
-                    
-                    // If already authenticated, redirect (only once)
+
                     if (!redirectCheckDone) {
                         redirectCheckDone = true;
-                        
-                        // Try to get session directly to ensure it's loaded
+
                         try {
                             const session = await window.AuthService.client.auth.getSession();
                             if (session.data?.session) {
@@ -529,120 +308,89 @@
                                 window.AuthService.currentUser = session.data.session.user;
                             }
                         } catch (sessionError) {
-                            console.warn('[AuthPage] Error getting session:', sessionError);
+                            console.warn('[Auth] Error getting session:', sessionError);
                         }
-                        
-                        const isAuthenticated = window.AuthService.isAuthenticated();
-                        console.log('[AuthPage] Authentication status:', {
-                            isAuthenticated: isAuthenticated,
-                            hasUser: !!window.AuthService.getCurrentUser(),
-                            userEmail: window.AuthService.getCurrentUser()?.email
-                        });
-                        
-                        if (isAuthenticated) {
-                            console.log('[AuthPage] User already authenticated, checking encryption setup...');
+
+                        if (window.AuthService.isAuthenticated()) {
+                            console.log('[Auth] User already authenticated, checking encryption setup...');
                             await handlePostSignIn();
                         }
                     }
                 } catch (error) {
-                    console.error('[AuthPage] Error initializing auth:', {
-                        message: error.message,
-                        name: error.name,
-                        stack: error.stack
-                    });
+                    console.error('[Auth] Error initializing auth:', error);
                 } finally {
                     initializationInProgress = false;
                 }
             })();
-            
+
             return await initializationPromise;
         }
-        
+
         // Tab switching
-        const tabs = document.querySelectorAll('.auth-tab');
+        const tabs = document.querySelectorAll('.tab');
         const forms = document.querySelectorAll('.auth-form');
-        
+
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const targetTab = tab.dataset.tab;
-                
-                // Update active tab
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Update active form
-                forms.forEach(f => f.classList.remove('active'));
-                document.getElementById(`${targetTab}-form`).classList.add('active');
-                
-                // Clear errors
+
+                tabs.forEach(t => {
+                    t.classList.remove('tab-active');
+                    t.classList.add('tab');
+                });
+                tab.classList.add('tab-active');
+
+                forms.forEach(f => f.classList.add('hidden'));
+                document.getElementById(`${targetTab}-form`).classList.remove('hidden');
+
                 clearErrors();
             });
         });
-        
-        // Clear error messages
+
         function clearErrors() {
-            document.querySelectorAll('.error-message').forEach(el => {
-                el.classList.remove('show');
+            document.querySelectorAll('.form-error, .status-success, .status-info, .status-warning').forEach(el => {
+                el.classList.add('hidden');
                 el.textContent = '';
             });
-            document.querySelectorAll('.success-message').forEach(el => {
-                el.classList.remove('show');
-                el.textContent = '';
-            });
-            document.querySelectorAll('.info-message').forEach(el => {
-                el.classList.remove('show');
-                el.textContent = '';
-            });
-            document.querySelectorAll('.form-input').forEach(el => {
-                el.classList.remove('error');
-            });
+            document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
         }
-        
-        // Show error
+
         function showError(elementId, message) {
             const element = document.getElementById(elementId);
             if (element) {
                 element.textContent = message;
-                element.classList.add('show');
+                element.classList.remove('hidden');
             }
         }
-        
-        // Show success
+
         function showSuccess(elementId, message) {
             const element = document.getElementById(elementId);
             if (element) {
                 element.textContent = message;
-                element.classList.add('show');
+                element.classList.remove('hidden');
             }
         }
-        
-        // Show info
+
         function showInfo(elementId, message) {
             const element = document.getElementById(elementId);
             if (element) {
                 element.textContent = message;
-                element.classList.add('show');
+                element.classList.remove('hidden');
             }
         }
-        
-        // Set button loading state
+
         function setButtonLoading(buttonId, loading) {
             const button = document.getElementById(buttonId);
             if (button) {
                 button.disabled = loading;
                 if (loading) {
-                    button.innerHTML = '<span class="loading"></span>Processing...';
+                    button.innerHTML = '<span class="spinner spinner-sm mr-2"></span>Processing...';
                 } else {
-                    if (buttonId === 'signin-button') {
-                        button.textContent = 'Sign In';
-                    } else {
-                        button.textContent = 'Sign Up';
-                    }
+                    button.textContent = buttonId === 'signin-button' ? 'Sign In' : 'Sign Up';
                 }
             }
         }
 
-        // Show recovery key modal and wait for user confirmation
         function showRecoveryKeyModal(recoveryKey, onConfirm) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('recovery-key-modal');
@@ -657,23 +405,18 @@
                 const downloadBtn = document.getElementById('download-recovery-key-btn');
                 const printBtn = document.getElementById('print-recovery-key-btn');
 
-                // Track current recovery key (can be modified by user)
                 let currentRecoveryKey = recoveryKey;
                 let isEditMode = false;
                 const originalRecoveryKey = recoveryKey;
 
-                // Display recovery key
                 displayEl.textContent = recoveryKey;
-
-                // Show modal
+                modal.classList.remove('hidden');
                 modal.style.display = 'flex';
 
-                // Enable/disable continue button based on checkbox
                 checkboxEl.checked = false;
                 continueBtn.disabled = true;
 
                 checkboxEl.onchange = () => {
-                    // Only enable if checkbox is checked AND (not in edit mode OR has exactly 24 words)
                     if (isEditMode) {
                         const words = editEl.value.trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
                         continueBtn.disabled = !checkboxEl.checked || words.length !== 24;
@@ -682,74 +425,58 @@
                     }
                 };
 
-                // Customize/Use Generated button
                 editBtn.onclick = () => {
                     if (!isEditMode) {
-                        // Enter edit mode
                         isEditMode = true;
-                        displayEl.style.display = 'none';
-                        editEl.style.display = 'block';
-                        wordCountDisplay.style.display = 'block';
+                        displayEl.classList.add('hidden');
+                        editEl.classList.remove('hidden');
+                        wordCountDisplay.classList.remove('hidden');
                         editEl.value = currentRecoveryKey;
-                        editBtn.innerHTML = '🔄 Use Generated';
-
-                        // Trigger word count update
+                        editBtn.innerHTML = '<i class="fas fa-undo"></i> Use Generated';
                         editEl.dispatchEvent(new Event('input'));
-
-                        // Update continue button state
                         const words = editEl.value.trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
                         continueBtn.disabled = !checkboxEl.checked || words.length !== 24;
                     } else {
-                        // Exit edit mode - restore original
                         isEditMode = false;
                         currentRecoveryKey = originalRecoveryKey;
                         displayEl.textContent = originalRecoveryKey;
-                        displayEl.style.display = 'block';
-                        editEl.style.display = 'none';
-                        wordCountDisplay.style.display = 'none';
-                        editBtn.innerHTML = '✏️ Customize';
-
-                        // Update continue button state
+                        displayEl.classList.remove('hidden');
+                        editEl.classList.add('hidden');
+                        wordCountDisplay.classList.add('hidden');
+                        editBtn.innerHTML = '<i class="fas fa-edit"></i> Customize';
                         continueBtn.disabled = !checkboxEl.checked;
                     }
                 };
 
-                // Word count validation for custom keys
                 editEl.oninput = () => {
                     const text = editEl.value.trim().toLowerCase();
                     const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
                     const wordCount = words.length;
-
                     wordCountSpan.textContent = wordCount;
 
                     if (wordCount === 24) {
-                        wordCountDisplay.style.color = 'var(--success-color)';
+                        wordCountDisplay.classList.add('text-success');
+                        wordCountDisplay.classList.remove('text-slate-500');
                         currentRecoveryKey = words.join(' ');
-                        // Update continue button state
                         continueBtn.disabled = !checkboxEl.checked;
                     } else {
-                        wordCountDisplay.style.color = 'var(--text-color-secondary)';
-                        // Disable continue if word count is wrong
+                        wordCountDisplay.classList.remove('text-success');
+                        wordCountDisplay.classList.add('text-slate-500');
                         continueBtn.disabled = true;
                         checkboxEl.checked = false;
                     }
                 };
 
-                // Copy button
                 copyBtn.onclick = async () => {
                     try {
                         await navigator.clipboard.writeText(currentRecoveryKey);
-                        copyBtn.textContent = '✓ Copied!';
-                        setTimeout(() => {
-                            copyBtn.innerHTML = '📋 Copy';
-                        }, 2000);
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy'; }, 2000);
                     } catch (err) {
                         console.error('Failed to copy:', err);
-                        alert('Failed to copy to clipboard');
                     }
                 };
 
-                // Download button
                 downloadBtn.onclick = () => {
                     const blob = new Blob([`Money Tracker Recovery Key\n\nSave these 24 words in a safe place:\n\n${currentRecoveryKey}\n\nDate: ${new Date().toISOString()}\n\nIMPORTANT: This is the ONLY way to recover your data if you forget your password.`], { type: 'text/plain' });
                     const url = URL.createObjectURL(blob);
@@ -760,44 +487,21 @@
                     URL.revokeObjectURL(url);
                 };
 
-                // Print button
                 printBtn.onclick = () => {
                     const printWindow = window.open('', '_blank');
-                    printWindow.document.write(`
-                        <html>
-                        <head>
-                            <title>Money Tracker Recovery Key</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; padding: 40px; }
-                                h1 { color: #333; }
-                                .recovery-key { font-family: 'Courier New', monospace; font-size: 16px; line-height: 2; background: #f5f5f5; padding: 20px; border: 2px solid #333; margin: 20px 0; }
-                                .warning { color: #d32f2f; font-weight: bold; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>Money Tracker Recovery Key</h1>
-                            <p class="warning">⚠️ KEEP THIS SAFE AND SECURE</p>
-                            <p>If you forget your password, these 24 words are the ONLY way to recover your data.</p>
-                            <div class="recovery-key">${currentRecoveryKey}</div>
-                            <p>Date: ${new Date().toISOString()}</p>
-                            <p><strong>Store this document in a secure location.</strong></p>
-                        </body>
-                        </html>
-                    `);
+                    printWindow.document.write(`<html><head><title>Money Tracker Recovery Key</title><style>body{font-family:Arial,sans-serif;padding:40px;}h1{color:#333;}.recovery-key{font-family:'Courier New',monospace;font-size:16px;line-height:2;background:#f5f5f5;padding:20px;border:2px solid #333;margin:20px 0;}.warning{color:#d32f2f;font-weight:bold;}</style></head><body><h1>Money Tracker Recovery Key</h1><p class="warning">KEEP THIS SAFE AND SECURE</p><p>If you forget your password, these 24 words are the ONLY way to recover your data.</p><div class="recovery-key">${currentRecoveryKey}</div><p>Date: ${new Date().toISOString()}</p></body></html>`);
                     printWindow.document.close();
                     printWindow.print();
                 };
 
-                // Continue button
                 continueBtn.onclick = async () => {
                     continueBtn.disabled = true;
-                    continueBtn.textContent = 'Processing...';
+                    continueBtn.innerHTML = '<span class="spinner spinner-sm mr-2"></span>Processing...';
                     try {
-                        // Pass the current recovery key (which may have been customized) to the callback
                         await onConfirm(currentRecoveryKey);
                         resolve();
                     } catch (error) {
-                        console.error('[RecoveryKeyModal] Error:', error);
+                        console.error('[Auth] Recovery key error:', error);
                         alert('Failed to complete setup: ' + error.message);
                         continueBtn.disabled = false;
                         continueBtn.textContent = 'Continue to App';
@@ -806,270 +510,165 @@
             });
         }
 
-        // Handle post sign-in: check for encryption keys and set up if needed
         async function handlePostSignIn() {
-            console.log('[AuthPage] ========== POST SIGN-IN CHECK ==========');
+            console.log('[Auth] POST SIGN-IN CHECK');
 
             try {
-                // Step 1: Initialize Encryption Module (loads TweetNaCl)
-                console.log('[AuthPage] Step 1: Initializing Encryption Module...');
                 if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
                     await window.CryptoLibraryLoader.load();
                     await window.CryptoPrimitivesService.initialize();
-                    console.log('[AuthPage] ✓ CryptoPrimitivesService initialized');
-                } else {
-                    throw new Error('CryptoLibraryLoader not available');
                 }
 
-                // Step 2: Initialize DatabaseService (needed for encryption services)
-                console.log('[AuthPage] Step 2: Initializing DatabaseService...');
                 if (window.DatabaseService && typeof window.DatabaseService.initialize === 'function') {
                     await window.DatabaseService.initialize();
-                    console.log('[AuthPage] ✓ DatabaseService initialized');
-                } else {
-                    throw new Error('DatabaseService not available');
                 }
 
-                // Prepare config with services before any encryption initialization
                 MoneyTrackerEncryptionConfig.prepareWithServices();
-                console.log('[AuthPage] ✓ Config prepared with services');
 
-                // Step 3: Initialize KeyStorageService (needs Encryption Module)
-                console.log('[AuthPage] Step 3: Initializing KeyStorageService...');
                 if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
                     await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
-                    console.log('[AuthPage] ✓ KeyStorageService initialized');
-                } else {
-                    throw new Error('KeyStorageService not available');
                 }
 
-                // Step 4: Get current user
                 const currentUser = window.AuthService.getCurrentUser();
                 if (!currentUser) {
-                    console.error('[AuthPage] No current user after sign-in');
                     window.location.href = '../../landing/index.html';
                     return;
                 }
 
                 const userId = currentUser.id;
-                console.log('[AuthPage] Step 4: Checking encryption keys for user:', userId);
-
-                // Step 5: Check for existing keys in local IndexedDB
                 let keys = await window.KeyStorageService.getIdentityKeys(userId);
 
                 if (keys && keys.publicKey && keys.secretKey) {
-                    console.log('[AuthPage] ✓ Encryption keys found in local storage - redirecting to landing');
+                    console.log('[Auth] Encryption keys found - redirecting');
                     window.location.href = '../../landing/index.html';
                     return;
                 }
 
-                console.log('[AuthPage] No encryption keys in local storage');
-
-                // Step 6: Try to restore from password backup
                 const password = window.PasswordManager?.retrieve();
                 if (password) {
-                    console.log('[AuthPage] Attempting automatic decryption with password...');
-
-                    // Initialize KeyManagementService
                     await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
 
                     try {
                         await window.KeyManagementService.restoreFromPassword(password);
-                        console.log('[AuthPage] ✓ Keys restored from password backup');
-
-                        // Clear temporary password
                         window.PasswordManager?.clear();
-
-                        // Redirect to landing
                         window.location.href = '../../landing/index.html';
                         return;
-
                     } catch (restoreError) {
-                        console.log('[AuthPage] Password restore failed:', restoreError.message);
-
-                        // Check if it's because no backup exists (first device)
                         if (restoreError.message && restoreError.message.includes('No password backup found')) {
-                            console.log('[AuthPage] No backup found - this is first device, generating keys');
                             await setupDeviceEncryption(userId);
                         } else {
-                            // Other error (wrong password, corruption, multi-device) - show pairing
-                            console.log('[AuthPage] Restore failed - showing device pairing options');
                             await setupDeviceEncryption(userId);
                         }
                     }
                 } else {
-                    console.log('[AuthPage] No password available - setting up device');
                     await setupDeviceEncryption(userId);
                 }
 
             } catch (error) {
-                console.error('[AuthPage] ========== POST SIGN-IN CHECK FAILED ==========');
-                console.error('[AuthPage] Error name:', error.name);
-                console.error('[AuthPage] Error message:', error.message);
-                console.error('[AuthPage] Error stack:', error.stack);
-                console.error('[AuthPage] Full error object:', error);
-
-                // Redirect to device pairing for key setup/restore
-                // (user may be on a new device and needs to restore keys)
-                console.log('[AuthPage] Redirecting to device pairing page for encryption setup...');
+                console.error('[Auth] POST SIGN-IN CHECK FAILED:', error);
                 window.location.href = '../../messaging/views/device-pairing.html';
             }
         }
 
-        // Set up device encryption keys
         async function setupDeviceEncryption(userId) {
-            console.log('[AuthPage] ========== SETTING UP DEVICE ENCRYPTION ==========');
-            console.log('[AuthPage] User ID:', userId);
+            console.log('[Auth] SETTING UP DEVICE ENCRYPTION');
 
-            // Hide auth forms, show device pairing UI
-            document.querySelectorAll('.auth-form').forEach(el => el.style.display = 'none');
-            const authTabs = document.querySelector('.auth-tabs');
-            if (authTabs) authTabs.style.display = 'none';
-            document.getElementById('device-pairing-section').style.display = 'block';
-            document.getElementById('pairing-setup-view').style.display = 'block';
-            document.getElementById('pairing-success-view').style.display = 'none';
-            document.getElementById('pairing-error-view').style.display = 'none';
+            document.querySelectorAll('.auth-form').forEach(el => el.classList.add('hidden'));
+            document.querySelector('.tab-group').classList.add('hidden');
+            document.getElementById('device-pairing-section').classList.remove('hidden');
+            document.getElementById('pairing-setup-view').classList.remove('hidden');
+            document.getElementById('pairing-success-view').classList.add('hidden');
+            document.getElementById('pairing-error-view').classList.add('hidden');
 
             try {
-                // Ensure encryption module is fully initialized
-                console.log('[AuthPage] Ensuring encryption services are initialized...');
-
                 if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
                     await window.CryptoLibraryLoader.load();
                     await window.CryptoPrimitivesService.initialize();
-                    console.log('[AuthPage] ✓ CryptoPrimitivesService ready');
                 }
 
                 if (window.DatabaseService && typeof window.DatabaseService.initialize === 'function') {
                     await window.DatabaseService.initialize();
-                    console.log('[AuthPage] ✓ DatabaseService ready');
                 }
 
-                // Prepare config with services before any encryption initialization
                 MoneyTrackerEncryptionConfig.prepareWithServices();
-                console.log('[AuthPage] ✓ Config prepared with services');
 
                 if (window.KeyStorageService && typeof window.KeyStorageService.initialize === 'function') {
                     await window.KeyStorageService.initialize(MoneyTrackerEncryptionConfig);
-                    console.log('[AuthPage] ✓ KeyStorageService ready');
                 }
 
-                // Initialize KeyManagementService and check for existing keys
-                console.log('[AuthPage] Calling KeyManagementService.initialize()...');
                 const initResult = await window.KeyManagementService.initialize(userId, MoneyTrackerEncryptionConfig);
 
                 if (!initResult.success && initResult.needsRestore) {
-                    // User has keys backed up but needs to restore them on this device
-                    console.log('[AuthPage] Keys need restoration - redirecting to device pairing');
                     window.location.href = '../../messaging/views/device-pairing.html?restore=true';
                     return;
                 }
 
-                // Generate identity keys if they don't exist yet
                 if (!initResult.keysExist) {
-                    console.log('[AuthPage] No existing keys - generating new identity keys...');
                     const keyResult = await window.KeyManagementService.generateAndStoreIdentityKeys(userId);
                     if (!keyResult.success) {
                         throw new Error('Failed to generate encryption keys');
                     }
-                    console.log('[AuthPage] ✓ Encryption keys generated');
-                } else {
-                    console.log('[AuthPage] ✓ Encryption keys already exist');
                 }
 
-                // Generate recovery key
-                console.log('[AuthPage] Generating recovery key...');
                 const recoveryKeyB64 = window.PasswordCryptoService.generateRecoveryKey();
                 const recoveryKeyFormatted = window.PasswordCryptoService.formatRecoveryKey(recoveryKeyB64);
-                console.log('[AuthPage] ✓ Recovery key generated');
 
-                // Get password from PasswordManager temporary storage
                 const password = window.PasswordManager?.retrieve();
                 if (!password) {
                     throw new Error('Password not available for key encryption');
                 }
 
-                // Show recovery key modal and wait for user confirmation (show formatted version)
                 await showRecoveryKeyModal(recoveryKeyFormatted, async (finalRecoveryKey) => {
-                    try {
-                        console.log('[AuthPage] User confirmed recovery key saved');
-                        // If user kept the generated key, use original base64; otherwise parse their custom input
-                        const recoveryKeyToUse = finalRecoveryKey === recoveryKeyFormatted
-                            ? recoveryKeyB64
-                            : window.PasswordCryptoService.parseRecoveryKey(finalRecoveryKey);
-                        console.log('[AuthPage] Creating dual backup with', finalRecoveryKey === recoveryKeyFormatted ? 'generated' : 'custom', 'recovery key');
+                    const recoveryKeyToUse = finalRecoveryKey === recoveryKeyFormatted
+                        ? recoveryKeyB64
+                        : window.PasswordCryptoService.parseRecoveryKey(finalRecoveryKey);
 
-                        // Create encrypted backups with both password and recovery key
-                        await window.KeyManagementService.createDualBackup(password, recoveryKeyToUse);
+                    await window.KeyManagementService.createDualBackup(password, recoveryKeyToUse);
 
-                        console.log('[AuthPage] ✓ Dual backup created');
+                    const deviceName = window.DevicePairingService?.getDeviceName() || 'Primary Device';
+                    await window.DevicePairingService.registerDevice(userId, deviceName, true);
 
-                        // Register device
-                        const deviceName = window.DevicePairingService?.getDeviceName() || 'Primary Device';
-                        console.log('[AuthPage] Registering device:', deviceName);
-                        await window.DevicePairingService.registerDevice(userId, deviceName, true);
+                    window.PasswordManager?.clear();
 
-                        console.log('[AuthPage] ✓ Device registered');
-                        console.log('[AuthPage] ========== ENCRYPTION SETUP COMPLETE ==========');
+                    document.getElementById('recovery-key-modal').style.display = 'none';
+                    document.getElementById('pairing-setup-view').classList.add('hidden');
+                    document.getElementById('pairing-success-view').classList.remove('hidden');
 
-                        // Clear temporary password
-                        window.PasswordManager?.clear();
-
-                        // Show success and redirect
-                        document.getElementById('recovery-key-modal').style.display = 'none';
-                        document.getElementById('pairing-setup-view').style.display = 'none';
-                        document.getElementById('pairing-success-view').style.display = 'block';
-
-                        setTimeout(() => {
-                            window.location.href = '../../landing/index.html';
-                        }, 1500);
-
-                    } catch (backupError) {
-                        console.error('[AuthPage] Backup creation failed:', backupError);
-                        document.getElementById('recovery-key-modal').style.display = 'none';
-                        throw backupError;
-                    }
+                    setTimeout(() => {
+                        window.location.href = '../../landing/index.html';
+                    }, 1500);
                 });
 
             } catch (error) {
-                console.error('[AuthPage] ========== ENCRYPTION SETUP FAILED ==========');
-                console.error('[AuthPage] Error:', error);
-                console.error('[AuthPage] Error stack:', error.stack);
+                console.error('[Auth] ENCRYPTION SETUP FAILED:', error);
 
-                // Check if this is a multi-device scenario
                 const isMultiDeviceError = error.message && error.message.includes('encryption keys exist on another device');
 
                 if (isMultiDeviceError) {
-                    // Show multi-device pairing options
-                    console.log('[AuthPage] Multi-device scenario detected - encryption required to proceed');
-                    document.getElementById('pairing-setup-view').style.display = 'none';
-                    document.getElementById('pairing-error-view').style.display = 'none';
-                    document.getElementById('pairing-multi-device-view').style.display = 'block';
+                    document.getElementById('pairing-setup-view').classList.add('hidden');
+                    document.getElementById('pairing-error-view').classList.add('hidden');
+                    document.getElementById('pairing-multi-device-view').classList.remove('hidden');
 
-                    // Set up pairing button - user MUST pair to access app
                     const qrBtn = document.getElementById('pair-with-qr-btn');
                     if (qrBtn) {
                         qrBtn.onclick = () => {
-                            console.log('[AuthPage] Redirecting to device pairing page (required for access)...');
                             window.location.href = '../../messaging/views/device-pairing.html';
                         };
                     }
                 } else {
-                    // Show generic error view
-                    document.getElementById('pairing-setup-view').style.display = 'none';
-                    document.getElementById('pairing-error-view').style.display = 'block';
+                    document.getElementById('pairing-setup-view').classList.add('hidden');
+                    document.getElementById('pairing-error-view').classList.remove('hidden');
 
                     const errorMsg = document.getElementById('pairing-error-message');
                     if (errorMsg) {
                         errorMsg.textContent = error.message || 'An error occurred during encryption setup';
                     }
 
-                    // Set up retry button
                     const retryBtn = document.getElementById('retry-pairing-btn');
                     if (retryBtn) {
                         retryBtn.onclick = async () => {
-                            document.getElementById('pairing-error-view').style.display = 'none';
-                            document.getElementById('pairing-setup-view').style.display = 'block';
+                            document.getElementById('pairing-error-view').classList.add('hidden');
+                            document.getElementById('pairing-setup-view').classList.remove('hidden');
                             await setupDeviceEncryption(userId);
                         };
                     }
@@ -1080,330 +679,141 @@
         // Sign In Form Handler
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('[AuthPage] ========== SIGN IN FORM SUBMITTED ==========');
-            
+            console.log('[Auth] SIGN IN FORM SUBMITTED');
+
             clearErrors();
-            
-            // Step 1: Ensure AuthService is initialized (wait if in progress)
-            console.log('[AuthPage] Step 1: Checking AuthService initialization...');
+
             if (!authServiceInitialized) {
-                console.log('[AuthPage] AuthService not initialized, initializing...');
-                try {
-                    await initializeAuth();
-                    console.log('[AuthPage] AuthService initialized successfully');
-                } catch (initError) {
-                    console.error('[AuthPage] ERROR: Failed to initialize AuthService:', initError);
-                    showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
-                    return;
-                }
-            } else {
-                console.log('[AuthPage] AuthService already initialized');
+                await initializeAuth();
             }
-            
-            // Step 2: Verify AuthService is available
-            console.log('[AuthPage] Step 2: Verifying AuthService availability...');
-            if (!window.AuthService) {
-                console.error('[AuthPage] ERROR: AuthService not available');
-                showError('signin-error', 'Authentication service not available. Please refresh the page and try again.');
+
+            if (!window.AuthService || !window.AuthService.client) {
+                showError('signin-error', 'Authentication service not available. Please refresh the page.');
                 return;
             }
-            
-            if (!window.AuthService.client) {
-                console.log('[AuthPage] Client not available, waiting for SupabaseConfig...');
-                
-                // Wait for SupabaseConfig to be available (with timeout)
-                let waitCount = 0;
-                const maxWait = 50; // Wait up to 5 seconds (50 * 100ms)
-                while (!window.SupabaseConfig && waitCount < maxWait) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    waitCount++;
-                }
-                
-                if (!window.SupabaseConfig) {
-                    console.error('[AuthPage] SupabaseConfig not available after waiting, cannot initialize client');
-                    showError('signin-error', 'Failed to initialize authentication service. Please refresh the page and try again.');
-                    return;
-                }
-                
-                console.log('[AuthPage] SupabaseConfig available, attempting to initialize...');
-                try {
-                    await window.AuthService.initialize();
-                } catch (clientInitError) {
-                    console.error('[AuthPage] ERROR: Failed to initialize client:', clientInitError);
-                    showError('signin-error', 'Failed to initialize authentication client. Please refresh the page and try again.');
-                    return;
-                }
-            }
-            
-            console.log('[AuthPage] AuthService verified:', {
-                hasAuthService: !!window.AuthService,
-                hasClient: !!window.AuthService.client,
-                hasAuth: !!window.AuthService.client?.auth
-            });
-            
-            // Step 3: Get form values
-            console.log('[AuthPage] Step 3: Getting form values...');
+
             const email = document.getElementById('signin-email').value.trim();
             const password = document.getElementById('signin-password').value;
-            
-            console.log('[AuthPage] Form values:', {
-                emailLength: email.length,
-                passwordLength: password.length,
-                emailPrefix: email ? email.substring(0, 3) + '***' : 'empty'
-            });
-            
-            // Step 4: Validate input
-            console.log('[AuthPage] Step 4: Validating input...');
+
             if (!email) {
-                console.error('[AuthPage] ERROR: Email is required');
                 showError('signin-email-error', 'Email is required');
-                document.getElementById('signin-email').classList.add('error');
                 return;
             }
-            
+
             if (!password) {
-                console.error('[AuthPage] ERROR: Password is required');
                 showError('signin-password-error', 'Password is required');
-                document.getElementById('signin-password').classList.add('error');
                 return;
             }
-            
-            console.log('[AuthPage] Input validation passed');
-            
-            // Step 5: Disable button and show loading
-            console.log('[AuthPage] Step 5: Setting button to loading state...');
+
             setButtonLoading('signin-button', true);
-            
-            // Step 6: Call signIn
-            console.log('[AuthPage] Step 6: Calling AuthService.signIn()...');
-            const signInStartTime = Date.now();
-            
+
             try {
                 const result = await window.AuthService.signIn(email, password);
-                const signInDuration = Date.now() - signInStartTime;
-                
-                console.log('[AuthPage] Sign in completed in', signInDuration, 'ms');
-                console.log('[AuthPage] Sign in result:', {
-                    success: result.success,
-                    hasError: !!result.error,
-                    error: result.error,
-                    hasUser: !!result.user,
-                    userEmail: result.user?.email
-                });
-                
+
                 if (result.success) {
-                    console.log('[AuthPage] ========== SIGN IN SUCCESSFUL ==========');
-                    console.log('[AuthPage] Showing success message and checking encryption setup...');
+                    console.log('[Auth] SIGN IN SUCCESSFUL');
                     showSuccess('signin-success', 'Sign in successful!');
 
-                    // Store password temporarily for key encryption
                     if (window.PasswordManager) {
-                        console.log('[AuthPage] Storing password temporarily for E2E encryption setup');
                         window.PasswordManager.storeTemporarily(password);
                     }
 
-                    // Check for encryption keys - if none, set up device pairing
                     setTimeout(async () => {
                         await handlePostSignIn();
                     }, 1000);
                 } else {
-                    console.error('[AuthPage] ========== SIGN IN FAILED ==========');
-                    console.error('[AuthPage] Error:', result.error);
-                    
-                    // Check if error is related to email verification
-                    if (result.error && (result.error.includes('email') && result.error.includes('confirm'))) {
-                        showError('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
+                    if (result.error && result.error.includes('email') && result.error.includes('confirm')) {
+                        showError('signin-error', 'Please verify your email address before signing in.');
                     } else {
                         showError('signin-error', result.error || 'Sign in failed. Please try again.');
                     }
                 }
             } catch (error) {
-                console.error('[AuthPage] ========== SIGN IN EXCEPTION ==========');
-                console.error('[AuthPage] Exception:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack
-                });
-                showError('signin-error', error.message || 'An unexpected error occurred. Please try again.');
+                console.error('[Auth] Sign in exception:', error);
+                showError('signin-error', error.message || 'An unexpected error occurred.');
             } finally {
-                console.log('[AuthPage] Re-enabling sign in button');
                 setButtonLoading('signin-button', false);
             }
         });
-        
+
         // Sign Up Form Handler
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            console.log('[AuthPage] ========== SIGNUP FORM SUBMITTED ==========');
+            console.log('[Auth] SIGNUP FORM SUBMITTED');
+
             clearErrors();
-            
+
             if (!authServiceInitialized) {
-                console.log('[AuthPage] AuthService not initialized, initializing...');
                 await initializeAuth();
-                console.log('[AuthPage] AuthService initialized:', authServiceInitialized);
             }
-            
+
             const email = document.getElementById('signup-email').value.trim();
             const password = document.getElementById('signup-password').value;
             const passwordConfirm = document.getElementById('signup-password-confirm').value;
-            
-            console.log('[AuthPage] Form values:', {
-                email: email ? email.substring(0, 3) + '***' : 'empty',
-                passwordLength: password.length,
-                passwordConfirmLength: passwordConfirm.length
-            });
-            
-            // Validation
-            console.log('[AuthPage] Starting validation...');
+
             if (!email) {
-                console.error('[AuthPage] Validation failed: Email is required');
                 showError('signup-email-error', 'Email is required');
-                document.getElementById('signup-email').classList.add('error');
                 return;
             }
-            
+
             if (!password) {
-                console.error('[AuthPage] Validation failed: Password is required');
                 showError('signup-password-error', 'Password is required');
-                document.getElementById('signup-password').classList.add('error');
                 return;
             }
-            
+
             if (password.length < 6) {
-                console.error('[AuthPage] Validation failed: Password too short', { length: password.length });
                 showError('signup-password-error', 'Password must be at least 6 characters');
-                document.getElementById('signup-password').classList.add('error');
                 return;
             }
-            
+
             if (password !== passwordConfirm) {
-                console.error('[AuthPage] Validation failed: Passwords do not match');
                 showError('signup-password-confirm-error', 'Passwords do not match');
-                document.getElementById('signup-password-confirm').classList.add('error');
                 return;
             }
-            
-            console.log('[AuthPage] Validation passed');
+
             setButtonLoading('signup-button', true);
-            
+
             try {
-                console.log('[AuthPage] Calling AuthService.signUp()...');
-                console.log('[AuthPage] Pre-signup state:', {
-                    hasAuthService: !!window.AuthService,
-                    isAuthenticated: window.AuthService?.isAuthenticated(),
-                    hasClient: !!window.AuthService?.client,
-                    currentUser: window.AuthService?.getCurrentUser()?.email
-                });
-                
-                const signUpStartTime = Date.now();
-                let result;
-                try {
-                    result = await window.AuthService.signUp(email, password);
-                } catch (signUpException) {
-                    console.error('[AuthPage] Exception caught from signUp():', {
-                        message: signUpException.message,
-                        name: signUpException.name,
-                        stack: signUpException.stack
-                    });
-                    throw signUpException;
-                }
-                
-                const signUpDuration = Date.now() - signUpStartTime;
-                console.log('[AuthPage] AuthService.signUp() completed in', signUpDuration, 'ms');
-                console.log('[AuthPage] SignUp result:', {
-                    success: result.success,
-                    hasError: !!result.error,
-                    error: result.error,
-                    hasUser: !!result.user,
-                    userId: result.user?.id,
-                    userEmail: result.user?.email,
-                    requiresEmailVerification: result.requiresEmailVerification,
-                    message: result.message
-                });
-                console.log('[AuthPage] Full result object:', JSON.stringify(result, null, 2));
-                
+                const result = await window.AuthService.signUp(email, password);
+
                 if (result.success) {
-                    console.log('[AuthPage] Signup successful, processing result...');
-                    
-                    // Check if email verification is required
                     if (result.requiresEmailVerification) {
-                        console.log('[AuthPage] Email verification required');
-                        showInfo('signup-info', result.message || 'Account created! Please check your email to verify your account. Once verified, you can sign in.');
-                        // Switch to sign in tab after a delay
+                        showInfo('signup-info', result.message || 'Account created! Please check your email to verify your account.');
                         setTimeout(() => {
-                            console.log('[AuthPage] Switching to sign in tab');
                             document.querySelector('[data-tab="signin"]').click();
-                            showInfo('signin-error', 'Please verify your email address before signing in. Check your inbox for the verification email.');
                         }, 3000);
                     } else if (result.user && window.AuthService.isAuthenticated()) {
-                        console.log('[AuthPage] User immediately signed in');
-                        
-                        // Show trial information
-                        if (window.SubscriptionService) {
-                            try {
-                                const subscriptionResult = await window.SubscriptionService.getCurrentUserSubscription();
-                                if (subscriptionResult.success && subscriptionResult.subscription) {
-                                    const subscription = subscriptionResult.subscription;
-                                    if (subscription.status === 'trial') {
-                                        const daysRemaining = window.SubscriptionService.getTrialDaysRemaining(subscription);
-                                        showSuccess('signup-success', `Account created successfully! You have a 30-day free trial. ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining. Signing you in...`);
-                                    } else {
-                                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
-                                    }
-                                } else {
-                                    showSuccess('signup-success', 'Account created successfully! Signing you in...');
-                                }
-                            } catch (error) {
-                                console.warn('[AuthPage] Error getting subscription info:', error);
-                                showSuccess('signup-success', 'Account created successfully! Signing you in...');
-                            }
-                        } else {
-                            showSuccess('signup-success', 'Account created successfully! Signing you in...');
-                        }
-                        
-                        // Set flag to prevent handlePostSignIn from running on page load after signup
+                        showSuccess('signup-success', 'Account created successfully! Signing you in...');
                         redirectCheckDone = true;
 
                         setTimeout(() => {
-                            console.log('[AuthPage] New user signup - redirecting to device pairing for encryption setup...');
                             window.location.href = '../../messaging/views/device-pairing.html';
                         }, 2000);
                     } else {
-                        console.log('[AuthPage] Account created but needs sign in');
                         showInfo('signup-info', result.message || 'Account created successfully! Please sign in.');
                         setTimeout(() => {
-                            console.log('[AuthPage] Switching to sign in tab');
                             document.querySelector('[data-tab="signin"]').click();
                         }, 2000);
                     }
                 } else {
-                    console.error('[AuthPage] Signup failed:', result.error);
                     showError('signup-error', result.error || 'Sign up failed. Please try again.');
                 }
             } catch (error) {
-                console.error('[AuthPage] Sign up exception:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack
-                });
+                console.error('[Auth] Sign up exception:', error);
                 showError('signup-error', 'An unexpected error occurred. Please try again.');
             } finally {
                 setButtonLoading('signup-button', false);
-                console.log('[AuthPage] ========== SIGNUP FORM HANDLING COMPLETE ==========');
             }
         });
-        
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize Encryption Module first (required for KeyStorageService)
             if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
                 try {
                     await window.CryptoLibraryLoader.load();
                     await window.CryptoPrimitivesService.initialize();
                 } catch (error) {
-                    console.warn('[AuthPage] Failed to initialize Encryption Module:', error);
+                    console.warn('[Auth] Failed to initialize Encryption Module:', error);
                 }
             }
 

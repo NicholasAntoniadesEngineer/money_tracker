@@ -2565,12 +2565,11 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="income-source" value="${incomeData?.source || ''}" placeholder="Revenue Source"></td>
+            <td><input type="text" class="income-source" value="${incomeData?.source || ''}" placeholder="Source"></td>
             <td><input type="number" class="income-estimated" value="${incomeData?.estimated || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="income-actual" value="${incomeData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="text" class="income-date" value="${incomeData?.date || ''}" placeholder="Date"></td>
             <td><input type="text" class="income-description" value="${incomeData?.description || ''}" placeholder="Description"></td>
-            <td><input type="text" class="income-comments" value="${incomeData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
@@ -2634,7 +2633,6 @@ const MonthlyBudgetController = {
             <td></td>
             <td></td>
             <td></td>
-            <td></td>
         `;
 
         tbody.appendChild(totalRow);
@@ -2660,78 +2658,61 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="fixed-cost-category" value="${costData?.category || ''}" placeholder="Expense Category"></td>
+            <td><input type="text" class="fixed-cost-category" value="${costData?.category || ''}" placeholder="Name"></td>
             <td><input type="number" class="fixed-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="fixed-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><input type="text" class="fixed-cost-date" value="${costData?.date || ''}" placeholder="Date"></td>
+            <td class="date-with-tick">
+                <input type="text" class="fixed-cost-date" value="${costData?.date || ''}" placeholder="Date">
+                <span class="paid-tick ${costData?.paid ? '' : 'unpaid'}" title="Click to toggle paid status">
+                    <input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''} style="display:none;">
+                    <i class="fas fa-check-circle"></i>
+                </span>
+            </td>
             <td><input type="text" class="fixed-cost-card" value="${costData?.card || ''}" placeholder="Card"></td>
-            <td><input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''}></td>
-            <td><input type="text" class="fixed-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
+
+        // Paid tick click handler
+        const paidTick = row.querySelector('.paid-tick');
+        if (paidTick) {
+            paidTick.addEventListener('click', () => {
+                const checkbox = paidTick.querySelector('.fixed-cost-paid');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    paidTick.classList.toggle('unpaid', !checkbox.checked);
+                    // Trigger update
+                    this.updateFixedCostsData();
+                    this.updateCalculations();
+                    requestAnimationFrame(() => {
+                        this.populateWorkingSectionFromCosts(true);
+                    });
+                }
+            });
+        }
 
         const deleteBtn = row.querySelector('.delete-row-x');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
-                // Update current month data immediately after DOM removal
-                if (this.currentMonthData) {
-                    const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.fixed-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
-                        date: row.querySelector('.fixed-cost-date')?.value || '',
-                        card: row.querySelector('.fixed-cost-card')?.value || '',
-                        paid: row.querySelector('.fixed-cost-paid')?.checked || false,
-                        comments: row.querySelector('.fixed-cost-comments')?.value || ''
-                    }));
-                    this.currentMonthData.fixedCosts = fixedCosts;
-                }
+                this.updateFixedCostsData();
                 this.updateCalculations();
-                // Repopulate working section immediately when fixed cost is deleted (force update)
                 requestAnimationFrame(() => {
                     this.populateWorkingSectionFromCosts(true);
                 });
             });
         }
 
-        row.querySelectorAll('input').forEach(input => {
+        row.querySelectorAll('input:not(.fixed-cost-paid)').forEach(input => {
             input.addEventListener('input', () => {
-                // Update current month data
-                if (this.currentMonthData) {
-                    const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.fixed-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
-                        date: row.querySelector('.fixed-cost-date')?.value || '',
-                        card: row.querySelector('.fixed-cost-card')?.value || '',
-                        paid: row.querySelector('.fixed-cost-paid')?.checked || false,
-                        comments: row.querySelector('.fixed-cost-comments')?.value || ''
-                    }));
-                    this.currentMonthData.fixedCosts = fixedCosts;
-                }
+                this.updateFixedCostsData();
                 this.updateCalculations();
-                // Repopulate working section immediately when fixed cost changes (force update)
                 requestAnimationFrame(() => {
                     this.populateWorkingSectionFromCosts(true);
                 });
             });
             input.addEventListener('change', () => {
-                // Update current month data
-                if (this.currentMonthData) {
-                    const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.fixed-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
-                        date: row.querySelector('.fixed-cost-date')?.value || '',
-                        card: row.querySelector('.fixed-cost-card')?.value || '',
-                        paid: row.querySelector('.fixed-cost-paid')?.checked || false,
-                        comments: row.querySelector('.fixed-cost-comments')?.value || ''
-                    }));
-                    this.currentMonthData.fixedCosts = fixedCosts;
-                }
+                this.updateFixedCostsData();
                 this.updateCalculations();
-                // Repopulate working section immediately when fixed cost changes (force update)
                 requestAnimationFrame(() => {
                     this.populateWorkingSectionFromCosts(true);
                 });
@@ -2743,14 +2724,19 @@ const MonthlyBudgetController = {
         const lastRow = allRows[allRows.length - 1];
 
         if (lastRow && lastRow.classList.contains('total-row')) {
-            // Insert before the total row
             tbody.insertBefore(row, lastRow);
         } else {
-            // No total row found, append to end
-        tbody.appendChild(row);
+            tbody.appendChild(row);
         }
-        
-        // Update current month data and repopulate working section when fixed cost is added
+
+        this.updateFixedCostsData();
+        this.populateWorkingSectionFromCosts(true);
+    },
+
+    /**
+     * Update fixed costs data in currentMonthData
+     */
+    updateFixedCostsData() {
         if (this.currentMonthData) {
             const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
                 category: row.querySelector('.fixed-cost-category')?.value || '',
@@ -2758,12 +2744,10 @@ const MonthlyBudgetController = {
                 actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
                 date: row.querySelector('.fixed-cost-date')?.value || '',
                 card: row.querySelector('.fixed-cost-card')?.value || '',
-                paid: row.querySelector('.fixed-cost-paid')?.checked || false,
-                comments: row.querySelector('.fixed-cost-comments')?.value || ''
+                paid: row.querySelector('.fixed-cost-paid')?.checked || false
             }));
             this.currentMonthData.fixedCosts = fixedCosts;
         }
-        this.populateWorkingSectionFromCosts(true);
     },
 
     /**
@@ -2785,8 +2769,6 @@ const MonthlyBudgetController = {
             <td><strong>Total Fixed Costs</strong></td>
             <td id="fixed-costs-total-estimated"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td id="fixed-costs-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
-            <td></td>
-            <td></td>
             <td></td>
             <td></td>
             <td></td>
@@ -2834,11 +2816,10 @@ const MonthlyBudgetController = {
         const remaining = estimated - actual;
 
         row.innerHTML = `
-            <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Expense Category"></td>
+            <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Category"></td>
             <td><input type="number" class="variable-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00" readonly></td>
             <td class="variable-cost-remaining"><em>${Formatters.formatCurrency(remaining)}</em></td>
-            <td><input type="text" class="variable-cost-comments" value="${costData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
@@ -2851,8 +2832,7 @@ const MonthlyBudgetController = {
                     const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
                         category: row.querySelector('.variable-cost-category')?.value || '',
                         estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
                     }));
                     this.currentMonthData.variableCosts = variableCosts;
                 }
@@ -2889,8 +2869,7 @@ const MonthlyBudgetController = {
                     const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
                         category: row.querySelector('.variable-cost-category')?.value || '',
                         estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
                     }));
                     this.currentMonthData.variableCosts = variableCosts;
                 }
@@ -2955,8 +2934,7 @@ const MonthlyBudgetController = {
                     const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
                         category: row.querySelector('.variable-cost-category')?.value || '',
                         estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                        comments: row.querySelector('.variable-cost-comments')?.value || ''
+                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
                     }));
                     this.currentMonthData.variableCosts = variableCosts;
                 }
@@ -3003,11 +2981,10 @@ const MonthlyBudgetController = {
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
-            <td><strong>Total Variable Costs</strong></td>
+            <td><strong>Total Variable</strong></td>
             <td id="variable-costs-total-budget"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td id="variable-costs-total-actual"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
             <td id="variable-costs-total-remaining"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
-            <td></td>
             <td></td>
         `;
 
@@ -3036,43 +3013,54 @@ const MonthlyBudgetController = {
         row.innerHTML = `
             <td><input type="text" class="unplanned-name" value="${expenseData?.name || ''}" placeholder="Name"></td>
             <td><input type="number" class="unplanned-amount" value="${expenseData?.amount || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><input type="text" class="unplanned-date" value="${expenseData?.date || ''}" placeholder="Date"></td>
+            <td class="date-with-tick">
+                <input type="text" class="unplanned-date" value="${expenseData?.date || ''}" placeholder="Date">
+                <span class="paid-tick ${expenseData?.paid ? '' : 'unpaid'}" title="Click to toggle paid status">
+                    <input type="checkbox" class="unplanned-paid" ${expenseData?.paid ? 'checked' : ''} style="display:none;">
+                    <i class="fas fa-check-circle"></i>
+                </span>
+            </td>
             <td><input type="text" class="unplanned-card" value="${expenseData?.card || ''}" placeholder="Card"></td>
-            <td><input type="checkbox" class="unplanned-paid" ${expenseData?.paid ? 'checked' : ''}></td>
-            <td><input type="text" class="unplanned-comments" value="${expenseData?.comments || ''}" placeholder="Comments"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
+
+        // Paid tick click handler
+        const paidTick = row.querySelector('.paid-tick');
+        if (paidTick) {
+            paidTick.addEventListener('click', () => {
+                const checkbox = paidTick.querySelector('.unplanned-paid');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    paidTick.classList.toggle('unpaid', !checkbox.checked);
+                    this.updateUnplannedData();
+                    this.updateCalculations();
+                    requestAnimationFrame(() => {
+                        this.populateWorkingSectionFromCosts(true);
+                    });
+                }
+            });
+        }
 
         const deleteBtn = row.querySelector('.delete-row-x');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
-            row.remove();
-            this.updateCalculations();
-                // Repopulate working section immediately when unplanned expense is deleted
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
-        });
-        }
-
-        row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => {
+                row.remove();
+                this.updateUnplannedData();
                 this.updateCalculations();
-                // Repopulate working section immediately when unplanned expense changes
                 requestAnimationFrame(() => {
                     this.populateWorkingSectionFromCosts(true);
                 });
             });
-            // Also listen for change events on checkboxes (checkboxes don't fire input events reliably)
-            if (input.type === 'checkbox') {
-                input.addEventListener('change', () => {
-                    this.updateCalculations();
-                    // Repopulate working section immediately when paid status changes
-                    requestAnimationFrame(() => {
-                        this.populateWorkingSectionFromCosts(true);
-                    });
+        }
+
+        row.querySelectorAll('input:not(.unplanned-paid)').forEach(input => {
+            input.addEventListener('input', () => {
+                this.updateUnplannedData();
+                this.updateCalculations();
+                requestAnimationFrame(() => {
+                    this.populateWorkingSectionFromCosts(true);
                 });
-            }
+            });
         });
 
         // Insert before the total row if it exists, otherwise append
@@ -3080,27 +3068,30 @@ const MonthlyBudgetController = {
         const lastRow = allRows[allRows.length - 1];
 
         if (lastRow && lastRow.classList.contains('total-row')) {
-            // Insert before the total row
             tbody.insertBefore(row, lastRow);
         } else {
-            // No total row found, append to end
-        tbody.appendChild(row);
+            tbody.appendChild(row);
         }
-        
-        // Update current month data and repopulate working section when unplanned expense is added
+
+        this.updateUnplannedData();
+        this.updateCalculations();
+        this.populateWorkingSectionFromCosts();
+    },
+
+    /**
+     * Update unplanned expenses data in currentMonthData
+     */
+    updateUnplannedData() {
         if (this.currentMonthData) {
             const unplannedExpenses = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr:not(.total-row)')).map(row => ({
                 name: row.querySelector('.unplanned-name')?.value || '',
                 amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
                 date: row.querySelector('.unplanned-date')?.value || '',
                 card: row.querySelector('.unplanned-card')?.value || '',
-                paid: row.querySelector('.unplanned-paid')?.checked || false,
-                comments: row.querySelector('.unplanned-comments')?.value || ''
+                paid: row.querySelector('.unplanned-paid')?.checked || false
             }));
             this.currentMonthData.unplannedExpenses = unplannedExpenses;
         }
-        this.updateCalculations();
-        this.populateWorkingSectionFromCosts();
     },
 
     /**
@@ -3119,10 +3110,8 @@ const MonthlyBudgetController = {
         const totalRow = document.createElement('tr');
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
-            <td><strong>Total Unplanned Expenses</strong></td>
+            <td><strong>Total Unplanned</strong></td>
             <td id="unplanned-expenses-total"><strong><em>${Formatters.formatCurrency(0)}</em></strong></td>
-            <td></td>
-            <td></td>
             <td></td>
             <td></td>
             <td></td>
@@ -3239,6 +3228,13 @@ const MonthlyBudgetController = {
         const grandSavingsActual = totals.income.actual - totals.expenses.actual - totals.pots.actual;
         this.setElementHTML('summary-savings-estimated', '<strong><em>' + Formatters.formatCurrency(grandSavingsEstimated) + '</em></strong>');
         this.setElementHTML('summary-savings-actual', '<strong><em>' + Formatters.formatCurrency(grandSavingsActual) + '</em></strong>');
+
+        // Update prominent savings display
+        const savingsDisplay = document.getElementById('savings-display');
+        if (savingsDisplay) {
+            savingsDisplay.textContent = Formatters.formatCurrency(grandSavingsActual);
+            savingsDisplay.className = 'savings-amount' + (grandSavingsActual < 0 ? ' negative' : '');
+        }
 
         // Update weekly breakdown totals - simple sums of each column
         const weeklyBreakdownRows = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)'));

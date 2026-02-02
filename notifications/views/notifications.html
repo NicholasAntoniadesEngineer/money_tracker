@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notifications - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -41,16 +41,16 @@
 <body>
     <!-- Header will be injected by Header.js -->
 
-    <main class="notifications-main" role="main">
-        <section class="hero-section">
-            <h2 class="hero-title">Notifications</h2>
-        </section>
+    <main class="page-container" role="main">
+        <div class="hero-section">
+            <h1 class="hero-title">Notifications</h1>
+        </div>
 
-        <section class="notifications-section form-section">
-            <div class="notifications-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
-                <div class="notifications-filters" style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: nowrap; flex: 0 0 auto;">
-                    <label for="filter-dropdown" class="form-label" style="margin: 0; white-space: nowrap;">Filter:</label>
-                    <select id="filter-dropdown" class="form-input" style="width: auto; min-width: auto; max-width: none;">
+        <section class="form-section">
+            <div class="notifications-controls">
+                <div class="notifications-filters">
+                    <label for="filter-dropdown" class="form-label">Filter:</label>
+                    <select id="filter-dropdown" class="form-select notifications-filter-select">
                         <option value="all">All</option>
                         <option value="unread">Unread</option>
                         <option value="sharing">Sharing</option>
@@ -58,33 +58,35 @@
                         <option value="messaging">Messages</option>
                     </select>
                 </div>
-                <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; max-width: 100%;">
-                    <button id="mark-all-read-button" class="btn btn-action" style="flex: 0 1 auto; min-width: 0; max-width: 100%;">Mark All as Read</button>
+                <div class="notifications-actions">
+                    <button id="mark-all-read-button" class="btn btn-secondary">
+                        <i class="fas fa-check-double"></i> Mark All Read
+                    </button>
                 </div>
             </div>
 
-            <div id="notifications-view" style="display: block;">
+            <div id="notifications-view">
                 <div id="notifications-list" class="notifications-list">
-                    <p>Loading notifications...</p>
+                    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</p>
                 </div>
             </div>
         </section>
     </main>
 
     <!-- Share Data Modal -->
-    <div id="share-data-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
-                <h3 style="margin: 0;">Share Data</h3>
-                <button id="close-share-data-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">×</button>
+    <div id="share-data-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title"><i class="fas fa-share-alt"></i> Share Data</h2>
+                <button id="close-share-data-modal" class="modal-close" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                <div class="form-group">
                     <label for="share-data-email" class="form-label">User Email:</label>
                     <input type="email" id="share-data-email" class="form-input" placeholder="user@example.com" autocomplete="email" required readonly>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+
+                <div class="form-group">
                     <label for="share-data-access-level" class="form-label">Access Level:</label>
                     <select id="share-data-access-level" class="form-select">
                         <option value="read">Read Only</option>
@@ -92,42 +94,42 @@
                         <option value="read_write_delete">Read/Write/Delete</option>
                     </select>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+
+                <div class="form-group">
+                    <label class="checkbox-label">
                         <input type="checkbox" id="share-data-all-data">
                         <span><strong>Share All Data</strong></span>
                     </label>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
+
+                <div class="form-group">
                     <label class="form-label">Share Options:</label>
-                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="share-data-months" checked>
                             <span>Months</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="share-data-pots">
                             <span>Pots</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="share-data-settings">
                             <span>Settings</span>
                         </label>
                     </div>
                 </div>
-                
-                <div id="share-data-months-container" style="margin-top: var(--spacing-md);">
+
+                <div id="share-data-months-container" class="form-group">
                     <label class="form-label">Select Months:</label>
-                    <div id="share-data-months-checkboxes" style="display: flex; flex-direction: column; gap: var(--spacing-sm); max-height: 200px; overflow-y: auto; padding: var(--spacing-sm); background: rgba(255, 255, 255, 0.5); border-radius: var(--border-radius);">
+                    <div id="share-data-months-checkboxes" class="checkbox-scroll-container">
                         <!-- Month checkboxes will be added here -->
                     </div>
                 </div>
-                
-                <div id="share-data-form-status" style="margin-top: var(--spacing-md);"></div>
+
+                <div id="share-data-form-status" class="form-status"></div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+            <div class="modal-footer">
                 <button id="cancel-share-data-button" class="btn btn-secondary">Cancel</button>
                 <button id="save-share-data-button" class="btn btn-action">Share Data</button>
             </div>

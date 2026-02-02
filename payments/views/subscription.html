@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscription - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script>
@@ -13,7 +13,7 @@
         (function() {
             const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
             document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-            
+
             // Sync with database once services are available
             async function syncFontSizeFromDatabase() {
                 try {
@@ -38,573 +38,66 @@
             }
         })();
     </script>
-    
-    <style>
-        .upgrade-main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: var(--spacing-md);
-            padding-top: calc(2rem + 70px);
-            padding-bottom: 2rem;
-        }
-        
-        .upgrade-section {
-            background-color: rgba(213, 213, 213, 0.85);
-            padding: var(--spacing-md);
-            border-radius: var(--border-radius);
-            border: var(--border-width-thin) solid var(--border-color-black);
-            margin-bottom: var(--spacing-md);
-        }
-        
-        .plans-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: var(--spacing-lg);
-            margin-top: var(--spacing-lg);
-            align-items: stretch; /* Ensure all cards have same height */
-        }
-        
-        .plan-card {
-            background: var(--background-secondary, #fff);
-            border: var(--border-width-standard) solid var(--border-color, rgba(0,0,0,0.1));
-            border-radius: var(--border-radius-standard);
-            padding: var(--spacing-lg);
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.2s, box-shadow 0.2s;
-            min-height: 400px; /* Ensure minimum height for alignment */
-        }
-        
-        .plan-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        .plan-card.current {
-            border-color: var(--primary-color, #007bff);
-            border-width: 2px;
-        }
-        
-        .plan-card.recommended {
-            border-color: var(--success-color, #28a745);
-            border-width: 2px;
-            position: relative;
-        }
-        
-        .plan-card.recommended::before {
-            content: "Recommended";
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--success-color, #28a745);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .plan-header {
-            margin-bottom: var(--spacing-md);
-        }
-        
-        .plan-name {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: var(--spacing-xs);
-            color: var(--text-primary);
-        }
-        
-        .plan-price {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-color, #007bff);
-            margin-bottom: var(--spacing-xs);
-        }
-        
-        .plan-price-period {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            font-weight: 400;
-        }
-        
-        .plan-description {
-            color: var(--text-secondary);
-            margin-bottom: var(--spacing-md);
-            min-height: 3rem;
-        }
-        
-        .plan-features {
-            list-style: none;
-            padding: 0;
-            margin: var(--spacing-md) 0;
-            flex-grow: 1;
-            min-height: 120px; /* Ensure consistent height for features list */
-        }
-        
-        .plan-features li {
-            padding: var(--spacing-xs) 0;
-            color: var(--text-primary);
-        }
-        
-        .plan-features li::before {
-            content: "✓ ";
-            color: var(--success-color, #28a745);
-            font-weight: 600;
-            margin-right: var(--spacing-xs);
-        }
-        
-        .plan-actions {
-            margin-top: auto;
-            padding-top: var(--spacing-md);
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-        }
-        
-        .plan-actions .btn {
-            width: 100%;
-            min-width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .plan-status {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .subscription-details-box {
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        @media (max-width: 768px) {
-            .header-with-subscription {
-                grid-template-columns: 1fr !important;
-            }
-            
-            /* Reduce spacing in plan cards for mobile */
-            .plan-card {
-                padding: var(--spacing-md);
-                min-height: auto;
-            }
-            
-            .plan-header {
-                margin-bottom: var(--spacing-sm);
-            }
-            
-            .plan-name {
-                font-size: 1.25rem;
-                margin-bottom: 0.25rem;
-            }
-            
-            .plan-price {
-                font-size: 1.75rem;
-                margin-bottom: 0.25rem;
-            }
-            
-            .plan-description {
-                margin-bottom: var(--spacing-sm);
-                min-height: 2rem;
-                font-size: 0.9rem;
-            }
-            
-            .plan-features {
-                margin: var(--spacing-sm) 0;
-                min-height: auto;
-            }
-            
-            .plan-features li {
-                padding: 0.25rem 0;
-                font-size: 0.9rem;
-                line-height: 1.4;
-            }
-            
-            .plan-actions {
-                padding-top: var(--spacing-sm);
-            }
-        }
-        
-        .subscription-details-box #current-subscription-content {
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .subscription-details-box #current-subscription-content > div {
-            max-width: 100%;
-            box-sizing: border-box;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .plan-status {
-            padding: 0.3rem 0.5rem;
-            background: var(--background-tertiary, #f5f5f5);
-            border-radius: 0px;
-            text-align: center;
-            margin-bottom: 0;
-            font-weight: 500;
-            color: var(--text-secondary);
-            min-height: 1.9rem;
-            height: 1.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: var(--border-width-standard) solid var(--border-color-black);
-            box-sizing: border-box;
-        }
-        
-        .plan-status.current {
-            background: var(--primary-color, #007bff);
-            color: white;
-        }
-        
-        .current-plan-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: var(--primary-color, #007bff);
-            color: white;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: var(--spacing-xs);
-        }
-        
-        /* Invoice Modal Styles */
-        .invoice-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-        
-        .invoice-modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--spacing-md);
-        }
-        
-        .invoice-modal-content {
-            background: var(--background-secondary, #fff);
-            border-radius: var(--border-radius-standard);
-            padding: var(--spacing-lg);
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .invoice-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
-            padding-bottom: var(--spacing-md);
-            border-bottom: var(--border-width-standard) solid var(--border-color);
-        }
-        
-        .invoice-modal-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-        
-        .invoice-modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .invoice-modal-close:hover {
-            color: var(--text-primary);
-        }
-        
-        .invoice-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .invoice-item {
-            padding: var(--spacing-md);
-            border: var(--border-width-standard) solid var(--border-color);
-            border-radius: var(--border-radius);
-            margin-bottom: var(--spacing-sm);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: var(--spacing-sm);
-        }
-        
-        .invoice-item-info {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .invoice-item-number {
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-        
-        .invoice-item-date {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.25rem;
-        }
-        
-        .invoice-item-amount {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--primary-color, #007bff);
-        }
-        
-        .invoice-item-status {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .invoice-item-status.paid {
-            background: var(--success-color, #28a745);
-            color: white;
-        }
-        
-        .invoice-item-status.open {
-            background: var(--warning-color, #ffc107);
-            color: #000;
-        }
-        
-        .invoice-item-status.draft {
-            background: var(--text-secondary, #6c757d);
-            color: white;
-        }
-        
-        .invoice-item-actions {
-            display: flex;
-            gap: var(--spacing-xs);
-        }
-        
-        .invoice-item-actions .btn {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-        }
-        
-        .invoice-loading {
-            text-align: center;
-            padding: var(--spacing-xl);
-            color: var(--text-secondary);
-        }
-        
-        .invoice-error {
-            text-align: center;
-            padding: var(--spacing-xl);
-            color: var(--danger-color, #dc3545);
-        }
-        
-        .invoice-empty {
-            text-align: center;
-            padding: var(--spacing-xl);
-            color: var(--text-secondary);
-        }
-        
-        /* Recent Invoices Section Styles */
-        #recent-invoices-section {
-            max-width: 100%;
-        }
-        
-        #recent-invoices-content {
-            display: grid;
-            gap: 0.5rem;
-        }
-        
-        .recent-invoice-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.4rem 0.5rem;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 4px;
-            border: 1px solid var(--border-color, rgba(0,0,0,0.1));
-            font-size: 0.85rem;
-        }
-        
-        .recent-invoice-item-left {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .recent-invoice-item-number {
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.15rem;
-            font-size: 0.9rem;
-        }
-        
-        .recent-invoice-item-date {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-        
-        .recent-invoice-item-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            margin-left: var(--spacing-xs);
-        }
-        
-        .recent-invoice-item-amount {
-            font-weight: 600;
-            color: var(--primary-color, #007bff);
-            font-size: 0.9rem;
-        }
-        
-        .recent-invoice-item-status {
-            font-size: 0.7rem;
-            padding: 0.15rem 0.4rem;
-            border-radius: 3px;
-            margin-top: 0.2rem;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        
-        .recent-invoice-item-status.paid {
-            background: var(--success-color, #28a745);
-            color: white;
-        }
-        
-        .recent-invoice-item-status.open {
-            background: var(--warning-color, #ffc107);
-            color: #000;
-        }
-        
-        .recent-invoice-item-status.draft {
-            background: var(--text-secondary, #6c757d);
-            color: white;
-        }
-        
-        .invoice-loading-small {
-            text-align: center;
-            padding: var(--spacing-sm);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-        
-        .invoice-error-small {
-            text-align: center;
-            padding: var(--spacing-sm);
-            color: var(--danger-color, #dc3545);
-            font-size: 0.85rem;
-        }
-        
-        .invoice-empty-small {
-            text-align: center;
-            padding: var(--spacing-sm);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-        
-        @media (max-width: 768px) {
-            .invoice-modal-content {
-                padding: var(--spacing-md);
-                max-height: 95vh;
-            }
-            
-            .invoice-item {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .invoice-item-actions {
-                width: 100%;
-            }
-            
-            .invoice-item-actions .btn {
-                flex: 1;
-            }
-        }
-    </style>
 </head>
 <body>
     <!-- Header will be injected by Header.js -->
-    
-    <main class="upgrade-main" role="main">
-        <section class="upgrade-section">
-            <div class="header-with-subscription" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); align-items: start; margin-bottom: var(--spacing-lg);">
-                <div class="header-content">
-                    <h1 class="section-title">Subscription Management</h1>
-                    <p style="margin: var(--spacing-sm) 0 var(--spacing-md) 0; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5;">
-                        <strong>New users get a 30-day Premium trial</strong> with full access to all features. After your trial ends, upgrade to Premium ($9.99/month) to keep unlimited features, or continue with the Free plan (limited to 6 months of history).
-                    </p>
 
-                    <div class="settings-row" style="gap: 0.5rem;">
-                        <button id="update-payment-button" class="btn btn-action">
-                            Update Payment Method
+    <main class="subscription-main page-container" role="main">
+        <div class="hero-section">
+            <h1 class="hero-title">Subscription Management</h1>
+        </div>
+
+        <section class="form-section">
+            <div class="subscription-header">
+                <div class="subscription-header-content">
+                    <div class="subscription-header-actions">
+                        <button id="update-payment-button" class="btn btn-secondary">
+                            <i class="fas fa-credit-card"></i> Update Payment
                         </button>
-                        <button id="view-invoices-button" class="btn btn-action">
-                            View Invoices
+                        <button id="view-invoices-button" class="btn btn-secondary">
+                            <i class="fas fa-file-invoice"></i> View Invoices
                         </button>
                     </div>
-                    
-                    <div id="recent-invoices-section" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
-                        <h3 style="margin: 0 0 var(--spacing-xs) 0; font-size: 1rem; font-weight: 600;">Recent Invoices</h3>
-                        <div id="recent-invoices-content" style="font-size: 0.85rem;">
-                            <div class="invoice-loading-small">Loading...</div>
+
+                    <div id="recent-invoices-section" class="recent-invoices-section" style="display: none;">
+                        <h3><i class="fas fa-receipt"></i> Recent Invoices</h3>
+                        <div id="recent-invoices-content">
+                            <p class="loading-text">Loading...</p>
                         </div>
                     </div>
                 </div>
-                
-                <div id="current-subscription-details" class="subscription-details-box" style="display: none; padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius); box-sizing: border-box;">
-                    <h2 style="margin-top: 0; margin-bottom: var(--spacing-md); font-size: 1.25rem;">Current Subscription</h2>
-                    <div id="current-subscription-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem; max-width: 100%; box-sizing: border-box;">
+
+                <div id="current-subscription-details" class="current-subscription-box" style="display: none;">
+                    <h2><i class="fas fa-crown"></i> Current Subscription</h2>
+                    <div id="current-subscription-content" class="subscription-detail-grid">
                         <!-- Subscription details will be populated by JavaScript -->
                     </div>
                 </div>
             </div>
-            
+
             <div id="plans-container" class="plans-grid">
                 <!-- Plans will be loaded here -->
             </div>
-            
-            <div id="loading-message" style="text-align: center; padding: var(--spacing-xl); color: var(--text-secondary);">
-                Loading subscription plans...
+
+            <div id="loading-message" class="loading-text" style="text-align: center; padding: var(--space-8);">
+                <i class="fas fa-spinner fa-spin"></i> Loading subscription plans...
             </div>
-            
-            <div id="error-message" style="display: none; text-align: center; padding: var(--spacing-xl); color: var(--danger-color);">
-                Failed to load subscription plans. Please try again later.
+
+            <div id="error-message" style="display: none; text-align: center; padding: var(--space-8); color: var(--color-danger);">
+                <i class="fas fa-exclamation-triangle"></i> Failed to load subscription plans. Please try again later.
             </div>
         </section>
     </main>
     
     <!-- Invoice Modal -->
-    <div id="invoice-modal" class="invoice-modal">
-        <div class="invoice-modal-content">
-            <div class="invoice-modal-header">
-                <h2>Payment Invoices</h2>
-                <button class="invoice-modal-close" id="invoice-modal-close" aria-label="Close">&times;</button>
+    <div id="invoice-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title"><i class="fas fa-file-invoice"></i> Payment Invoices</h2>
+                <button class="modal-close" id="invoice-modal-close" aria-label="Close">&times;</button>
             </div>
             <div id="invoice-modal-body">
-                <div class="invoice-loading">Loading invoices...</div>
+                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading invoices...</p>
             </div>
         </div>
     </div>

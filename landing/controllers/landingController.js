@@ -15,7 +15,7 @@ const LandingController = {
     },
 
     /**
-     * Load and display overview data including summary cards, comparison table, and trends
+     * Load and display overview data including summary cards, month cards, and trends
      * @returns {Promise<void>}
      */
     async loadOverviewData() {
@@ -32,59 +32,238 @@ const LandingController = {
         let overallSavingsTotal = 0;
         let overallPotsTotal = 0;
 
-        const tableBody = document.getElementById('months-comparison-tbody');
-        if (tableBody) {
-            tableBody.innerHTML = '';
+        // Collect expense categories across all months
+        const categoryTotals = {};
 
-            monthKeys.forEach(monthKey => {
-                const monthData = allMonths[monthKey];
-                const totals = DataManager.calculateMonthTotals(monthData);
-                
-                overallIncomeTotal += totals.income.actual;
-                overallExpensesTotal += totals.expenses.actual;
-                overallSavingsTotal += totals.savings.actual;
-                overallPotsTotal += totals.pots.actual;
+        // Collect month data for rendering
+        const monthsData = [];
 
-                const monthDisplayName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                const tableRow = document.createElement('tr');
-                
-                tableRow.innerHTML = `
-                    <td><strong>${monthDisplayName} ${monthData.year}</strong></td>
-                    <td>${Formatters.formatCurrency(totals.income.actual)}</td>
-                    <td>${Formatters.formatCurrency(totals.fixedCosts.actual)}</td>
-                    <td>${Formatters.formatCurrency(totals.variableCosts.actual)}</td>
-                    <td>${Formatters.formatCurrency(totals.unplannedExpenses.actual)}</td>
-                    <td><strong>${Formatters.formatCurrency(totals.expenses.actual)}</strong></td>
-                    <td>${Formatters.formatCurrency(totals.pots.actual)}</td>
-                    <td class="${totals.savings.actual >= 0 ? 'positive' : 'negative'}"><strong>${Formatters.formatCurrency(totals.savings.actual)}</strong></td>
-                    <td>
-                        <a href="${window.Header.getModulePath('monthlyBudget')}monthlyBudget.html?month=${monthKey}" class="btn btn-action btn-sm">View</a>
-                        <button type="button" class="delete-row-x" aria-label="Delete month" data-month-key="${monthKey}" data-month-name="${monthDisplayName} ${monthData.year}">x</button>
-                    </td>
-                `;
+        monthKeys.forEach(monthKey => {
+            const monthData = allMonths[monthKey];
+            const totals = DataManager.calculateMonthTotals(monthData);
 
-                const deleteButton = tableRow.querySelector('.delete-row-x');
-                if (deleteButton) {
-                    deleteButton.addEventListener('click', () => {
-                        this.deleteMonth(monthKey, deleteButton.dataset.monthName);
-                    });
-                }
+            overallIncomeTotal += totals.income.actual;
+            overallExpensesTotal += totals.expenses.actual;
+            overallSavingsTotal += totals.savings.actual;
+            overallPotsTotal += totals.pots.actual;
 
-                tableBody.appendChild(tableRow);
+            // Aggregate expense categories
+            if (monthData.fixedCosts && Array.isArray(monthData.fixedCosts)) {
+                monthData.fixedCosts.forEach(cost => {
+                    const category = cost.category || 'Other Fixed';
+                    const amount = parseFloat(cost.actualAmount || 0);
+                    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+                });
+            }
+
+            if (monthData.variableCosts && Array.isArray(monthData.variableCosts)) {
+                monthData.variableCosts.forEach(cost => {
+                    const category = cost.category || 'Other Variable';
+                    const amount = parseFloat(cost.actualSpent || cost.actualAmount || 0);
+                    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+                });
+            }
+
+            if (monthData.unplannedExpenses && Array.isArray(monthData.unplannedExpenses)) {
+                monthData.unplannedExpenses.forEach(expense => {
+                    const amount = parseFloat(expense.amount || 0);
+                    categoryTotals['Unplanned'] = (categoryTotals['Unplanned'] || 0) + amount;
+                });
+            }
+
+            const monthDisplayName = monthData.monthName || DataManager.getMonthName(monthData.month);
+
+            monthsData.push({
+                monthKey,
+                monthDisplayName,
+                year: monthData.year,
+                savingsEstimate: totals.savings.estimated,
+                savingsActual: totals.savings.actual,
+                totals
             });
+        });
+
+        // Render savings by month table
+        this.renderSavingsTable(monthsData);
+
+        // Render month cards
+        this.renderMonthCards(monthsData);
+
+        // Update prominent savings display
+        const totalSavingsDisplay = document.getElementById('total-savings-display');
+        if (totalSavingsDisplay) {
+            totalSavingsDisplay.textContent = Formatters.formatCurrency(overallSavingsTotal);
+            totalSavingsDisplay.className = 'savings-amount' + (overallSavingsTotal < 0 ? ' negative' : '');
         }
 
-        this.setElementText('overall-income', Formatters.formatCurrency(overallIncomeTotal));
-        this.setElementText('overall-expenses', Formatters.formatCurrency(overallExpensesTotal));
-        this.setElementText('overall-savings', Formatters.formatCurrency(overallSavingsTotal));
-        this.setElementText('overall-pots', Formatters.formatCurrency(overallPotsTotal));
-
-        const savingsElement = document.getElementById('overall-savings');
-        if (savingsElement) {
-            savingsElement.className = 'summary-card-value ' + (overallSavingsTotal >= 0 ? 'positive' : 'negative');
-        }
+        // Render expense breakdown pie chart with specific categories
+        this.renderExpensePieChart(categoryTotals);
 
         this.renderTrends(monthKeys, allMonths);
+    },
+
+    /**
+     * Render savings by month table
+     * @param {Array} monthsData - Array of month data objects
+     */
+    renderSavingsTable(monthsData) {
+        const tbody = document.getElementById('savings-by-month-tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        monthsData.forEach(data => {
+            const row = document.createElement('tr');
+            const isPositive = data.savingsActual >= 0;
+
+            row.innerHTML = `
+                <td><strong>${data.monthDisplayName} ${data.year}</strong></td>
+                <td>${Formatters.formatCurrency(data.savingsEstimate)}</td>
+                <td class="${isPositive ? 'text-positive' : 'text-negative'}">${Formatters.formatCurrency(data.savingsActual)}</td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        console.log('[Landing] Savings table rendered with', monthsData.length, 'months');
+    },
+
+    /**
+     * Render month cards with green/red coloring based on savings
+     * @param {Array} monthsData - Array of month data objects
+     */
+    renderMonthCards(monthsData) {
+        const container = document.getElementById('month-cards-container');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        monthsData.forEach(data => {
+            const isPositive = data.savingsActual >= 0;
+            const card = document.createElement('a');
+            card.href = `${window.Header.getModulePath('monthlyBudget')}monthlyBudget.html?month=${data.monthKey}`;
+            card.className = `month-savings-card ${isPositive ? 'positive' : 'negative'}`;
+
+            card.innerHTML = `
+                <div class="month-card-header">
+                    <span class="month-card-name">${data.monthDisplayName}</span>
+                    <span class="month-card-year">${data.year}</span>
+                </div>
+                <div class="month-card-body">
+                    <div class="month-card-row">
+                        <span class="month-card-label">Estimate</span>
+                        <span class="month-card-value">${Formatters.formatCurrency(data.savingsEstimate)}</span>
+                    </div>
+                    <div class="month-card-row">
+                        <span class="month-card-label">Actual</span>
+                        <span class="month-card-value month-card-actual">${Formatters.formatCurrency(data.savingsActual)}</span>
+                    </div>
+                </div>
+                <div class="month-card-indicator">
+                    <i class="fas fa-${isPositive ? 'arrow-up' : 'arrow-down'}"></i>
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+
+        console.log('[Landing] Month cards rendered with', monthsData.length, 'cards');
+    },
+
+    /**
+     * Render expense breakdown pie chart with specific categories
+     * @param {Object} categoryTotals - Object with category names as keys and totals as values
+     */
+    renderExpensePieChart(categoryTotals) {
+        const svg = document.getElementById('expense-pie-chart');
+        const legend = document.getElementById('expense-legend');
+
+        // Sort categories by amount and take top categories
+        const sortedCategories = Object.entries(categoryTotals)
+            .filter(([_, amount]) => amount > 0)
+            .sort((a, b) => b[1] - a[1]);
+
+        const total = sortedCategories.reduce((sum, [_, amount]) => sum + amount, 0);
+
+        if (!svg || !legend || total === 0 || sortedCategories.length === 0) {
+            if (legend) {
+                legend.innerHTML = '<p class="text-muted">No expense data available</p>';
+            }
+            return;
+        }
+
+        // Color palette for categories
+        const colorPalette = [
+            '#5B7B9A', // Muted blue (action)
+            '#7BAB8A', // Sage green
+            '#D4A574', // Warm tan
+            '#A67C94', // Dusty rose
+            '#8B9DC3', // Periwinkle
+            '#C4A35A', // Ochre
+            '#6B8E8E', // Teal grey
+            '#B88B8B', // Dusty pink
+            '#7A9E7A', // Forest green
+            '#9B8AA6', // Lavender grey
+        ];
+
+        // Group small categories into "Other" if more than 8 categories
+        let displayCategories = sortedCategories;
+        if (sortedCategories.length > 8) {
+            const topCategories = sortedCategories.slice(0, 7);
+            const otherTotal = sortedCategories.slice(7).reduce((sum, [_, amount]) => sum + amount, 0);
+            displayCategories = [...topCategories, ['Other', otherTotal]];
+        }
+
+        // Create pie chart paths using SVG
+        let cumulativePercent = 0;
+        const radius = 40;
+        const centerX = 50;
+        const centerY = 50;
+
+        const getCoordinatesForPercent = (percent) => {
+            const x = centerX + radius * Math.cos(2 * Math.PI * percent / 100 - Math.PI / 2);
+            const y = centerY + radius * Math.sin(2 * Math.PI * percent / 100 - Math.PI / 2);
+            return [x, y];
+        };
+
+        const createSlice = (startPercent, slicePercent, color) => {
+            if (slicePercent <= 0) return '';
+            if (slicePercent >= 100) {
+                return `<circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="${color}" />`;
+            }
+
+            const [startX, startY] = getCoordinatesForPercent(startPercent);
+            const [endX, endY] = getCoordinatesForPercent(startPercent + slicePercent);
+            const largeArcFlag = slicePercent > 50 ? 1 : 0;
+
+            return `<path d="M ${centerX} ${centerY} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z" fill="${color}" />`;
+        };
+
+        let svgContent = '';
+        let legendContent = '';
+
+        displayCategories.forEach(([category, amount], index) => {
+            const percent = (amount / total) * 100;
+            const color = colorPalette[index % colorPalette.length];
+
+            if (percent > 0) {
+                svgContent += createSlice(cumulativePercent, percent, color);
+                cumulativePercent += percent;
+
+                legendContent += `
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: ${color}"></span>
+                        <span class="legend-label">${category}</span>
+                        <span class="legend-value">${percent.toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+        });
+
+        svg.innerHTML = svgContent || '<circle cx="50" cy="50" r="40" fill="var(--color-bg-surface)" />';
+        legend.innerHTML = legendContent;
+
+        console.log('[Landing] Expense pie chart rendered with', displayCategories.length, 'categories');
     },
 
     /**
@@ -92,11 +271,15 @@ const LandingController = {
      * @returns {void}
      */
     renderEmptyState() {
-        const tableBody = document.getElementById('months-comparison-tbody');
+        const savingsTableBody = document.getElementById('savings-by-month-tbody');
+        const monthCardsContainer = document.getElementById('month-cards-container');
         const trendsContainer = document.getElementById('trends-container');
-        
-        if (tableBody) {
-            tableBody.innerHTML = '<tr><td colspan="9" class="empty-message">No monthly data available. Create a month to get started.</td></tr>';
+
+        if (savingsTableBody) {
+            savingsTableBody.innerHTML = '<tr><td colspan="3" class="empty-message text-center">No monthly data available.</td></tr>';
+        }
+        if (monthCardsContainer) {
+            monthCardsContainer.innerHTML = '<p class="empty-message">No monthly data available. Create a month to get started.</p>';
         }
         if (trendsContainer) {
             trendsContainer.innerHTML = '<p class="empty-message">No data available for trends analysis.</p>';
