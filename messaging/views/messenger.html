@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messenger - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
@@ -70,29 +70,27 @@
                 </div>
                 <div id="message-input-container" class="message-input-container">
                     <!-- Attachment preview area -->
-                    <div id="attachment-preview" style="display: none; margin-bottom: var(--spacing-sm); padding: var(--spacing-sm); background: var(--primary-color); color: white; border-radius: var(--border-radius);">
-                        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <i id="attachment-preview-icon" class="fas fa-file" style="font-size: 1.2em;"></i>
-                            <div style="flex: 1; min-width: 0;">
-                                <div id="attachment-preview-name" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;"></div>
-                                <div id="attachment-preview-size" style="opacity: 0.8; font-size: 0.8em;"></div>
-                            </div>
-                            <button id="remove-attachment-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Remove">
-                                <i class="fas fa-times"></i>
-                            </button>
+                    <div id="attachment-preview" class="attachment-preview">
+                        <i id="attachment-preview-icon" class="fas fa-file attachment-preview-icon"></i>
+                        <div class="attachment-preview-info">
+                            <div id="attachment-preview-name" class="attachment-preview-name"></div>
+                            <div id="attachment-preview-size" class="attachment-preview-size"></div>
                         </div>
+                        <button id="remove-attachment-btn" class="attachment-remove-btn" title="Remove">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                    <textarea id="message-input" class="form-input" placeholder="Type your message..." rows="2"></textarea>
-                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-sm); align-items: center;">
-                        <input type="file" id="attachment-input" style="display: none;">
-                        <button id="attach-file-button" class="btn btn-secondary" style="display: none; padding: var(--spacing-sm);" title="Attach file">
+                    <textarea id="message-input" class="message-textarea" placeholder="Type your message..." rows="2"></textarea>
+                    <div class="message-actions">
+                        <input type="file" id="attachment-input" class="hidden-input">
+                        <button id="attach-file-button" class="message-action-btn" style="display: none;" title="Attach file">
                             <i class="fas fa-paperclip"></i>
                         </button>
-                        <button id="share-data-button" class="btn btn-secondary" style="display: none;" title="Share data">
-                            <i class="fas fa-share-alt"></i> Share
+                        <button id="share-data-button" class="message-action-btn" style="display: none;" title="Share data">
+                            <i class="fas fa-share-alt"></i>
                         </button>
-                        <div style="flex: 1;"></div>
-                        <button id="send-message-button" class="btn btn-action" style="padding: var(--spacing-sm) var(--spacing-md);">
+                        <div class="message-actions-spacer"></div>
+                        <button id="send-message-button" class="btn btn-action message-send-btn">
                             <i class="fas fa-paper-plane"></i> Send
                         </button>
                     </div>

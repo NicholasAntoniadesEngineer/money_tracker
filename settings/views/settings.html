@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Money Tracker</title>
     <link rel="stylesheet" href="../../shared/vendor/font-awesome/css/all.min.css">
-    <link rel="stylesheet" href="../../shared/styles/main.css">
-    <link rel="stylesheet" href="../styles/settings.css">
+    <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script>
@@ -14,7 +13,7 @@
         (function() {
             const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
             document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-            
+
             // Sync with database once services are available
             async function syncFontSizeFromDatabase() {
                 try {
@@ -43,236 +42,260 @@
 <body>
     <!-- Header will be injected by Header.js -->
 
-    <main class="settings-main" role="main">
+    <main class="page-container" role="main">
+        <div class="hero-section">
+            <h1 class="hero-title">Settings</h1>
+        </div>
 
-        <section class="settings-section form-section">
-            <h2 class="section-title">General</h2>
+        <div class="settings-grid">
+            <!-- General Settings Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-cog"></i> General</h2>
 
-            <div class="settings-row">
-                <label for="currency-select" class="form-label">Currency:</label>
-                <select id="currency-select" class="form-select">
-                    <option value="">Loading...</option>
-                    <option value="£">£ (GBP)</option>
-                    <option value="$">$ (USD)</option>
-                    <option value="€">€ (EUR)</option>
-                    <option value="¥">¥ (JPY)</option>
-                    <option value="₹">₹ (INR)</option>
-                    <option value="A$">A$ (AUD)</option>
-                    <option value="C$">C$ (CAD)</option>
-                    <option value="CHF">CHF</option>
-                    <option value="NZ$">NZ$ (NZD)</option>
-                    <option value="R">R (ZAR)</option>
-                </select>
-                <div id="currency-status" class="settings-status"></div>
-            </div>
-
-            <div class="settings-row">
-                <label for="font-size-select" class="form-label">Font Size:</label>
-                <select id="font-size-select" class="form-select">
-                    <option value="">Loading...</option>
-                    <option value="14">Small (14px)</option>
-                    <option value="16">Default (16px)</option>
-                    <option value="18">Medium (18px)</option>
-                    <option value="20">Large (20px)</option>
-                    <option value="22">Extra Large (22px)</option>
-                </select>
-            </div>
-
-        </section>
-
-        <section id="data-sharing-section" class="settings-section form-section">
-            <h2 class="section-title">Data Sharing</h2>
-            <p id="premium-required-message" style="display: none; margin-bottom: var(--spacing-md); font-size: 0.9rem; color: var(--text-color-secondary);">
-                Share your data with other users. Premium subscription required.
-            </p>
-            
-            <div id="data-shares-list" class="data-shares-list" style="margin-bottom: var(--spacing-md);">
-                <p>Loading...</p>
-            </div>
-            
-            <div class="settings-row">
-                <button id="add-share-button" class="btn btn-action">Add Share</button>
-            </div>
-            
-            <div id="add-share-form" class="add-share-form" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
-                <h3 style="margin-bottom: var(--spacing-md);">Create New Share</h3>
-                
-                <div class="settings-row">
-                    <label for="share-email" class="form-label">User Email:</label>
-                    <input type="email" id="share-email" class="form-input" placeholder="user@example.com" autocomplete="email" required>
+                <div class="settings-field">
+                    <label for="currency-select" class="form-label">Currency</label>
+                    <select id="currency-select" class="form-select">
+                        <option value="">Loading...</option>
+                        <option value="£">£ (GBP)</option>
+                        <option value="$">$ (USD)</option>
+                        <option value="€">€ (EUR)</option>
+                        <option value="¥">¥ (JPY)</option>
+                        <option value="₹">₹ (INR)</option>
+                        <option value="A$">A$ (AUD)</option>
+                        <option value="C$">C$ (CAD)</option>
+                        <option value="CHF">CHF</option>
+                        <option value="NZ$">NZ$ (NZD)</option>
+                        <option value="R">R (ZAR)</option>
+                    </select>
+                    <div id="currency-status" class="settings-status"></div>
                 </div>
-                
-                <div class="settings-row">
-                    <label for="share-access-level" class="form-label">Access Level:</label>
-                    <select id="share-access-level" class="form-select">
-                        <option value="read">Read Only</option>
-                        <option value="read_write">Read/Write</option>
-                        <option value="read_write_delete">Read/Write/Delete</option>
+
+                <div class="settings-field">
+                    <label for="font-size-select" class="form-label">Font Size</label>
+                    <select id="font-size-select" class="form-select">
+                        <option value="">Loading...</option>
+                        <option value="14">Small (14px)</option>
+                        <option value="16">Default (16px)</option>
+                        <option value="18">Medium (18px)</option>
+                        <option value="20">Large (20px)</option>
+                        <option value="22">Extra Large (22px)</option>
                     </select>
                 </div>
-                
-                <div class="settings-row">
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                        <input type="checkbox" id="share-all-data">
-                        <span><strong>Share All Data</strong></span>
-                    </label>
+            </section>
+
+            <!-- Subscription Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-crown"></i> Subscription</h2>
+
+                <div id="subscription-status-container" class="subscription-info-box">
+                    <div id="subscription-status-message" class="subscription-badge">
+                        Loading subscription status...
+                    </div>
+
+                    <div id="subscription-details" class="subscription-details-grid" style="display: none;">
+                        <div id="subscription-details-content">
+                            <!-- Details will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div id="account-created-container" class="account-info" style="display: none;">
+                        <span class="account-label">Account Created:</span>
+                        <span id="account-created-date" class="account-value"></span>
+                    </div>
                 </div>
-                
-                <div class="settings-row">
-                    <label class="form-label">Share Options:</label>
-                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-months" checked>
-                            <span>Months</span>
+
+                <div class="settings-actions">
+                    <button id="start-subscription-button" class="btn btn-action" style="display: none;">
+                        <i class="fas fa-star"></i> Start Subscription
+                    </button>
+                    <button id="refresh-subscription-button" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <a href="../../payments/views/subscription.html" class="btn btn-action">
+                        <i class="fas fa-credit-card"></i> Manage
+                    </a>
+                </div>
+
+                <div id="subscription-status" class="settings-status"></div>
+            </section>
+
+            <!-- Notifications Card -->
+            <section id="notification-preferences-section" class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-bell"></i> Notifications</h2>
+
+                <div id="notification-preferences-list" class="notification-prefs-grid">
+                    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading preferences...</p>
+                </div>
+
+                <div class="settings-actions">
+                    <button id="save-notification-preferences-button" class="btn btn-action">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+
+                <div id="notification-preferences-status" class="settings-status"></div>
+            </section>
+
+            <!-- Data Sharing Card -->
+            <section id="data-sharing-section" class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-share-alt"></i> Data Sharing</h2>
+                <p id="premium-required-message" class="premium-notice" style="display: none;">
+                    Share your data with other users. Premium subscription required.
+                </p>
+
+                <div id="data-shares-list" class="data-shares-container">
+                    <p class="loading-text">Loading...</p>
+                </div>
+
+                <div class="settings-actions">
+                    <button id="add-share-button" class="btn btn-action">
+                        <i class="fas fa-plus"></i> Add Share
+                    </button>
+                </div>
+
+                <div id="add-share-form" class="share-form-container" style="display: none;">
+                    <h3 class="share-form-title">Create New Share</h3>
+
+                    <div class="share-form-grid">
+                        <div class="settings-field">
+                            <label for="share-email" class="form-label">User Email</label>
+                            <input type="email" id="share-email" class="form-input" placeholder="user@example.com" autocomplete="email" required>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="share-access-level" class="form-label">Access Level</label>
+                            <select id="share-access-level" class="form-select">
+                                <option value="read">Read Only</option>
+                                <option value="read_write">Read/Write</option>
+                                <option value="read_write_delete">Read/Write/Delete</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="share-options">
+                        <label class="checkbox-label checkbox-main">
+                            <input type="checkbox" id="share-all-data">
+                            <span>Share All Data</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-pots">
-                            <span>Pots</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-settings">
-                            <span>Settings</span>
-                        </label>
+
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="share-months" checked>
+                                <span>Months</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="share-pots">
+                                <span>Pots</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="share-settings">
+                                <span>Settings</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="share-months-container" class="month-selector-container">
+                        <label class="form-label">Select Months</label>
+                        <div class="month-selector-row">
+                            <select id="month-selector-dropdown" class="form-select">
+                                <option value="">Select a month...</option>
+                            </select>
+                            <button type="button" id="add-month-button" class="btn btn-secondary">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                        <div id="selected-months-list" class="selected-months">
+                            <!-- Selected months will be added here -->
+                        </div>
+                    </div>
+
+                    <div class="share-form-actions">
+                        <button id="save-share-button" class="btn btn-action">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button id="cancel-share-button" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+
+                    <div id="share-form-status" class="settings-status"></div>
+                </div>
+
+                <div id="data-sharing-status" class="settings-status"></div>
+            </section>
+
+            <!-- Import Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-file-import"></i> Import</h2>
+
+                <div class="settings-field">
+                    <label for="file-input" class="form-label">Select Files</label>
+                    <div class="file-input-row">
+                        <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
+                        <button id="import-button" class="btn btn-action">
+                            <i class="fas fa-upload"></i> Import
+                        </button>
                     </div>
                 </div>
-                
-                <div id="share-months-container" style="margin-top: var(--spacing-md);">
-                    <label class="form-label">Select Months:</label>
-                    <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
-                        <select id="month-selector-dropdown" class="form-select" style="flex: 1;">
-                            <option value="">Select a month...</option>
-                        </select>
-                        <button type="button" id="add-month-button" class="btn btn-action" style="flex: 0 0 auto;">Add Month</button>
-                    </div>
-                    <div id="selected-months-list" style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <!-- Selected months will be added here -->
-                    </div>
+
+                <div id="year-input-group" class="settings-field" style="display: none;">
+                    <label for="import-year" class="form-label">Year</label>
+                    <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100" style="max-width: 120px;">
                 </div>
-                
-                <div class="settings-row" style="margin-top: var(--spacing-md); gap: 0.5rem;">
-                    <button id="save-share-button" class="btn btn-action">Save</button>
-                    <button id="cancel-share-button" class="btn btn-secondary">Cancel</button>
+
+                <div class="settings-actions">
+                    <button id="load-example-data-button" class="btn btn-secondary">
+                        <i class="fas fa-database"></i> Load Example Data
+                    </button>
+                    <button id="remove-example-data-button" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Remove Example
+                    </button>
                 </div>
-                
-                <div id="share-form-status" class="settings-status"></div>
-            </div>
-            
-            <div id="data-sharing-status" class="settings-status"></div>
-        </section>
 
-        <section id="notification-preferences-section" class="settings-section form-section">
-            <h2 class="section-title">Notifications</h2>
-            
-            <div id="notification-preferences-list" class="notification-preferences-list" style="margin-bottom: var(--spacing-md);">
-                <p>Loading notification preferences...</p>
-            </div>
-            
-            <div class="settings-row" style="gap: 0.5rem;">
-                <button id="save-notification-preferences-button" class="btn btn-action">Save Preferences</button>
-            </div>
-            
-            <div id="notification-preferences-status" class="settings-status"></div>
-        </section>
+                <div id="import-status" class="settings-status"></div>
+            </section>
 
-        <section id="blocked-users-section" class="settings-section form-section">
-            <h2 class="section-title">Blocked Users</h2>
-            
-            <div id="blocked-users-list" class="blocked-users-list" style="margin-bottom: var(--spacing-md);">
-                <p>Loading blocked users...</p>
-            </div>
-            
-            <div id="blocked-users-status" class="settings-status"></div>
-        </section>
+            <!-- Export & Delete Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-file-export"></i> Export & Delete</h2>
 
-        <section class="settings-section form-section">
-            <h2 class="section-title">Import</h2>
-
-            <div class="settings-row" style="gap: 0.5rem;">
-                <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple style="max-width: none; flex: 1;">
-                <button id="import-button" class="btn btn-action">Import</button>
-            </div>
-
-            <div id="year-input-group" class="settings-inline-group" style="display: none;">
-                <label for="import-year" class="form-label">Year:</label>
-                <input type="number" id="import-year" class="form-input" value="2025" min="2000" max="2100" style="width: 100px;">
-            </div>
-
-            <div class="settings-row" style="gap: 0.5rem;">
-                <button id="load-example-data-button" class="btn btn-action">Load Example Data</button>
-                <button id="remove-example-data-button" class="btn btn-danger">Remove Example Data</button>
-            </div>
-
-            <div id="import-status" class="settings-status"></div>
-        </section>
-
-        <section class="settings-section form-section">
-            <h2 class="section-title">Export & Delete</h2>
-            
-            <div class="settings-row">
-                <select id="month-selector" class="form-select">
-                    <option value="">Select month...</option>
-                </select>
-            </div>
-
-            <div class="settings-row settings-export-row">
-                <select id="export-format-select" class="form-select" style="max-width: 120px;">
-                    <option value="json">JSON</option>
-                    <option value="csv">CSV</option>
-                    <option value="html">HTML</option>
-                </select>
-                <button id="export-button" class="btn btn-action">Export</button>
-                <button id="delete-month-button" class="btn btn-danger" style="display: none;">Delete</button>
-            </div>
-
-            <div class="settings-row">
-                <button id="clear-all-data-button" class="btn btn-danger">Clear All Cached Data</button>
-            </div>
-            
-            <div class="settings-row">
-                <button id="delete-all-user-data-button" class="btn btn-danger">Delete All User Data from Supabase</button>
-            </div>
-        </section>
-
-        <section class="settings-section form-section">
-            <h2 class="section-title">Subscription</h2>
-            
-            <div id="subscription-status-container" class="subscription-status-container">
-                <div id="subscription-status-message" class="subscription-message" style="padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);">
-                    Loading subscription status...
+                <div class="settings-field">
+                    <label for="month-selector" class="form-label">Select Month</label>
+                    <select id="month-selector" class="form-select">
+                        <option value="">Select month...</option>
+                    </select>
                 </div>
-                
-                <div id="subscription-details" class="subscription-details" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
-                    <div id="subscription-details-content" style="display: grid; gap: var(--spacing-sm); font-size: 0.95rem;">
-                        <!-- Details will be populated by JavaScript -->
+
+                <div class="export-row">
+                    <select id="export-format-select" class="form-select export-format">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                        <option value="html">HTML</option>
+                    </select>
+                    <button id="export-button" class="btn btn-action">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button id="delete-month-button" class="btn btn-danger" style="display: none;">
+                        <i class="fas fa-trash"></i> Delete Month
+                    </button>
+                </div>
+
+                <div class="danger-zone">
+                    <h3 class="danger-title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
+                    <div class="danger-actions">
+                        <button id="clear-all-data-button" class="btn btn-danger">
+                            <i class="fas fa-broom"></i> Clear Cached Data
+                        </button>
+                        <button id="delete-all-user-data-button" class="btn btn-danger">
+                            <i class="fas fa-skull-crossbones"></i> Delete All Data
+                        </button>
                     </div>
                 </div>
-                
-                <div id="account-created-container" class="account-created-container" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-sm); font-size: 0.95rem;">
-                    <strong>Account Created:</strong> <span id="account-created-date"></span>
-                </div>
-            </div>
-            
-            <div class="settings-row" style="gap: 0.5rem; margin-top: var(--spacing-sm);">
-                <button id="start-subscription-button" class="btn btn-action" style="display: none;">
-                    Start Subscription (€5/month)
-                </button>
-                <button id="refresh-subscription-button" class="btn btn-action">
-                    Refresh Status
-                </button>
-                <a href="../../payments/views/subscription.html" class="btn btn-action">
-                    Subscription Management
-                </a>
-            </div>
-            
-            <div id="subscription-status" class="settings-status"></div>
-        </section>
+            </section>
+        </div>
 
         <div id="file-operations-status" class="settings-status"></div>
     </main>
-
-    <footer class="main-footer" role="contentinfo">
-        <p>&copy; 2025 Money Tracker. All data stored in Supabase database.</p>
-    </footer>
 
     <!-- Database Layer -->
     <!-- Global Logging Configuration - MUST load first -->

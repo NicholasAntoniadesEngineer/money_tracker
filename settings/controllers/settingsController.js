@@ -2488,63 +2488,63 @@ const SettingsController = {
 
         list.innerHTML = `
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-in-app-enabled" ${prefs.in_app_enabled ? 'checked' : ''}>
                     <span>Enable in-app notifications</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-email-enabled" ${prefs.email_enabled ? 'checked' : ''}>
                     <span>Enable email notifications (future)</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-share-requests" ${prefs.share_requests ? 'checked' : ''}>
                     <span>Receive share request notifications</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-share-responses" ${prefs.share_responses ? 'checked' : ''}>
                     <span>Receive share response notifications</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-payment-notifications" ${prefs.payment_notifications !== false ? 'checked' : ''}>
                     <span>Receive payment and subscription notifications</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-message-notifications" ${prefs.message_notifications !== false ? 'checked' : ''}>
                     <span>Receive message notifications</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-auto-accept" ${prefs.auto_accept_shares ? 'checked' : ''}>
                     <span>Auto-accept share requests</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-auto-decline" ${prefs.auto_decline_shares ? 'checked' : ''}>
                     <span>Auto-decline share requests</span>
                 </label>
             </div>
-            
+
             <div class="settings-row">
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="checkbox" id="pref-quiet-hours-enabled" ${prefs.quiet_hours_enabled ? 'checked' : ''}>
                     <span>Enable quiet hours</span>
                 </label>
