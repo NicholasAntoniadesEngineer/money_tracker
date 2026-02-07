@@ -7,6 +7,7 @@ const MonthlyBudgetController = {
     currentMonthData: null,
     currentMonthKey: null,
     editingShareId: null,
+    _loading: false,
 
     /**
      * Calculate the number of weeks in a month
@@ -157,7 +158,6 @@ const MonthlyBudgetController = {
         if (selector) {
             selector.innerHTML = optionsHtml;
             this.adjustMonthSelectorWidth();
-            // REMOVED: container visibility logic (moved to init())
         }
     },
     
@@ -258,13 +258,6 @@ const MonthlyBudgetController = {
             selector.addEventListener('change', () => handleMonthChange(selector.value));
         }
 
-        const incomeInputs = ['nicholas-income-estimated', 'nicholas-income-actual', 
-                             'lara-income-estimated', 'lara-income-actual',
-                             'other-income-estimated', 'other-income-actual'];
-        incomeInputs.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) input.addEventListener('input', () => this.updateCalculations());
-        });
     },
 
     /**
@@ -303,7 +296,8 @@ const MonthlyBudgetController = {
      */
     async loadMonth(monthKey) {
         console.log('[MonthlyBudgetController] loadMonth() called for:', monthKey);
-        
+        this._loading = true;
+
         const monthData = await DataManager.getMonth(monthKey);
         
         if (!monthData) {
@@ -370,6 +364,10 @@ const MonthlyBudgetController = {
         this.loadUnplannedExpenses(monthData.unplannedExpenses || []);
         this.loadPots(monthData.pots || []);
 
+        // Rebuild working section table structure (column headers) based on variable cost categories
+        // Must happen after variable costs are loaded but before weekly breakdown
+        this.rebuildWorkingSectionTable();
+
         // Load weekly breakdown after costs are loaded so we can populate them
         this.loadWeeklyBreakdown(monthData.weeklyBreakdown || []);
 
@@ -378,7 +376,7 @@ const MonthlyBudgetController = {
         // Check if weeklyBreakdown had data - if so, skip populateWorkingSectionFromCosts
         const weeklyBreakdownHadData = monthData.weeklyBreakdown && monthData.weeklyBreakdown.length > 0 && monthData.weeklyBreakdown.some(week => {
             return Object.keys(week).some(key => {
-                if (key.startsWith('weekly-variable-') || key === 'Food' || key === 'Travel' || key === 'Activities') {
+                if (key.startsWith('weekly-variable-')) {
                     const value = week[key];
                     return typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
                 }
@@ -405,12 +403,9 @@ const MonthlyBudgetController = {
         // Populate copy month selectors
         this.populateCopyMonthSelectors();
 
-        // Automatically copy variable costs from the selected month to ensure table updates correctly
-        // This uses the same logic as the copy button which works reliably
-        this.copyVariableCostsFromMonthInternal(monthKey);
-
+        this._loading = false;
         this.updateCalculations();
-        
+
         // Show share button if user has premium
         this.updateShareButtonVisibility();
         
@@ -466,9 +461,6 @@ const MonthlyBudgetController = {
         }
     },
     
-    /**
-     * Handle share month button click
-     */
     /**
      * Handle share month button click - shows modal
      */
@@ -1677,7 +1669,7 @@ const MonthlyBudgetController = {
     },
 
     /**
-     * Get variable cost categories (excluding transport which is in fixed costs)
+     * Get variable cost categories
      */
     getVariableCostCategories() {
         if (!this.currentMonthData) return [];
@@ -1708,16 +1700,7 @@ const MonthlyBudgetController = {
         const tbody = document.getElementById('weekly-breakdown-tbody');
         if (!thead || !tbody) return;
         
-        // Refresh variable costs from DOM before getting categories to ensure we have the latest data
-        if (this.currentMonthData) {
-            const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                category: row.querySelector('.variable-cost-category')?.value || '',
-                estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                comments: row.querySelector('.variable-cost-comments')?.value || ''
-            }));
-            this.currentMonthData.variableCosts = variableCosts;
-        }
+        this.updateVariableCostsData();
         
         const categories = this.getVariableCostCategories();
         const headerRow = thead.querySelector('tr');
@@ -1843,8 +1826,9 @@ const MonthlyBudgetController = {
             totalRow.innerHTML = totalRowHTML;
         }
         
-        // Recalculate totals after rebuilding
-        this.updateCalculations();
+        if (!this._loading) {
+            this.updateCalculations();
+        }
     },
 
     /**
@@ -1915,7 +1899,7 @@ const MonthlyBudgetController = {
         // to preserve the loaded calculations
         const hasLoadedData = weeklyBreakdown && weeklyBreakdown.length > 0 && weeklyBreakdown.some(week => {
             return Object.keys(week).some(key => {
-                if (key.startsWith('weekly-variable-') || key === 'Food' || key === 'Travel' || key === 'Activities') {
+                if (key.startsWith('weekly-variable-')) {
                     const value = week[key];
                     return typeof value === 'string' && value.includes('Estimate:') && value.trim().length > 0;
                 }
@@ -2000,47 +1984,13 @@ const MonthlyBudgetController = {
                     }
                 }
                 
-                // If we found a value, check if it needs format conversion
-                if (existingValue) {
-                    // Check if it's already in the new format (has Estimate: and newline with =)
-                    const hasNewFormat = existingValue.includes('Estimate:') && existingValue.includes('\n') && existingValue.includes('=');
-                    
-                    if (!hasNewFormat) {
-                        // Old format detected - parse it and preserve calculation string
-                        const oldValue = existingValue;
-                        const equalsIndex = oldValue.indexOf('=');
-                        if (equalsIndex >= 0) {
-                            // Extract calculation part (before =) and result part (after =)
-                            const beforeEquals = oldValue.substring(0, equalsIndex).trim();
-                            const afterEquals = oldValue.substring(equalsIndex + 1).trim();
-                            
-                            // Calculate estimate by summing all numbers before = (handles "90-55-20-40-15")
-                            const numbers = beforeEquals.match(/[\d\.]+/g) || [];
-                            const estimate = numbers.reduce((sum, num) => sum + parseFloat(num), 0);
-                            
-                            // Build new format - preserve the calculation string in the equals line
-                            // If afterEquals has content, preserve it; otherwise use beforeEquals as the calculation
-                            if (afterEquals) {
-                                // Old format like "90-55-20-40-15= 130" - preserve the calculation before =
-                                existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n= ${beforeEquals}`;
-                            } else {
-                                // Format like "90-55-20-40-15=" - preserve the calculation
-                                existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n= ${beforeEquals}`;
-                            }
-                        } else {
-                            // No = found, treat entire value as estimate
-                            const estimate = Formatters.parseNumber(oldValue);
-                            existingValue = `Estimate: ${Formatters.formatCurrency(estimate)}\n=`;
-                        }
-                    }
-                }
             }
             
             rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
         });
         
         rowHTML += `
-            <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || weekData?.weeklyEstimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
+            <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
@@ -2121,25 +2071,8 @@ const MonthlyBudgetController = {
     populateWorkingSectionFromCosts(forceUpdate = false) {
         if (!this.currentMonthData) return;
         
-        // Refresh variable costs from DOM to ensure we have the latest data
-        const variableCostsFromDOM = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-            category: row.querySelector('.variable-cost-category')?.value || '',
-            estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-            comments: row.querySelector('.variable-cost-comments')?.value || ''
-        }));
-        this.currentMonthData.variableCosts = variableCostsFromDOM;
-        
-        // Refresh unplanned expenses from DOM to ensure we have the latest data
-        const unplannedExpensesFromDOM = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr:not(.total-row)')).map(row => ({
-            name: row.querySelector('.unplanned-name')?.value || '',
-            amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
-            date: row.querySelector('.unplanned-date')?.value || '',
-            card: row.querySelector('.unplanned-card')?.value || '',
-            paid: row.querySelector('.unplanned-paid')?.checked || false,
-            comments: row.querySelector('.unplanned-comments')?.value || ''
-        }));
-        this.currentMonthData.unplannedExpenses = unplannedExpensesFromDOM;
+        this.updateVariableCostsData();
+        this.updateUnplannedData();
         
         const year = this.currentMonthData.year;
         const month = this.currentMonthData.month;
@@ -2191,12 +2124,6 @@ const MonthlyBudgetController = {
         variableCosts.forEach(cost => {
             const category = (cost.category || '').trim();
             if (!category) return;
-            
-            const categoryLower = category.toLowerCase();
-            // Skip transport/travel as it's in fixed costs
-            if (categoryLower.includes('transport') || categoryLower.includes('travel')) {
-                return;
-            }
             
             const monthlyBudget = Formatters.parseNumber(cost.estimatedAmount || 0);
             // Include even if monthlyBudget is 0, so the category column exists
@@ -2380,11 +2307,9 @@ const MonthlyBudgetController = {
                 const hasAutoGenerated = currentValue.includes('Auto-generated');
                 const hasEstimate = currentValue.includes('Estimate:');
                 
-                // Check if this textarea already has loaded data from weeklyBreakdown
-                // If it has Estimate: line, preserve it completely - this is loaded data
-                // This prevents overwriting data that was just loaded from saved/example data
-                if (hasEstimate) {
-                    // Data was loaded - preserve it completely, don't modify
+                // If textarea has Estimate: line and this is NOT a forced update,
+                // preserve it completely (loaded data from saved state)
+                if (hasEstimate && !forceUpdate) {
                     this.autoSizeTextarea(categoryTextarea);
                     return;
                 }
@@ -2408,52 +2333,27 @@ const MonthlyBudgetController = {
                 });
                 const hasActualSpending = existingEqualsLine && existingEqualsLine.trim().length > 1;
                 
-                // Only update if:
-                // 1. Field is completely empty, OR
-                // 2. Has auto-generated content, OR
-                // 3. Has estimate but no actual spending (empty = line or no = line)
-                // DO NOT update if field has actual spending data (preserve user input)
                 if (hasVariableCostsData) {
-                    if (!currentValue.trim() || hasAutoGenerated || (hasEstimate && !hasActualSpending)) {
-                        // Build new content: Estimate line with formatted amount
-                        const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
+                    // Build the new estimate line
+                    const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
+
+                    if (forceUpdate && hasEstimate) {
+                        // Force update: replace estimate line, preserve all other lines (actual spending etc)
+                        const remainingLines = lines.filter(line => !line.trim().startsWith('Estimate:'));
+                        categoryTextarea.value = estimateLine + (remainingLines.length > 0 ? '\n' + remainingLines.join('\n') : '\n=');
+                    } else if (!currentValue.trim() || hasAutoGenerated || (hasEstimate && !hasActualSpending)) {
                         let newContent = estimateLine;
-                        
-                        // Preserve existing actual spending if it exists
                         if (hasActualSpending) {
                             newContent += '\n' + existingEqualsLine.trim();
                         } else {
-                            // Check if there's old format data (like "90-55-20-40-15= 130")
-                            // Extract just the part after = if it exists
-                            const oldFormatMatch = currentValue.match(/=?\s*([\d\s\+\-\.]+)/);
-                            if (oldFormatMatch && oldFormatMatch[1]) {
-                                // Found old format, extract the actual spending part
-                                newContent += '\n= ' + oldFormatMatch[1].trim();
-                            } else {
-                                // Empty "=" line for user to fill in actual spending
-                                newContent += '\n=';
-                            }
+                            newContent += '\n=';
                         }
-                        
                         categoryTextarea.value = newContent;
+                    } else if (!hasEstimate) {
+                        // No estimate line - add it at the beginning, preserve all existing content
+                        categoryTextarea.value = estimateLine + '\n' + currentValue;
                     } else {
-                        // Field has actual spending data - preserve it completely
-                        // Only update the estimate line if it's missing or in old format
-                        const firstLine = lines[0]?.trim() || '';
-                        
-                        if (!hasEstimate) {
-                            // No estimate line - add it at the beginning, preserve all existing content
-                            const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
-                            categoryTextarea.value = estimateLine + '\n' + currentValue;
-                        } else if (firstLine.startsWith('Estimate:')) {
-                            // Already has estimate line with actual spending - preserve everything as-is
-                            // Don't modify anything, just ensure the textarea is properly sized
-                        } else {
-                            // Old format (just a number) - convert to new format but preserve equals line
-                            const estimateLine = `Estimate: ${Formatters.formatCurrency(baseEstimate)}`;
-                            const remainingLines = lines.slice(1);
-                            categoryTextarea.value = estimateLine + '\n' + remainingLines.join('\n');
-                        }
+                        // Has estimate with actual spending, not force update - preserve as-is
                     }
                     
                     // Auto-size the textarea
@@ -2502,49 +2402,14 @@ const MonthlyBudgetController = {
     },
 
     /**
-     * Load income sources (supports both old format and new array format)
+     * Load income sources
      */
     loadIncomeSources(incomeData) {
         const tbody = document.getElementById('income-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        let incomeSources = [];
-
-        if (Array.isArray(incomeData)) {
-            incomeSources = incomeData;
-        } else if (incomeData && typeof incomeData === 'object') {
-            if (incomeData.nicholasIncome) {
-                incomeSources.push({
-                    source: 'Nicholas Income',
-                    estimated: incomeData.nicholasIncome.estimated || 0,
-                    actual: incomeData.nicholasIncome.actual || 0,
-                    date: incomeData.nicholasIncome.date || '',
-                    description: '',
-                    comments: incomeData.nicholasIncome.comments || ''
-                });
-            }
-            if (incomeData.laraIncome) {
-                incomeSources.push({
-                    source: 'Lara Income',
-                    estimated: incomeData.laraIncome.estimated || 0,
-                    actual: incomeData.laraIncome.actual || 0,
-                    date: incomeData.laraIncome.date || '',
-                    description: '',
-                    comments: incomeData.laraIncome.comments || ''
-                });
-            }
-            if (incomeData.otherIncome) {
-                incomeSources.push({
-                    source: 'Other Income',
-                    estimated: incomeData.otherIncome.estimated || 0,
-                    actual: incomeData.otherIncome.actual || 0,
-                    date: '',
-                    description: incomeData.otherIncome.description || '',
-                    comments: incomeData.otherIncome.comments || ''
-                });
-            }
-        }
+        const incomeSources = Array.isArray(incomeData) ? incomeData : [];
 
         if (incomeSources.length === 0) {
             this.addIncomeRow();
@@ -2552,7 +2417,6 @@ const MonthlyBudgetController = {
             incomeSources.forEach(income => this.addIncomeRow(income));
         }
 
-        // Always add the total row at the end
         this.addIncomeTotalRow();
     },
 
@@ -2577,21 +2441,15 @@ const MonthlyBudgetController = {
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                // Repopulate working section immediately when unplanned expense is deleted
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         }
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => {
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                // Repopulate working section immediately when unplanned expense changes
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         });
 
@@ -2600,15 +2458,15 @@ const MonthlyBudgetController = {
         const lastRow = allRows[allRows.length - 1];
 
         if (lastRow && lastRow.classList.contains('total-row')) {
-            // Insert before the total row
             tbody.insertBefore(row, lastRow);
         } else {
-            // No total row found, append to end
-        tbody.appendChild(row);
+            tbody.appendChild(row);
         }
-        
-        // Repopulate working section when income is added
-        this.populateWorkingSectionFromCosts();
+
+        if (!this._loading) {
+            this.populateWorkingSectionFromCosts();
+            this.updateCalculations();
+        }
     },
 
     /**
@@ -2680,12 +2538,9 @@ const MonthlyBudgetController = {
                 if (checkbox) {
                     checkbox.checked = !checkbox.checked;
                     paidTick.classList.toggle('unpaid', !checkbox.checked);
-                    // Trigger update
                     this.updateFixedCostsData();
+                    this.populateWorkingSectionFromCosts(true);
                     this.updateCalculations();
-                    requestAnimationFrame(() => {
-                        this.populateWorkingSectionFromCosts(true);
-                    });
                 }
             });
         }
@@ -2695,27 +2550,16 @@ const MonthlyBudgetController = {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
                 this.updateFixedCostsData();
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         }
 
         row.querySelectorAll('input:not(.fixed-cost-paid)').forEach(input => {
             input.addEventListener('input', () => {
                 this.updateFixedCostsData();
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
-            });
-            input.addEventListener('change', () => {
-                this.updateFixedCostsData();
-                this.updateCalculations();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         });
 
@@ -2730,24 +2574,37 @@ const MonthlyBudgetController = {
         }
 
         this.updateFixedCostsData();
-        this.populateWorkingSectionFromCosts(true);
+        if (!this._loading) {
+            this.populateWorkingSectionFromCosts(true);
+            this.updateCalculations();
+        }
     },
 
     /**
-     * Update fixed costs data in currentMonthData
+     * Update fixed costs data in currentMonthData from DOM
      */
     updateFixedCostsData() {
-        if (this.currentMonthData) {
-            const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
-                category: row.querySelector('.fixed-cost-category')?.value || '',
-                estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
-                actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
-                date: row.querySelector('.fixed-cost-date')?.value || '',
-                card: row.querySelector('.fixed-cost-card')?.value || '',
-                paid: row.querySelector('.fixed-cost-paid')?.checked || false
-            }));
-            this.currentMonthData.fixedCosts = fixedCosts;
-        }
+        if (!this.currentMonthData) return;
+        this.currentMonthData.fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
+            category: row.querySelector('.fixed-cost-category')?.value || '',
+            estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
+            actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
+            date: row.querySelector('.fixed-cost-date')?.value || '',
+            card: row.querySelector('.fixed-cost-card')?.value || '',
+            paid: row.querySelector('.fixed-cost-paid')?.checked || false
+        }));
+    },
+
+    /**
+     * Update variable costs data in currentMonthData from DOM
+     */
+    updateVariableCostsData() {
+        if (!this.currentMonthData) return;
+        this.currentMonthData.variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
+            category: row.querySelector('.variable-cost-category')?.value || '',
+            estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
+            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
+        }));
     },
 
     /**
@@ -2793,13 +2650,14 @@ const MonthlyBudgetController = {
             this.currentMonthData.variableCosts = costs;
         }
 
-        // Rebuild working section table structure when variable costs change
-        if (this.currentMonthData && !skipRebuild) {
+        // Rebuild working section table structure when variable costs change (not during initial load)
+        if (this.currentMonthData && !skipRebuild && !this._loading) {
             this.rebuildWorkingSectionTable();
-            // Reload weekly breakdown to update columns
             if (this.currentMonthData.weeklyBreakdown) {
                 this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
             }
+            this.populateWorkingSectionFromCosts(true);
+            this.updateCalculations();
         }
     },
 
@@ -2827,21 +2685,10 @@ const MonthlyBudgetController = {
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
-                // Update current month data immediately after DOM removal
-                if (this.currentMonthData) {
-                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.variable-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
-                    }));
-                    this.currentMonthData.variableCosts = variableCosts;
-                }
-                this.updateCalculations();
-                // Rebuild table structure when variable cost is deleted, then repopulate
+                this.updateVariableCostsData();
                 this.rebuildWorkingSectionTable();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
+                this.populateWorkingSectionFromCosts(true);
+                this.updateCalculations();
         });
         }
 
@@ -2864,42 +2711,23 @@ const MonthlyBudgetController = {
 
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', () => {
-                // Update current month data
-                if (this.currentMonthData) {
-                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.variable-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
-                    }));
-                    this.currentMonthData.variableCosts = variableCosts;
-                }
+                this.updateVariableCostsData();
 
-                updateRemaining();
-                
-                // Rebuild table structure if category changed
                 if (input.classList.contains('variable-cost-category')) {
                     this.rebuildWorkingSectionTable();
-                    // Reload weekly breakdown to update columns, force repopulate to update category columns
                     if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
                         this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown, true);
                     } else {
-                        // If no weekly breakdown exists yet, load with empty data to create rows
                         this.loadWeeklyBreakdown([]);
                     }
-                    // Always populate working section immediately after rebuilding to ensure new category is included
-                    requestAnimationFrame(() => {
-                        this.populateWorkingSectionFromCosts(true);
-                        // Update calculations to ensure Estimate and Actual columns reflect the new category
-                        this.updateCalculations();
-                    });
-                } else if (input.classList.contains('variable-cost-estimated') || input.classList.contains('variable-cost-actual')) {
-                    // Repopulate working section immediately when amount changes (force update to ensure working section reflects new amounts)
-                    requestAnimationFrame(() => {
-                        this.populateWorkingSectionFromCosts(true);
-                        // Update calculations to ensure Estimate and Actual columns reflect the updated amounts
-                        this.updateCalculations();
-                    });
+                    this.populateWorkingSectionFromCosts(true);
                 }
+
+                if (input.classList.contains('variable-cost-estimated') || input.classList.contains('variable-cost-actual')) {
+                    this.populateWorkingSectionFromCosts(true);
+                }
+
+                updateRemaining();
             });
         });
 
@@ -2915,54 +2743,17 @@ const MonthlyBudgetController = {
         tbody.appendChild(row);
         }
         
-        // Update current month data and rebuild table structure when variable cost is added
-        if (this.currentMonthData) {
-            const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                category: row.querySelector('.variable-cost-category')?.value || '',
-                estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-                comments: row.querySelector('.variable-cost-comments')?.value || ''
-            }));
-            this.currentMonthData.variableCosts = variableCosts;
+        if (!this._loading) {
+            this.updateVariableCostsData();
+            this.rebuildWorkingSectionTable();
+            if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
+                this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
+            } else {
+                this.loadWeeklyBreakdown([]);
+            }
+            this.populateWorkingSectionFromCosts(true);
+            this.updateCalculations();
         }
-        
-        const updateWorkingSection = () => {
-            // Use requestAnimationFrame to ensure the new row is fully in the DOM before reading
-            requestAnimationFrame(() => {
-                // Ensure currentMonthData is up to date before rebuilding - read from DOM again to get latest
-                if (this.currentMonthData) {
-                    const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
-                        category: row.querySelector('.variable-cost-category')?.value || '',
-                        estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-                        actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
-                    }));
-                    this.currentMonthData.variableCosts = variableCosts;
-                }
-                
-                // Now rebuild the table structure with the updated categories
-                // rebuildWorkingSectionTable will also refresh from DOM, but we do it here too for safety
-                this.rebuildWorkingSectionTable();
-                
-                // Use setTimeout to ensure table rebuild is complete before loading weekly breakdown
-                setTimeout(() => {
-                    if (this.currentMonthData && this.currentMonthData.weeklyBreakdown) {
-                        this.loadWeeklyBreakdown(this.currentMonthData.weeklyBreakdown);
-                    } else {
-                        // If no weekly breakdown exists yet, just load with empty data to create rows
-                        this.loadWeeklyBreakdown([]);
-                    }
-                    
-                    // Use requestAnimationFrame to ensure weekly breakdown is loaded before populating
-                    requestAnimationFrame(() => {
-                        // Always populate working section after rebuilding to ensure new variable costs are included
-                        this.populateWorkingSectionFromCosts(true);
-                        // Update calculations after populating to ensure Estimate and Actual columns are correct
-                        this.updateCalculations();
-                    });
-                }, 0);
-            });
-        };
-        updateWorkingSection();
     },
 
     /**
@@ -3033,10 +2824,8 @@ const MonthlyBudgetController = {
                     checkbox.checked = !checkbox.checked;
                     paidTick.classList.toggle('unpaid', !checkbox.checked);
                     this.updateUnplannedData();
+                    this.populateWorkingSectionFromCosts(true);
                     this.updateCalculations();
-                    requestAnimationFrame(() => {
-                        this.populateWorkingSectionFromCosts(true);
-                    });
                 }
             });
         }
@@ -3046,20 +2835,16 @@ const MonthlyBudgetController = {
             deleteBtn.addEventListener('click', () => {
                 row.remove();
                 this.updateUnplannedData();
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         }
 
         row.querySelectorAll('input:not(.unplanned-paid)').forEach(input => {
             input.addEventListener('input', () => {
                 this.updateUnplannedData();
+                this.populateWorkingSectionFromCosts(true);
                 this.updateCalculations();
-                requestAnimationFrame(() => {
-                    this.populateWorkingSectionFromCosts(true);
-                });
             });
         });
 
@@ -3074,8 +2859,10 @@ const MonthlyBudgetController = {
         }
 
         this.updateUnplannedData();
-        this.updateCalculations();
-        this.populateWorkingSectionFromCosts();
+        if (!this._loading) {
+            this.populateWorkingSectionFromCosts();
+            this.updateCalculations();
+        }
     },
 
     /**
@@ -3143,10 +2930,10 @@ const MonthlyBudgetController = {
             <td><input type="text" class="pot-category" value="${potData?.category || ''}" placeholder="Category"></td>
             <td><input type="number" class="pot-estimated" value="${potData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="pot-actual" value="${potData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><button class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            <td><button type="button" class="delete-row-x" aria-label="Delete row">&times;</button></td>
         `;
 
-        row.querySelector('.remove-row').addEventListener('click', () => {
+        row.querySelector('.delete-row-x').addEventListener('click', () => {
             row.remove();
             this.updateCalculations();
         });
@@ -3155,7 +2942,13 @@ const MonthlyBudgetController = {
             input.addEventListener('input', () => this.updateCalculations());
         });
 
-        tbody.appendChild(row);
+        // Insert before the total row if it exists, otherwise append
+        const totalRow = tbody.querySelector('.total-row');
+        if (totalRow) {
+            tbody.insertBefore(row, totalRow);
+        } else {
+            tbody.appendChild(row);
+        }
     },
 
     /**
@@ -3357,90 +3150,56 @@ const MonthlyBudgetController = {
         const categories = this.getVariableCostCategories();
         const weeklyBreakdown = Array.from(document.querySelectorAll('#weekly-breakdown-tbody tr:not(.total-row)')).map(row => {
             const weekData = {
-            dateRange: row.querySelector('.weekly-date-range')?.value || '',
-            weekRange: row.querySelector('.weekly-date-range')?.value || '',
-            paymentsDue: row.querySelector('.weekly-payments-due')?.value || '',
-            estimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
-            weeklyEstimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
-            actual: Formatters.parseNumber(row.querySelector('.weekly-actual')?.value)
+                dateRange: row.querySelector('.weekly-date-range')?.value || '',
+                paymentsDue: row.querySelector('.weekly-payments-due')?.value || '',
+                estimate: Formatters.parseNumber(row.querySelector('.weekly-estimate')?.value),
+                actual: Formatters.parseNumber(row.querySelector('.weekly-actual')?.value)
             };
-            
-            // Add dynamic variable cost columns
+
             categories.forEach(category => {
                 const categoryId = this.sanitizeCategoryId(category);
                 const categoryClass = 'weekly-variable-' + categoryId;
-                const categoryValue = row.querySelector('.' + categoryClass)?.value || '';
-                
-                // Save full textarea content in categoryClass (for full data preservation)
-                // This is the primary key that should always be used when loading
-                weekData[categoryClass] = categoryValue;
-                
-                // Also save full content in category name for backwards compatibility with example data
-                // This ensures example data format works correctly
-                if (categoryValue.trim()) {
-                    weekData[category] = categoryValue;
-                }
-                
-                // Parse and save in new structure: separate estimate and actual (for backwards compatibility)
-                const lines = categoryValue.split('\n');
-                const estimateLine = lines.find(line => line.trim().startsWith('Estimate:'));
-                const actualLine = lines.find(line => {
-                    const trimmed = line.trim();
-                    return trimmed.startsWith('=') && trimmed.length > 1;
-                });
-                
-                // Extract and save estimate value (for backwards compatibility)
-                if (estimateLine) {
-                    const estimateMatch = estimateLine.match(/Estimate:\s*[^\d]*([\d\.]+)/);
-                    if (estimateMatch) {
-                        const estimateKey = category + ' estimates';
-                        weekData[estimateKey] = estimateMatch[1];
-                    }
-                }
+                weekData[categoryClass] = row.querySelector('.' + categoryClass)?.value || '';
             });
-            
+
             return weekData;
         });
 
-        const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr')).map(row => ({
+        const fixedCosts = Array.from(document.querySelectorAll('#fixed-costs-tbody tr:not(.total-row)')).map(row => ({
             category: row.querySelector('.fixed-cost-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-estimated')?.value),
             actualAmount: Formatters.parseNumber(row.querySelector('.fixed-cost-actual')?.value),
             date: row.querySelector('.fixed-cost-date')?.value || '',
             card: row.querySelector('.fixed-cost-card')?.value || '',
-            paid: row.querySelector('.fixed-cost-paid')?.checked || false,
-            comments: row.querySelector('.fixed-cost-comments')?.value || ''
+            paid: row.querySelector('.fixed-cost-paid')?.checked || false
         }));
 
-        const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr')).map(row => ({
+        const variableCosts = Array.from(document.querySelectorAll('#variable-costs-tbody tr:not(.total-row)')).map(row => ({
             category: row.querySelector('.variable-cost-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.variable-cost-estimated')?.value),
-            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value),
-            comments: row.querySelector('.variable-cost-comments')?.value || ''
+            actualAmount: Formatters.parseNumber(row.querySelector('.variable-cost-actual')?.value)
         }));
 
-        const unplannedExpenses = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr')).map(row => ({
+        const unplannedExpenses = Array.from(document.querySelectorAll('#unplanned-expenses-tbody tr:not(.total-row)')).map(row => ({
             name: row.querySelector('.unplanned-name')?.value || '',
             amount: Formatters.parseNumber(row.querySelector('.unplanned-amount')?.value),
             date: row.querySelector('.unplanned-date')?.value || '',
             card: row.querySelector('.unplanned-card')?.value || '',
-            paid: row.querySelector('.unplanned-paid')?.checked || false,
-            comments: row.querySelector('.unplanned-comments')?.value || ''
+            paid: row.querySelector('.unplanned-paid')?.checked || false
         }));
 
-        const pots = Array.from(document.querySelectorAll('#pots-tbody tr')).map(row => ({
+        const pots = Array.from(document.querySelectorAll('#pots-tbody tr:not(.total-row)')).map(row => ({
             category: row.querySelector('.pot-category')?.value || '',
             estimatedAmount: Formatters.parseNumber(row.querySelector('.pot-estimated')?.value),
             actualAmount: Formatters.parseNumber(row.querySelector('.pot-actual')?.value)
         }));
 
-        const incomeSources = Array.from(document.querySelectorAll('#income-tbody tr')).map(row => ({
+        const incomeSources = Array.from(document.querySelectorAll('#income-tbody tr:not(.total-row)')).map(row => ({
             source: row.querySelector('.income-source')?.value || '',
             estimated: Formatters.parseNumber(row.querySelector('.income-estimated')?.value),
             actual: Formatters.parseNumber(row.querySelector('.income-actual')?.value),
             date: row.querySelector('.income-date')?.value || '',
-            description: row.querySelector('.income-description')?.value || '',
-            comments: row.querySelector('.income-comments')?.value || ''
+            description: row.querySelector('.income-description')?.value || ''
         }));
 
         return {
@@ -3527,8 +3286,6 @@ const MonthlyBudgetController = {
                 if (noMonthMessage) noMonthMessage.style.display = 'block';
                 if (deleteMonthButton) deleteMonthButton.style.display = 'none';
                 this.updateShareButtonVisibility();
-                if (monthTitleWrapper) monthTitleWrapper.style.display = 'none';
-                if (monthSelectorWrapper) monthSelectorWrapper.style.display = 'block';
 
                 await this.loadMonthSelector();
 
@@ -3564,14 +3321,6 @@ const MonthlyBudgetController = {
         } catch (error) {
             alert(error.message || 'Error deleting month. Please try again.');
         }
-    },
-
-    /**
-     * Helper: Set element text content
-     */
-    setElementText(id, text) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
     },
 
     /**
@@ -3936,7 +3685,7 @@ const MonthlyBudgetController = {
             }
         }
         
-        // Fallback: try to parse as plain number (old format)
+        // Fallback: try to parse as plain number
         const baseMatch = firstLine.match(/^([\d.]+)/);
         if (baseMatch) {
             return Formatters.parseNumber(baseMatch[1]);
@@ -4188,299 +3937,6 @@ const MonthlyBudgetController = {
     },
     
     /**
-     * ============================================================================
-     * DATA SHARING AND FIELD LOCKING METHODS
-     * ============================================================================
-     */
-    
-    /**
-     * Show shared data indicator
-     */
-    showSharedDataIndicator(monthData) {
-        const header = document.querySelector('.month-header, h1, .page-header');
-        if (header && monthData.isShared) {
-            const accessLevel = monthData.sharedAccessLevel || 'read';
-            const accessText = accessLevel.replace('_', '/').replace(/\b\w/g, l => l.toUpperCase());
-            const indicator = document.createElement('div');
-            indicator.id = 'shared-data-indicator';
-            indicator.style.cssText = 'padding: var(--spacing-sm); margin: var(--spacing-sm) 0; background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.5); border-radius: var(--border-radius); font-size: 0.9rem;';
-            indicator.innerHTML = `🔒 Shared Data - Access Level: ${accessText}`;
-            if (!document.getElementById('shared-data-indicator')) {
-                header.insertAdjacentElement('afterend', indicator);
-            }
-        }
-    },
-    
-    /**
-     * Hide shared data indicator
-     */
-    hideSharedDataIndicator() {
-        const indicator = document.getElementById('shared-data-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
-    },
-    
-    /**
-     * Setup field-level locking for shared data
-     */
-    async setupFieldLocking(monthData) {
-        if (!window.FieldLockingService || !monthData.isShared || !monthData.sharedOwnerId) {
-            return;
-        }
-        
-        this.fieldLocks = {};
-        this.lockSubscriptions = {};
-        
-        const resourceType = 'month';
-        const resourceId = this.currentMonthKey;
-        const ownerUserId = monthData.sharedOwnerId;
-        
-        try {
-            const subscriptionResult = await window.FieldLockingService.subscribeToLocks(
-                resourceType,
-                resourceId,
-                (payload) => {
-                    this.handleLockUpdate(payload);
-                }
-            );
-            
-            if (subscriptionResult.success) {
-                this.lockSubscriptions[resourceId] = subscriptionResult.subscription;
-            }
-            
-            const locksResult = await window.FieldLockingService.getAllLocksForResource(resourceType, resourceId);
-            if (locksResult.success && locksResult.locks) {
-                locksResult.locks.forEach(lock => {
-                    this.fieldLocks[lock.field_path] = lock;
-                    this.updateFieldLockUI(lock.field_path, lock);
-                });
-            }
-            
-            this.attachFieldLockListeners();
-        } catch (error) {
-            console.error('[MonthlyBudgetController] Error setting up field locking:', error);
-        }
-    },
-    
-    /**
-     * Cleanup field-level locking
-     */
-    cleanupFieldLocking() {
-        if (this.lockSubscriptions) {
-            Object.values(this.lockSubscriptions).forEach(channel => {
-                try {
-                    channel.unsubscribe();
-                } catch (error) {
-                    console.error('[MonthlyBudgetController] Error unsubscribing from locks:', error);
-                }
-            });
-            this.lockSubscriptions = {};
-        }
-        
-        this.fieldLocks = {};
-        this.removeFieldLockListeners();
-    },
-    
-    /**
-     * Attach field lock listeners to input fields
-     */
-    attachFieldLockListeners() {
-        const inputs = document.querySelectorAll('input[type="number"], input[type="text"], textarea');
-        inputs.forEach(input => {
-            const fieldPath = this.getFieldPath(input);
-            if (fieldPath) {
-                input.addEventListener('focus', () => this.acquireFieldLock(fieldPath, input));
-                input.addEventListener('blur', () => this.releaseFieldLock(fieldPath));
-                input.addEventListener('input', () => this.extendFieldLock(fieldPath));
-            }
-        });
-    },
-    
-    /**
-     * Remove field lock listeners
-     */
-    removeFieldLockListeners() {
-        const inputs = document.querySelectorAll('input[type="number"], input[type="text"], textarea');
-        inputs.forEach(input => {
-            const newInput = input.cloneNode(true);
-            input.parentNode.replaceChild(newInput, input);
-        });
-    },
-    
-    /**
-     * Get field path from input element
-     */
-    getFieldPath(input) {
-        const name = input.name || input.id;
-        if (!name) {
-            return null;
-        }
-        
-        const monthData = this.currentMonthData;
-        if (!monthData || !monthData.isShared) {
-            return null;
-        }
-        
-        if (name.includes('variable-cost')) {
-            const match = name.match(/variable-cost-(\d+)-(estimated|actual)/);
-            if (match) {
-                const index = parseInt(match[1], 10);
-                const field = match[2] === 'estimated' ? 'estimatedAmount' : 'actualAmount';
-                return `variable_costs[${index}].${field}`;
-            }
-        }
-        
-        if (name.includes('fixed-cost')) {
-            const match = name.match(/fixed-cost-(\d+)-(amount|description)/);
-            if (match) {
-                const index = parseInt(match[1], 10);
-                const field = match[2] === 'amount' ? 'amount' : 'description';
-                return `fixed_costs[${index}].${field}`;
-            }
-        }
-        
-        return name;
-    },
-    
-    /**
-     * Acquire field lock
-     */
-    async acquireFieldLock(fieldPath, inputElement) {
-        if (!window.FieldLockingService || !this.currentMonthData || !this.currentMonthData.isShared) {
-            return;
-        }
-        
-        const resourceType = 'month';
-        const resourceId = this.currentMonthKey;
-        const ownerUserId = this.currentMonthData.sharedOwnerId;
-        
-        try {
-            const result = await window.FieldLockingService.acquireFieldLock(
-                resourceType,
-                resourceId,
-                fieldPath,
-                ownerUserId
-            );
-            
-            if (result.success) {
-                this.fieldLocks[fieldPath] = result.lock;
-                this.updateFieldLockUI(fieldPath, result.lock);
-            } else if (result.isLockedByOther) {
-                this.updateFieldLockUI(fieldPath, result.lock);
-                alert('This field is being edited by another user. Please wait.');
-                inputElement.blur();
-            }
-        } catch (error) {
-            console.error('[MonthlyBudgetController] Error acquiring lock:', error);
-        }
-    },
-    
-    /**
-     * Release field lock
-     */
-    async releaseFieldLock(fieldPath) {
-        if (!window.FieldLockingService || !this.fieldLocks || !this.fieldLocks[fieldPath]) {
-            return;
-        }
-        
-        const lock = this.fieldLocks[fieldPath];
-        try {
-            await window.FieldLockingService.releaseFieldLock(lock.id);
-            delete this.fieldLocks[fieldPath];
-            this.updateFieldLockUI(fieldPath, null);
-        } catch (error) {
-            console.error('[MonthlyBudgetController] Error releasing lock:', error);
-        }
-    },
-    
-    /**
-     * Extend field lock
-     */
-    async extendFieldLock(fieldPath) {
-        if (!window.FieldLockingService || !this.fieldLocks || !this.fieldLocks[fieldPath]) {
-            return;
-        }
-        
-        const lock = this.fieldLocks[fieldPath];
-        try {
-            await window.FieldLockingService.extendLock(lock.id);
-        } catch (error) {
-            console.error('[MonthlyBudgetController] Error extending lock:', error);
-        }
-    },
-    
-    /**
-     * Handle lock update from real-time subscription
-     */
-    handleLockUpdate(payload) {
-        const fieldPath = payload.new?.field_path || payload.old?.field_path;
-        if (!fieldPath) {
-            return;
-        }
-        
-        if (payload.eventType === 'DELETE' || !payload.new) {
-            delete this.fieldLocks[fieldPath];
-            this.updateFieldLockUI(fieldPath, null);
-        } else {
-            this.fieldLocks[fieldPath] = payload.new;
-            this.updateFieldLockUI(fieldPath, payload.new);
-        }
-    },
-    
-    /**
-     * Update field lock UI
-     */
-    updateFieldLockUI(fieldPath, lock) {
-        const inputs = document.querySelectorAll('input, textarea');
-        inputs.forEach(input => {
-            const inputFieldPath = this.getFieldPath(input);
-            if (inputFieldPath === fieldPath) {
-                if (lock) {
-                    const currentUserId = window.AuthService?.getCurrentUser()?.id;
-                    if (lock.locked_by_user_id !== currentUserId) {
-                        input.disabled = true;
-                        input.title = 'This field is being edited by another user';
-                        input.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
-                    } else {
-                        input.disabled = false;
-                        input.title = 'You are editing this field';
-                        input.style.backgroundColor = '';
-                    }
-                } else {
-                    input.disabled = false;
-                    input.title = '';
-                    input.style.backgroundColor = '';
-                }
-            }
-        });
-    },
-    
-    /**
-     * Check access level and disable actions accordingly
-     */
-    checkAccessLevel(monthData) {
-        if (!monthData || !monthData.isShared) {
-            return;
-        }
-        
-        const accessLevel = monthData.sharedAccessLevel || 'read';
-        const saveButton = document.querySelector('button[id*="save"], button:contains("Save")');
-        const deleteButton = document.querySelector('button[id*="delete"], button:contains("Delete")');
-        
-        if (accessLevel === 'read') {
-            if (saveButton) saveButton.disabled = true;
-            if (deleteButton) deleteButton.disabled = true;
-        } else if (accessLevel === 'read_write') {
-            if (saveButton) saveButton.disabled = false;
-            if (deleteButton) deleteButton.disabled = true;
-        } else if (accessLevel === 'read_write_delete') {
-            if (saveButton) saveButton.disabled = false;
-            if (deleteButton) deleteButton.disabled = false;
-        }
-    },
-
-    /**
      * Load shared data with current user
      */
     async loadSharedFromData() {
@@ -4648,39 +4104,6 @@ const MonthlyBudgetController = {
         );
 
         return monthsHtml.join('');
-    },
-
-    /**
-     * Setup event listeners for shared from section
-     */
-    setupSharedFromListeners() {
-        const content = document.getElementById('shared-from-content');
-        if (!content) {
-            return;
-        }
-
-        content.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('accept-share-btn')) {
-                const shareId = parseInt(e.target.dataset.shareId, 10);
-                if (shareId) {
-                    await this.handleAcceptShare(shareId);
-                }
-            }
-
-            if (e.target.classList.contains('decline-share-btn')) {
-                const shareId = parseInt(e.target.dataset.shareId, 10);
-                if (shareId) {
-                    await this.handleDeclineShare(shareId);
-                }
-            }
-
-            if (e.target.classList.contains('block-user-btn')) {
-                const userId = e.target.dataset.userId;
-                if (userId) {
-                    await this.handleBlockUser(userId);
-                }
-            }
-        });
     },
 
     /**

@@ -25,7 +25,6 @@ export default defineConfig({
         notifications: 'notifications/views/notifications.html',
         subscription: 'payments/views/subscription.html',
         messenger: 'messaging/views/messenger.html',
-        devicePairing: 'messaging/views/device-pairing.html',
       },
     },
   },

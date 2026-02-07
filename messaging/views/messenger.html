@@ -42,10 +42,6 @@
     <!-- Header will be injected by Header.js -->
 
     <main class="messenger-main" role="main">
-        <section class="hero-section">
-            <h2 class="hero-title">Messenger</h2>
-        </section>
-
         <section class="messenger-section form-section">
             <div class="messenger-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
                 <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap; max-width: 100%;">
@@ -57,12 +53,15 @@
                 <p>Loading conversations...</p>
             </div>
             <div id="message-thread-container" style="display: none;">
-                <button id="back-to-conversations" class="btn btn-secondary" style="margin-bottom: var(--spacing-md);">← Back to Conversations</button>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: var(--spacing-sm);">
-                    <h3 id="conversation-partner-name" style="margin: 0; flex: 1 1 auto; min-width: 0;"> </h3>
-                    <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%;">
-                        <button id="add-friend-conversation-btn" class="btn btn-action btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Add to Friends</button>
-                        <button id="block-user-conversation-btn" class="btn btn-danger btn-sm" style="display: none; flex: 0 1 auto; min-width: 0; max-width: 100%;">Block User</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); padding: var(--space-4); background: var(--color-bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: var(--space-3);">
+                    <div style="display: flex; align-items: center; gap: var(--space-3); flex: 1 1 auto; min-width: 0;">
+                        <button id="back-to-conversations" style="background: none; border: none; color: var(--color-text-secondary); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; font-size: var(--text-lg); transition: color var(--duration-fast) var(--ease-default);" onmouseover="this.style.color='var(--color-action)'" onmouseout="this.style.color='var(--color-text-secondary)'">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 id="conversation-partner-name" style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); font-size: var(--text-base); font-weight: 600;"> </h3>
+                    </div>
+                    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                        <button id="block-user-conversation-btn" class="btn-text btn-text-danger" style="display: none;">Block</button>
                     </div>
                 </div>
                 <div id="message-thread" class="message-thread">
@@ -100,88 +99,88 @@
     </main>
 
     <!-- New Message Modal -->
-    <div id="new-message-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
-                <h3 style="margin: 0;">Send New Message</h3>
-                <button id="close-new-message-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">×</button>
+    <div id="new-message-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--color-bg-card); padding: var(--space-6); border-radius: var(--radius-xl); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border-left: 3px solid var(--color-action);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border-light);">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: var(--space-3); color: var(--color-text-primary); font-size: var(--text-lg);"><i class="fas fa-envelope" style="color: var(--color-action);"></i> New Message</h3>
+                <button id="close-new-message-modal" class="btn btn-secondary" style="padding: var(--space-2); min-width: auto; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; line-height: 1; border-radius: var(--radius-full);">×</button>
             </div>
             <div class="modal-body">
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label for="recipient-email-input" class="form-label">Recipient Email:</label>
-                    <input type="email" id="recipient-email-input" class="form-input" placeholder="Enter recipient email address" autocomplete="email">
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                    <label for="recipient-email-input" class="form-label" style="display: block; margin-bottom: var(--space-2); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">Recipient Email</label>
+                    <input type="email" id="recipient-email-input" class="form-input" placeholder="user@example.com" autocomplete="email">
                 </div>
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label for="new-message-content" class="form-label">Message:</label>
-                    <textarea id="new-message-content" class="form-input" placeholder="Type your message..." rows="5"></textarea>
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                    <label for="new-message-content" class="form-label" style="display: block; margin-bottom: var(--space-2); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">Message</label>
+                    <textarea id="new-message-content" class="form-input" placeholder="Type your message here..." rows="5" style="resize: vertical; min-height: 120px;"></textarea>
                 </div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--color-border-light);">
                 <button id="cancel-new-message-button" class="btn btn-secondary">Cancel</button>
-                <button id="send-new-message-button" class="btn btn-action">Send Message</button>
+                <button id="send-new-message-button" class="btn btn-action"><i class="fas fa-paper-plane"></i> Send</button>
             </div>
         </div>
     </div>
 
     <!-- Share Data Modal -->
-    <div id="share-data-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: var(--surface-color); padding: var(--spacing-lg); border-radius: var(--border-radius); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
-                <h3 style="margin: 0;">Share Data</h3>
-                <button id="close-share-data-modal" class="btn btn-secondary" style="padding: var(--spacing-xs) var(--spacing-sm); min-width: auto; font-size: 1.5rem; line-height: 1;">×</button>
+    <div id="share-data-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--color-bg-card); padding: var(--space-6); border-radius: var(--radius-xl); max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border-left: 3px solid var(--color-action);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border-light);">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: var(--space-3); color: var(--color-text-primary); font-size: var(--text-lg);"><i class="fas fa-share-alt" style="color: var(--color-action);"></i> Share Data</h3>
+                <button id="close-share-data-modal" class="btn btn-secondary" style="padding: var(--space-2); min-width: auto; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; line-height: 1; border-radius: var(--radius-full);">×</button>
             </div>
             <div class="modal-body">
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label for="share-data-email" class="form-label">User Email:</label>
-                    <input type="email" id="share-data-email" class="form-input" placeholder="user@example.com" autocomplete="email" required readonly>
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                    <label for="share-data-email" class="form-label" style="display: block; margin-bottom: var(--space-2); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">User Email</label>
+                    <input type="email" id="share-data-email" class="form-input" placeholder="user@example.com" autocomplete="email" required readonly style="background: var(--color-bg-surface); cursor: not-allowed;">
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label for="share-data-access-level" class="form-label">Access Level:</label>
+
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                    <label for="share-data-access-level" class="form-label" style="display: block; margin-bottom: var(--space-2); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">Access Level</label>
                     <select id="share-data-access-level" class="form-select">
                         <option value="read">Read Only</option>
                         <option value="read_write">Read/Write</option>
                         <option value="read_write_delete">Read/Write/Delete</option>
                     </select>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                        <input type="checkbox" id="share-data-all-data">
-                        <span><strong>Share All Data</strong></span>
+
+                <div class="form-group" style="margin-bottom: var(--space-5); padding: var(--space-4); background: var(--color-bg-surface); border-radius: var(--radius-lg); border-left: 2px solid var(--color-action);">
+                    <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+                        <input type="checkbox" id="share-data-all-data" style="cursor: pointer;">
+                        <span style="font-weight: 500; color: var(--color-text-primary);">Share All Data</span>
                     </label>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                    <label class="form-label">Share Options:</label>
-                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-data-months" checked>
+
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                    <label class="form-label" style="display: block; margin-bottom: var(--space-3); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">Share Options</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--color-bg-surface); border-radius: var(--radius-lg);">
+                        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+                            <input type="checkbox" id="share-data-months" checked style="cursor: pointer;">
                             <span>Months</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-data-pots">
+                        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+                            <input type="checkbox" id="share-data-pots" style="cursor: pointer;">
                             <span>Pots</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                            <input type="checkbox" id="share-data-settings">
+                        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+                            <input type="checkbox" id="share-data-settings" style="cursor: pointer;">
                             <span>Settings</span>
                         </label>
                     </div>
                 </div>
-                
-                <div id="share-data-months-container" style="margin-top: var(--spacing-md);">
-                    <label class="form-label">Select Months:</label>
-                    <div id="share-data-months-checkboxes" style="display: flex; flex-direction: column; gap: var(--spacing-sm); max-height: 200px; overflow-y: auto; padding: var(--spacing-sm); background: rgba(255, 255, 255, 0.5); border-radius: var(--border-radius);">
+
+                <div id="share-data-months-container" style="margin-bottom: var(--space-4);">
+                    <label class="form-label" style="display: block; margin-bottom: var(--space-3); font-weight: 500; font-size: var(--text-sm); color: var(--color-text-secondary);">Select Months</label>
+                    <div id="share-data-months-checkboxes" style="display: flex; flex-direction: column; gap: var(--space-2); max-height: 200px; overflow-y: auto; padding: var(--space-4); background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
                         <!-- Month checkboxes will be added here -->
                     </div>
                 </div>
-                
-                <div id="share-data-form-status" style="margin-top: var(--spacing-md);"></div>
+
+                <div id="share-data-form-status" style="margin-top: var(--space-4);"></div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--color-border-light);">
                 <button id="cancel-share-data-button" class="btn btn-secondary">Cancel</button>
-                <button id="save-share-data-button" class="btn btn-action">Share Data</button>
+                <button id="save-share-data-button" class="btn btn-action"><i class="fas fa-share-alt"></i> Share Data</button>
             </div>
         </div>
     </div>
@@ -277,8 +276,6 @@
         const controllerScriptStart = Date.now();
     </script>
     <script src="../controllers/messengerController.js" onload="console.log('[MessengerPage] messengerController.js loaded in', Date.now() - controllerScriptStart, 'ms'); console.log('[MessengerPage] window.MessengerController after load:', typeof window.MessengerController);" onerror="console.error('[MessengerPage] ERROR loading messengerController.js');"></script>
-    <script src="../controllers/devicePairingController.js"></script>
-
     <script>
         // Wait for scripts to load with detailed logging
         function waitFor(condition, name, timeout = 5000) {
@@ -409,14 +406,6 @@
                         headerType: typeof window.Header,
                         hasInitMethod: window.Header && typeof window.Header.init
                     });
-                }
-
-                // Only initialize DevicePairingController if the pairing container exists on this page
-                const hasPairingContainer = document.getElementById('device-pairing-modal') || document.querySelector('.pairing-container');
-                if (hasPairingContainer && window.DevicePairingController && typeof window.DevicePairingController.init === 'function') {
-                    console.log('[MessengerPage] Step 3: Initializing DevicePairingController...');
-                    window.DevicePairingController.init();
-                    console.log('[MessengerPage] ✅ DevicePairingController.init() completed');
                 }
 
                 console.log('[MessengerPage] Step 4: Waiting for MessengerController to be available...');

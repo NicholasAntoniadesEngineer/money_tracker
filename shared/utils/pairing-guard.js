@@ -57,58 +57,22 @@ const PairingGuard = {
     },
 
     /**
-     * Redirect to pairing page if device is not paired
-     * @param {string} returnUrl - Optional URL to return to after pairing (default: landing page)
+     * Sign out if device is not paired
+     * On next login, keys will be auto-restored from password backup
      */
-    async requirePairing(returnUrl = null) {
+    async requirePairing() {
         console.log('[PairingGuard] Checking if pairing is required...');
 
         const isPaired = await this.checkPairingStatus();
 
         if (!isPaired) {
-            console.log('[PairingGuard] Device not paired, redirecting to pairing page');
-
-            // Redirect to auth page for device setup
-            // Auth page will detect the user is authenticated and run handlePostSignIn()
-            // which will set up encryption keys
-            console.log('[PairingGuard] Redirecting to auth page for encryption setup');
-
-            // Calculate relative path dynamically based on current location
-            const authUrl = this._calculateAuthUrl();
-            console.log('[PairingGuard] Calculated auth URL:', authUrl);
-            window.location.href = authUrl;
+            console.log('[PairingGuard] Not paired, signing out for clean re-login');
+            await window.AuthService?.signOut();
             return false;
         }
 
         console.log('[PairingGuard] Device is paired, allowing access');
         return true;
-    },
-
-    /**
-     * Calculate the auth page URL relative to current location
-     * @private
-     * @returns {string} The auth page URL
-     */
-    _calculateAuthUrl() {
-        const currentPath = window.location.pathname;
-        const baseUrl = window.location.origin;
-        const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html');
-
-        // Get all module names from registry if available
-        const modules = window.ModuleRegistry?.getAllModuleNames() || [];
-
-        // Find the base path (everything before any known module or 'ui')
-        let basePathParts = [];
-        for (let i = 0; i < pathParts.length; i++) {
-            if (pathParts[i] === 'ui' || modules.includes(pathParts[i])) {
-                break;
-            }
-            basePathParts.push(pathParts[i]);
-        }
-
-        // Construct the auth URL
-        const basePath = basePathParts.length > 0 ? basePathParts.join('/') + '/' : '';
-        return `${baseUrl}/${basePath}auth/views/auth.html`;
     },
 
     /**

@@ -228,14 +228,11 @@
             <section class="settings-card form-section">
                 <h2 class="section-title"><i class="fas fa-file-import"></i> Import</h2>
 
-                <div class="settings-field">
-                    <label for="file-input" class="form-label">Select Files</label>
-                    <div class="file-input-row">
-                        <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
-                        <button id="import-button" class="btn btn-action">
-                            <i class="fas fa-upload"></i> Import
-                        </button>
-                    </div>
+                <div class="file-input-row">
+                    <input type="file" id="file-input" class="form-input" accept=".json,.csv,.html" multiple>
+                    <button id="import-button" class="btn btn-action">
+                        <i class="fas fa-upload"></i> Import
+                    </button>
                 </div>
 
                 <div id="year-input-group" class="settings-field" style="display: none;">
@@ -255,18 +252,14 @@
                 <div id="import-status" class="settings-status"></div>
             </section>
 
-            <!-- Export & Delete Card -->
+            <!-- Export Card -->
             <section class="settings-card form-section">
-                <h2 class="section-title"><i class="fas fa-file-export"></i> Export & Delete</h2>
-
-                <div class="settings-field">
-                    <label for="month-selector" class="form-label">Select Month</label>
-                    <select id="month-selector" class="form-select">
-                        <option value="">Select month...</option>
-                    </select>
-                </div>
+                <h2 class="section-title"><i class="fas fa-file-export"></i> Export</h2>
 
                 <div class="export-row">
+                    <select id="month-selector" class="form-select">
+                        <option value="">Month...</option>
+                    </select>
                     <select id="export-format-select" class="form-select export-format">
                         <option value="json">JSON</option>
                         <option value="csv">CSV</option>
@@ -275,16 +268,26 @@
                     <button id="export-button" class="btn btn-action">
                         <i class="fas fa-download"></i> Export
                     </button>
+                </div>
+            </section>
+
+            <!-- Delete Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-trash-alt"></i> Delete</h2>
+
+                <div class="settings-actions">
+                    <select id="delete-month-selector" class="form-select" style="flex: 1; min-width: 0;">
+                        <option value="">Month...</option>
+                    </select>
                     <button id="delete-month-button" class="btn btn-danger" style="display: none;">
                         <i class="fas fa-trash"></i> Delete Month
                     </button>
                 </div>
 
                 <div class="danger-zone">
-                    <h3 class="danger-title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
                     <div class="danger-actions">
                         <button id="clear-all-data-button" class="btn btn-danger">
-                            <i class="fas fa-broom"></i> Clear Cached Data
+                            <i class="fas fa-broom"></i> Clear Cache
                         </button>
                         <button id="delete-all-user-data-button" class="btn btn-danger">
                             <i class="fas fa-skull-crossbones"></i> Delete All Data

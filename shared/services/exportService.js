@@ -240,7 +240,7 @@ const ExportService = {
         html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #333; }
         @media only screen { body { margin: 2em auto; max-width: 900px; background-color: #f8f9fa; } }
         body { white-space: pre-wrap; background-color: white; }
-        .header { text-align: center; padding: 2rem 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 2rem; }
+        .header { text-align: center; padding: 2rem 0; background: #667eea; color: white; margin-bottom: 2rem; }
         .header h1 { margin: 0; font-size: 2.5rem; font-weight: 300; }
         .header p { margin: 0.5rem 0 0 0; opacity: 0.9; }
         .section { margin-bottom: 2rem; background: white; border-radius: 0px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
@@ -251,7 +251,7 @@ const ExportService = {
         th { background-color: #f8f9fa; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; }
         .total-row { background-color: #fff3cd; font-weight: 600; }
         .total-row td { border-top: 2px solid #ffc107; }
-        .summary-section { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        .summary-section { background: #28a745; color: white; }
         .summary-section .section-title { color: white; }
         .summary-section table { color: #333; }
         .summary-section .total-row { background-color: rgba(255,255,255,0.2); color: white; }

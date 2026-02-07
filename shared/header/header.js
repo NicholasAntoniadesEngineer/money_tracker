@@ -140,18 +140,9 @@ class Header {
             homeHref = 'landing/index.html';
         }
 
-        const navItems = [
-            { name: 'Home', href: homeHref, page: 'Home' },
-            { name: 'Monthly Budget', href: this.getModulePath('monthlyBudget') + 'monthlyBudget.html', page: 'Monthly Budget' },
-            { name: 'Pots & Investments', href: this.getModulePath('pots') + 'pots.html', page: 'Pots & Investments' }
-        ];
+        const navItems = [];
 
-        const navLinks = navItems.map(item => {
-            const isActive = item.page === currentPage;
-            const activeClass = isActive ? ' active' : '';
-            const ariaCurrent = isActive ? ' aria-current="page"' : '';
-            return `<li><a href="${item.href}" class="nav-link${activeClass}"${ariaCurrent}>${item.name}</a></li>`;
-        }).join('\n                ');
+        const navLinks = '';
 
         // Get user info if authenticated
         // Be resilient to session check timeouts - check both method and direct state
@@ -181,6 +172,10 @@ class Header {
                             <i class="fa-regular fa-gear user-dropdown-icon"></i>
                             <span>Settings</span>
                         </a>
+                        <a href="${this.getModulePath('pots')}pots.html" class="user-dropdown-item user-dropdown-pots">
+                            <i class="fa-solid fa-piggy-bank user-dropdown-icon"></i>
+                            <span>Pots & Investments</span>
+                        </a>
                         <button class="user-dropdown-item user-dropdown-notifications" id="header-notifications-button" aria-label="Notifications">
                             <i class="fa-regular fa-bell user-dropdown-icon"></i>
                             <span>Notifications</span>
@@ -204,11 +199,6 @@ class Header {
         <nav class="main-navigation" role="navigation" aria-label="Main navigation">
             <div class="header-title-group">
                 <h1 class="site-title" id="header-app-title" role="button" tabindex="0" aria-label="Go to home page">Money Tracker</h1>
-                <button class="hamburger-menu" aria-label="Toggle navigation menu" aria-expanded="false">
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                </button>
             </div>
             <ul class="nav-list">
                 ${navLinks}
@@ -297,10 +287,7 @@ class Header {
         }
 
         console.log('[Header] Header rendered, initializing components...');
-        
-        // Initialize hamburger menu functionality
-        this.initHamburgerMenu();
-        
+
         // Initialize app title click handler
         this.initAppTitleClick();
         
@@ -366,37 +353,6 @@ class Header {
         console.log('[Header] ========== HEADER INIT COMPLETE ==========');
     }
 
-    /**
-     * Initialize hamburger menu functionality
-     */
-    static initHamburgerMenu() {
-        const hamburgerBtn = document.querySelector('.hamburger-menu');
-        const navList = document.querySelector('.nav-list');
-
-        if (!hamburgerBtn || !navList) return;
-
-        hamburgerBtn.addEventListener('click', () => {
-            const isExpanded = hamburgerBtn.getAttribute('aria-expanded') === 'true';
-            hamburgerBtn.setAttribute('aria-expanded', !isExpanded);
-            navList.classList.toggle('nav-open');
-        });
-
-        // Close menu when clicking outside or on a link
-        document.addEventListener('click', (e) => {
-            if (!hamburgerBtn.contains(e.target) && !navList.contains(e.target)) {
-                hamburgerBtn.setAttribute('aria-expanded', 'false');
-                navList.classList.remove('nav-open');
-            }
-        });
-
-        // Close menu when a link is clicked
-        navList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('nav-link')) {
-                hamburgerBtn.setAttribute('aria-expanded', 'false');
-                navList.classList.remove('nav-open');
-            }
-        });
-    }
 
     /**
      * Initialize app title click handler
@@ -452,32 +408,73 @@ class Header {
     /**
      * Initialize user menu dropdown
      */
+    static positionDropdown(avatarButton, dropdownMenu) {
+        const buttonRect = avatarButton.getBoundingClientRect();
+        const dropdownWidth = dropdownMenu.offsetWidth;
+        const top = buttonRect.bottom + 8;
+        let left = buttonRect.right - dropdownWidth;
+
+        // Clamp to viewport so dropdown never goes off-screen
+        if (left < 8) left = 8;
+        if (left + dropdownWidth > window.innerWidth - 8) {
+            left = window.innerWidth - dropdownWidth - 8;
+        }
+
+        dropdownMenu.style.top = `${top}px`;
+        dropdownMenu.style.left = `${left}px`;
+        console.log('[Header] Dropdown positioned:', { top, left, dropdownWidth, buttonRight: buttonRect.right });
+    }
+
+    static closeDropdown(avatarButton, dropdownMenu) {
+        avatarButton.setAttribute('aria-expanded', 'false');
+        dropdownMenu.classList.remove('user-dropdown-open');
+    }
+
     static initUserMenu() {
         const avatarButton = document.getElementById('user-avatar-button');
         const dropdownMenu = document.getElementById('user-dropdown-menu');
 
-        if (!avatarButton || !dropdownMenu) return;
+        if (!avatarButton || !dropdownMenu) {
+            console.log('[Header] User menu elements not found, skipping init');
+            return;
+        }
+
+        console.log('[Header] Initializing user menu');
 
         avatarButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isExpanded = avatarButton.getAttribute('aria-expanded') === 'true';
-            avatarButton.setAttribute('aria-expanded', !isExpanded);
-            dropdownMenu.classList.toggle('user-dropdown-open');
-        });
+            const opening = avatarButton.getAttribute('aria-expanded') !== 'true';
+            avatarButton.setAttribute('aria-expanded', String(opening));
 
-        // Close menu when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!avatarButton.contains(e.target) && !dropdownMenu.contains(e.target)) {
-                avatarButton.setAttribute('aria-expanded', 'false');
-                dropdownMenu.classList.remove('user-dropdown-open');
+            if (opening) {
+                dropdownMenu.classList.add('user-dropdown-open');
+                this.positionDropdown(avatarButton, dropdownMenu);
+            } else {
+                this.closeDropdown(avatarButton, dropdownMenu);
             }
         });
 
-        // Close menu when clicking on a dropdown item
+        window.addEventListener('resize', () => {
+            if (dropdownMenu.classList.contains('user-dropdown-open')) {
+                this.positionDropdown(avatarButton, dropdownMenu);
+            }
+        });
+
+        window.addEventListener('scroll', () => {
+            if (dropdownMenu.classList.contains('user-dropdown-open')) {
+                this.closeDropdown(avatarButton, dropdownMenu);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!avatarButton.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                this.closeDropdown(avatarButton, dropdownMenu);
+            }
+        });
+
         dropdownMenu.addEventListener('click', (e) => {
-            if (e.target.classList.contains('user-dropdown-item') || e.target.closest('.user-dropdown-item')) {
-                avatarButton.setAttribute('aria-expanded', 'false');
-                dropdownMenu.classList.remove('user-dropdown-open');
+            if (e.target.closest('.user-dropdown-item')) {
+                this.closeDropdown(avatarButton, dropdownMenu);
             }
         });
     }
@@ -540,33 +537,6 @@ class Header {
     static handleMessengerButtonClick() {
         const messengerUrl = this.getModulePath('messaging') + 'messenger.html';
         window.location.href = messengerUrl;
-    }
-
-    /**
-     * Initialize device pairing button
-     */
-    static initDevicePairingButton() {
-        try {
-            const devicePairingButton = document.getElementById('header-device-pairing-button');
-
-            if (devicePairingButton) {
-                devicePairingButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.handleDevicePairingButtonClick();
-                });
-            }
-        } catch (error) {
-            console.error('[Header] Error initializing device pairing button:', error);
-        }
-    }
-
-    /**
-     * Handle device pairing button click
-     */
-    static handleDevicePairingButtonClick() {
-        const devicePairingUrl = this.getModulePath('messaging') + 'device-pairing.html';
-        window.location.href = devicePairingUrl;
     }
 
     /**
@@ -1091,6 +1061,10 @@ class Header {
                             <a href="${settingsHref}" class="user-dropdown-item user-dropdown-settings">
                                 <i class="fa-regular fa-gear user-dropdown-icon"></i>
                                 <span>Settings</span>
+                            </a>
+                            <a href="${this.getModulePath('pots')}pots.html" class="user-dropdown-item user-dropdown-pots">
+                                <i class="fa-solid fa-piggy-bank user-dropdown-icon"></i>
+                                <span>Pots & Investments</span>
                             </a>
                         <button class="user-dropdown-item user-dropdown-notifications" id="header-notifications-button" aria-label="Notifications">
                             <i class="fa-regular fa-bell user-dropdown-icon"></i>

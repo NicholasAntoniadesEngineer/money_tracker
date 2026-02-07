@@ -67,10 +67,8 @@ const KeyManagementService = {
         this.currentUserId = userId;
 
         console.log(`[KeyManagementService] Initializing for user ${userId.slice(0, 8)}...`);
-        console.log(`[KeyManagementService] Database service available: ${!!this._database}`);
 
         try {
-            // Initialize dependencies
             await CryptoPrimitivesService.initialize(config);
             await KeyStorageService.initialize(config);
             KeyDerivationService.initialize(config);
@@ -78,69 +76,47 @@ const KeyManagementService = {
             KeyBackupService.initialize(config);
             PasswordCryptoService.initialize(config);
 
-            // Check for existing local keys
             let keys = await KeyStorageService.getIdentityKeys(userId);
-            console.log(`[KeyManagementService] Local keys exist: ${!!keys}`);
 
             if (!keys) {
-                // No local keys - check if we have a backup in database
                 const hasBackup = await KeyBackupService.hasBackup(userId);
-                console.log(`[KeyManagementService] No local keys, has backup: ${hasBackup}`);
-
                 if (hasBackup) {
-                    console.log('[KeyManagementService] Keys exist in database - restoration required');
+                    console.log('[KeyManagementService] No local keys, backup exists - restoration required');
                     return { success: false, needsRestore: true, hasBackup: true };
                 }
-
-                // No backup either - this is a new user, don't auto-generate
-                // The facade will handle key generation when needed
                 console.log('[KeyManagementService] No keys found - ready for generation');
                 this.initialized = true;
                 return { success: true, keysExist: false };
             }
 
-            // Verify local keys match database and auto-repair if missing
+            // Verify local keys match database
             const localPublicKeyB64 = CryptoPrimitivesService.serializeKey(keys.publicKey);
             const dbPublicKey = await HistoricalKeysService.getCurrentKey(userId);
-            console.log(`[KeyManagementService] LOCAL public key: ${localPublicKeyB64}`);
-            console.log(`[KeyManagementService] DB public key: ${dbPublicKey || 'NULL'}`);
-            console.log(`[KeyManagementService] Keys match: ${localPublicKeyB64 === dbPublicKey}`);
 
             if (!dbPublicKey) {
-                // Server key missing - AUTO-REPAIR: upload local key to server
-                console.log('[KeyManagementService] AUTO-REPAIR: Server key missing, uploading local key...');
+                console.log('[KeyManagementService] Server key missing, uploading local key');
                 await this._uploadPublicKeyToServer(userId, localPublicKeyB64);
             } else if (localPublicKeyB64 !== dbPublicKey) {
-                // Key mismatch - clear bad local keys and check for backup
-                console.log('[KeyManagementService] AUTO-REPAIR: Key mismatch detected, clearing invalid local keys...');
+                console.log('[KeyManagementService] Key mismatch, clearing invalid local keys');
                 await KeyStorageService.clearAll();
 
-                // Check if there's a backup we can restore from
                 const hasBackup = await KeyBackupService.hasBackup(userId);
                 if (hasBackup) {
-                    console.log('[KeyManagementService] AUTO-REPAIR: Backup exists, user needs to enter password to restore');
                     return { success: false, needsRestore: true, keyMismatch: true, hasBackup: true };
                 }
 
-                // No backup - generate new keys (old messages won't be decryptable)
-                console.log('[KeyManagementService] AUTO-REPAIR: No backup found, generating fresh keys...');
+                // No backup - generate new keys
+                console.log('[KeyManagementService] No backup, generating fresh keys');
                 const newKeys = CryptoPrimitivesService.generateKeyPair();
                 const newPublicKeyB64 = CryptoPrimitivesService.serializeKey(newKeys.publicKey);
 
-                // Store new keys locally
                 await KeyStorageService.storeIdentityKeys(userId, newKeys);
-                console.log('[KeyManagementService] AUTO-REPAIR: New keys generated and stored locally');
-
-                // Upload new public key to server (replaces the old one)
                 await this._uploadPublicKeyToServer(userId, newPublicKeyB64);
-                console.log('[KeyManagementService] AUTO-REPAIR: New public key uploaded to server');
 
-                // Store in history with new epoch
                 await this._fetchCurrentEpoch(userId);
                 const newEpoch = this.currentEpoch + 1;
                 await HistoricalKeysService.storeKey(userId, newPublicKeyB64, newEpoch);
 
-                // Update epoch in identity_keys table
                 if (this._database) {
                     const identityTable = this._config?.tables?.identityKeys || 'identity_keys';
                     await this._database.queryUpdate(identityTable, {
@@ -148,31 +124,18 @@ const KeyManagementService = {
                         updated_at: new Date().toISOString()
                     }, { filter: { user_id: userId } });
                 }
-
                 this.currentEpoch = newEpoch;
-                console.log('[KeyManagementService] AUTO-REPAIR: Fresh keys created, new epoch:', newEpoch);
             }
 
-            // Fetch current epoch from database
             await this._fetchCurrentEpoch(userId);
-
-            // Note: _sessionBackupKey is set during password restore
-            // Session sync will only work after password is provided
-
-            // Sync session keys from database to local (requires session backup key)
             if (this._sessionBackupKey) {
                 await this._syncSessionKeys(userId);
             }
-
-            // Sync historical keys for ourselves
             await HistoricalKeysService.syncToLocal(userId);
-
-            // Sync historical keys for all conversation partners
             await this._syncConversationPartnerKeys(userId);
 
             this.initialized = true;
             console.log(`[KeyManagementService] Initialized with epoch ${this.currentEpoch}`);
-
             return { success: true, keysExist: true };
         } catch (error) {
             console.error('[KeyManagementService] Initialization failed:', error);
@@ -319,6 +282,43 @@ const KeyManagementService = {
     },
 
     /**
+     * Create a password-only backup for existing identity keys
+     * Used after password reset to re-encrypt backup with new password
+     * @param {string} password - User's new password
+     * @returns {Promise<Object>} { success: boolean }
+     */
+    async createPasswordOnlyBackup(password) {
+        if (!this.currentUserId) {
+            throw new Error('[KeyManagementService] No user ID set');
+        }
+        if (!password || typeof password !== 'string') {
+            throw new Error('[KeyManagementService] createPasswordOnlyBackup requires a valid password');
+        }
+
+        console.log('[KeyManagementService] Creating password-only backup...');
+
+        const keys = await KeyStorageService.getIdentityKeys(this.currentUserId);
+        if (!keys || !keys.secretKey) {
+            throw new Error('[KeyManagementService] No identity keys found - generate keys first');
+        }
+
+        const backupResult = await KeyBackupService.createPasswordOnlyBackup(
+            this.currentUserId,
+            keys.secretKey,
+            password
+        );
+
+        this._sessionBackupKey = backupResult.sessionBackupKey;
+        if (!this._sessionBackupKey) {
+            throw new Error('[KeyManagementService] Failed to create session backup key');
+        }
+
+        this.initialized = true;
+        console.log('[KeyManagementService] Password-only backup created successfully');
+        return { success: true };
+    },
+
+    /**
      * Generate new identity keys for the user
      * @param {string} password - Password for backup encryption
      * @returns {Promise<Object>} { success: boolean, recoveryKey?: string }
@@ -423,74 +423,36 @@ const KeyManagementService = {
     async restoreFromPassword(password) {
         console.log('[KeyManagementService] Restoring from password...');
 
-        // Clear any stale local keys/sessions before restoring
-        console.log('[KeyManagementService] Clearing stale local data...');
         await KeyStorageService.clearAll();
-
         const secretKey = await KeyBackupService.restoreFromPassword(this.currentUserId, password);
 
-        // CRITICAL: Derive public key FROM the secret key to ensure they match
-        // Using nacl.box.keyPair.fromSecretKey() ensures cryptographic consistency
-        console.log('[KeyManagementService] Deriving public key from restored secret key...');
-        const secretKeyB64 = CryptoPrimitivesService.serializeKey(secretKey);
-        console.log(`[KeyManagementService] Restored secret key (prefix): ${secretKeyB64.substring(0, 20)}...`);
-
+        // Derive public key from secret key to ensure cryptographic consistency
         const keyPair = CryptoPrimitivesService.keyPairFromSecretKey(secretKey);
         const publicKey = keyPair.publicKey;
         const derivedPublicKeyB64 = CryptoPrimitivesService.serializeKey(publicKey);
-        console.log(`[KeyManagementService] Derived public key (FULL): ${derivedPublicKeyB64}`);
 
-        // Verify it matches what's in the database (for debugging)
+        // Verify against database and auto-repair if mismatched
         const dbPublicKeyB64 = await HistoricalKeysService.getCurrentKey(this.currentUserId);
-        console.log(`[KeyManagementService] Database public key (FULL): ${dbPublicKeyB64 || 'NULL'}`);
-
-        if (dbPublicKeyB64) {
-            if (dbPublicKeyB64 === derivedPublicKeyB64) {
-                console.log('[KeyManagementService] ✓ Derived public key matches database');
-            } else {
-                console.error('[KeyManagementService] ✗ PUBLIC KEY MISMATCH!');
-                console.error('[KeyManagementService] This means the secret key was corrupted during backup/restore!');
-                console.error(`[KeyManagementService]   Database: ${dbPublicKeyB64}`);
-                console.error(`[KeyManagementService]   Derived:  ${derivedPublicKeyB64}`);
-                console.log('[KeyManagementService] Updating database with correct derived public key...');
-                // Update database with the correct derived public key
-                await this._uploadPublicKeyToServer(this.currentUserId, derivedPublicKeyB64);
-            }
+        if (dbPublicKeyB64 && dbPublicKeyB64 !== derivedPublicKeyB64) {
+            console.error('[KeyManagementService] Public key mismatch - updating database with derived key');
+            await this._uploadPublicKeyToServer(this.currentUserId, derivedPublicKeyB64);
         }
 
-        // Store locally with the DERIVED public key (not the one from database)
-        await KeyStorageService.storeIdentityKeys(this.currentUserId, {
-            publicKey,
-            secretKey
-        });
-
-        // Fetch epoch
+        await KeyStorageService.storeIdentityKeys(this.currentUserId, { publicKey, secretKey });
         await this._fetchCurrentEpoch(this.currentUserId);
 
-        // Restore the session backup key (required for multi-device sync)
-        console.log('[KeyManagementService] Restoring session backup key...');
+        // Restore session backup key
         this._sessionBackupKey = await KeyBackupService.restoreSessionBackupKey(this.currentUserId, password);
-
         if (!this._sessionBackupKey) {
-            console.warn('[KeyManagementService] No session backup key available - sessions will be derived via ECDH');
-        } else {
-            const backupKeyPreview = Array.from(this._sessionBackupKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log(`[KeyManagementService] Session backup key restored (8 bytes): ${backupKeyPreview}`);
+            console.warn('[KeyManagementService] No session backup key - sessions will use ECDH');
         }
 
-        // Sync session keys from database
         await this._syncSessionKeys(this.currentUserId);
-
-        // Sync historical keys for ourselves
         await HistoricalKeysService.syncToLocal(this.currentUserId);
-
-        // CRITICAL: Also sync historical keys for all conversation partners
-        // This ensures we can decrypt messages from other users on this new device
         await this._syncConversationPartnerKeys(this.currentUserId);
 
         this.initialized = true;
         console.log('[KeyManagementService] Restored successfully');
-
         return { success: true };
     },
 
@@ -504,45 +466,25 @@ const KeyManagementService = {
     async restoreFromRecoveryKey(recoveryKey) {
         console.log('[KeyManagementService] Restoring from recovery key...');
 
-        // Clear any stale local keys/sessions before restoring
-        console.log('[KeyManagementService] Clearing stale local data...');
         await KeyStorageService.clearAll();
-
         const secretKey = await KeyBackupService.restoreFromRecoveryKey(this.currentUserId, recoveryKey);
 
-        // CRITICAL: Derive public key FROM the secret key to ensure they match
-        console.log('[KeyManagementService] Deriving public key from restored secret key...');
         const keyPair = CryptoPrimitivesService.keyPairFromSecretKey(secretKey);
         const publicKey = keyPair.publicKey;
         const derivedPublicKeyB64 = CryptoPrimitivesService.serializeKey(publicKey);
-        console.log(`[KeyManagementService] Derived public key: ${derivedPublicKeyB64.substring(0, 20)}...`);
 
-        // Verify it matches what's in the database (for debugging)
+        // Verify against database and auto-repair if mismatched
         const dbPublicKeyB64 = await HistoricalKeysService.getCurrentKey(this.currentUserId);
-        if (dbPublicKeyB64) {
-            if (dbPublicKeyB64 === derivedPublicKeyB64) {
-                console.log('[KeyManagementService] ✓ Derived public key matches database');
-            } else {
-                console.error('[KeyManagementService] ✗ PUBLIC KEY MISMATCH!');
-                console.error(`[KeyManagementService]   Database: ${dbPublicKeyB64.substring(0, 20)}...`);
-                console.error(`[KeyManagementService]   Derived:  ${derivedPublicKeyB64.substring(0, 20)}...`);
-                console.log('[KeyManagementService] Updating database with correct derived public key...');
-                await this._uploadPublicKeyToServer(this.currentUserId, derivedPublicKeyB64);
-            }
+        if (dbPublicKeyB64 && dbPublicKeyB64 !== derivedPublicKeyB64) {
+            console.error('[KeyManagementService] Public key mismatch - updating database with derived key');
+            await this._uploadPublicKeyToServer(this.currentUserId, derivedPublicKeyB64);
         }
 
-        await KeyStorageService.storeIdentityKeys(this.currentUserId, {
-            publicKey,
-            secretKey
-        });
-
+        await KeyStorageService.storeIdentityKeys(this.currentUserId, { publicKey, secretKey });
         await this._fetchCurrentEpoch(this.currentUserId);
 
-        // Recovery key can restore identity keys but NOT session backup key
-        // Session keys will be re-derived from ECDH when needed
+        // Recovery key cannot restore the session backup key - sessions will use ECDH
         this._sessionBackupKey = null;
-        console.log('[KeyManagementService] Recovery key restore: session backup key not available');
-        console.log('[KeyManagementService] Sessions will be re-established via ECDH as needed');
 
         await HistoricalKeysService.syncToLocal(this.currentUserId);
 
@@ -678,10 +620,12 @@ const KeyManagementService = {
             // Store new key in history
             await HistoricalKeysService.storeKey(this.currentUserId, newPublicKeyB64, newEpoch);
 
-            // Session backup key is unchanged during rotation - no re-encryption needed
-            // This is why the session backup key is password-derived, not identity-key-derived
-            if (!this._sessionBackupKey) {
-                throw new Error('[KeyManagementService] Cannot rotate keys without session backup key');
+            // Update password backup with new rotated keys
+            const password = window.PasswordManager?.retrieve();
+            if (password) {
+                console.log('[KeyManagementService] Updating backup with rotated keys...');
+                await KeyBackupService.createPasswordOnlyBackup(this.currentUserId, newKeys.secretKey, password);
+                console.log('[KeyManagementService] Backup updated with rotated keys');
             }
 
             this.currentEpoch = newEpoch;
@@ -704,69 +648,11 @@ const KeyManagementService = {
      * @param {number|null} intervalMs - Custom interval (uses config if null)
      * @returns {Promise<Object>} { rotated: boolean, reason: string, newEpoch?: number }
      */
-    async checkAndRotateIfNeeded(intervalMs = null) {
-        if (!this.initialized) {
-            return { rotated: false, reason: 'not_initialized' };
-        }
-
-        // Get rotation config
-        const rotationConfig = this._config?.keyRotation || {};
-        if (rotationConfig.enabled === false) {
-            return { rotated: false, reason: 'rotation_disabled' };
-        }
-
-        // Determine interval
-        const minInterval = rotationConfig.minIntervalMs || 3600000; // 1 hour min
-        const maxInterval = rotationConfig.maxIntervalMs || 2592000000; // 30 days max
-        let interval = intervalMs || rotationConfig.intervalMs || 86400000; // 24h default
-
-        // Clamp interval to valid range
-        interval = Math.max(minInterval, Math.min(maxInterval, interval));
-
-        // Fetch last update time from database
-        if (!this._database) {
-            return { rotated: false, reason: 'no_database' };
-        }
-
-        const identityTable = this._config?.tables?.identityKeys || 'identity_keys';
-
-        try {
-            const result = await this._database.querySelect(identityTable, {
-                filter: { user_id: this.currentUserId },
-                limit: 1
-            });
-
-            const lastUpdated = result.data?.[0]?.updated_at;
-            if (!lastUpdated) {
-                return { rotated: false, reason: 'no_keys' };
-            }
-
-            const lastRotationTime = new Date(lastUpdated).getTime();
-            const now = Date.now();
-            const elapsed = now - lastRotationTime;
-
-            if (elapsed > interval) {
-                console.log(`[KeyManagementService] Auto-rotating keys (${Math.round(elapsed / 3600000)}h since last rotation)`);
-                const rotateResult = await this.regenerateKeys();
-                return {
-                    rotated: true,
-                    newEpoch: rotateResult.newEpoch,
-                    fingerprint: rotateResult.fingerprint,
-                    elapsed: elapsed
-                };
-            }
-
-            const nextRotation = interval - elapsed;
-            return {
-                rotated: false,
-                reason: 'not_due',
-                nextRotationMs: nextRotation,
-                nextRotationHuman: this._formatDuration(nextRotation)
-            };
-        } catch (error) {
-            console.error('[KeyManagementService] Rotation check failed:', error);
-            return { rotated: false, reason: 'error', error: error.message };
-        }
+    async checkAndRotateIfNeeded() {
+        // Auto-rotation disabled: ECDH session derivation uses identity keys,
+        // so rotating them invalidates all existing sessions and breaks decryption
+        // of messages encrypted with the old key pair.
+        return { rotated: false, reason: 'auto_rotation_disabled' };
     },
 
     /**
@@ -992,105 +878,48 @@ const KeyManagementService = {
         }
 
         const { ciphertext, nonce, counter } = encryptedData;
-        // Always use epoch 0 - ignore message epoch for simplicity
         const epoch = 0;
 
-        // Validate counter
         if (typeof counter !== 'number' || counter < 0 || !Number.isInteger(counter)) {
             throw new Error(`Invalid counter value: ${counter}`);
         }
 
-        // Determine the OTHER user for ECDH derivation
-        // If we sent the message (senderId === us), use recipientId
-        // If we received the message, use senderId
-        let otherUserId;
-        if (senderId === this.currentUserId) {
-            // We sent this message - need to use recipient's public key for ECDH
-            otherUserId = recipientId;
-            console.log(`[KeyManagementService] decryptMessage: OWN MESSAGE - using recipient ${otherUserId?.substring(0, 8)}... for ECDH`);
-        } else {
-            // We received this message - use sender's public key for ECDH
-            otherUserId = senderId;
-            console.log(`[KeyManagementService] decryptMessage: RECEIVED MESSAGE - using sender ${otherUserId.substring(0, 8)}... for ECDH`);
-        }
-
+        // Determine other user for ECDH derivation
+        const otherUserId = senderId === this.currentUserId ? recipientId : senderId;
         if (!otherUserId) {
-            throw new Error('Cannot determine other user for ECDH - recipientId not provided for own message');
+            throw new Error('Cannot determine other user for ECDH - recipientId not provided');
         }
-
-        console.log(`[KeyManagementService] decryptMessage: conv=${conversationId}, counter=${counter}, otherUser=${otherUserId.substring(0, 8)}...`);
 
         // Get or derive session key
         let session = await KeyStorageService.getSessionKey(conversationId, epoch);
-        let usedCachedSession = false;
-
-        if (session) {
-            console.log(`[KeyManagementService] decryptMessage: Found cached session for conv=${conversationId}`);
-            usedCachedSession = true;
-        } else {
-            console.log(`[KeyManagementService] decryptMessage: No cached session, deriving from ECDH...`);
-            session = await this._deriveSessionFromHistory(conversationId, otherUserId);
-        }
+        let usedCachedSession = !!session;
 
         if (!session) {
-            console.error(`[KeyManagementService] decryptMessage: FAILED - could not get or derive session key`);
+            session = await this._deriveSessionFromHistory(conversationId, otherUserId);
+        }
+        if (!session) {
             throw new Error('Cannot decrypt - no session key available');
         }
 
-        // Derive message key
-        const sessionKeyPreview = Array.from(session.sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] decryptMessage: Using session key (8 bytes): ${sessionKeyPreview}`);
-        console.log(`[KeyManagementService] decryptMessage: Deriving message key for epoch=${epoch}, counter=${counter}...`);
-        const messageKey = await KeyDerivationService.deriveMessageKey(
-            session.sessionKey,
-            epoch,
-            counter
-        );
-        const messageKeyPreview = Array.from(messageKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] decryptMessage: Message key (8 bytes): ${messageKeyPreview}`);
+        // Derive message key and decrypt
+        const messageKey = await KeyDerivationService.deriveMessageKey(session.sessionKey, epoch, counter);
 
-        // Decrypt
-        console.log(`[KeyManagementService] decryptMessage: Attempting decryption...`);
         try {
-            const plaintext = CryptoPrimitivesService.decrypt(ciphertext, nonce, messageKey);
-            console.log(`[KeyManagementService] decryptMessage: SUCCESS - message decrypted`);
-            return plaintext;
+            return CryptoPrimitivesService.decrypt(ciphertext, nonce, messageKey);
         } catch (decryptError) {
-            console.error(`[KeyManagementService] decryptMessage: FAILED - ${decryptError.message}`);
-
-            // AUTO-REPAIR: If we used a cached session and it failed, try re-deriving from ECDH
+            // If cached session failed, try re-deriving from ECDH
             if (usedCachedSession) {
-                console.log(`[KeyManagementService] decryptMessage: AUTO-REPAIR - Cached session may be stale, re-deriving from ECDH...`);
-
-                // Delete the stale cached session
+                console.log('[KeyManagementService] Cached session stale, re-deriving...');
                 try {
                     await KeyStorageService.deleteSessionKeysForConversation(conversationId);
-                    console.log(`[KeyManagementService] decryptMessage: AUTO-REPAIR - Deleted stale session cache`);
-                } catch (deleteError) {
-                    console.warn(`[KeyManagementService] decryptMessage: AUTO-REPAIR - Could not delete stale session:`, deleteError.message);
-                }
+                } catch (e) { /* ignore */ }
 
-                // Re-derive session from ECDH
                 const freshSession = await this._deriveSessionFromHistory(conversationId, otherUserId);
                 if (freshSession) {
-                    // Try decryption again with fresh session
-                    const freshMessageKey = await KeyDerivationService.deriveMessageKey(
-                        freshSession.sessionKey,
-                        epoch,
-                        counter
-                    );
-
-                    try {
-                        const plaintext = CryptoPrimitivesService.decrypt(ciphertext, nonce, freshMessageKey);
-                        console.log(`[KeyManagementService] decryptMessage: AUTO-REPAIR SUCCESS - message decrypted with fresh session`);
-                        return plaintext;
-                    } catch (retryError) {
-                        console.error(`[KeyManagementService] decryptMessage: AUTO-REPAIR FAILED - ${retryError.message}`);
-                        throw retryError;
-                    }
+                    const freshMessageKey = await KeyDerivationService.deriveMessageKey(freshSession.sessionKey, epoch, counter);
+                    return CryptoPrimitivesService.decrypt(ciphertext, nonce, freshMessageKey);
                 }
             }
-
             throw decryptError;
         }
     },
@@ -1261,36 +1090,20 @@ const KeyManagementService = {
      */
     async _syncSessionKeys(userId) {
         if (!this._sessionBackupKey) {
-            console.log('[KeyManagementService] No session backup key - skipping session sync');
-            console.log('[KeyManagementService] Sessions will be derived via ECDH as needed');
             return;
         }
-
-        const backupKeyPreview = Array.from(this._sessionBackupKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] _syncSessionKeys: Using session backup key (8 bytes): ${backupKeyPreview}`);
 
         let sessions = [];
         try {
             sessions = await KeyBackupService.restoreSessionKeys(userId, this._sessionBackupKey);
-            console.log(`[KeyManagementService] Restored ${sessions.length} sessions from backup`);
-
-            // Log each restored session for debugging
-            for (const session of sessions) {
-                const sessionKeyPreview = Array.from(session.sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-                console.log(`[KeyManagementService] _syncSessionKeys: Restored session conv=${session.conversationId}, epoch=${session.epoch}, counter=${session.counter}, key=${sessionKeyPreview}`);
-            }
         } catch (error) {
             console.error('[KeyManagementService] Failed to restore sessions:', error.message);
             throw new Error(`Failed to restore session keys: ${error.message}`);
         }
 
-        // Store sessions locally
         for (const session of sessions) {
             await KeyStorageService.storeSessionKey(
-                session.conversationId,
-                session.epoch,
-                session.sessionKey,
-                session.counter
+                session.conversationId, session.epoch, session.sessionKey, session.counter
             );
         }
 
@@ -1365,46 +1178,28 @@ const KeyManagementService = {
      * @returns {Promise<Object|null>} { sessionKey, epoch, counter } or null
      */
     async _deriveSessionFromHistory(conversationId, otherUserId) {
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: conv=${conversationId}, otherUser=${otherUserId.substring(0, 8)}...`);
+        console.log(`[KeyManagementService] Deriving session: conv=${conversationId}, otherUser=${otherUserId.substring(0, 8)}...`);
 
-        // Get their current public key from database (no rotation, so current = only)
         const theirPublicKeyB64 = await HistoricalKeysService.getCurrentKey(otherUserId);
         if (!theirPublicKeyB64) {
-            console.error(`[KeyManagementService] _deriveSessionFromHistory: FAILED - No public key for user ${otherUserId.substring(0, 8)}...`);
-            console.error(`[KeyManagementService] _deriveSessionFromHistory: This user may not have set up encryption yet`);
+            console.error(`[KeyManagementService] No public key for user ${otherUserId.substring(0, 8)}`);
             return null;
         }
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Their public key (FULL): ${theirPublicKeyB64}`);
 
-        // Get our keys from local storage
         const ourKeys = await KeyStorageService.getIdentityKeys(this.currentUserId);
         if (!ourKeys) {
-            console.error(`[KeyManagementService] _deriveSessionFromHistory: FAILED - No local identity keys`);
-            console.error(`[KeyManagementService] _deriveSessionFromHistory: User needs to restore keys via device pairing`);
+            console.error('[KeyManagementService] No local identity keys available');
             return null;
         }
-        const ourSecretKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.secretKey);
-        const ourPublicKeyB64 = CryptoPrimitivesService.serializeKey(ourKeys.publicKey);
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Our public key (FULL): ${ourPublicKeyB64}`);
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Our secret key prefix: ${ourSecretKeyB64.substring(0, 12)}...`);
 
         // ECDH key agreement
         const theirPublicKey = CryptoPrimitivesService.deserializeKey(theirPublicKeyB64);
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Computing ECDH...`);
         const sharedSecret = CryptoPrimitivesService.deriveSharedSecret(ourKeys.secretKey, theirPublicKey);
-
-        // Log more bytes of shared secret for debugging (safe to log - derived, not the keys)
-        const sharedSecretPreview = Array.from(sharedSecret.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Shared secret (8 bytes): ${sharedSecretPreview}`);
-
-        // Derive session key (always epoch 0)
         const sessionKey = await KeyDerivationService.deriveSessionKey(sharedSecret, 0);
-        const sessionKeyPreview = Array.from(sessionKey.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Session key (8 bytes): ${sessionKeyPreview}`);
 
         // Cache for future use
         await KeyStorageService.storeSessionKey(conversationId, 0, sessionKey, 0);
-        console.log(`[KeyManagementService] _deriveSessionFromHistory: Session derived and cached for conv=${conversationId}`);
+        console.log(`[KeyManagementService] Session derived and cached for conv=${conversationId}`);
 
         return { sessionKey, epoch: 0, counter: 0 };
     },

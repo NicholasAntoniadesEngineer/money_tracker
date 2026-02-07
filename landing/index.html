@@ -39,12 +39,7 @@
 <body class="page-container">
     <!-- Header injected by Header.js -->
 
-    <main class="main-content" role="main">
-        <!-- Hero Section -->
-        <section class="hero-section rounded-lg">
-            <h2 class="hero-title">Financial Overview</h2>
-        </section>
-
+    <main class="main-content landing-main-content" role="main">
         <!-- Two Column Layout: Savings + Table | Pie Chart -->
         <section class="overview-two-column">
             <!-- Left Column: Savings Banner + Savings Table -->
@@ -57,21 +52,23 @@
 
                 <!-- Monthly Savings Table -->
                 <div class="savings-table-container">
-                    <h3 class="savings-table-title">Savings by Month</h3>
-                    <table class="savings-table" id="savings-by-month-table">
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th>Estimate</th>
-                                <th>Actual</th>
-                            </tr>
-                        </thead>
-                        <tbody id="savings-by-month-tbody">
-                            <tr>
-                                <td colspan="3" class="text-center text-muted">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <h3 class="savings-table-title savings-table-title-clickable" id="savings-table-title">Savings by Month</h3>
+                    <div class="savings-table-wrapper">
+                        <table class="savings-table" id="savings-by-month-table">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Estimate</th>
+                                    <th>Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="savings-by-month-tbody">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -92,13 +89,47 @@
                             </div>
                         </div>
                     </div>
+                    <label class="all-months-toggle">
+                        <input type="checkbox" id="all-months-checkbox">
+                        <span>All months</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Expenses Calendar Section -->
+        <section class="section" aria-labelledby="expenses-calendar-heading">
+            <div class="calendar-container" id="expenses-calendar-container">
+                <div class="calendar-header">
+                    <a href="#" class="calendar-month-year-link" id="calendar-month-link" title="View this month's budget">
+                        <span class="calendar-month-year" id="calendar-month-year">Loading...</span>
+                    </a>
+                </div>
+                <div class="calendar-weekdays">
+                    <div class="calendar-weekday">Mon</div>
+                    <div class="calendar-weekday">Tue</div>
+                    <div class="calendar-weekday">Wed</div>
+                    <div class="calendar-weekday">Thu</div>
+                    <div class="calendar-weekday">Fri</div>
+                    <div class="calendar-weekday">Sat</div>
+                    <div class="calendar-weekday">Sun</div>
+                </div>
+                <div class="calendar-grid" id="calendar-grid">
+                    <div class="text-center text-muted py-8" style="grid-column: 1 / -1;">
+                        Loading calendar...
+                    </div>
                 </div>
             </div>
         </section>
 
         <!-- Monthly Comparison Cards -->
         <section class="section" aria-labelledby="months-comparison-heading">
-            <h2 id="months-comparison-heading" class="section-title">Monthly Overview</h2>
+            <div class="section-header-with-action">
+                <h2 id="months-comparison-heading" class="section-title">Monthly Overview</h2>
+                <button class="add-month-button" id="add-new-month-button" aria-label="Create new month" title="Create new month">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
             <div class="month-cards-grid" id="month-cards-container">
                 <div class="text-center text-muted py-8">
                     <div class="spinner mx-auto mb-2"></div>
@@ -108,6 +139,109 @@
         </section>
     </main>
 
+    <!-- Calendar Day Popup -->
+    <div class="calendar-popup" id="calendar-popup">
+        <div class="calendar-popup-header">
+            <span class="calendar-popup-date" id="popup-date"></span>
+            <button class="calendar-popup-close" id="popup-close" aria-label="Close popup">&times;</button>
+        </div>
+        <div class="calendar-popup-content" id="popup-content">
+            <!-- Expense details rendered here -->
+        </div>
+    </div>
+    <div class="calendar-popup-overlay" id="popup-overlay"></div>
+
+    <!-- Create Month Modal -->
+    <div class="modal" id="create-month-modal">
+        <div class="modal-overlay" id="create-month-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Month</h3>
+            </div>
+            <form id="create-month-form" class="modal-body">
+                <div class="form-group">
+                    <label for="new-month-year">Year</label>
+                    <input type="number" id="new-month-year" name="year" min="2000" max="2100" required class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="new-month-month">Month</label>
+                    <select id="new-month-month" name="month" required class="form-input">
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancel-create-month">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Month</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- All Months Savings Modal -->
+    <div class="modal" id="all-savings-modal">
+        <div class="modal-overlay" id="all-savings-overlay"></div>
+        <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+                <h3 class="modal-title">Savings by Month</h3>
+                <button type="button" class="modal-close" id="close-all-savings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="savings-table savings-table-full">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Estimate</th>
+                            <th>Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="all-savings-tbody">
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Breakdown Modal -->
+    <div class="modal" id="expense-breakdown-modal">
+        <div class="modal-overlay" id="expense-breakdown-overlay"></div>
+        <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+                <h3 class="modal-title">Expense Breakdown</h3>
+                <button type="button" class="modal-close" id="close-expense-breakdown">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="expense-breakdown-total" id="expense-breakdown-total"></div>
+                <table class="expense-breakdown-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-breakdown-tbody">
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <!-- Global Logging Configuration -->
     <script src="../shared/config/loggingConfig.js"></script>
@@ -220,11 +354,9 @@
 
                 if (window.PairingGuard) {
                     console.log('[Landing] Checking device pairing status...');
-                    const isPaired = await window.PairingGuard.checkPairingStatus();
+                    const isPaired = await window.PairingGuard.requirePairing();
                     if (!isPaired) {
-                        console.log('[Landing] Device not paired - redirecting to pairing page...');
-                        window.location.href = '../messaging/views/device-pairing.html';
-                        return;
+                        return; // requirePairing signs out if not paired
                     }
                     console.log('[Landing] Device pairing check passed');
                 }

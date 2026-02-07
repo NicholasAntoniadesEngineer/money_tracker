@@ -189,6 +189,7 @@ const SettingsController = {
         const exportButton = document.getElementById('export-button');
         const exportFormatSelect = document.getElementById('export-format-select');
         const monthSelector = document.getElementById('month-selector');
+        const deleteMonthSelector = document.getElementById('delete-month-selector');
         const deleteMonthBtn = document.getElementById('delete-month-button');
         const importStatus = document.getElementById('import-status');
         const fileOperationsStatus = document.getElementById('file-operations-status');
@@ -449,7 +450,7 @@ const SettingsController = {
         // Delete month button
         if (deleteMonthBtn && monthSelector) {
             deleteMonthBtn.addEventListener('click', async () => {
-                const selectedMonthKey = monthSelector.value;
+                const selectedMonthKey = deleteMonthSelector.value;
                 
                 if (!selectedMonthKey) {
                     alert('No month selected');
@@ -495,12 +496,11 @@ const SettingsController = {
             });
         }
 
-        // Month selector change handler - show/hide delete button (hide for "all" option)
-        if (monthSelector && deleteMonthBtn) {
-            monthSelector.addEventListener('change', () => {
-                const selectedValue = monthSelector.value;
-                const showDelete = selectedValue && selectedValue !== '' && selectedValue !== 'all';
-                deleteMonthBtn.style.display = showDelete ? 'inline-block' : 'none';
+        // Delete month selector change handler - show/hide delete button
+        if (deleteMonthSelector && deleteMonthBtn) {
+            deleteMonthSelector.addEventListener('change', () => {
+                const selectedValue = deleteMonthSelector.value;
+                deleteMonthBtn.style.display = selectedValue ? 'inline-flex' : 'none';
             });
         }
         
@@ -821,35 +821,39 @@ const SettingsController = {
      * Load month selector dropdown
      */
     async loadMonthSelector() {
-        const selector = document.getElementById('month-selector');
-        if (!selector) return;
+        const exportSelector = document.getElementById('month-selector');
+        const deleteSelector = document.getElementById('delete-month-selector');
 
         const allMonths = await DataManager.getAllMonths();
         const monthKeys = Object.keys(allMonths).sort().reverse();
 
-        if (monthKeys.length > 0) {
-            selector.innerHTML = '<option value="">Select month...</option>' +
-                '<option value="all">Export All Months</option>' +
-                monthKeys.map(key => {
-                    const monthData = allMonths[key];
-                    const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
-                    let displayText = `${monthName} ${monthData.year}`;
+        const monthOptions = monthKeys.map(key => {
+            const monthData = allMonths[key];
+            const monthName = monthData.monthName || DataManager.getMonthName(monthData.month);
+            let displayText = `${monthName} ${monthData.year}`;
+            if (monthData.isShared && monthData.sharedOwnerId) {
+                displayText += ` (shared:${monthData.sharedOwnerEmail || 'Unknown User'})`;
+            } else if (monthData.year === 2045) {
+                displayText += ` (Example)`;
+            }
+            return `<option value="${key}">${displayText}</option>`;
+        }).join('');
 
-                    // If this is a shared month, append owner email
-                    if (monthData.isShared && monthData.sharedOwnerId) {
-                        const ownerEmail = monthData.sharedOwnerEmail || 'Unknown User';
-                        displayText += ` (shared:${ownerEmail})`;
-                    }
-                    // If this is an example month (year 2045), append "Example" label
-                    else if (monthData.year === 2045) {
-                        displayText += ` (Example)`;
-                    }
+        const emptyOption = monthKeys.length > 0
+            ? '<option value="">Month...</option>'
+            : '<option value="">No months</option>';
 
-                    return `<option value="${key}">${displayText}</option>`;
-                }).join('');
-        } else {
-            selector.innerHTML = '<option value="">No months available</option>';
+        if (exportSelector) {
+            exportSelector.innerHTML = emptyOption +
+                '<option value="all">All Months</option>' +
+                monthOptions;
         }
+
+        if (deleteSelector) {
+            deleteSelector.innerHTML = emptyOption + monthOptions;
+        }
+
+        console.log('[Settings] Month selectors loaded with', monthKeys.length, 'months');
     },
 
     /**

@@ -76,9 +76,6 @@ const KeyBackupService = {
 
         console.log('[KeyBackupService] Creating identity key backup...');
 
-        // Enforce password strength before creating backup
-        PasswordCryptoService.enforcePasswordStrength(password);
-
         // Encrypt identity key with password
         const passwordEncrypted = await PasswordCryptoService.encryptToBase64(secretKey, password);
 
@@ -142,9 +139,6 @@ const KeyBackupService = {
 
         console.log('[KeyBackupService] Creating identity key backup with provided recovery key...');
 
-        // Enforce password strength before creating backup
-        PasswordCryptoService.enforcePasswordStrength(password);
-
         // Encrypt identity key with password
         const passwordEncrypted = await PasswordCryptoService.encryptToBase64(secretKey, password);
 
@@ -187,6 +181,52 @@ const KeyBackupService = {
             };
         } catch (error) {
             console.error('[KeyBackupService] Failed to create backup:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Create a password-only backup of identity keys (no recovery key)
+     * Used for re-encrypting backups after password reset
+     * @param {string} userId - User ID
+     * @param {Uint8Array} secretKey - The secret key to backup
+     * @param {string} password - User's password
+     * @returns {Promise<Object>} { success: boolean, sessionBackupKey?: Uint8Array }
+     */
+    async createPasswordOnlyBackup(userId, secretKey, password) {
+        if (!this._database) {
+            throw new Error('[KeyBackupService] No database - cannot create backup');
+        }
+
+        console.log('[KeyBackupService] Creating password-only identity key backup...');
+
+        const passwordEncrypted = await PasswordCryptoService.encryptToBase64(secretKey, password);
+
+        const sessionBackupKey = CryptoPrimitivesService.randomBytes(32);
+        const sessionKeyEncrypted = await PasswordCryptoService.encryptToBase64(sessionBackupKey, password);
+
+        try {
+            await this._database.queryUpsert(this._getBackupTableName(), {
+                user_id: userId,
+                password_encrypted_data: passwordEncrypted.encryptedData,
+                password_salt: passwordEncrypted.salt,
+                password_iv: passwordEncrypted.iv,
+                recovery_encrypted_data: null,
+                recovery_salt: null,
+                recovery_iv: null,
+                session_backup_key_encrypted: sessionKeyEncrypted.encryptedData,
+                session_backup_key_salt: sessionKeyEncrypted.salt,
+                session_backup_key_iv: sessionKeyEncrypted.iv,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id',
+                returning: true
+            });
+
+            console.log('[KeyBackupService] Password-only backup created');
+            return { success: true, sessionBackupKey: sessionBackupKey };
+        } catch (error) {
+            console.error('[KeyBackupService] Failed to create password-only backup:', error);
             throw error;
         }
     },

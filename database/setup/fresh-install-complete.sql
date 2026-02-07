@@ -1629,10 +1629,10 @@ VALUES
    {"source": "Dividend Income", "estimated": 50, "actual": 48, "date": "20th", "description": "Quarterly dividend", "comments": ""}
  ]'::jsonb,
  '[
-   {"category": "Emergency Fund", "estimatedAmount": 3000, "actualAmount": 3200, "comments": ""},
-   {"category": "Holiday Savings", "estimatedAmount": 1500, "actualAmount": 1650, "comments": ""},
-   {"category": "New Laptop Fund", "estimatedAmount": 800, "actualAmount": 850, "comments": ""},
-   {"category": "Investment Account", "estimatedAmount": 2000, "actualAmount": 2100, "comments": ""}
+   {"category": "Emergency Fund", "estimatedAmount": 200, "actualAmount": 175, "comments": ""},
+   {"category": "Holiday Savings", "estimatedAmount": 150, "actualAmount": 125, "comments": ""},
+   {"category": "New Laptop Fund", "estimatedAmount": 150, "actualAmount": 125, "comments": ""},
+   {"category": "Investment Account", "estimatedAmount": 100, "actualAmount": 75, "comments": ""}
  ]'::jsonb,
  NOW(), NOW()),
 

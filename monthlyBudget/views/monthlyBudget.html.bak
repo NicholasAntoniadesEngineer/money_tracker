@@ -52,16 +52,17 @@
         <div id="month-content" style="display: none;">
 
             <section class="working-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.25rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <h2 class="section-title" style="margin: 0;">The Working Section</h2>
                         <button class="help-button" data-help-id="working-section-help" aria-label="Help for The Working Section">?</button>
                     </div>
-                    <div class="month-header-container section-header-actions" style="display: none;">
-                        <select id="month-selector" class="form-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0; width: auto; max-width: 130px;">
+                    <div class="month-header-container" style="display: none; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
+                        <label for="month-selector" class="form-label" style="margin: 0; white-space: nowrap; font-size: 0.65rem;">Select Month:</label>
+                        <select id="month-selector" class="form-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0; width: auto;">
                             <option value="">Loading...</option>
                         </select>
-                        <button id="create-month-button" class="btn btn-secondary create-month-btn" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Create New Month</button>
+                        <button id="create-month-button" class="btn btn-primary create-month-btn" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Create New Month</button>
                         <button id="share-month-button" class="btn btn-action" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;" title="Share this month with another user">Share Month</button>
                         <button id="delete-month-button" class="btn btn-danger" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;" title="Delete this month">Delete This Month</button>
                         <span id="month-sharing-indicator" style="display: none; margin-left: 0.25rem; font-size: 0.65rem; color: var(--text-color-secondary); white-space: nowrap;"></span>
@@ -93,11 +94,9 @@
             </section>
 
             <section class="summary-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
-                        <h2 class="section-title" style="margin: 0;"><i class="fas fa-chart-pie"></i> Monthly Summary</h2>
-                        <button class="help-button" data-help-id="summary-section-help" aria-label="Help for Monthly Summary section">?</button>
-                    </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <h2 class="section-title" style="margin: 0;"><i class="fas fa-chart-pie"></i> Monthly Summary</h2>
+                    <button class="help-button" data-help-id="summary-section-help" aria-label="Help for Monthly Summary section">?</button>
                 </div>
                 <table class="data-table" id="summary-table">
                     <thead>
@@ -145,17 +144,17 @@
             </section>
 
             <section class="income-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: nowrap; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <h2 class="section-title" style="margin: 0;">1. Income</h2>
                         <button class="help-button" data-help-id="income-section-help" aria-label="Help for Income section">?</button>
                     </div>
-                    <div class="section-header-actions">
-                        <select id="copy-income-from-month" class="form-select copy-month-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0;">
-                            <option value="">Copy...</option>
+                    <div style="display: flex; gap: 0.25rem; align-items: center; flex-shrink: 1; min-width: 0;">
+                        <select id="copy-income-from-month" class="form-select copy-month-select" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; min-width: 0; max-width: 150px;">
+                            <option value="">Select month to copy...</option>
                         </select>
-                        <button id="copy-income-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Copy</button>
-                        <button id="add-income-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Add Income</button>
+                        <button id="copy-income-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Copy</button>
+                        <button id="add-income-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Add Income Source</button>
                     </div>
                 </div>
                 <table class="data-table" id="income-table">
@@ -170,9 +169,6 @@
                         </tr>
                     </thead>
                     <tbody id="income-tbody">
-                        <tr class="empty-placeholder" style="text-align: center; color: var(--color-text-secondary); font-style: italic;">
-                            <td colspan="6">No income sources added yet</td>
-                        </tr>
                     </tbody>
                 </table>
                 <div class="section-actions-container" style="display: none;">
@@ -180,17 +176,17 @@
             </section>
 
             <section class="fixed-costs-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: nowrap; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <h2 class="section-title" style="margin: 0;">2. Fixed Costs</h2>
                         <button class="help-button" data-help-id="fixed-costs-section-help" aria-label="Help for Fixed Costs section">?</button>
                     </div>
-                    <div class="section-header-actions">
-                        <select id="copy-fixed-costs-from-month" class="form-select copy-month-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0;">
-                            <option value="">Copy...</option>
+                    <div style="display: flex; gap: 0.25rem; align-items: center; flex-shrink: 1; min-width: 0;">
+                        <select id="copy-fixed-costs-from-month" class="form-select copy-month-select" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; min-width: 0; max-width: 150px;">
+                            <option value="">Select month to copy...</option>
                         </select>
-                        <button id="copy-fixed-costs-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Copy</button>
-                        <button id="add-fixed-cost-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Add Cost</button>
+                        <button id="copy-fixed-costs-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Copy</button>
+                        <button id="add-fixed-cost-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Add Fixed Cost</button>
                     </div>
                 </div>
                 <table class="data-table" id="fixed-costs-table">
@@ -205,26 +201,23 @@
                         </tr>
                     </thead>
                     <tbody id="fixed-costs-tbody">
-                        <tr class="empty-placeholder" style="text-align: center; color: var(--color-text-secondary); font-style: italic;">
-                            <td colspan="6">No fixed costs added yet</td>
-                        </tr>
                     </tbody>
                 </table>
                 <div class="section-actions-container" style="display: none;"></div>
             </section>
 
             <section class="variable-costs-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: nowrap; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <h2 class="section-title" style="margin: 0;">3. Variable Costs</h2>
                         <button class="help-button" data-help-id="variable-costs-section-help" aria-label="Help for Variable Costs section">?</button>
                     </div>
-                    <div class="section-header-actions">
-                        <select id="copy-variable-costs-from-month" class="form-select copy-month-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0;">
-                            <option value="">Copy...</option>
+                    <div style="display: flex; gap: 0.25rem; align-items: center; flex-shrink: 1; min-width: 0;">
+                        <select id="copy-variable-costs-from-month" class="form-select copy-month-select" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; min-width: 0; max-width: 150px;">
+                            <option value="">Select month to copy...</option>
                         </select>
-                        <button id="copy-variable-costs-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Copy</button>
-                        <button id="add-variable-cost-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Add Variable</button>
+                        <button id="copy-variable-costs-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Copy</button>
+                        <button id="add-variable-cost-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Add Variable Cost</button>
                     </div>
                 </div>
                 <table class="data-table" id="variable-costs-table">
@@ -238,26 +231,23 @@
                         </tr>
                     </thead>
                     <tbody id="variable-costs-tbody">
-                        <tr class="empty-placeholder" style="text-align: center; color: var(--color-text-secondary); font-style: italic;">
-                            <td colspan="5">No variable costs added yet</td>
-                        </tr>
                     </tbody>
                 </table>
                 <div class="section-actions-container" style="display: none;"></div>
             </section>
 
             <section class="unplanned-expenses-section form-section">
-                <div class="section-header-row">
-                    <div class="section-header-title">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: nowrap; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <h2 class="section-title" style="margin: 0;">4. Unplanned Buying</h2>
                         <button class="help-button" data-help-id="unplanned-expenses-section-help" aria-label="Help for Unplanned Buying section">?</button>
                     </div>
-                    <div class="section-header-actions">
-                        <select id="copy-unplanned-from-month" class="form-select copy-month-select" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; min-width: 0;">
-                            <option value="">Copy...</option>
+                    <div style="display: flex; gap: 0.25rem; align-items: center; flex-shrink: 1; min-width: 0;">
+                        <select id="copy-unplanned-from-month" class="form-select copy-month-select" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; min-width: 0; max-width: 150px;">
+                            <option value="">Select month to copy...</option>
                         </select>
-                        <button id="copy-unplanned-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Copy</button>
-                        <button id="add-unplanned-expense-button" class="btn btn-action" style="font-size: 0.65rem; padding: 0.2rem 0.3rem; white-space: nowrap;">Add Expense</button>
+                        <button id="copy-unplanned-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Copy</button>
+                        <button id="add-unplanned-expense-button" class="btn btn-action" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; white-space: nowrap;">Add Unplanned Expense</button>
                     </div>
                 </div>
                 <table class="data-table" id="unplanned-expenses-table">
@@ -271,9 +261,6 @@
                         </tr>
                     </thead>
                     <tbody id="unplanned-expenses-tbody">
-                        <tr class="empty-placeholder" style="text-align: center; color: var(--color-text-secondary); font-style: italic;">
-                            <td colspan="5">No unplanned expenses added yet</td>
-                        </tr>
                     </tbody>
                 </table>
                 <div class="section-actions-container" style="display: none;"></div>

@@ -57,12 +57,10 @@ const MessengerController = {
             }
 
             // Wait for auth state to be determined (session check completes)
-            console.log('[MessengerController] Waiting for auth state to be determined...');
             let authCheckAttempts = 0;
             const maxAuthChecks = 50; // 5 seconds max wait (50 * 100ms)
             while (authCheckAttempts < maxAuthChecks) {
                 if (window.AuthService && window.AuthService.isAuthenticated()) {
-                    console.log(`[MessengerController] User authenticated after ${authCheckAttempts} checks`);
                     break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -75,10 +73,8 @@ const MessengerController = {
                 return;
             }
 
-            console.log('[MessengerController] User authenticated, proceeding with initialization');
+            console.log('[MessengerController] init()');
 
-            // Initialize end-to-end encryption
-            console.log('[MessengerController] Initializing E2E encryption...');
             const currentUser = window.AuthService.getCurrentUser();
             const currentUserId = currentUser?.id;
 
@@ -102,133 +98,56 @@ const MessengerController = {
                 }
 
                 // Initialize the full EncryptionModule (required for sendMessage encryption)
-                console.log('[MessengerController] Checking EncryptionModule availability:', {
-                    hasEncryptionModule: !!window.EncryptionModule,
-                    hasInitialize: !!(window.EncryptionModule && typeof window.EncryptionModule.initialize === 'function'),
-                    isAlreadyInitialized: !!(window.EncryptionModule && window.EncryptionModule.isInitialized && window.EncryptionModule.isInitialized())
-                });
-
                 if (window.EncryptionModule && typeof window.EncryptionModule.initialize === 'function') {
-                    // Check if already initialized
-                    if (window.EncryptionModule.isInitialized && window.EncryptionModule.isInitialized()) {
-                        console.log('[MessengerController] EncryptionModule already initialized, skipping initialize()');
-                    } else {
-                        console.log('[MessengerController] Calling EncryptionModule.initialize()...');
-                        const initResult = await window.EncryptionModule.initialize(window.MoneyTrackerEncryptionConfig);
-                        console.log('[MessengerController] EncryptionModule.initialize() result:', initResult);
+                    if (!(window.EncryptionModule.isInitialized && window.EncryptionModule.isInitialized())) {
+                        await window.EncryptionModule.initialize(window.MoneyTrackerEncryptionConfig);
                     }
 
-                    console.log('[MessengerController] Calling EncryptionModule.initializeForUser()...');
                     let userResult = await window.EncryptionModule.initializeForUser(currentUserId);
-                    console.log('[MessengerController] EncryptionModule.initializeForUser() result:', userResult);
 
-                    // Handle key mismatch that requires restore
-                    if (!userResult.success && userResult.needsRestore && userResult.hasBackup) {
-                        console.log('[MessengerController] Key mismatch detected - prompting for password to restore...');
-                        const password = prompt(
-                            'Your encryption keys need to be restored.\n\n' +
-                            'Please enter your encryption password to restore your keys and decrypt your messages:'
-                        );
-
-                        if (password) {
-                            console.log('[MessengerController] Attempting key restoration...');
-                            const restoreResult = await window.EncryptionModule.restoreFromPassword(password);
-                            console.log('[MessengerController] Restore result:', restoreResult);
-
-                            if (restoreResult.success) {
-                                console.log('[MessengerController] Keys restored successfully, re-initializing...');
-                                userResult = await window.EncryptionModule.initializeForUser(currentUserId);
-                                console.log('[MessengerController] Re-initialization result:', userResult);
-                            } else {
-                                console.error('[MessengerController] Key restoration failed:', restoreResult.error);
-                                alert('Failed to restore encryption keys. Please check your password and try again.');
-                            }
-                        } else {
-                            console.warn('[MessengerController] User cancelled password prompt');
-                        }
+                    // Handle key mismatch - sign out for clean re-login with auto-restore
+                    if (!userResult.success && userResult.needsRestore) {
+                        console.warn('[MessengerController] Key mismatch - signing out for re-login');
+                        await window.AuthService?.signOut();
+                        return;
                     }
-
-                    console.log('[MessengerController] ✓ EncryptionModule initialized');
                 } else {
-                    console.error('[MessengerController] EncryptionModule not available!', {
-                        windowEncryptionModule: window.EncryptionModule,
-                        typeofInitialize: window.EncryptionModule ? typeof window.EncryptionModule.initialize : 'N/A'
-                    });
+                    console.error('[MessengerController] EncryptionModule not available');
                 }
-
-                console.log('[MessengerController] ✓ E2E encryption initialized');
             } catch (encryptionError) {
-                console.error('[MessengerController] ✗ Encryption initialization failed:', encryptionError);
-
-                // Check if this is an identity key mismatch error
-                if (encryptionError.message && encryptionError.message.includes('IDENTITY KEY MISMATCH')) {
-                    console.error('[MessengerController] Identity key mismatch detected - redirecting to device pairing');
-
-                    // Show a detailed alert with instructions
-                    const userChoice = confirm(
-                        'ENCRYPTION KEY MISMATCH DETECTED\n\n' +
-                        'This device has different encryption keys than your other devices. ' +
-                        'Messages from other devices cannot be decrypted here.\n\n' +
-                        'To fix this:\n' +
-                        '1. Go to your PRIMARY device (where messages work)\n' +
-                        '2. Open Settings → Security → Pair New Device\n' +
-                        '3. Use QR code or Recovery Key to sync keys to this device\n\n' +
-                        'Click OK to go to Device Pairing, or Cancel to stay here.'
-                    );
-
-                    if (userChoice) {
-                        // Redirect to device pairing page
-                        window.location.href = 'device-pairing.html';
-                    }
-                    return;
-                }
-
-                alert('Failed to initialize secure messaging. Please refresh the page.');
+                console.error('[MessengerController] Encryption init failed:', encryptionError);
+                await window.AuthService?.signOut();
                 return;
             }
 
-            console.log('[MessengerController] ========== POST-ENCRYPTION INITIALIZATION ==========');
-            console.log('[MessengerController] Step 1: Setting up event listeners...');
             this.setupEventListeners();
-            console.log('[MessengerController] ✓ Event listeners set up');
 
             // Check URL for conversation ID parameter
             const urlParams = new URLSearchParams(window.location.search);
             const conversationIdParam = urlParams.get('conversationId');
-            console.log('[MessengerController] URL conversation ID param:', conversationIdParam);
 
             // Load conversations
-            console.log('[MessengerController] Step 2: Loading conversations...');
             await this.loadConversations();
-            console.log('[MessengerController] ✓ Conversations loaded');
-            
+
             // If conversation ID in URL, open that conversation
             if (conversationIdParam) {
-                console.log('[MessengerController] Step 3: Opening conversation from URL param...');
                 const conversationId = parseInt(conversationIdParam, 10);
                 if (conversationId && this.conversations.find(c => c.id === conversationId)) {
                     await this.openConversation(conversationId);
-                    console.log('[MessengerController] ✓ Conversation opened from URL');
                 } else {
-                    console.warn('[MessengerController] Conversation ID in URL not found:', conversationId);
+                    console.warn('[MessengerController] Conversation from URL not found:', conversationId);
                 }
             }
 
             // Subscribe to all incoming messages for conversation list updates
-            console.log('[MessengerController] Step 4: Setting up global message subscription...');
             await this._subscribeToUserMessages(currentUserId);
-            console.log('[MessengerController] ✓ Global message subscription active');
 
-            console.log('[MessengerController] ========== INITIALIZATION COMPLETE ==========');
-            console.log('[MessengerController] Total conversations:', this.conversations.length);
+            console.log('[MessengerController] init() complete, conversations:', this.conversations.length);
         } catch (error) {
-            console.error('[MessengerController] ========== INITIALIZATION FAILED ==========');
-            console.error('[MessengerController] Error:', error);
-            console.error('[MessengerController] Error stack:', error.stack);
+            console.error('[MessengerController] init() failed:', error);
             alert('Error loading messenger. Please check console for details.');
         } finally {
             this.isInitializing = false;
-            console.log('[MessengerController] isInitializing set to false');
         }
     },
 
@@ -406,7 +325,6 @@ const MessengerController = {
      * @param {File} file - Selected file
      */
     async handleFileSelected(file) {
-        console.log('[MessengerController] File selected:', file.name, file.size, file.type);
 
         if (!window.AttachmentService) {
             console.error('[MessengerController] AttachmentService not available');
@@ -439,7 +357,6 @@ const MessengerController = {
             previewContainer.style.display = 'block';
         }
 
-        console.log('[MessengerController] Attachment preview shown');
     },
 
     /**
@@ -456,7 +373,6 @@ const MessengerController = {
         if (previewContainer) {
             previewContainer.style.display = 'none';
         }
-        console.log('[MessengerController] Attachment cleared');
     },
 
     /**
@@ -485,17 +401,15 @@ const MessengerController = {
      * Prevents duplicate concurrent calls by reusing the same promise
      */
     async loadConversations() {
-        console.log('[MessengerController] ========== LOAD CONVERSATIONS CALLED ==========');
+        console.log('[MessengerController] loadConversations()');
 
         // If already loading, return the existing promise
         if (this.conversationsLoadPromise) {
-            console.log('[MessengerController] loadConversations() - reusing existing promise');
             return this.conversationsLoadPromise;
         }
 
         // If currently loading, wait for it to complete
         if (this.isLoadingConversations) {
-            console.log('[MessengerController] loadConversations() - waiting for existing load');
             while (this.isLoadingConversations && this.conversationsLoadPromise) {
                 await this.conversationsLoadPromise;
             }
@@ -503,43 +417,28 @@ const MessengerController = {
         }
 
         // Start loading
-        console.log('[MessengerController] Starting fresh load of conversations...');
         this.isLoadingConversations = true;
         this.conversationsLoadPromise = (async () => {
             try {
-                console.log('[MessengerController] Checking DatabaseService availability...');
                 if (typeof window.DatabaseService === 'undefined') {
                     throw new Error('DatabaseService not available');
                 }
-                console.log('[MessengerController] ✓ DatabaseService available');
 
-                console.log('[MessengerController] Calling DatabaseService.getConversations()...');
                 const result = await window.DatabaseService.getConversations();
-                console.log('[MessengerController] getConversations() result:', {
-                    success: result.success,
-                    hasConversations: !!result.conversations,
-                    conversationCount: result.conversations?.length || 0,
-                    error: result.error
-                });
 
                 if (result.success) {
                     this.conversations = result.conversations || [];
-                    console.log('[MessengerController] Conversations stored, calling renderConversations()...');
                     this.renderConversations();
-                    console.log('[MessengerController] ✓ renderConversations() completed');
                 } else {
                     throw new Error(result.error || 'Failed to load conversations');
                 }
             } catch (error) {
-                console.error('[MessengerController] ✗ Error loading conversations:', error);
-                console.error('[MessengerController] Error stack:', error.stack);
+                console.error('[MessengerController] Error loading conversations:', error);
                 const list = document.getElementById('conversations-list');
                 if (list) {
                     list.innerHTML = `<p style="color: var(--danger-color);">Error loading conversations: ${error.message}</p>`;
                 }
             } finally {
-                // Clear loading state
-                console.log('[MessengerController] Clearing loading state');
                 this.isLoadingConversations = false;
                 this.conversationsLoadPromise = null;
             }
@@ -552,30 +451,18 @@ const MessengerController = {
      * Render conversations list
      */
     renderConversations() {
-        console.log('[MessengerController] ========== RENDER CONVERSATIONS CALLED ==========');
-        console.log('[MessengerController] Conversation count:', this.conversations.length);
-        console.log('[MessengerController] Conversations:', this.conversations.map(c => ({
-            id: c.id,
-            other_user_email: c.other_user_email,
-            unread_count: c.unread_count
-        })));
+        console.log('[MessengerController] renderConversations()', this.conversations.length);
 
         const list = document.getElementById('conversations-list');
         if (!list) {
-            console.error('[MessengerController] ✗ conversations-list element not found in DOM!');
-            console.log('[MessengerController] Available elements with id:',
-                Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+            console.error('[MessengerController] conversations-list element not found');
             return;
         }
-        console.log('[MessengerController] ✓ conversations-list element found');
 
         if (this.conversations.length === 0) {
-            console.log('[MessengerController] No conversations found, showing empty message');
             list.innerHTML = '<p>No conversations yet. Start a new conversation to begin messaging.</p>';
             return;
         }
-
-        console.log('[MessengerController] Generating HTML for', this.conversations.length, 'conversations...');
         const conversationsHtml = this.conversations.map(conv => {
             const unreadBadge = conv.unread_count > 0
                 ? `<span class="conversation-unread-badge">${conv.unread_count}</span>`
@@ -602,29 +489,21 @@ const MessengerController = {
             `;
         });
 
-        console.log('[MessengerController] Injecting HTML into conversations-list...');
         list.innerHTML = conversationsHtml.join('');
-        console.log('[MessengerController] ✓ HTML injected');
 
         // Setup click listeners (clone and replace to remove old listeners)
-        console.log('[MessengerController] Setting up click listeners...');
         const newList = list.cloneNode(true);
         list.parentNode.replaceChild(newList, list);
 
         // Attach listeners to the new list
         const conversationItems = newList.querySelectorAll('.conversation-card');
-        console.log('[MessengerController] Found', conversationItems.length, 'conversation cards');
 
         conversationItems.forEach(item => {
             item.addEventListener('click', () => {
                 const conversationId = parseInt(item.dataset.conversationId, 10);
-                console.log('[MessengerController] Conversation clicked:', conversationId);
                 this.openConversation(conversationId);
             });
         });
-
-        console.log('[MessengerController] ✓ Click listeners attached');
-        console.log('[MessengerController] ========== RENDER CONVERSATIONS COMPLETE ==========');
     },
 
     /**
@@ -636,6 +515,7 @@ const MessengerController = {
 
         const conversationsList = document.getElementById('conversations-list');
         const messageThreadContainer = document.getElementById('message-thread-container');
+        const messengerControls = document.querySelector('.messenger-controls');
 
         // Hide message thread, show conversations list
         if (conversationsList) {
@@ -643,6 +523,9 @@ const MessengerController = {
         }
         if (messageThreadContainer) {
             messageThreadContainer.style.display = 'none';
+        }
+        if (messengerControls) {
+            messengerControls.style.display = 'flex';
         }
 
         // Clear current conversation ID
@@ -680,19 +563,15 @@ const MessengerController = {
      * Open a conversation thread
      */
     async openConversation(conversationId) {
-        console.log('[MessengerController] ========== OPEN CONVERSATION CALLED ==========');
-        console.log('[MessengerController] Conversation ID:', conversationId, '(type:', typeof conversationId + ')');
-        console.log('[MessengerController] Timestamp:', new Date().toISOString());
+        console.log('[MessengerController] openConversation()', conversationId);
 
         // Guard: Prevent multiple simultaneous opens
         if (this.isOpeningConversation) {
-            console.log('[MessengerController] Already opening a conversation, ignoring duplicate call');
             return;
         }
 
         // Guard: If already opening the same conversation, ignore
         if (this.openingConversationId === conversationId && this.currentConversationId === conversationId) {
-            console.log('[MessengerController] Already viewing this conversation, ignoring');
             return;
         }
 
@@ -700,12 +579,12 @@ const MessengerController = {
         this.openingConversationId = conversationId;
 
         try {
-            console.log('[MessengerController] Setting currentConversationId to:', conversationId);
             this.currentConversationId = conversationId;
 
             const conversationsList = document.getElementById('conversations-list');
             const messageThreadContainer = document.getElementById('message-thread-container');
             const messageThread = document.getElementById('message-thread');
+            const messengerControls = document.querySelector('.messenger-controls');
 
             if (!messageThreadContainer || !messageThread) {
                 return;
@@ -715,6 +594,7 @@ const MessengerController = {
             if (conversationsList) conversationsList.style.display = 'none';
             messageThreadContainer.style.display = 'block';
             messageThread.innerHTML = '<p>Loading messages...</p>';
+            if (messengerControls) messengerControls.style.display = 'none';
 
             // Show share data button
             const shareDataButton = document.getElementById('share-data-button');
@@ -778,22 +658,14 @@ const MessengerController = {
                 })();
             }
 
-            console.log('[MessengerController] ========== FETCHING MESSAGES ==========');
-            console.log('[MessengerController] Fetching messages for conversation:', conversationId);
-            console.log('[MessengerController] Calling DatabaseService.getMessages()...');
-
-            const getMessagesStart = Date.now();
             const result = await window.DatabaseService.getMessages(conversationId);
-            console.log('[MessengerController] getMessages() completed in', Date.now() - getMessagesStart, 'ms');
 
             if (result.success) {
                 const messages = result.messages || [];
-                console.log('[MessengerController] ✓ Messages loaded successfully');
-                console.log('[MessengerController] Message count:', messages.length);
+                console.log('[MessengerController] Messages loaded:', messages.length);
 
                 // Fetch attachments for all messages in parallel
                 if (window.AttachmentService) {
-                    console.log('[MessengerController] Fetching attachments for messages...');
                     await Promise.all(messages.map(async (msg) => {
                         try {
                             const attachments = await window.AttachmentService.getMessageAttachments(msg.id);
@@ -803,25 +675,9 @@ const MessengerController = {
                             msg.attachments = [];
                         }
                     }));
-                    console.log('[MessengerController] ✓ Attachments fetched');
                 }
 
-                // Log each message's decryption status
-                messages.forEach((msg, i) => {
-                    const isDecrypted = !msg.content.includes('[ERROR:');
-                    console.log(`[MessengerController] Message ${i + 1}/${messages.length}:`, {
-                        id: msg.id,
-                        sender: msg.sender_email,
-                        decrypted: isDecrypted,
-                        hasAttachments: (msg.attachments?.length || 0) > 0,
-                        contentPreview: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : '')
-                    });
-                });
-
-                // Render messages immediately - don't wait for share message creation
-                console.log('[MessengerController] Rendering message thread...');
                 await this.renderMessageThread(messages);
-                console.log('[MessengerController] ✓ Message thread rendered');
                 
                 // Create messages for shares in background (non-blocking)
                 // This will update the conversation if new share messages are created
@@ -917,8 +773,6 @@ const MessengerController = {
         // Unsubscribe from any existing subscription first
         await this._unsubscribeFromConversation();
 
-        console.log('[MessengerController] Setting up real-time subscription for conversation:', conversationId);
-
         if (!window.MessagingService) {
             console.error('[MessengerController] MessagingService not available');
             return;
@@ -938,8 +792,6 @@ const MessengerController = {
         // Use the global message subscription (filter by recipient_id which we know works)
         // and filter for this specific conversation in the callback
         const result = await window.MessagingService.subscribeToMessages(currentUserId, async (payload) => {
-            console.log('[MessengerController] Real-time message event:', payload.eventType);
-
             // Only handle INSERT events (new messages)
             if (payload.eventType !== 'INSERT') {
                 return;
@@ -952,31 +804,23 @@ const MessengerController = {
 
             // Filter for this specific conversation
             if (newMessage.conversation_id !== conversationId) {
-                console.log('[MessengerController] Message for different conversation, ignoring');
                 return;
             }
 
-            console.log('[MessengerController] Real-time message received for current conversation:', newMessage.id);
-
             // Validate we're still viewing this conversation
             if (this.currentConversationId !== conversationId) {
-                console.log('[MessengerController] Ignoring message - conversation changed');
                 return;
             }
 
             // Check if message already exists in DOM (prevent duplicates)
             if (this._isMessageInThread(newMessage.id)) {
-                console.log('[MessengerController] Message already in thread, skipping:', newMessage.id);
                 return;
             }
 
             // Skip if this is our own message (we already added it when sending)
             if (newMessage.sender_id === currentUserId) {
-                console.log('[MessengerController] Skipping own message (already displayed)');
                 return;
             }
-
-            console.log('[MessengerController] Processing incoming message from other user');
 
             // Decrypt the message
             let content = newMessage.content;
@@ -990,13 +834,6 @@ const MessengerController = {
                             ? currentUserId
                             : conversation?.other_user_id;
 
-                        console.log('[MessengerController] Decrypting with:', {
-                            messageId: newMessage.id,
-                            counter: newMessage.message_counter,
-                            epoch: newMessage.key_epoch,
-                            senderId: newMessage.sender_id?.slice(0, 8)
-                        });
-
                         content = await encryptionFacade.decryptMessage(
                             conversationId,
                             {
@@ -1008,7 +845,6 @@ const MessengerController = {
                             newMessage.sender_id,
                             recipientId
                         );
-                        console.log('[MessengerController] Message decrypted successfully');
                     }
                 } catch (decryptError) {
                     console.error('[MessengerController] Failed to decrypt real-time message:', decryptError);
@@ -1047,7 +883,6 @@ const MessengerController = {
                     for (let attempt = 0; attempt < maxRetries; attempt++) {
                         try {
                             const attachments = await window.AttachmentService.getMessageAttachments(newMessage.id);
-                            console.log('[MessengerController] Attachment fetch attempt', attempt + 1, '- found:', attachments.length);
                             if (attachments.length > 0) {
                                 this._updateMessageAttachments(newMessage.id, attachments);
                                 return;
@@ -1073,7 +908,6 @@ const MessengerController = {
 
         if (result.success) {
             this._conversationSubscription = result.subscription;
-            console.log('[MessengerController] Real-time subscription active for conversation:', conversationId);
         } else {
             console.error('[MessengerController] Failed to subscribe:', result.error);
         }
@@ -1102,16 +936,12 @@ const MessengerController = {
             this._userMessagesSubscription = null;
         }
 
-        console.log('[MessengerController] Setting up global message subscription for user:', userId);
-
         if (!window.MessagingService) {
             console.error('[MessengerController] MessagingService not available');
             return;
         }
 
         const result = await window.MessagingService.subscribeToMessages(userId, async (payload) => {
-            console.log('[MessengerController] Global message event:', payload.eventType);
-
             // Only handle new messages
             if (payload.eventType !== 'INSERT') return;
 
@@ -1122,12 +952,10 @@ const MessengerController = {
 
             // If this message is for the currently open conversation, the conversation subscription handles it
             if (this.currentConversationId === messageConversationId) {
-                console.log('[MessengerController] Message is for open conversation, handled by conversation subscription');
                 return;
             }
 
             // Message is for a different conversation - refresh conversation list to show unread indicator
-            console.log('[MessengerController] New message in conversation:', messageConversationId, '- refreshing list');
             await this.loadConversations();
 
             // Update notification count
@@ -1138,7 +966,6 @@ const MessengerController = {
 
         if (result.success) {
             this._userMessagesSubscription = result.subscription;
-            console.log('[MessengerController] Global message subscription active');
         } else {
             console.warn('[MessengerController] Failed to set up global subscription:', result.error);
         }
@@ -1149,7 +976,6 @@ const MessengerController = {
      */
     async _unsubscribeFromConversation() {
         if (this._conversationSubscription) {
-            console.log('[MessengerController] Unsubscribing from conversation');
             await window.MessagingService?.unsubscribe(this._conversationSubscription);
             this._conversationSubscription = null;
         }
@@ -1212,8 +1038,6 @@ const MessengerController = {
 
         // Scroll to bottom to show new message
         messageThread.scrollTop = messageThread.scrollHeight;
-
-        console.log('[MessengerController] New message appended to thread');
     },
 
     /**
@@ -1266,7 +1090,6 @@ const MessengerController = {
             messageEl.appendChild(attachmentsDiv);
         }
 
-        console.log('[MessengerController] Updated message with', attachments.length, 'attachment(s)');
     },
 
     /**
@@ -1472,9 +1295,7 @@ const MessengerController = {
             }
             return messagesCreated;
         } catch (error) {
-            console.error('[MessengerController] ========== ERROR in createMessagesForShares() ==========');
-            console.error('[MessengerController] Error:', error);
-            console.error('[MessengerController] Error stack:', error.stack);
+            console.error('[MessengerController] createMessagesForShares() failed:', error);
             return 0;
         }
     },
@@ -1718,14 +1539,12 @@ const MessengerController = {
                 }
 
                 return `
-                    <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
-                        <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
-                            <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                            <div style="white-space: pre-line;">${msg.content}</div>
-                            ${attachmentsHtml}
-                            <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
-                            ${debugInfoHtml}
-                        </div>
+                    <div class="message-item ${isOwnMessage ? 'own-message' : ''}">
+                        <div class="message-sender">${senderEmail}</div>
+                        <div class="message-content">${msg.content}</div>
+                        ${attachmentsHtml}
+                        <div class="message-timestamp">${dateString}</div>
+                        ${debugInfoHtml}
                     </div>
                 `;
             }
@@ -1791,7 +1610,6 @@ const MessengerController = {
      * Handle accept share
      */
     async handleAcceptShare(shareId, notificationId) {
-        console.log('[MessengerController] handleAcceptShare() called', { shareId, notificationId });
 
         try {
             if (typeof window.DatabaseService === 'undefined') {
@@ -1805,11 +1623,9 @@ const MessengerController = {
                 if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
                     const currentUserId = await window.DatabaseService._getCurrentUserId();
                     if (currentUserId) {
-                        console.log('[MessengerController] Marking share notifications as read:', shareId);
-                        const markReadResult = await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
-                        console.log('[MessengerController] Share notifications marked as read:', markReadResult);
+                        await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
                     }
-                    
+
                     // Also try to delete the specific notification if provided
                     if (notificationId) {
                         const deleteResult = await window.NotificationService.deleteNotification(notificationId);
@@ -1818,12 +1634,12 @@ const MessengerController = {
                         }
                     }
                 }
-                
+
                 // Update notification count in header
                 if (typeof window.Header !== 'undefined') {
                     window.Header.updateNotificationCount();
                 }
-                
+
                 alert('Share accepted successfully');
             } else {
                 throw new Error(result.error || 'Failed to accept share');
@@ -1838,7 +1654,6 @@ const MessengerController = {
      * Handle decline share
      */
     async handleDeclineShare(shareId, notificationId) {
-        console.log('[MessengerController] handleDeclineShare() called', { shareId, notificationId });
 
         try {
             if (typeof window.DatabaseService === 'undefined') {
@@ -1857,7 +1672,6 @@ const MessengerController = {
             }
 
             const share = shareResult.data[0];
-            console.log('[MessengerController] Current share status:', share.status);
 
             // Check if share is already declined
             if (share.status === 'declined') {
@@ -1878,11 +1692,9 @@ const MessengerController = {
                 if (typeof window.NotificationService !== 'undefined' && typeof window.DatabaseService !== 'undefined') {
                     const currentUserId = await window.DatabaseService._getCurrentUserId();
                     if (currentUserId) {
-                        console.log('[MessengerController] Marking share notifications as read:', shareId);
-                        const markReadResult = await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
-                        console.log('[MessengerController] Share notifications marked as read:', markReadResult);
+                        await window.NotificationService.markShareNotificationsAsRead(currentUserId, shareId);
                     }
-                    
+
                     // Also try to delete the specific notification if provided
                     if (notificationId) {
                         const deleteResult = await window.NotificationService.deleteNotification(notificationId);
@@ -1924,7 +1736,6 @@ const MessengerController = {
      * Handle block user
      */
     async handleBlockUser(userId) {
-        console.log('[MessengerController] handleBlockUser() called', { userId });
 
         if (!confirm('Are you sure you want to block this user? This will decline all pending shares from them.')) {
             return;
@@ -1954,7 +1765,6 @@ const MessengerController = {
      * Handle add/remove friend from conversation view
      */
     async handleAddFriendFromConversation(userId, userEmail, buttonElement) {
-        console.log('[MessengerController] handleAddFriendFromConversation() called', { userId, userEmail });
 
         try {
             if (typeof window.DatabaseService === 'undefined') {
@@ -2004,7 +1814,6 @@ const MessengerController = {
      * Handle block user from conversation view
      */
     async handleBlockUserFromConversation(userId, userEmail) {
-        console.log('[MessengerController] handleBlockUserFromConversation() called', { userId, userEmail });
 
         if (!confirm(`Are you sure you want to block ${userEmail || 'this user'}? This will decline all pending shares from them and prevent them from messaging you.`)) {
             return;
@@ -2034,19 +1843,10 @@ const MessengerController = {
      * Handle sending a message
      */
     async handleSendMessage() {
-        console.log('[MessengerController] handleSendMessage() called', {
-            conversationId: this.currentConversationId,
-            hasAttachment: !!this._selectedAttachment
-        });
-
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-message-button');
 
         if (!messageInput || !this.currentConversationId) {
-            console.warn('[MessengerController] Cannot send message:', {
-                hasInput: !!messageInput,
-                hasConversationId: !!this.currentConversationId
-            });
             return;
         }
 
@@ -2054,7 +1854,6 @@ const MessengerController = {
         const hasAttachment = !!this._selectedAttachment;
 
         if (!content && !hasAttachment) {
-            console.warn('[MessengerController] Message content is empty and no attachment');
             return;
         }
 
@@ -2063,13 +1862,6 @@ const MessengerController = {
             sendButton.disabled = true;
             sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
-
-        console.log('[MessengerController] Sending message:', {
-            conversationId: this.currentConversationId,
-            contentLength: content.length,
-            hasAttachment,
-            attachmentName: this._selectedAttachment?.name
-        });
 
         try {
             if (typeof window.DatabaseService === 'undefined') {
@@ -2109,13 +1901,8 @@ const MessengerController = {
                     throw new Error('Message encryption verification failed');
                 }
 
-                console.log('[MessengerController] ✓ Message encrypted:', {
-                    counter: msg.message_counter
-                });
-
                 let attachmentInfo = null;
                 if (hasAttachment && window.AttachmentService) {
-                    console.log('[MessengerController] Uploading attachment...');
 
                     // Update button to show upload progress
                     if (sendButton) {
@@ -2129,7 +1916,6 @@ const MessengerController = {
                     );
 
                     if (uploadResult.success) {
-                        console.log('[MessengerController] ✓ Attachment uploaded:', uploadResult.attachment);
                         attachmentInfo = uploadResult.attachment;
                     } else {
                         console.error('[MessengerController] Attachment upload failed:', uploadResult.error);
@@ -2166,8 +1952,6 @@ const MessengerController = {
      * @param {number} attachmentId - Attachment ID
      */
     async downloadAttachment(attachmentId) {
-        console.log('[MessengerController] downloadAttachment() called:', attachmentId);
-
         if (!window.AttachmentService) {
             console.error('[MessengerController] AttachmentService not available');
             return;
@@ -2199,7 +1983,6 @@ const MessengerController = {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                console.log('[MessengerController] ✓ Downloaded:', result.fileName);
             } else {
                 throw new Error(result.error || 'Download failed');
             }
@@ -2224,22 +2007,15 @@ const MessengerController = {
      * Append a single message to the thread without reloading everything
      */
     async appendMessageToThread(message, conversation) {
-        console.log('[MessengerController] appendMessageToThread() called', { 
-            messageId: message.id, 
-            conversationId: conversation.id 
-        });
-
         try {
             const messageThread = document.getElementById('message-thread');
             if (!messageThread) {
-                console.warn('[MessengerController] Message thread container not found, falling back to reload');
                 await this.openConversation(this.currentConversationId);
                 return;
             }
 
             const currentUserId = await window.DatabaseService._getCurrentUserId();
             if (!currentUserId) {
-                console.warn('[MessengerController] User not authenticated, falling back to reload');
                 await this.openConversation(this.currentConversationId);
                 return;
             }
@@ -2308,14 +2084,12 @@ const MessengerController = {
 
             // Generate HTML for the new message (regular message only, not share requests)
             const messageHtml = `
-                <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
-                    <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
-                        <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                        <div style="white-space: pre-line;">${message.content}</div>
-                        ${attachmentsHtml}
-                        <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
-                        ${debugInfoHtml}
-                    </div>
+                <div class="message-item ${isOwnMessage ? 'own-message' : ''}">
+                    <div class="message-sender">${senderEmail}</div>
+                    <div class="message-content">${message.content}</div>
+                    ${attachmentsHtml}
+                    <div class="message-timestamp">${dateString}</div>
+                    ${debugInfoHtml}
                 </div>
             `;
 
@@ -2324,8 +2098,6 @@ const MessengerController = {
             
             // Scroll to bottom
             messageThread.scrollTop = messageThread.scrollHeight;
-            
-            console.log('[MessengerController] Message appended to thread successfully');
         } catch (error) {
             console.error('[MessengerController] Error appending message to thread:', error);
             // Fall back to full reload on error
@@ -2337,7 +2109,6 @@ const MessengerController = {
      * Show new message modal
      */
     showNewMessageModal() {
-        console.log('[MessengerController] showNewMessageModal() called');
         const modal = document.getElementById('new-message-modal');
         const recipientInput = document.getElementById('recipient-email-input');
         const messageInput = document.getElementById('new-message-content');
@@ -2358,7 +2129,6 @@ const MessengerController = {
      * Hide new message modal
      */
     hideNewMessageModal() {
-        console.log('[MessengerController] hideNewMessageModal() called');
         const modal = document.getElementById('new-message-modal');
         if (modal) {
             modal.style.display = 'none';
@@ -2369,7 +2139,6 @@ const MessengerController = {
      * Handle sending a new message from the modal
      */
     async handleSendNewMessage() {
-        console.log('[MessengerController] handleSendNewMessage() called');
         const recipientEmailInput = document.getElementById('recipient-email-input');
         const messageContentInput = document.getElementById('new-message-content');
         
@@ -2398,8 +2167,6 @@ const MessengerController = {
                 throw new Error('DatabaseService not available');
             }
 
-            console.log('[MessengerController] Sending new message:', { recipientEmail, contentLength: messageContent.length });
-
             // Send message (this will create conversation if needed)
             const result = await window.DatabaseService.sendMessage(recipientEmail, messageContent);
             if (result.success) {
@@ -2416,9 +2183,6 @@ const MessengerController = {
                 );
                 if (conversation) {
                     await this.openConversation(conversation.id);
-                } else {
-                    // If conversation not found, just reload the list
-                    console.log('[MessengerController] Conversation not found after sending, reloading list');
                 }
             } else {
                 throw new Error(result.error || 'Failed to start conversation');
@@ -2433,22 +2197,17 @@ const MessengerController = {
      * Handle share data button click
      */
     async handleShareDataClick() {
-        console.log('[MessengerController] handleShareDataClick() called');
-        
         if (!this.currentConversationId) {
-            console.warn('[MessengerController] No conversation open, cannot share data');
             return;
         }
 
         const conversation = this.conversations.find(c => c.id === this.currentConversationId);
         if (!conversation) {
-            console.error('[MessengerController] Conversation not found');
             return;
         }
 
         const otherUserEmail = conversation.other_user_email;
         if (!otherUserEmail) {
-            console.error('[MessengerController] No email found for conversation partner');
             return;
         }
 
@@ -2469,8 +2228,6 @@ const MessengerController = {
      * Load months for share data modal
      */
     async loadShareDataMonths() {
-        console.log('[MessengerController] loadShareDataMonths() called');
-        
         try {
             if (typeof window.DatabaseService === 'undefined') {
                 console.error('[MessengerController] DatabaseService not available');
@@ -2509,7 +2266,6 @@ const MessengerController = {
                 }
             });
 
-            console.log('[MessengerController] Loaded', monthKeys.length, 'months for sharing');
         } catch (error) {
             console.error('[MessengerController] Error loading months for sharing:', error);
         }
@@ -2551,28 +2307,22 @@ const MessengerController = {
      * Handle save share data
      */
     async handleSaveShareData() {
-        console.log('[MessengerController] handleSaveShareData() called');
-
         if (!this.currentConversationId) {
-            console.error('[MessengerController] No conversation open');
             alert('No conversation open');
             return;
         }
 
         // Wait for payments module and SubscriptionGuard to be available
         if (window.waitForPaymentsInit) {
-            console.log('[MessengerController] Waiting for payments module initialization...');
             try {
                 await window.waitForPaymentsInit();
-                console.log('[MessengerController] Payments module initialized');
             } catch (error) {
-                console.warn('[MessengerController] Payments module initialization failed:', error);
+                console.warn('[MessengerController] Payments module init failed:', error);
             }
         }
 
         // Wait for SubscriptionGuard to be available
         if (!window.SubscriptionGuard) {
-            console.warn('[MessengerController] SubscriptionGuard not available, waiting...');
             let waitCount = 0;
             const maxWait = 50; // Wait up to 5 seconds
             while (!window.SubscriptionGuard && waitCount < maxWait) {
@@ -2580,7 +2330,6 @@ const MessengerController = {
                 waitCount++;
             }
             if (!window.SubscriptionGuard) {
-                console.error('[MessengerController] SubscriptionGuard not available after waiting');
                 alert('Subscription service not available. Please refresh the page.');
                 return;
             }
@@ -2588,7 +2337,6 @@ const MessengerController = {
 
         const conversation = this.conversations.find(c => c.id === this.currentConversationId);
         if (!conversation) {
-            console.error('[MessengerController] Conversation not found');
             return;
         }
 
@@ -2601,7 +2349,6 @@ const MessengerController = {
         const statusDiv = document.getElementById('share-data-form-status');
 
         if (!emailInput || !accessLevelSelect) {
-            console.error('[MessengerController] Share form elements not found');
             return;
         }
 
@@ -2662,16 +2409,6 @@ const MessengerController = {
                 throw new Error('DatabaseService not available');
             }
 
-            console.log('[MessengerController] Creating data share:', {
-                email,
-                accessLevel,
-                selectedMonthsCount: selectedMonths.length,
-                sharePots,
-                shareSettings,
-                shareAllData,
-                conversationId: this.currentConversationId
-            });
-
             const result = await window.DatabaseService.createDataShare(
                 email,
                 accessLevel,
@@ -2692,8 +2429,6 @@ const MessengerController = {
 
                 if (updateResult.error) {
                     console.warn('[MessengerController] Failed to link share to conversation:', updateResult.error);
-                } else {
-                    console.log('[MessengerController] Share linked to conversation:', this.currentConversationId);
                 }
 
                 if (statusDiv) {
@@ -2729,7 +2464,6 @@ const MessengerController = {
 
 if (typeof window !== 'undefined') {
     window.MessengerController = MessengerController;
-    console.log('[MessengerController] MessengerController assigned to window.MessengerController');
 }
 
 // Export for module systems
