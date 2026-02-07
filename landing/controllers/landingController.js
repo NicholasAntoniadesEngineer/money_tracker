@@ -249,12 +249,23 @@ const LandingController = {
      */
     setupAllMonthsCheckbox() {
         const checkbox = document.getElementById('all-months-checkbox');
+        const label = checkbox ? checkbox.closest('label') : null;
         if (!checkbox) return;
 
         // Set initial state
         checkbox.checked = this._selectedMonthKey === 'all';
 
-        // Remove old listener and add new one
+        // Prevent click from bubbling up to the section (only add listeners once)
+        if (label && !label.dataset.stopPropagationAttached) {
+            label.addEventListener('click', (e) => e.stopPropagation());
+            label.dataset.stopPropagationAttached = 'true';
+        }
+        if (!checkbox.dataset.stopPropagationAttached) {
+            checkbox.addEventListener('click', (e) => e.stopPropagation());
+            checkbox.dataset.stopPropagationAttached = 'true';
+        }
+
+        // Handle checkbox change
         checkbox.onchange = () => {
             if (checkbox.checked) {
                 this.selectAllMonths();
@@ -367,10 +378,11 @@ const LandingController = {
             return;
         }
 
-        // Make the section clickable
-        if (section) {
+        // Make the section clickable (only add listener once)
+        if (section && !section.dataset.clickHandlerAttached) {
             section.classList.add('expense-section-clickable');
             section.addEventListener('click', () => this.showExpenseBreakdownModal());
+            section.dataset.clickHandlerAttached = 'true';
         }
 
         // Color palette for categories
