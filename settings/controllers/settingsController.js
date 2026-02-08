@@ -24,7 +24,7 @@ const SettingsController = {
         }
         
         try {
-            await this.loadFontSizeSetting();
+            await this.loadFontScaleSetting();
             console.log('[SettingsController] Font size setting loaded');
         } catch (error) {
             console.error('[SettingsController] Error loading font size setting:', error);
@@ -119,36 +119,37 @@ const SettingsController = {
         return success;
     },
 
+    /** Map scale names to root font sizes in px */
+    fontScaleMap: { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 },
+
     /**
-     * Load and display current font size setting
+     * Load and display current font scale setting
      */
-    async loadFontSizeSetting() {
-        const fontSizeSelect = document.getElementById('font-size-select');
-        if (!fontSizeSelect) return;
+    async loadFontScaleSetting() {
+        const select = document.getElementById('font-scale-select');
+        if (!select) return;
 
         const settings = await DataManager.getSettings();
-        if (settings && settings.fontSize) {
-            fontSizeSelect.value = settings.fontSize;
-        } else {
-            fontSizeSelect.value = '';
-        }
+        const scale = (settings && settings.fontScale) ? settings.fontScale : 'medium';
+        select.value = scale;
+        console.log('[Settings] Font scale loaded:', scale);
     },
 
     /**
-     * Save font size setting and apply to page
+     * Save font scale setting and apply to page
      */
-    async saveFontSizeSetting(fontSize) {
+    async saveFontScaleSetting(scale) {
         const settings = await DataManager.getSettings() || await DataManager.initializeSettings();
-        settings.fontSize = fontSize;
+        settings.fontScale = scale;
         const success = await DataManager.saveSettings(settings);
-        
+
         if (success) {
-            // Apply font size immediately
-            document.documentElement.style.fontSize = fontSize + 'px';
-            // Update localStorage cache for immediate application on next page load
-            localStorage.setItem('money_tracker_fontSize', fontSize);
+            const px = this.fontScaleMap[scale] || 16;
+            document.documentElement.style.fontSize = px + 'px';
+            localStorage.setItem('money_tracker_fontScale', scale);
+            console.log('[Settings] Font scale saved and applied:', scale, px + 'px');
         }
-        
+
         return success;
     },
 
@@ -175,12 +176,11 @@ const SettingsController = {
             });
         }
 
-        // Font size selector
-        const fontSizeSelect = document.getElementById('font-size-select');
-        if (fontSizeSelect) {
-            fontSizeSelect.addEventListener('change', () => {
-                const selectedFontSize = fontSizeSelect.value;
-                this.saveFontSizeSetting(selectedFontSize);
+        // Font scale selector
+        const fontScaleSelect = document.getElementById('font-scale-select');
+        if (fontScaleSelect) {
+            fontScaleSelect.addEventListener('change', () => {
+                this.saveFontScaleSetting(fontScaleSelect.value);
             });
         }
 

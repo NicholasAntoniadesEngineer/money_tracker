@@ -36,7 +36,7 @@ const Constants = {
      * Session and storage keys
      */
     STORAGE_KEYS: {
-        FONT_SIZE: 'money_tracker_fontSize',
+        FONT_SCALE: 'money_tracker_fontScale',
         AUTH_REDIRECTING: 'auth_redirecting',
         AUTH_REDIRECT_TIMESTAMP: 'auth_redirect_timestamp'
     },

@@ -8,33 +8,10 @@
     <link rel="stylesheet" href="../../shared/styles/main-compiled.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
         (function() {
-            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
-            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-            
-            // Sync with database once services are available
-            async function syncFontSizeFromDatabase() {
-                try {
-                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
-                        const settings = await window.DatabaseService.getSettings();
-                        if (settings && settings.fontSize) {
-                            const fontSize = settings.fontSize;
-                            document.documentElement.style.fontSize = fontSize + 'px';
-                            localStorage.setItem('money_tracker_fontSize', fontSize);
-                        }
-                    } else if (document.readyState !== 'complete') {
-                        setTimeout(syncFontSizeFromDatabase, 100);
-                    }
-                } catch (error) {
-                    // Silently fail - use cached value
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
-            } else {
-                syncFontSizeFromDatabase();
-            }
+            var m = { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 };
+            var s = localStorage.getItem('money_tracker_fontScale') || 'medium';
+            document.documentElement.style.fontSize = (m[s] || 16) + 'px';
         })();
     </script>
 </head>
@@ -279,9 +256,6 @@
                 <div class="section-actions-container" style="display: none;"></div>
             </section>
 
-            <section class="save-section form-section">
-                <button id="save-month-button" class="btn btn-primary btn-success">Save Month Data</button>
-            </section>
         </div>
 
         <div id="no-month-message" style="text-align: center; padding: 3rem;">
@@ -483,7 +457,7 @@
 
                 // Initialize settings after database is ready
                 await window.DataManager.initializeSettings();
-                await window.DataManager.applyFontSize();
+                await window.DataManager.applyFontScale();
                 console.log('[monthlyBudget.html] Settings initialized and applied');
         
         // Verify ReferenceImporter is loaded
@@ -526,10 +500,6 @@
                 title: '5. End-of-Month Summary',
                 content: '<div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin-top: 0; font-weight: 600; margin-bottom: 0.75rem;"><strong>Calculation Order and Formulas:</strong></p><table style="width: 100%; border-collapse: collapse; margin: 0;"><thead><tr style="background-color: rgba(0,0,0,0.1);"><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 10%;">Step</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 35%;">Description</th><th style="padding: 0.5rem; border: 1px solid var(--border-color-black); text-align: left; width: 55%;">Formula</th></tr></thead><tbody><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">1</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Income</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Income (Estimated) = from Income section<br/>Total Income (Actual) = from Income section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">2</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Fixed Costs</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Fixed Costs (Estimated) = from Fixed Costs section<br/>Total Fixed Costs (Actual) = from Fixed Costs section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">3</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Variable Costs</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Variable Costs (Estimated) = from Variable Costs section<br/>Total Variable Costs (Actual) = from Variable Costs section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">4</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Expenses (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Expenses (Estimated) = Total Fixed Costs (Estimated) + Total Variable Costs (Estimated)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">5</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Total Expenses (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Expenses (Actual) = Total Fixed Costs (Actual) + Total Variable Costs (Actual)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">6</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Get Total Unplanned Expenses</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Total Unplanned Expenses (Actual) = from Unplanned Buying section</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">7</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Grand Savings Total (Estimated)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Grand Savings Total (Estimated) = Total Income (Estimated) - Total Expenses (Estimated)</td></tr><tr><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">8</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Calculate Grand Savings Total (Actual)</td><td style="padding: 0.5rem; border: 1px solid var(--border-color-black);">Grand Savings Total (Actual) = Total Income (Actual) - Total Expenses (Actual) - Total Unplanned Expenses (Actual)</td></tr></tbody></table></div>'
             },
-            'save-section-help': {
-                title: 'Save Data',
-                content: '<div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;"><strong>Data Storage:</strong> All data is stored as individual JSON files in <code>data/months/</code> folder.</p></div><div style="background-color: rgba(240, 240, 240, 0.9); border: var(--border-width-standard) solid var(--border-color-black); border-radius: calc(var(--border-radius) * var(--border-radius-multiplier)); padding: var(--spacing-md); margin: 1rem 0;"><p style="margin: 0;">When you save, the file will be saved directly (modern browsers) or downloaded (older browsers).</p></div>'
-            }
         };
 
         // Help modal functionality

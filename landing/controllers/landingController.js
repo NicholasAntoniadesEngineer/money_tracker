@@ -657,6 +657,12 @@ const LandingController = {
         console.log('[LandingController] Opening expense breakdown modal');
         const modal = document.getElementById('expense-breakdown-modal');
         if (modal) {
+            // Set modal title to match the section title (includes month name or "All Months")
+            const sectionTitle = document.querySelector('#expense-breakdown-section .section-title');
+            const modalTitle = modal.querySelector('.modal-title');
+            if (sectionTitle && modalTitle) {
+                modalTitle.textContent = sectionTitle.textContent;
+            }
             this.renderExpenseBreakdownTable();
             modal.classList.add('modal-open');
         }
@@ -879,7 +885,8 @@ const LandingController = {
             // Add expenses for this day
             const dayExpenses = expensesByDay[day];
             if (dayExpenses && dayExpenses.length > 0) {
-                dayCell.classList.add('calendar-day-has-expenses');
+                const allPaid = dayExpenses.every(e => e.paid);
+                dayCell.classList.add(allPaid ? 'calendar-day-all-paid' : 'calendar-day-has-unpaid');
                 dayCell.classList.add('calendar-day-clickable');
 
                 // Store day for click handler

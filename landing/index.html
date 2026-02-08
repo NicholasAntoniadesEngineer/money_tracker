@@ -9,30 +9,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         (function() {
-            console.log('[Landing] Font size initialization...');
-            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
-            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-
-            async function syncFontSizeFromDatabase() {
-                try {
-                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
-                        const settings = await window.DatabaseService.getSettings();
-                        if (settings && settings.fontSize) {
-                            document.documentElement.style.fontSize = settings.fontSize + 'px';
-                            localStorage.setItem('money_tracker_fontSize', settings.fontSize);
-                        }
-                    } else if (document.readyState !== 'complete') {
-                        setTimeout(syncFontSizeFromDatabase, 100);
-                    }
-                } catch (error) {
-                    console.log('[Landing] Font size sync silently failed');
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
-            } else {
-                syncFontSizeFromDatabase();
-            }
+            var m = { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 };
+            var s = localStorage.getItem('money_tracker_fontScale') || 'medium';
+            document.documentElement.style.fontSize = (m[s] || 16) + 'px';
         })();
     </script>
 </head>
@@ -362,7 +341,7 @@
                 }
 
                 await DataManager.initializeSettings();
-                await DataManager.applyFontSize();
+                await DataManager.applyFontScale();
                 console.log('[Landing] Settings initialized');
 
                 await InitialData.initializeIfEmpty();

@@ -9,9 +9,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         (function() {
-            console.log('[Auth] Font size initialization...');
-            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
-            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
+            var m = { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 };
+            var s = localStorage.getItem('money_tracker_fontScale') || 'medium';
+            document.documentElement.style.fontSize = (m[s] || 16) + 'px';
         })();
     </script>
 </head>

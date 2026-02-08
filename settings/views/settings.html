@@ -9,33 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script>
-        // Load font size IMMEDIATELY from localStorage cache to prevent FOUC
         (function() {
-            const cachedFontSize = localStorage.getItem('money_tracker_fontSize');
-            document.documentElement.style.fontSize = (cachedFontSize || '16') + 'px';
-
-            // Sync with database once services are available
-            async function syncFontSizeFromDatabase() {
-                try {
-                    if (window.DatabaseService && window.AuthService && window.AuthService.isAuthenticated()) {
-                        const settings = await window.DatabaseService.getSettings();
-                        if (settings && settings.fontSize) {
-                            const fontSize = settings.fontSize;
-                            document.documentElement.style.fontSize = fontSize + 'px';
-                            localStorage.setItem('money_tracker_fontSize', fontSize);
-                        }
-                    } else if (document.readyState !== 'complete') {
-                        setTimeout(syncFontSizeFromDatabase, 100);
-                    }
-                } catch (error) {
-                    // Silently fail - use cached value
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', syncFontSizeFromDatabase);
-            } else {
-                syncFontSizeFromDatabase();
-            }
+            var m = { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 };
+            var s = localStorage.getItem('money_tracker_fontScale') || 'medium';
+            document.documentElement.style.fontSize = (m[s] || 16) + 'px';
         })();
     </script>
 </head>
@@ -71,14 +48,13 @@
                 </div>
 
                 <div class="settings-field">
-                    <label for="font-size-select" class="form-label">Font Size</label>
-                    <select id="font-size-select" class="form-select">
-                        <option value="">Loading...</option>
-                        <option value="14">Small (14px)</option>
-                        <option value="16">Default (16px)</option>
-                        <option value="18">Medium (18px)</option>
-                        <option value="20">Large (20px)</option>
-                        <option value="22">Extra Large (22px)</option>
+                    <label for="font-scale-select" class="form-label">Text Size</label>
+                    <select id="font-scale-select" class="form-select">
+                        <option value="very-small">Very Small</option>
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                        <option value="very-large">Very Large</option>
                     </select>
                 </div>
             </section>
@@ -405,7 +381,7 @@
                     window.DataManager.initializeSettings().catch(err => {
                         console.warn('[SettingsPage] Settings initialization failed:', err);
                     }),
-                    window.DataManager.applyFontSize().catch(err => {
+                    window.DataManager.applyFontScale().catch(err => {
                         console.warn('[SettingsPage] Font size application failed:', err);
                     })
                 ]).then(() => {

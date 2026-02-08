@@ -2836,7 +2836,7 @@ const DatabaseService = {
     transformSettingsFromDatabase(dbRecord) {
         return {
             currency: dbRecord.currency || '£',
-            fontSize: dbRecord.font_size || '16',
+            fontScale: dbRecord.font_size || 'medium',
             defaultFixedCosts: dbRecord.default_fixed_costs || [],
             defaultVariableCategories: dbRecord.default_variable_categories || ['Food', 'Travel/Transport', 'Activities'],
             defaultPots: dbRecord.default_pots || []
@@ -2851,7 +2851,7 @@ const DatabaseService = {
     transformSettingsToDatabase(settings) {
         return {
             currency: settings.currency || '£',
-            font_size: settings.fontSize || '16',
+            font_size: settings.fontScale || 'medium',
             default_fixed_costs: settings.defaultFixedCosts || [],
             default_variable_categories: settings.defaultVariableCategories || ['Food', 'Travel/Transport', 'Activities'],
             default_pots: settings.defaultPots || []

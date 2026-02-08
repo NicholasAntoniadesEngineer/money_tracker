@@ -17,7 +17,7 @@ const DataManager = {
             if (!existingSettings) {
                 const defaultSettings = {
                     currency: '£',
-                    fontSize: '16',
+                    fontScale: 'medium',
                     defaultFixedCosts: [],
                     defaultVariableCategories: ['Food', 'Travel/Transport', 'Activities'],
                     defaultPots: []
@@ -33,8 +33,8 @@ const DataManager = {
                 return defaultSettings;
             }
 
-            if (!existingSettings.fontSize) {
-                existingSettings.fontSize = '16';
+            if (!existingSettings.fontScale) {
+                existingSettings.fontScale = 'medium';
                 await this.saveSettings(existingSettings);
             }
 
@@ -282,20 +282,24 @@ const DataManager = {
         }
     },
 
+    /** Map scale names to root font sizes in px */
+    _fontScaleMap: { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 },
+
     /**
-     * Apply font size setting to the document
+     * Apply font scale setting to the document
      */
-    async applyFontSize() {
+    async applyFontScale() {
         try {
             const settings = await this.getSettings();
-            const fontSize = settings && settings.fontSize ? settings.fontSize : '16';
-            document.documentElement.style.fontSize = fontSize + 'px';
-            // Update localStorage cache for immediate application on next page load
-            localStorage.setItem('money_tracker_fontSize', fontSize);
+            const scale = (settings && settings.fontScale) ? settings.fontScale : 'medium';
+            const px = this._fontScaleMap[scale] || 16;
+            document.documentElement.style.fontSize = px + 'px';
+            localStorage.setItem('money_tracker_fontScale', scale);
+            console.log('[DataManager] Font scale applied:', scale, px + 'px');
         } catch (error) {
-            console.error('Error applying font size:', error);
+            console.error('[DataManager] Error applying font scale:', error);
             document.documentElement.style.fontSize = '16px';
-            localStorage.setItem('money_tracker_fontSize', '16');
+            localStorage.setItem('money_tracker_fontScale', 'medium');
         }
     },
 

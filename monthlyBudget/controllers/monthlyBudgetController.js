@@ -8,6 +8,8 @@ const MonthlyBudgetController = {
     currentMonthKey: null,
     editingShareId: null,
     _loading: false,
+    _autoSaveTimer: null,
+    _autoSaveDelay: 800,
 
     /**
      * Calculate the number of weeks in a month
@@ -213,7 +215,6 @@ const MonthlyBudgetController = {
      */
     setupEventListeners() {
         const createMonthBtn = document.getElementById('create-month-button');
-        const saveMonthBtn = document.getElementById('save-month-button');
         const addIncomeBtn = document.getElementById('add-income-button');
         const addFixedCostBtn = document.getElementById('add-fixed-cost-button');
         const addVariableCostBtn = document.getElementById('add-variable-cost-button');
@@ -224,7 +225,6 @@ const MonthlyBudgetController = {
         const deleteMonthBtn = document.getElementById('delete-month-button');
 
         if (createMonthBtn) createMonthBtn.addEventListener('click', () => this.createNewMonth());
-        if (saveMonthBtn) saveMonthBtn.addEventListener('click', () => this.saveMonthData());
         if (addIncomeBtn) addIncomeBtn.addEventListener('click', () => this.addIncomeRow());
         if (addFixedCostBtn) addFixedCostBtn.addEventListener('click', () => this.addFixedCostRow());
         if (addVariableCostBtn) addVariableCostBtn.addEventListener('click', () => this.addVariableCostRow());
@@ -3141,6 +3141,34 @@ const MonthlyBudgetController = {
             const total = weeklyVariableCostsTotal[category];
             this.setElementHTML(categoryId, '<strong><em>' + Formatters.formatCurrency(total) + '</em></strong>');
         });
+
+        // Auto-save after calculations (debounced)
+        if (!this._loading) {
+            this.scheduleAutoSave();
+        }
+    },
+
+    /**
+     * Debounced auto-save — persists current form data to the database
+     */
+    scheduleAutoSave() {
+        if (!this.currentMonthKey) return;
+
+        clearTimeout(this._autoSaveTimer);
+        this._autoSaveTimer = setTimeout(async () => {
+            try {
+                const monthData = this.getCurrentMonthDataFromForm();
+                const success = await DataManager.saveMonth(this.currentMonthKey, monthData);
+                if (success) {
+                    this.currentMonthData = monthData;
+                    console.log('[MonthlyBudget] Auto-saved', this.currentMonthKey);
+                } else {
+                    console.warn('[MonthlyBudget] Auto-save failed for', this.currentMonthKey);
+                }
+            } catch (error) {
+                console.error('[MonthlyBudget] Auto-save error:', error);
+            }
+        }, this._autoSaveDelay);
     },
 
     /**
@@ -3218,29 +3246,17 @@ const MonthlyBudgetController = {
      * Save month data
      */
     async saveMonthData() {
-        if (!this.currentMonthKey) {
-            alert('No month selected');
-            return;
-        }
+        if (!this.currentMonthKey) return;
 
         const monthData = this.getCurrentMonthDataFromForm();
-        const isNewMonth = !this.currentMonthData || !this.currentMonthData.createdAt;
-        
-        // Save to database
         const success = await DataManager.saveMonth(this.currentMonthKey, monthData);
 
         if (success) {
-            let message = 'Month data saved successfully to database!';
-            
-            if (isNewMonth) {
-                message = 'New month created and saved!\n\n' + message;
-            }
-            
-            alert(message);
             this.currentMonthData = monthData;
+            console.log('[MonthlyBudget] Month data saved:', this.currentMonthKey);
             await this.loadMonthSelector();
         } else {
-            alert('Error saving month data. Please try again.');
+            console.error('[MonthlyBudget] Failed to save month data:', this.currentMonthKey);
         }
     },
 
