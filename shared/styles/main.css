@@ -3443,7 +3443,7 @@
     border-radius: 50%;
     background-color: var(--success-color);
     color: white;
-    border: none;
+    border: 2px solid rgba(0, 0, 0, 0.65);
     cursor: pointer;
     display: flex;
     align-items: center;
