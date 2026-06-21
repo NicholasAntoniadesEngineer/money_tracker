@@ -120,15 +120,13 @@ const LandingController = {
 
         this.renderTrends(monthKeys, allMonths);
 
-        // Render expenses calendar for current month
-        const currentMonthData = allMonths[currentMonthKey];
-
-        if (currentMonthData) {
-            this.renderExpensesCalendar(currentMonthData);
-        } else {
-            console.log('[LandingController] No current month data for calendar');
-            this.renderCalendarEmptyState();
-        }
+        // Populate the calendar month selector and render the calendar.
+        // Default to the current month when it has data, otherwise the most recent month.
+        this.populateCalendarSelector(monthsData);
+        const defaultCalendarKey = allMonths[currentMonthKey]
+            ? currentMonthKey
+            : (monthsData.length > 0 ? monthsData[0].monthKey : null);
+        this.renderCalendarForMonth(defaultCalendarKey);
     },
 
     /**
@@ -561,6 +559,12 @@ const LandingController = {
             createForm.addEventListener('submit', (e) => this.handleCreateMonth(e));
         }
 
+        // Calendar month selector — switch the month shown in the expenses calendar
+        const calendarSelector = document.getElementById('calendar-month-selector');
+        if (calendarSelector) {
+            calendarSelector.addEventListener('change', (e) => this.renderCalendarForMonth(e.target.value));
+        }
+
         // Savings table title click handler
         const savingsTitle = document.getElementById('savings-table-title');
         if (savingsTitle) {
@@ -788,10 +792,48 @@ const LandingController = {
     },
 
     /**
-     * Render expenses calendar for current month
-     * @param {Object} currentMonthData - Current month's data object
+     * Populate the calendar month selector dropdown with the available months
+     * @param {Array} monthsData - Array of month summary objects (sorted current-first)
      */
-    renderExpensesCalendar(currentMonthData) {
+    populateCalendarSelector(monthsData) {
+        const selector = document.getElementById('calendar-month-selector');
+        if (!selector) return;
+
+        selector.innerHTML = '';
+        monthsData.forEach(data => {
+            const option = document.createElement('option');
+            option.value = data.monthKey;
+            option.textContent = `${data.monthDisplayName} ${data.year}`;
+            selector.appendChild(option);
+        });
+    },
+
+    /**
+     * Render the expenses calendar for a given month key, keeping the selector in sync
+     * @param {string|null} monthKey - Month key to display (null renders the empty state)
+     */
+    renderCalendarForMonth(monthKey) {
+        const selector = document.getElementById('calendar-month-selector');
+        const monthData = monthKey && this._allMonthsRaw ? this._allMonthsRaw[monthKey] : null;
+
+        if (selector && monthKey) {
+            selector.value = monthKey;
+        }
+
+        if (monthData) {
+            this.renderExpensesCalendar(monthData, monthKey);
+        } else {
+            console.log('[LandingController] No data for calendar month:', monthKey);
+            this.renderCalendarEmptyState();
+        }
+    },
+
+    /**
+     * Render expenses calendar for a specific month
+     * @param {Object} monthData - The month's data object
+     * @param {string} monthKey - The month key being displayed (e.g. "2026-06")
+     */
+    renderExpensesCalendar(monthData, monthKey) {
         const grid = document.getElementById('calendar-grid');
         const monthYearLabel = document.getElementById('calendar-month-year');
         const monthLink = document.getElementById('calendar-month-link');
@@ -801,27 +843,34 @@ const LandingController = {
             return;
         }
 
+        // Determine which month to display from the selected month key
         const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-indexed
-        const currentDay = now.getDate();
-        const currentMonthKey = MonthFactory.generateMonthKey(currentYear, currentMonth + 1);
+        const parsed = monthKey
+            ? MonthFactory.parseMonthKey(monthKey)
+            : { year: now.getFullYear(), month: now.getMonth() + 1 };
+        const displayYear = parsed.year;
+        const displayMonth = parsed.month - 1; // 0-indexed
+        const displayMonthKey = MonthFactory.generateMonthKey(displayYear, displayMonth + 1);
+
+        // "Today"/"past" styling only applies when viewing the actual current month
+        const isCurrentMonth = displayYear === now.getFullYear() && displayMonth === now.getMonth();
+        const currentDay = isCurrentMonth ? now.getDate() : -1;
 
         // Set month/year label and link
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                             'July', 'August', 'September', 'October', 'November', 'December'];
         if (monthYearLabel) {
-            monthYearLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            monthYearLabel.textContent = `${monthNames[displayMonth]} ${displayYear}`;
         }
 
         // Set the link to navigate to the monthly budget page
         if (monthLink) {
-            monthLink.href = `${window.Header.getModulePath('monthlyBudget')}monthlyBudget.html?month=${currentMonthKey}`;
+            monthLink.href = `${window.Header.getModulePath('monthlyBudget')}monthlyBudget.html?month=${displayMonthKey}`;
         }
 
         // Calculate calendar layout
-        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+        const firstDayOfMonth = new Date(displayYear, displayMonth, 1);
+        const lastDayOfMonth = new Date(displayYear, displayMonth + 1, 0);
         const daysInMonth = lastDayOfMonth.getDate();
 
         // Get day of week for first day (0 = Sunday, adjust for Monday start)
@@ -830,8 +879,8 @@ const LandingController = {
 
         // Build expense map by day from fixedCosts
         const expensesByDay = {};
-        if (currentMonthData && currentMonthData.fixedCosts) {
-            currentMonthData.fixedCosts.forEach(cost => {
+        if (monthData && monthData.fixedCosts) {
+            monthData.fixedCosts.forEach(cost => {
                 const dayNum = this.parseDateToDay(cost.date);
                 if (dayNum && dayNum >= 1 && dayNum <= daysInMonth) {
                     if (!expensesByDay[dayNum]) {
@@ -848,8 +897,8 @@ const LandingController = {
 
         // Store for popup access
         this._expensesByDay = expensesByDay;
-        this._currentYear = currentYear;
-        this._currentMonth = currentMonth;
+        this._currentYear = displayYear;
+        this._currentMonth = displayMonth;
 
         // Clear grid and render
         grid.innerHTML = '';
