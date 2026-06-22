@@ -340,12 +340,15 @@ GRANT SELECT ON payments TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE payments_id_seq TO authenticated;
 
 -- Populate subscription plans
+-- stripe_price_id: the Stripe Price the checkout-session edge function charges for Premium.
+-- Test Price = 'price_1Tl87aClUqvgxZvpUn4uUrx6' (Secure Messenger Premium, £9.99/mo). Replace for live.
 INSERT INTO subscription_plans (name, description, stripe_price_id, price_cents, interval, features, is_active)
 VALUES
     ('Free', 'Basic features for personal budgeting', NULL, 0, 'month', '["Basic budgeting", "1 device", "Local storage only", "Limited history (6 months)"]'::jsonb, true),
-    ('Premium', 'Full access with unlimited history and cloud sync', NULL, 999, 'month', '["Unlimited budget history", "Unlimited devices", "Cloud sync across devices", "Data sharing with friends", "E2E encrypted messaging", "Priority support"]'::jsonb, true)
+    ('Premium', 'Full access with unlimited history and cloud sync', 'price_1Tl87aClUqvgxZvpUn4uUrx6', 999, 'month', '["Unlimited budget history", "Unlimited devices", "Cloud sync across devices", "Data sharing with friends", "E2E encrypted messaging", "Priority support"]'::jsonb, true)
 ON CONFLICT (name) DO UPDATE SET
     description = EXCLUDED.description,
+    stripe_price_id = EXCLUDED.stripe_price_id,
     price_cents = EXCLUDED.price_cents,
     features = EXCLUDED.features,
     is_active = EXCLUDED.is_active;
