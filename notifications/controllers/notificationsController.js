@@ -386,6 +386,21 @@ const NotificationsController = {
     },
 
     /**
+     * Escape HTML to prevent XSS when interpolating untrusted strings (decrypted
+     * peer message content, emails, statuses) into innerHTML. Escapes the five
+     * HTML-significant chars so it is safe in both text and attribute contexts.
+     */
+    _escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    /**
      * Get user email from cache or return default
      */
     getUserEmail(userId) {
@@ -559,10 +574,10 @@ const NotificationsController = {
                 </div>
                 <div class="notification-content">
                     <div class="notification-header">
-                        <span class="notification-title">${email}</span>
+                        <span class="notification-title">${this._escapeHtml(email)}</span>
                         ${unreadBadge}
                     </div>
-                    ${conversation.last_message ? `<p class="notification-message">${conversation.last_message.substring(0, 100)}${conversation.last_message.length > 100 ? '...' : ''}</p>` : ''}
+                    ${conversation.last_message ? `<p class="notification-message">${this._escapeHtml(conversation.last_message.substring(0, 100))}${conversation.last_message.length > 100 ? '...' : ''}</p>` : ''}
                 </div>
                 <div class="notification-meta">
                     <span class="notification-time">${conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleDateString() : ''}</span>
@@ -723,10 +738,10 @@ const NotificationsController = {
                     </div>
                     <div class="notification-content">
                         <div class="notification-header">
-                            <span class="notification-title">${typeName}</span>
+                            <span class="notification-title">${this._escapeHtml(typeName)}</span>
                             ${!notification.read ? '<span class="notification-badge">New</span>' : ''}
                         </div>
-                        <p class="notification-message">From: ${fromUserEmail}${notification.message ? ' - ' + notification.message : ''}</p>
+                        <p class="notification-message">From: ${this._escapeHtml(fromUserEmail)}${notification.message ? ' - ' + this._escapeHtml(notification.message) : ''}</p>
                         ${actionButtons}
                     </div>
                     <div class="notification-meta">
@@ -1268,7 +1283,7 @@ const NotificationsController = {
                 <div class="conversation-item" data-conversation-id="${conv.id}" style="padding: var(--spacing-md); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); cursor: pointer; background: ${conv.unread_count > 0 ? 'var(--hover-overlay)' : 'var(--surface-color)'};">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <strong>${conv.other_user_email}</strong>
+                            <strong>${this._escapeHtml(conv.other_user_email)}</strong>
                             ${unreadBadge}
                         </div>
                         <span style="font-size: 0.85rem; color: var(--text-color-secondary);">${lastMessageDate}</span>
@@ -1899,7 +1914,7 @@ const NotificationsController = {
                         } else if (share.status !== 'pending') {
                             // Show status for non-pending shares
                             const statusText = share.status === 'accepted' ? 'Accepted' : share.status === 'declined' ? 'Declined' : share.status;
-                            actionButtons = `<div style="margin-top: var(--spacing-sm); color: var(--text-color-secondary);"><strong>Status:</strong> ${statusText}</div>`;
+                            actionButtons = `<div style="margin-top: var(--spacing-sm); color: var(--text-color-secondary);"><strong>Status:</strong> ${this._escapeHtml(statusText)}</div>`;
                         }
                     }
                 }
@@ -1908,7 +1923,7 @@ const NotificationsController = {
                 const shareRequestHtml = `
                     <div class="message-item share-request-message ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 80%; padding: var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--hover-overlay)'}; border: 2px solid ${isOwnMessage ? 'rgba(255,255,255,0.3)' : 'var(--primary-color)'}; border-radius: var(--border-radius); color: ${isOwnMessage ? 'white' : 'var(--text-color)'};">
-                            <div style="white-space: pre-line; font-size: 0.9rem;">${msg.content.replace(/Share ID: \d+/, '').trim()}</div>
+                            <div style="white-space: pre-line; font-size: 0.9rem;">${this._escapeHtml(msg.content.replace(/Share ID: \d+/, '').trim())}</div>
                             ${actionButtons}
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-sm); opacity: 0.7;">${dateString}</div>
                         </div>
@@ -1922,8 +1937,8 @@ const NotificationsController = {
                 return `
                     <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                         <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
-                            <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                            <div style="white-space: pre-line;">${msg.content}</div>
+                            <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${this._escapeHtml(senderEmail)}</div>
+                            <div style="white-space: pre-line;">${this._escapeHtml(msg.content)}</div>
                             <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
                         </div>
                     </div>
@@ -2055,8 +2070,8 @@ const NotificationsController = {
             const messageHtml = `
                 <div class="message-item ${alignClass}" style="margin-bottom: var(--spacing-md); text-align: ${alignClass};">
                     <div style="display: inline-block; max-width: 70%; padding: var(--spacing-sm) var(--spacing-md); background: ${isOwnMessage ? 'var(--primary-color)' : 'var(--surface-color)'}; color: ${isOwnMessage ? 'white' : 'var(--text-color)'}; border-radius: var(--border-radius);">
-                        <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${senderEmail}</div>
-                        <div style="white-space: pre-line;">${message.content}</div>
+                        <div style="font-size: 0.85rem; margin-bottom: var(--spacing-xs); opacity: 0.8;">${this._escapeHtml(senderEmail)}</div>
+                        <div style="white-space: pre-line;">${this._escapeHtml(message.content)}</div>
                         <div style="font-size: 0.75rem; margin-top: var(--spacing-xs); opacity: 0.7;">${dateString}</div>
                     </div>
                 </div>
