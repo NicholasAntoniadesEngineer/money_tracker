@@ -26,7 +26,7 @@ const MoneyTrackerPaymentsConfig = PaymentsConfigBase.merge({
     backend: {
         baseUrl: 'https://ofutzrxfbrgtbkyafndv.supabase.co',
         endpoints: {
-            createCheckoutSession: '/functions/v1/create-checkout-session',
+            createCheckoutSession: '/functions/v1/checkout-session',
             createPortalSession: '/functions/v1/create-portal-session',
             createCustomer: '/functions/v1/create-customer',
             updateSubscription: '/functions/v1/update-subscription',
