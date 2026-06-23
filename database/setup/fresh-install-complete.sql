@@ -550,6 +550,164 @@ CREATE TRIGGER trigger_create_trial_subscription
     FOR EACH ROW
     EXECUTE FUNCTION create_trial_subscription();
 
+-- ============================================================
+-- SERVER-AUTHORITATIVE ENTITLEMENT (PAY-3 / RLS-03)  [mirrors payments_app/backend/sql/complete-setup.sql]
+-- ============================================================
+-- Premium entitlement must never be client-writable. The only write paths into
+-- `subscriptions` are the SECURITY DEFINER RPCs below (each re-asserts auth.uid()),
+-- the signup trigger above, and the Stripe edge functions (service role, which bypass
+-- RLS + the REVOKE). The client calls these RPCs via DatabaseService.queryRpc().
+-- Fresh installs ship the RPC-based client, so the REVOKE is applied immediately here.
+-- For an EXISTING live DB use the staged migration apply-entitlement-lockdown.sql
+-- (deploy the new client FIRST, then run the REVOKE).
+
+-- start_trial(): idempotently put the caller's OWN row onto a Premium trial; refuses
+-- to re-grant a trial that was already used. Returns JSONB {success, subscription|error}.
+CREATE OR REPLACE FUNCTION start_trial()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid        UUID := auth.uid();
+    v_premium_id BIGINT;
+    v_trial_days INT := 30;   -- matches create_trial_subscription(); no trial_period_days column exists
+    v_existing   subscriptions%ROWTYPE;
+    v_row        subscriptions%ROWTYPE;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'not authenticated');
+    END IF;
+
+    SELECT id INTO v_premium_id FROM subscription_plans WHERE name = 'Premium' LIMIT 1;
+    IF v_premium_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Premium plan not found');
+    END IF;
+
+    SELECT * INTO v_existing FROM subscriptions WHERE user_id = v_uid;
+    IF FOUND THEN
+        IF v_existing.status = 'trial' THEN
+            RETURN jsonb_build_object('success', true, 'subscription', to_jsonb(v_existing));
+        END IF;
+        RETURN jsonb_build_object('success', false, 'error', 'trial already used');
+    END IF;
+
+    INSERT INTO subscriptions (user_id, plan_id, status, trial_end)
+    VALUES (v_uid, v_premium_id, 'trial', NOW() + (v_trial_days || ' days')::interval)
+    RETURNING * INTO v_row;
+
+    RETURN jsonb_build_object('success', true, 'subscription', to_jsonb(v_row));
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+-- downgrade_to_free(): caller's OWN row -> Free plan, status 'active', clearing all
+-- Stripe/trial/cancellation/pending fields. Used by trial-expiry + cancel-to-Free.
+CREATE OR REPLACE FUNCTION downgrade_to_free()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid     UUID := auth.uid();
+    v_free_id BIGINT;
+    v_row     subscriptions%ROWTYPE;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'not authenticated');
+    END IF;
+
+    SELECT id INTO v_free_id FROM subscription_plans WHERE name = 'Free' LIMIT 1;
+    IF v_free_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Free plan not found');
+    END IF;
+
+    UPDATE subscriptions SET
+        plan_id                = v_free_id,
+        status                 = 'active',
+        trial_end              = NULL,
+        stripe_customer_id     = NULL,
+        stripe_subscription_id = NULL,
+        stripe_price_id        = NULL,
+        current_period_start   = NULL,
+        current_period_end     = NULL,
+        cancel_at_period_end   = false,
+        canceled_at            = NULL,
+        pending_plan_id        = NULL,
+        pending_change_at      = NULL
+    WHERE user_id = v_uid
+    RETURNING * INTO v_row;
+
+    IF NOT FOUND THEN
+        INSERT INTO subscriptions (user_id, plan_id, status, trial_end)
+        VALUES (v_uid, v_free_id, 'active', NULL)
+        RETURNING * INTO v_row;
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'subscription', to_jsonb(v_row));
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+-- ensure_subscription(): guarantee the caller HAS a row (Free/active default — never a
+-- trial), so the client never needs a direct INSERT. No-op if signup trigger fired.
+CREATE OR REPLACE FUNCTION ensure_subscription()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid     UUID := auth.uid();
+    v_free_id BIGINT;
+    v_row     subscriptions%ROWTYPE;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'not authenticated');
+    END IF;
+
+    SELECT * INTO v_row FROM subscriptions WHERE user_id = v_uid;
+    IF FOUND THEN
+        RETURN jsonb_build_object('success', true, 'subscription', to_jsonb(v_row));
+    END IF;
+
+    SELECT id INTO v_free_id FROM subscription_plans WHERE name = 'Free' LIMIT 1;
+    IF v_free_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Free plan not found');
+    END IF;
+
+    INSERT INTO subscriptions (user_id, plan_id, status, trial_end)
+    VALUES (v_uid, v_free_id, 'active', NULL)
+    RETURNING * INTO v_row;
+
+    RETURN jsonb_build_object('success', true, 'subscription', to_jsonb(v_row));
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION start_trial() TO authenticated;
+GRANT EXECUTE ON FUNCTION downgrade_to_free() TO authenticated;
+GRANT EXECUTE ON FUNCTION ensure_subscription() TO authenticated;
+
+-- Defense-in-depth: keep the own-row WITH CHECK even though the grants are revoked.
+DROP POLICY IF EXISTS subscriptions_update_own ON subscriptions;
+CREATE POLICY subscriptions_update_own ON subscriptions
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS subscriptions_insert_own ON subscriptions;
+CREATE POLICY subscriptions_insert_own ON subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- LOCKDOWN: clients can read but never write `subscriptions`.
+REVOKE INSERT, UPDATE ON subscriptions FROM authenticated;
+REVOKE USAGE, SELECT ON SEQUENCE subscriptions_id_seq FROM authenticated;
+
 DO $$ BEGIN RAISE NOTICE '[6/16] Creating data sharing system (data_shares, field_locks)...'; END $$;
 
 -- ============================================================
