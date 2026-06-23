@@ -23,6 +23,11 @@
 --   5. Auth → URL Configuration: add each app origin + .../auth/views/auth.html
 --        to the redirect allow-list.
 --   See secure_db/README.md for the authoritative cross-repo runbook.
+-- CANONICAL SOURCES (this all-in-one aggregates them for a single-shot install):
+--   identity / E2E-crypto tables  -> auth_db/backend/sql/identity-schema.sql
+--   messaging tables              -> secure_db/sql/messaging-schema.sql
+--   To add device pairing to an EXISTING DB instead, run
+--   auth_db/backend/sql/add-device-pairing.sql (non-destructive).
 -- ============================================================
 
 DO $$
@@ -1174,10 +1179,15 @@ CREATE POLICY messages_select_participant ON messages
 CREATE POLICY messages_insert_participant ON messages
     FOR INSERT WITH CHECK (
         auth.uid() = sender_id AND
+        messages.recipient_id <> auth.uid() AND
+        -- HARDENING (SDB-01): bind recipient_id to the conversation counterparty so a
+        -- sender cannot spoof recipient_id (also closes the is_blocked self-bypass once
+        -- the is_blocked() function is ported here — RLS-04).
         EXISTS (
-            SELECT 1 FROM conversations
-            WHERE conversations.id = messages.conversation_id
-            AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
+            SELECT 1 FROM conversations c
+            WHERE c.id = messages.conversation_id
+            AND ((c.user1_id = auth.uid() AND c.user2_id = messages.recipient_id)
+              OR (c.user2_id = auth.uid() AND c.user1_id = messages.recipient_id))
         )
     );
 
