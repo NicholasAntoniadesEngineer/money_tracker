@@ -136,4 +136,39 @@ GRANT UPDATE (read) ON notifications TO authenticated;
 -- RLS-10: remove dead table
 DROP TABLE IF EXISTS conversation_participants CASCADE;
 
+-- SDB-05: conversation_session_keys UPDATE — add WITH CHECK so the owner cannot
+-- reassign a session-key row to another user_id (USING validated only the OLD row).
+DROP POLICY IF EXISTS session_keys_update_own ON conversation_session_keys;
+CREATE POLICY session_keys_update_own ON conversation_session_keys
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- SDB-07: conversations is updated by clients only to advance last_message_at;
+-- updated_at is trigger-written (trigger_update_conversations_updated_at), so revoke
+-- the broad UPDATE and re-grant column-scoped to last_message_at only — clients must
+-- not be able to write updated_at directly.
+REVOKE UPDATE ON conversations FROM authenticated;
+GRANT UPDATE (last_message_at) ON conversations TO authenticated;
+
+-- ADB-03/RLS-09: pairing_requests SELECT — defense-in-depth so an EXPIRED wrapped
+-- bundle is not selectable even before it is physically reaped. The load-bearing half
+-- is an operator-set pg_cron reaper:
+--   DELETE FROM pairing_requests WHERE expires_at < now();
+-- (RLS only hides expired rows; it does not delete the at-rest ciphertext.)
+-- NOTE: only takes effect where the pairing_requests table exists (added via
+-- add-device-pairing.sql); harmless no-op otherwise.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'pairing_requests' AND relkind = 'r') THEN
+        DROP POLICY IF EXISTS pairing_requests_select_own ON pairing_requests;
+        CREATE POLICY pairing_requests_select_own ON pairing_requests
+            FOR SELECT USING (auth.uid() = user_id AND expires_at > now());
+    END IF;
+END $$;
+
+-- ADB-05/CR-4: remove the deprecated, unreferenced device_keys table (superseded by
+-- pairing_requests; its never-enforced expiry could leave weakly-wrapped identity
+-- secrets lingering). paired_devices is intentionally kept (still used by config).
+DROP TABLE IF EXISTS device_keys CASCADE;
+
 COMMIT;

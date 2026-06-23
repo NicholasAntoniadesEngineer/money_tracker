@@ -249,6 +249,24 @@
                 </div>
             </section>
 
+            <!-- Link a Device Card -->
+            <section class="settings-card form-section">
+                <h2 class="section-title"><i class="fas fa-link"></i> Link a device</h2>
+                <p style="color: var(--text-secondary);">Generate a one-time code to read your encrypted data on another device. Enter it on the other device's "Restore encryption keys" screen. Valid for 5 minutes, single use.</p>
+                <div class="danger-actions">
+                    <button id="link-device-button" class="btn btn-primary"><i class="fas fa-key"></i> Generate pairing code</button>
+                </div>
+                <div id="pairing-code-output" class="settings-status hidden" style="margin-top: var(--space-3);">
+                    <p style="color: var(--text-secondary); font-size: 0.85rem;">On your other device: choose "Restore encryption keys" and enter this code:</p>
+                    <pre id="pairing-code-value" style="font-size: 1.25rem; letter-spacing: 0.08em; user-select: all;"></pre>
+                    <div class="settings-actions" style="margin-top: var(--space-2);">
+                        <button id="copy-pairing-code" class="btn btn-secondary"><i class="fas fa-copy"></i> Copy code</button>
+                    </div>
+                    <p id="pairing-code-expiry" style="color: var(--text-secondary); font-size: 0.75rem;"></p>
+                </div>
+                <div id="link-device-status" class="settings-status"></div>
+            </section>
+
             <!-- Delete Card -->
             <section class="settings-card form-section">
                 <h2 class="section-title"><i class="fas fa-trash-alt"></i> Delete</h2>
@@ -315,7 +333,25 @@
 
     <!-- Messaging Service -->
     <script src="../../lib/messaging/messaging/services/messagingService.js"></script>
-    
+
+    <!-- E2E Encryption Module (powers "Link a device" pairing-code generation) -->
+    <script src="../../lib/auth_db/encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../lib/auth_db/encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../lib/auth_db/encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../lib/auth_db/encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyDerivationService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyStorageService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/historicalKeysService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/passwordCryptoService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyBackupService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyManagementService.js"></script>
+    <script src="../../lib/auth_db/encryption/facade/encryptionFacade.js"></script>
+    <script src="../../lib/auth_db/encryption/facade/nullEncryptionFacade.js"></script>
+    <script src="../../lib/auth_db/encryption/encryptionModule.js"></script>
+    <script src="../../lib/auth_db/encryption/initEncryption.js"></script>
+    <script src="../../lib/auth_db/encryption/services/devicePairingService.js"></script>
+
     <!-- Payments Module Configuration -->
     <script src="../../lib/payments_app/payments/config/paymentsConfigBase.js"></script>
     <script src="../../lib/payments_app/payments/config/moneyTrackerConfig.js"></script>
@@ -375,6 +411,79 @@
                     console.log('[SettingsPage] Initializing SettingsController...');
                     await window.SettingsController.init();
                     console.log('[SettingsPage] SettingsController initialized');
+                }
+
+                // Initialize the E2E encryption module for the current user so the
+                // "Link a device" card can generate a pairing code. createPairingRequest()
+                // -> exportPairingBundle() needs KeyManagementService.currentUserId set AND
+                // the local identity keys present (mirrors auth.html's post-sign-in init).
+                // Non-blocking: a failure here must NOT break budget settings.
+                (async () => {
+                    try {
+                        const currentUser = window.AuthService && typeof window.AuthService.getCurrentUser === 'function'
+                            ? window.AuthService.getCurrentUser()
+                            : null;
+                        const userId = currentUser && currentUser.id;
+                        if (!userId) {
+                            console.warn('[SettingsPage] No current user id; skipping encryption init.');
+                            return;
+                        }
+                        if (window.initEncryptionModule) {
+                            // Injects DatabaseService/AuthService into the config and loads
+                            // the crypto library (EncryptionModule.initialize).
+                            await window.initEncryptionModule();
+                        }
+                        if (window.KeyManagementService && typeof window.KeyManagementService.initialize === 'function') {
+                            // Loads nacl + all sub-services and sets currentUserId so the
+                            // local identity secret can be exported into a pairing bundle.
+                            await window.KeyManagementService.initialize(userId, window.MoneyTrackerEncryptionConfig);
+                        }
+                        console.log('[SettingsPage] Encryption initialized for device pairing');
+                    } catch (encErr) {
+                        console.warn('[SettingsPage] Encryption init for pairing failed:', encErr);
+                    }
+                })();
+
+                // Link-a-device: generate a one-time pairing code for another device.
+                const linkBtn = document.getElementById('link-device-button');
+                if (linkBtn && window.DevicePairingService) {
+                    linkBtn.addEventListener('click', async () => {
+                        const out = document.getElementById('pairing-code-output');
+                        const val = document.getElementById('pairing-code-value');
+                        const exp = document.getElementById('pairing-code-expiry');
+                        const status = document.getElementById('link-device-status');
+                        if (status) status.textContent = '';
+                        const orig = linkBtn.innerHTML;
+                        linkBtn.disabled = true;
+                        linkBtn.textContent = 'Generating…';
+                        try {
+                            const r = await window.DevicePairingService.createPairingRequest();
+                            if (r && r.success) {
+                                val.textContent = r.code;
+                                exp.textContent = r.expiresAt ? ('Valid until ' + new Date(r.expiresAt).toLocaleTimeString()) : '';
+                                out.classList.remove('hidden');
+                            } else if (status) {
+                                status.textContent = (r && r.error) ? r.error : 'Could not generate a pairing code.';
+                            }
+                        } catch (e) {
+                            if (status) status.textContent = 'Could not generate a pairing code.';
+                        } finally {
+                            linkBtn.disabled = false;
+                            linkBtn.innerHTML = orig;
+                        }
+                    });
+                    const copyBtn = document.getElementById('copy-pairing-code');
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', async () => {
+                            const code = document.getElementById('pairing-code-value').textContent;
+                            try {
+                                await navigator.clipboard.writeText(code);
+                                const t = copyBtn.innerHTML;
+                                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                                setTimeout(() => { copyBtn.innerHTML = t; }, 1500);
+                            } catch (_) { /* clipboard blocked; the code is selectable */ }
+                        });
+                    }
                 }
 
                 // Initialize settings (non-blocking - don't wait if it hangs)

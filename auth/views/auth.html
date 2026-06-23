@@ -491,8 +491,19 @@
                 };
 
                 printBtn.onclick = () => {
+                    // Escape the recovery key before writing it into the print document's
+                    // markup. document.write parses HTML, so an un-escaped value would be a
+                    // self-XSS sink (FE-03). The five HTML-significant chars cover both
+                    // element and attribute contexts.
+                    const escapeHtml = (value) => String(value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                    const safeRecoveryKey = escapeHtml(currentRecoveryKey);
                     const printWindow = window.open('', '_blank');
-                    printWindow.document.write(`<html><head><title>Money Tracker Recovery Key</title><style>body{font-family:Arial,sans-serif;padding:40px;}h1{color:#333;}.recovery-key{font-family:'Courier New',monospace;font-size:16px;line-height:2;background:#f5f5f5;padding:20px;border:2px solid #333;margin:20px 0;}.warning{color:#d32f2f;font-weight:bold;}</style></head><body><h1>Money Tracker Recovery Key</h1><p class="warning">KEEP THIS SAFE AND SECURE</p><p>If you forget your password, this recovery code is the ONLY way to recover your data.</p><div class="recovery-key">${currentRecoveryKey}</div><p>Date: ${new Date().toISOString()}</p></body></html>`);
+                    printWindow.document.write(`<html><head><title>Money Tracker Recovery Key</title><style>body{font-family:Arial,sans-serif;padding:40px;}h1{color:#333;}.recovery-key{font-family:'Courier New',monospace;font-size:16px;line-height:2;background:#f5f5f5;padding:20px;border:2px solid #333;margin:20px 0;}.warning{color:#d32f2f;font-weight:bold;}</style></head><body><h1>Money Tracker Recovery Key</h1><p class="warning">KEEP THIS SAFE AND SECURE</p><p>If you forget your password, this recovery code is the ONLY way to recover your data.</p><div class="recovery-key">${safeRecoveryKey}</div><p>Date: ${new Date().toISOString()}</p></body></html>`);
                     printWindow.document.close();
                     printWindow.print();
                 };

@@ -894,47 +894,11 @@ CREATE POLICY paired_devices_delete_own ON paired_devices
 GRANT SELECT, INSERT, UPDATE, DELETE ON paired_devices TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE paired_devices_id_seq TO authenticated;
 
--- Device keys (temporary storage for device pairing requests)
--- Pairing codes are short-lived (5 minutes) and contain encrypted identity keys
-CREATE TABLE IF NOT EXISTS device_keys (
-    id BIGSERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    device_id TEXT NOT NULL,
-    device_name TEXT NOT NULL,
-    public_key TEXT NOT NULL,
-    encrypted_secret_key TEXT,
-    encryption_nonce TEXT,
-    pairing_code TEXT,
-    expires_at TIMESTAMPTZ,
-    is_primary BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-COMMENT ON COLUMN device_keys.encrypted_secret_key IS 'Secret key encrypted with pairing-code-derived key (XSalsa20-Poly1305)';
-COMMENT ON COLUMN device_keys.encryption_nonce IS 'Nonce used for secret key encryption';
-COMMENT ON COLUMN device_keys.pairing_code IS '6-digit code for device pairing (expires after 5 minutes)';
-
-DROP INDEX IF EXISTS idx_device_keys_user_id;
-DROP INDEX IF EXISTS idx_device_keys_pairing_code;
-CREATE INDEX idx_device_keys_user_id ON device_keys(user_id);
-CREATE INDEX idx_device_keys_pairing_code ON device_keys(pairing_code) WHERE pairing_code IS NOT NULL;
-
-ALTER TABLE device_keys ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY device_keys_select_own ON device_keys
-    FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY device_keys_insert_own ON device_keys
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY device_keys_update_own ON device_keys
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY device_keys_delete_own ON device_keys
-    FOR DELETE USING (auth.uid() = user_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON device_keys TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE device_keys_id_seq TO authenticated;
+-- ADB-05: the deprecated `device_keys` table (CREATE/index/policy/grant) has been
+-- removed — it is not referenced by the encryption config (only `paired_devices` is)
+-- and the never-enforced 5-minute expiry left weakly-wrapped identity secrets able
+-- to linger. The `DROP TABLE IF EXISTS device_keys CASCADE` in the cleanup section
+-- above stays so re-running this installer removes it from existing databases.
 
 -- Key rotation locks (prevents concurrent key rotations across devices/tabs)
 CREATE TABLE IF NOT EXISTS key_rotation_locks (
@@ -1009,9 +973,11 @@ CREATE TRIGGER trigger_update_conversations_updated_at
     EXECUTE FUNCTION update_conversations_updated_at();
 
 GRANT SELECT, INSERT ON conversations TO authenticated;
--- HARDENING: column-scoped UPDATE so clients can advance conversation ordering
--- (last_message_at) but cannot rewrite participants or other columns.
-GRANT UPDATE (last_message_at, updated_at) ON conversations TO authenticated;
+-- SDB-07: column-scoped UPDATE so clients can advance conversation ordering
+-- (last_message_at) but cannot rewrite participants or other columns. updated_at is
+-- trigger-written (trigger_update_conversations_updated_at sets it to NOW() on every
+-- UPDATE), so it is intentionally NOT granted — clients must not write it directly.
+GRANT UPDATE (last_message_at) ON conversations TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE conversations_id_seq TO authenticated;
 
 -- SM-40: conversation_participants table + policies removed (dead, self-only RLS).
@@ -1346,9 +1312,13 @@ CREATE TABLE IF NOT EXISTS pairing_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_pairing_requests_user_id ON pairing_requests(user_id);
 ALTER TABLE pairing_requests ENABLE ROW LEVEL SECURITY;
+-- ADB-03/RLS-09: defense-in-depth — an EXPIRED wrapped bundle must not be selectable
+-- even before it is physically reaped. NOTE: the load-bearing half is an operator-set
+-- pg_cron reaper: `DELETE FROM pairing_requests WHERE expires_at < now();` (RLS only
+-- hides expired rows; it does not delete the at-rest ciphertext).
 DROP POLICY IF EXISTS pairing_requests_select_own ON pairing_requests;
 CREATE POLICY pairing_requests_select_own ON pairing_requests
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING (auth.uid() = user_id AND expires_at > now());
 DROP POLICY IF EXISTS pairing_requests_insert_own ON pairing_requests;
 CREATE POLICY pairing_requests_insert_own ON pairing_requests
     FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -1614,8 +1584,11 @@ CREATE POLICY session_keys_select_own ON conversation_session_keys
 CREATE POLICY session_keys_insert_own ON conversation_session_keys
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- SDB-05: WITH CHECK stops the owner reassigning a session-key row to another
+-- user_id on update (the previous policy validated only the OLD row via USING).
 CREATE POLICY session_keys_update_own ON conversation_session_keys
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY session_keys_delete_own ON conversation_session_keys
     FOR DELETE USING (auth.uid() = user_id);
