@@ -67,12 +67,14 @@ DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS subscriptions CASCADE;
 DROP TABLE IF EXISTS subscription_plans CASCADE;
 DROP TABLE IF EXISTS settings CASCADE;
+DROP TABLE IF EXISTS budget_dek CASCADE;
 DROP TABLE IF EXISTS pots CASCADE;
 DROP TABLE IF EXISTS example_months CASCADE;
 DROP TABLE IF EXISTS user_months CASCADE;
 
 -- Drop functions that may exist
 DROP FUNCTION IF EXISTS update_user_months_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS update_budget_dek_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS update_subscriptions_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS is_free_plan(BIGINT) CASCADE;
 DROP FUNCTION IF EXISTS is_on_trial(TEXT, TIMESTAMPTZ) CASCADE;
@@ -104,7 +106,7 @@ DROP POLICY IF EXISTS "Users can delete attachments" ON storage.objects;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-DO $$ BEGIN RAISE NOTICE '[2/16] Creating budget data tables (user_months, example_months, pots)...'; END $$;
+DO $$ BEGIN RAISE NOTICE '[2/16] Creating budget data tables (user_months, example_months, pots, budget_dek)...'; END $$;
 
 -- ============================================================
 -- BUDGET DATA TABLES (JSONB Structure)
@@ -226,6 +228,65 @@ CREATE POLICY pots_delete_own ON pots
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON pots TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE pots_id_seq TO authenticated;
+
+-- ============================================================
+-- BUDGET DEK (per-user wrapped Data Encryption Key for E2E)
+-- ============================================================
+-- One RLS-scoped row per user holding the DEK that encrypts every budget blob
+-- (user_months / pots), itself wrapped under the user's existing X25519 identity
+-- secret. The server stores ONLY opaque base64 ciphertext — never the unwrapped
+-- DEK nor any budget plaintext. See BUDGET_E2E_DESIGN.md §2.3 (staged plan S2).
+-- Standalone equivalent for an EXISTING DB: database/setup/apply-budget-dek.sql.
+CREATE TABLE IF NOT EXISTS budget_dek (
+    user_id     UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    wrapped_dek TEXT NOT NULL,            -- base64 secretbox ciphertext of the 32-byte DEK
+    wrap_nonce  TEXT NOT NULL,            -- base64 24-byte nonce
+    dek_version INTEGER NOT NULL DEFAULT 1,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE budget_dek IS 'Per-user wrapped Data Encryption Key for client-side E2E budget encryption (BUDGET_E2E_DESIGN.md §2.3). Server stores only ciphertext.';
+COMMENT ON COLUMN budget_dek.wrapped_dek IS 'base64 secretbox ciphertext of the 32-byte DEK, wrapped under the identity-derived wrap key';
+COMMENT ON COLUMN budget_dek.wrap_nonce IS 'base64 24-byte nonce for the wrapped_dek secretbox';
+COMMENT ON COLUMN budget_dek.dek_version IS 'DEK generation. Reserved for the future per-epoch forward-secrecy re-key (BUDGET_E2E_DESIGN.md §7).';
+
+CREATE OR REPLACE FUNCTION update_budget_dek_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trigger_update_budget_dek_updated_at
+    BEFORE UPDATE ON budget_dek
+    FOR EACH ROW
+    EXECUTE FUNCTION update_budget_dek_updated_at();
+
+ALTER TABLE budget_dek ENABLE ROW LEVEL SECURITY;
+
+-- Owner-only RLS: the wrapped DEK is opaque to the server but still scoped to its
+-- owner — only the authenticated user may read or write their own row.
+CREATE POLICY budget_dek_select_own ON budget_dek
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY budget_dek_insert_own ON budget_dek
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- WITH CHECK stops a user reassigning their wrapped-DEK row to another user_id on
+-- update (e.g. a future re-key UPDATE). Mirrors identity_keys_update_own.
+CREATE POLICY budget_dek_update_own ON budget_dek
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY budget_dek_delete_own ON budget_dek
+    FOR DELETE USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON budget_dek TO authenticated;
 
 DO $$ BEGIN RAISE NOTICE '[3/16] Creating settings table...'; END $$;
 
@@ -2313,6 +2374,7 @@ BEGIN
     RAISE NOTICE '------------------------------------------------------------';
     RAISE NOTICE 'Database is now ready with:';
     RAISE NOTICE '  - Budget management (user_months, example_months, pots)';
+    RAISE NOTICE '  - Budget E2E key store (budget_dek - per-user wrapped DEK)';
     RAISE NOTICE '  - Settings (user preferences)';
     RAISE NOTICE '  - Subscription system (plans, subscriptions, payments)';
     RAISE NOTICE '  - Data sharing (data_shares with field locks)';
