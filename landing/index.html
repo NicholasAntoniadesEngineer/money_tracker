@@ -243,6 +243,20 @@
     <script src="../lib/auth_db/shared/utils/errorHandler.js"></script>
     <script src="../lib/auth_db/shared/utils/validators.js"></script>
 
+    <!-- Budget E2E encryption (S1/S2): budget DEK/crypto services.
+         The landing dashboard's InitialData.initializeIfEmpty() and
+         LandingController.init() call getAllMonths/getMonth, which drive
+         databaseService's transformMonthFromDatabase -> _ensureBudgetDekForUser ->
+         ensureBudgetDEK, resolving window.BudgetCryptoService / window.BudgetKeyService
+         to DECRYPT budget rows (BUDGET_E2E_DESIGN.md §3). Without these tags
+         getAllMonths throws "BudgetKeyService is not available" (M3-class). Their
+         crypto deps load in the E2E block below and resolve lazily at call time;
+         KeyStorageService.initialize(config) runs in the init script before the
+         first getAllMonths. -->
+    <script src="../lib/auth_db/encryption/utils/encryptionErrors.js"></script>
+    <script src="../shared/services/budgetCryptoService.js"></script>
+    <script src="../shared/services/budgetKeyService.js"></script>
+
     <!-- Database Services -->
     <script src="../lib/auth_db/database/services/databaseService.js"></script>
     <script src="../database/services/dataSharingService.js"></script>
@@ -285,6 +299,8 @@
     <script src="../lib/auth_db/encryption/services/historicalKeysService.js"></script>
     <script src="../lib/auth_db/encryption/services/passwordCryptoService.js"></script>
     <script src="../lib/auth_db/encryption/services/keyBackupService.js"></script>
+    <script src="../lib/auth_db/encryption/services/x3dhService.js"></script>
+    <script src="../lib/auth_db/encryption/services/doubleRatchetService.js"></script>
     <script src="../lib/auth_db/encryption/services/keyManagementService.js"></script>
     <script src="../lib/auth_db/encryption/facade/encryptionFacade.js"></script>
     <script src="../lib/auth_db/encryption/facade/nullEncryptionFacade.js"></script>
@@ -319,6 +335,25 @@
                     await window.CryptoLibraryLoader.load();
                     await window.CryptoPrimitivesService.initialize();
                     console.log('[Landing] Encryption module initialized');
+                }
+
+                // Initialize the encryption key store BEFORE any getAllMonths/getMonth
+                // (InitialData.initializeIfEmpty + LandingController.init below). Those
+                // drive _ensureBudgetDekForUser -> ensureBudgetDEK -> getIdentityKeys ->
+                // KeyStorageService._ensureInitialized(), which throws "Service not
+                // initialized" unless KeyStorageService.initialize(config) has run
+                // (M3-class). Mirrors auth.html's initCryptoServices().
+                if (window.MoneyTrackerEncryptionConfig && window.KeyStorageService
+                    && typeof window.KeyStorageService.initialize === 'function') {
+                    try {
+                        window.MoneyTrackerEncryptionConfig.prepareWithServices();
+                        if (!window.KeyStorageService.initialized) {
+                            await window.KeyStorageService.initialize(window.MoneyTrackerEncryptionConfig);
+                        }
+                        console.log('[Landing] KeyStorageService initialized:', window.KeyStorageService.initialized);
+                    } catch (ksErr) {
+                        console.warn('[Landing] KeyStorageService init failed:', ksErr);
+                    }
                 }
 
                 const [paymentsReady, dbInitResult] = await Promise.all([

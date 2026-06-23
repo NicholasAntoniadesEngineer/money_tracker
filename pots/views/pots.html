@@ -109,7 +109,14 @@
     <!-- Budget E2E encryption (S4/S5): primitives + budget DEK/crypto services.
          Loaded BEFORE databaseService.js so its transformPotTo/FromDatabase
          transforms can resolve window.BudgetCryptoService / window.BudgetKeyService
-         (encrypt-on-write + dual-read; BUDGET_E2E_DESIGN.md §3). -->
+         (encrypt-on-write + dual-read; BUDGET_E2E_DESIGN.md §3).
+         The encryption config is loaded first so the page can run
+         KeyStorageService.initialize(MoneyTrackerEncryptionConfig) at startup —
+         without it ensureBudgetDEK -> getIdentityKeys throws "Service not
+         initialized" (C2). -->
+    <script src="../../lib/auth_db/encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../lib/auth_db/encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../lib/auth_db/encryption/utils/encryptionConfigHelper.js"></script>
     <script src="../../lib/auth_db/encryption/services/cryptoLibraryLoader.js"></script>
     <script src="../../lib/auth_db/encryption/services/keyDerivationService.js"></script>
     <script src="../../lib/auth_db/encryption/services/cryptoPrimitivesService.js"></script>
@@ -189,6 +196,25 @@
                     return;
                 }
                 console.log('[pots.html] Authentication check passed');
+
+                // Initialize the encryption key store BEFORE the controller's first
+                // getAllPots/getAllMonths. Those -> ensureBudgetDEK -> getIdentityKeys ->
+                // KeyStorageService._ensureInitialized() throws "Service not initialized"
+                // unless KeyStorageService.initialize(config) has run (C2). Mirrors
+                // auth.html's initCryptoServices(). Idempotent + ordered before the
+                // controller so the budget DEK can bootstrap from the identity secret.
+                if (window.MoneyTrackerEncryptionConfig && window.KeyStorageService
+                    && typeof window.KeyStorageService.initialize === 'function') {
+                    if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                        await window.CryptoLibraryLoader.load();
+                        await window.CryptoPrimitivesService.initialize();
+                    }
+                    window.MoneyTrackerEncryptionConfig.prepareWithServices();
+                    if (!window.KeyStorageService.initialized) {
+                        await window.KeyStorageService.initialize(window.MoneyTrackerEncryptionConfig);
+                    }
+                    console.log('[pots.html] KeyStorageService initialized:', window.KeyStorageService.initialized);
+                }
 
                 // Initialize settings after database is ready
                 await window.DataManager.initializeSettings();

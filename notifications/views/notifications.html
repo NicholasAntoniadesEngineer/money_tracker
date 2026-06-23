@@ -133,6 +133,25 @@
     <script src="../../lib/auth_db/shared/utils/errorHandler.js"></script>
     <script src="../../lib/auth_db/shared/utils/validators.js"></script>
     
+    <!-- Budget E2E encryption (S1/S2): budget DEK/crypto services + their deps.
+         notificationsController.getAllMonths (lines ~977/1131) drives databaseService's
+         transformMonthFromDatabase, which resolves window.BudgetCryptoService /
+         window.BudgetKeyService to DECRYPT budget rows (BUDGET_E2E_DESIGN.md §3).
+         Without these tags getAllMonths throws "BudgetKeyService is not available"
+         (M3). This page otherwise has no encryption stack, so the full crypto-dep
+         chain is loaded here; KeyStorageService.initialize(config) runs in the init
+         script before NotificationsController.init(). -->
+    <script src="../../lib/auth_db/encryption/config/encryptionConfigBase.js"></script>
+    <script src="../../lib/auth_db/encryption/config/moneyTrackerEncryptionConfig.js"></script>
+    <script src="../../lib/auth_db/encryption/utils/encryptionConfigHelper.js"></script>
+    <script src="../../lib/auth_db/encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyDerivationService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyStorageService.js"></script>
+    <script src="../../lib/auth_db/encryption/utils/encryptionErrors.js"></script>
+    <script src="../../shared/services/budgetCryptoService.js"></script>
+    <script src="../../shared/services/budgetKeyService.js"></script>
+
     <!-- Database Service -->
     <script src="../../lib/auth_db/database/services/databaseService.js"></script>
     <script src="../../database/services/dataSharingService.js"></script>
@@ -330,6 +349,28 @@
                     type: typeof window.NotificationsController,
                     hasInit: window.NotificationsController && typeof window.NotificationsController.init === 'function'
                 });
+
+                // Initialize the encryption key store BEFORE NotificationsController.init(),
+                // whose getAllMonths (lines ~977/1131) drives databaseService's
+                // _ensureBudgetDekForUser -> ensureBudgetDEK -> getIdentityKeys ->
+                // KeyStorageService._ensureInitialized(), which throws "Service not
+                // initialized" unless KeyStorageService.initialize(config) has run (M3).
+                if (window.MoneyTrackerEncryptionConfig && window.KeyStorageService
+                    && typeof window.KeyStorageService.initialize === 'function') {
+                    try {
+                        if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                            await window.CryptoLibraryLoader.load();
+                            await window.CryptoPrimitivesService.initialize();
+                        }
+                        window.MoneyTrackerEncryptionConfig.prepareWithServices();
+                        if (!window.KeyStorageService.initialized) {
+                            await window.KeyStorageService.initialize(window.MoneyTrackerEncryptionConfig);
+                        }
+                        console.log('[NotificationsPage] KeyStorageService initialized:', window.KeyStorageService.initialized);
+                    } catch (ksErr) {
+                        console.warn('[NotificationsPage] KeyStorageService init failed:', ksErr);
+                    }
+                }
 
                 // Initialize NotificationsController
                 if (window.NotificationsController && typeof window.NotificationsController.init === 'function') {

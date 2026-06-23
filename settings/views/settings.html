@@ -316,6 +316,19 @@
     <script src="../../lib/auth_db/shared/utils/errorHandler.js"></script>
     <script src="../../lib/auth_db/shared/utils/validators.js"></script>
     
+    <!-- Budget E2E encryption (S1/S2): budget DEK/crypto services.
+         settingsController.getAllMonths/getMonth (e.g. lines ~405/842/2055) drives
+         databaseService's transformMonthFromDatabase, which resolves
+         window.BudgetCryptoService / window.BudgetKeyService to DECRYPT budget rows
+         (BUDGET_E2E_DESIGN.md §3). Without these tags getAllMonths throws
+         "BudgetKeyService is not available" (M3). Their crypto deps
+         (CryptoPrimitivesService / KeyDerivationService / KeyStorageService) are
+         loaded later in this page's E2E block and resolved lazily at call time,
+         after the full page has parsed. -->
+    <script src="../../lib/auth_db/encryption/utils/encryptionErrors.js"></script>
+    <script src="../../shared/services/budgetCryptoService.js"></script>
+    <script src="../../shared/services/budgetKeyService.js"></script>
+
     <!-- Database Service -->
     <script src="../../lib/auth_db/database/services/databaseService.js"></script>
     <script src="../../database/services/dataSharingService.js"></script>
@@ -345,6 +358,8 @@
     <script src="../../lib/auth_db/encryption/services/historicalKeysService.js"></script>
     <script src="../../lib/auth_db/encryption/services/passwordCryptoService.js"></script>
     <script src="../../lib/auth_db/encryption/services/keyBackupService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/x3dhService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/doubleRatchetService.js"></script>
     <script src="../../lib/auth_db/encryption/services/keyManagementService.js"></script>
     <script src="../../lib/auth_db/encryption/facade/encryptionFacade.js"></script>
     <script src="../../lib/auth_db/encryption/facade/nullEncryptionFacade.js"></script>
@@ -404,6 +419,30 @@
                 const isAuthenticated = await window.AuthGuard.checkAuth();
                 if (!isAuthenticated) {
                     return;
+                }
+
+                // Initialize the encryption key store BEFORE SettingsController.init(),
+                // whose getAllMonths/getMonth (e.g. line ~405) drive databaseService's
+                // _ensureBudgetDekForUser -> ensureBudgetDEK -> getIdentityKeys ->
+                // KeyStorageService._ensureInitialized(), which throws "Service not
+                // initialized" unless KeyStorageService.initialize(config) has run (M3).
+                // The device-pairing IIFE below also inits it, but that is fire-and-forget
+                // and races the controller; this ordered init is the budget-read fix.
+                if (window.MoneyTrackerEncryptionConfig && window.KeyStorageService
+                    && typeof window.KeyStorageService.initialize === 'function') {
+                    try {
+                        if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
+                            await window.CryptoLibraryLoader.load();
+                            await window.CryptoPrimitivesService.initialize();
+                        }
+                        window.MoneyTrackerEncryptionConfig.prepareWithServices();
+                        if (!window.KeyStorageService.initialized) {
+                            await window.KeyStorageService.initialize(window.MoneyTrackerEncryptionConfig);
+                        }
+                        console.log('[SettingsPage] KeyStorageService initialized:', window.KeyStorageService.initialized);
+                    } catch (ksErr) {
+                        console.warn('[SettingsPage] KeyStorageService init failed:', ksErr);
+                    }
                 }
 
                 // Initialize SettingsController FIRST so buttons work immediately
