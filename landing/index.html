@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Content-Security-Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <!-- Content-Security-Policy (H-5): script-src no longer allows 'unsafe-inline' — all inline
+         script blocks moved to external files (landingFontScale.js / landingPageInit.js).
+         An anti-framing directive (none) is added below for clickjacking defence (the meta-CSP
+         form is spec-ignored, so belt-and-suspenders pending a real header). style-src keeps
+         'unsafe-inline' (inline style=). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>Money Tracker - Home</title>
     <link rel="stylesheet" href="../lib/auth_db/shared/vendor/font-awesome/css/all.min.css">
     <link rel="stylesheet" href="../lib/auth_db/shared/styles/main-compiled.css">
     <script src="../lib/auth_db/shared/vendor/supabase/supabase.min.js"></script>
-    <script>
-        (function() {
-            var m = { 'very-small': 13, small: 14, medium: 16, large: 18, 'very-large': 20 };
-            var s = localStorage.getItem('money_tracker_fontScale') || 'medium';
-            document.documentElement.style.fontSize = (m[s] || 16) + 'px';
-        })();
-    </script>
+    <!-- H-5: early font-scale bootstrap (was an inline script) — no defer so it runs before paint -->
+    <script src="landingFontScale.js"></script>
 </head>
 <body class="page-container">
     <!-- Header injected by Header.js -->
@@ -324,91 +323,9 @@
     <script src="../shared/header/header.js"></script>
     <script src="utils/initialData.js"></script>
 
-    <script>
-        console.log('[Landing] Script initialization starting...');
-
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                console.log('[Landing] Starting initialization...');
-
-                if (window.CryptoLibraryLoader && typeof window.CryptoLibraryLoader.load === 'function') {
-                    await window.CryptoLibraryLoader.load();
-                    await window.CryptoPrimitivesService.initialize();
-                    console.log('[Landing] Encryption module initialized');
-                }
-
-                // Initialize the encryption key store BEFORE any getAllMonths/getMonth
-                // (InitialData.initializeIfEmpty + LandingController.init below). Those
-                // drive _ensureBudgetDekForUser -> ensureBudgetDEK -> getIdentityKeys ->
-                // KeyStorageService._ensureInitialized(), which throws "Service not
-                // initialized" unless KeyStorageService.initialize(config) has run
-                // (M3-class). Mirrors auth.html's initCryptoServices().
-                if (window.MoneyTrackerEncryptionConfig && window.KeyStorageService
-                    && typeof window.KeyStorageService.initialize === 'function') {
-                    try {
-                        window.MoneyTrackerEncryptionConfig.prepareWithServices();
-                        if (!window.KeyStorageService.initialized) {
-                            await window.KeyStorageService.initialize(window.MoneyTrackerEncryptionConfig);
-                        }
-                        console.log('[Landing] KeyStorageService initialized:', window.KeyStorageService.initialized);
-                    } catch (ksErr) {
-                        console.warn('[Landing] KeyStorageService init failed:', ksErr);
-                    }
-                }
-
-                const [paymentsReady, dbInitResult] = await Promise.all([
-                    window.waitForPaymentsInit ? window.waitForPaymentsInit() : Promise.resolve(),
-                    window.DatabaseService.initialize()
-                ]);
-                console.log('[Landing] Payments and Database initialized');
-
-                const isAuthenticated = await window.AuthGuard.checkAuth();
-                if (!isAuthenticated) {
-                    console.log('[Landing] Not authenticated, redirecting...');
-                    return;
-                }
-                console.log('[Landing] Authentication check passed');
-
-                if (window.PairingGuard) {
-                    console.log('[Landing] Checking device pairing status...');
-                    const isPaired = await window.PairingGuard.requirePairing();
-                    if (!isPaired) {
-                        return; // requirePairing signs out if not paired
-                    }
-                    console.log('[Landing] Device pairing check passed');
-                }
-
-                await DataManager.initializeSettings();
-                await DataManager.applyFontScale();
-                console.log('[Landing] Settings initialized');
-
-                await InitialData.initializeIfEmpty();
-                console.log('[Landing] Initial data checked');
-
-                window.landingControllerInitialized = true;
-
-                if (window.LandingController) {
-                    await window.LandingController.init();
-                    console.log('[Landing] LandingController initialized');
-                }
-
-                console.log('[Landing] Initialization complete!');
-            } catch (error) {
-                console.error('[Landing] Initialization error:', error);
-                const tbody = document.getElementById('months-comparison-tbody');
-                if (tbody) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="9" class="text-center py-8 text-danger">
-                                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                                <p>Failed to load data. Please refresh the page.</p>
-                            </td>
-                        </tr>
-                    `;
-                }
-            }
-        });
-    </script>
+    <!-- H-5: page init (was a large inline script) moved to an external, deferred file.
+         Kept BEFORE landingController.js to preserve original script order. -->
+    <script defer src="landingPageInit.js"></script>
     <script src="controllers/landingController.js"></script>
 </body>
 </html>

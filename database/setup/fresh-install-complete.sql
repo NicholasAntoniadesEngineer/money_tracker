@@ -1608,15 +1608,56 @@ AS $$
 DECLARE
     v_notification_id BIGINT;
     v_title TEXT;
+    v_uid UUID := auth.uid();
+    v_has_relationship BOOLEAN;
 BEGIN
     -- HARDENING: this is SECURITY DEFINER (bypasses RLS). An authenticated client
     -- must not be able to forge the sender or create server-only (financial)
     -- notification types. Webhook/service-role calls have a NULL auth.uid() and
     -- keep their passed values.
-    IF auth.uid() IS NOT NULL THEN
-        p_from_user_id := auth.uid();
+    IF v_uid IS NOT NULL THEN
+        p_from_user_id := v_uid;
         IF p_type IN ('payment_received', 'payment_reminder') THEN
             RETURN jsonb_build_object('success', false, 'error', 'forbidden notification type');
+        END IF;
+
+        -- M-5: an authenticated caller may only notify a user they have a REAL
+        -- relationship with. Without this check create_notification was an open
+        -- cross-user injection RPC — any user could POST a notification into any
+        -- known UUID's feed (in-app spam / plaintext social-engineering with a
+        -- legitimate-looking server-derived title). A "relationship" is any of:
+        --   * a self-notification (p_user_id = caller),
+        --   * a friends row between the two users in EITHER direction, ANY status
+        --     (pending/accepted/blocked) — a pending row is created only by the
+        --     requester via friends_insert_own (WITH CHECK auth.uid()=user_id), so
+        --     it is itself a legitimate "friend_request" notify reason,
+        --   * a data_share between the two users (either direction, any status —
+        --     a pending share_request is itself a legitimate notify reason),
+        --   * a shared conversation (either ordering of user1/user2).
+        -- This still allows EVERY genuine flow (friend_request, friend_accepted,
+        -- share_request, share_response, message_received): each is preceded by
+        -- exactly one of these relationship rows being created by the caller.
+        IF p_user_id = v_uid THEN
+            v_has_relationship := TRUE;
+        ELSE
+            SELECT EXISTS (
+                SELECT 1 FROM friends f
+                WHERE ( (f.user_id = v_uid AND f.friend_user_id = p_user_id)
+                     OR (f.user_id = p_user_id AND f.friend_user_id = v_uid) )
+            ) OR EXISTS (
+                SELECT 1 FROM data_shares ds
+                WHERE ( (ds.owner_user_id = v_uid AND ds.shared_with_user_id = p_user_id)
+                     OR (ds.owner_user_id = p_user_id AND ds.shared_with_user_id = v_uid) )
+            ) OR EXISTS (
+                SELECT 1 FROM conversations c
+                WHERE ( (c.user1_id = v_uid AND c.user2_id = p_user_id)
+                     OR (c.user1_id = p_user_id AND c.user2_id = v_uid) )
+            )
+            INTO v_has_relationship;
+        END IF;
+
+        IF NOT v_has_relationship THEN
+            RETURN jsonb_build_object('success', false, 'error', 'no relationship with target user');
         END IF;
     END IF;
 
@@ -1874,14 +1915,23 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     uploader_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
-    -- File metadata (stored unencrypted for querying)
-    file_name TEXT NOT NULL,
-    file_size BIGINT NOT NULL,
-    mime_type TEXT NOT NULL,
-    storage_path TEXT NOT NULL,  -- Path in Supabase Storage bucket
+    -- H-6: file_name / mime_type / EXACT file_size are NO LONGER stored in plaintext
+    -- (a curious server must not learn filenames, types, or exact sizes of E2E files).
+    -- They are sealed client-side into encrypted_metadata (under the conversation's
+    -- invariant attachment KEK) and the server only ever sees a COARSE size bucket.
+    -- The legacy plaintext columns are kept NULLABLE for back-compat reads of rows
+    -- written before this migration; new rows leave them NULL. (Attachments auto-expire
+    -- in 24h, so they can be dropped entirely once no pre-H-6 rows remain.)
+    file_name TEXT,                 -- H-6: legacy/plaintext (nullable; not written by new clients)
+    file_size BIGINT,               -- H-6: legacy/plaintext exact size (nullable; superseded by file_size_bucket)
+    mime_type TEXT,                 -- H-6: legacy/plaintext (nullable; not written by new clients)
+    file_size_bucket BIGINT,        -- H-6: coarse, rounded-up size (no exact byte count leaks)
+    encrypted_metadata TEXT,        -- H-6: client-encrypted {file_name, mime_type, file_size} blob (base64)
+    metadata_nonce TEXT,            -- H-6: nonce for encrypted_metadata (base64)
+    storage_path TEXT NOT NULL,     -- Path in Supabase Storage bucket
 
     -- Encrypted file key (file is encrypted client-side before upload)
-    -- This key is encrypted with the conversation's session key
+    -- This key is encrypted with the conversation's invariant attachment KEK (W3-2)
     encrypted_file_key TEXT,
     file_key_nonce TEXT,
 
@@ -1891,9 +1941,25 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-COMMENT ON TABLE message_attachments IS 'File attachments for messages. Files expire after 24 hours.';
+-- H-6: ADDITIVE/IDEMPOTENT — on an EXISTING table (where the CREATE above is a no-op)
+-- add the new private-metadata columns and relax the old NOT NULL constraints so new
+-- clients can stop writing the plaintext columns. Never drops or rewrites data.
+ALTER TABLE message_attachments ADD COLUMN IF NOT EXISTS file_size_bucket  BIGINT;
+ALTER TABLE message_attachments ADD COLUMN IF NOT EXISTS encrypted_metadata TEXT;
+ALTER TABLE message_attachments ADD COLUMN IF NOT EXISTS metadata_nonce     TEXT;
+ALTER TABLE message_attachments ALTER COLUMN file_name DROP NOT NULL;
+ALTER TABLE message_attachments ALTER COLUMN file_size DROP NOT NULL;
+ALTER TABLE message_attachments ALTER COLUMN mime_type DROP NOT NULL;
+
+COMMENT ON TABLE message_attachments IS 'File attachments for messages. Files expire after 24 hours. H-6: name/type/exact-size are client-encrypted (encrypted_metadata); only a coarse size bucket is in plaintext.';
 COMMENT ON COLUMN message_attachments.storage_path IS 'Path to encrypted file in Supabase Storage bucket';
-COMMENT ON COLUMN message_attachments.encrypted_file_key IS 'File encryption key, encrypted with conversation session key';
+COMMENT ON COLUMN message_attachments.encrypted_file_key IS 'File encryption key, encrypted with the conversation invariant attachment KEK';
+COMMENT ON COLUMN message_attachments.encrypted_metadata IS 'H-6: client-encrypted JSON {file_name, mime_type, file_size}, sealed under the conversation attachment KEK. Replaces the plaintext columns.';
+COMMENT ON COLUMN message_attachments.metadata_nonce IS 'H-6: secretbox nonce (base64) for encrypted_metadata.';
+COMMENT ON COLUMN message_attachments.file_size_bucket IS 'H-6: file size rounded UP to a coarse bucket so the exact byte count never leaks. Exact size is in encrypted_metadata.';
+COMMENT ON COLUMN message_attachments.file_name IS 'H-6 LEGACY: plaintext name (nullable). Not written by current clients; kept only to read pre-H-6 rows.';
+COMMENT ON COLUMN message_attachments.mime_type IS 'H-6 LEGACY: plaintext MIME (nullable). Not written by current clients; kept only to read pre-H-6 rows.';
+COMMENT ON COLUMN message_attachments.file_size IS 'H-6 LEGACY: plaintext exact size (nullable). Superseded by file_size_bucket + encrypted_metadata.';
 COMMENT ON COLUMN message_attachments.expires_at IS 'Files auto-delete after this time (default 24 hours)';
 
 DROP INDEX IF EXISTS idx_attachments_message_id;
@@ -2335,11 +2401,19 @@ CREATE INDEX idx_one_time_prekeys_user_unconsumed
 
 ALTER TABLE one_time_prekeys ENABLE ROW LEVEL SECURITY;
 
--- SELECT: any authenticated user may read OPK rows (the public pool); the actual
--- one-shot consumption is done by the RPC, not by client SELECT, so reading is benign.
+-- SELECT (M-2 hardening): a caller may read ONLY their OWN OPK pool. The previous
+-- USING(true) let any authenticated user enumerate an arbitrary victim's pool
+-- (count unconsumed OPKs, watch a drain in progress) — a free recon oracle that
+-- paired with the unthrottled claim RPC to make a targeted forward-secrecy drain
+-- trivial to plan. Legitimate session bootstrap NEVER needs to SELECT a peer's
+-- OPKs directly: the OPK is handed out one-at-a-time by claim_one_time_prekey()
+-- (SECURITY DEFINER, which bypasses RLS), so closing client SELECT to own-rows
+-- only costs nothing functionally. Public SPK/identity material still lives in
+-- prekeys/identity_keys for X3DH; the OPK pool itself is no longer enumerable.
 DROP POLICY IF EXISTS one_time_prekeys_select_all ON one_time_prekeys;
-CREATE POLICY one_time_prekeys_select_all ON one_time_prekeys
-    FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS one_time_prekeys_select_own ON one_time_prekeys;
+CREATE POLICY one_time_prekeys_select_own ON one_time_prekeys
+    FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 -- INSERT: owner only — a user may only publish OPKs into their OWN pool.
 DROP POLICY IF EXISTS one_time_prekeys_insert_own ON one_time_prekeys;
@@ -2363,6 +2437,32 @@ CREATE POLICY one_time_prekeys_delete_own ON one_time_prekeys
 GRANT SELECT, INSERT, UPDATE, DELETE ON one_time_prekeys TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE one_time_prekeys_id_seq TO authenticated;
 
+-- opk_claim_audit (M-2): one row per successful claim, the backing store for the
+-- per-(caller,target) and per-target rate limits enforced inside the claim RPC.
+-- SERVICE/DEFINER-written only — RLS is enabled and NO grants are issued to
+-- `authenticated`, so an ordinary client can neither read it (it would leak who
+-- is talking to whom) nor forge/clear entries to dodge the cap. The DEFINER
+-- function writes it while running as the table owner, which bypasses RLS.
+CREATE TABLE IF NOT EXISTS opk_claim_audit (
+    id         BIGSERIAL PRIMARY KEY,
+    caller_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    target_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE opk_claim_audit IS 'M-2: rate-limit ledger for claim_one_time_prekey(). One row per successful OPK claim; indexed on (target, claimed_at) and (caller, target, claimed_at) to drive the per-target and per-(caller,target) token buckets. Service/DEFINER-written only; no authenticated grants.';
+
+DROP INDEX IF EXISTS idx_opk_claim_audit_target;
+CREATE INDEX idx_opk_claim_audit_target
+    ON opk_claim_audit(target_id, claimed_at);
+DROP INDEX IF EXISTS idx_opk_claim_audit_caller_target;
+CREATE INDEX idx_opk_claim_audit_caller_target
+    ON opk_claim_audit(caller_id, target_id, claimed_at);
+
+ALTER TABLE opk_claim_audit ENABLE ROW LEVEL SECURITY;
+-- No policies, no grants to `authenticated`: the SECURITY DEFINER RPC is the sole
+-- writer/reader. Ordinary clients cannot SELECT (privacy) or DELETE (cap-evasion).
+
 -- claim_one_time_prekey(target): atomically pop ONE unconsumed OPK for the target user
 -- and return the full X3DH bundle the caller needs to bootstrap a session. SECURITY
 -- DEFINER (mirrors start_trial/ensure_subscription) because consuming a PEER'S OPK
@@ -2372,6 +2472,16 @@ GRANT USAGE, SELECT ON SEQUENCE one_time_prekeys_id_seq TO authenticated;
 -- never claim the same OPK (each skips a row another transaction has locked). If the
 -- pool is empty, opk_id/opk_pub come back NULL and the caller falls back to SPK-only
 -- X3DH (drop DH4) — spec-permitted (FORWARD_SECRECY_DESIGN.md §2.2).
+--
+-- M-2 RATE LIMIT: before consuming, the function counts recent SUCCESSFUL claims in
+-- opk_claim_audit over a sliding window and rejects past two caps:
+--   * per-(caller,target): a single user may claim at most OPK_MAX_PER_PAIR OPKs from
+--     one victim per window — blocks a single attacker draining a victim's pool.
+--   * per-target (all callers): at most OPK_MAX_PER_TARGET claims against one victim per
+--     window — blocks a Sybil/multi-account drain of the same victim.
+-- Both are token-bucket-style (count within NOW()-window). A legitimate sender opens
+-- very few sessions per target per hour, so the caps sit far above honest traffic.
+-- Caps/window are intentionally generous; tighten via this single definition if abused.
 CREATE OR REPLACE FUNCTION claim_one_time_prekey(target_user_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -2379,9 +2489,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_uid     UUID := auth.uid();
-    v_prekey  prekeys%ROWTYPE;
-    v_opk     one_time_prekeys%ROWTYPE;
+    -- Token-bucket parameters (sliding window). Honest first-contact traffic is a
+    -- handful of claims per target per hour; these caps sit well above that.
+    OPK_WINDOW           CONSTANT INTERVAL := INTERVAL '1 hour';
+    OPK_MAX_PER_PAIR     CONSTANT INTEGER  := 10;   -- one caller vs one target / window
+    OPK_MAX_PER_TARGET   CONSTANT INTEGER  := 60;   -- all callers vs one target / window
+    v_uid          UUID := auth.uid();
+    v_prekey       prekeys%ROWTYPE;
+    v_opk          one_time_prekeys%ROWTYPE;
+    v_pair_count   INTEGER;
+    v_target_count INTEGER;
 BEGIN
     -- Re-assert the caller identity inside the SECURITY DEFINER body (defense in depth).
     IF v_uid IS NULL THEN
@@ -2398,6 +2515,28 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'no prekey bundle for target');
     END IF;
 
+    -- M-2: enforce the token buckets BEFORE consuming an OPK. Count only SUCCESSFUL
+    -- claims (rows are written below only when an OPK was actually consumed), so a
+    -- run of SPK-only fallbacks (empty pool) does not burn the caller's budget.
+    SELECT count(*) INTO v_pair_count
+    FROM opk_claim_audit
+    WHERE caller_id = v_uid
+      AND target_id = target_user_id
+      AND claimed_at > NOW() - OPK_WINDOW;
+    IF v_pair_count >= OPK_MAX_PER_PAIR THEN
+        RETURN jsonb_build_object('success', false, 'error', 'rate limited',
+                                  'retry_after_seconds', EXTRACT(EPOCH FROM OPK_WINDOW)::int);
+    END IF;
+
+    SELECT count(*) INTO v_target_count
+    FROM opk_claim_audit
+    WHERE target_id = target_user_id
+      AND claimed_at > NOW() - OPK_WINDOW;
+    IF v_target_count >= OPK_MAX_PER_TARGET THEN
+        RETURN jsonb_build_object('success', false, 'error', 'rate limited',
+                                  'retry_after_seconds', EXTRACT(EPOCH FROM OPK_WINDOW)::int);
+    END IF;
+
     -- Atomically grab ONE unconsumed OPK. FOR UPDATE SKIP LOCKED makes concurrent
     -- claims pick DIFFERENT rows (no double-claim, no blocking). May return zero rows
     -- (pool exhausted) — that is a valid SPK-only fallback, not an error.
@@ -2412,6 +2551,9 @@ BEGIN
         UPDATE one_time_prekeys
         SET consumed = TRUE, consumed_at = NOW()
         WHERE id = v_opk.id;
+        -- Record the SUCCESSFUL claim against both buckets. Only real consumptions
+        -- count toward the cap (SPK-only fallback does not).
+        INSERT INTO opk_claim_audit (caller_id, target_id) VALUES (v_uid, target_user_id);
     END IF;
 
     RETURN jsonb_build_object(

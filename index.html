@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Content-Security-Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <!-- Content-Security-Policy (H-5): script-src drops 'unsafe-inline'; the inline redirect
+         moved to redirectToLanding.js. frame-ancestors 'none' added (spec-ignored in meta-CSP,
+         belt-and-suspenders). style-src keeps 'unsafe-inline'. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta http-equiv="refresh" content="0; url=landing/index.html">
     <title>Money Tracker - Redirecting...</title>
-    <script>
-        window.location.href = 'landing/index.html';
-    </script>
+    <script src="redirectToLanding.js"></script>
 </head>
 <body>
     <p>Redirecting to <a href="landing/index.html">Money Tracker</a>...</p>
