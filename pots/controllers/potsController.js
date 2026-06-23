@@ -7,6 +7,21 @@ const PotsController = {
     potsData: {},
 
     /**
+     * Escape HTML to prevent XSS when interpolating untrusted strings (free-text
+     * pot category names, owner emails from shared months) into innerHTML. Escapes
+     * the five HTML-significant chars so it is safe in both text and attribute contexts.
+     */
+    _escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    /**
      * Initialize the pots page
      */
     async init() {
@@ -85,10 +100,10 @@ const PotsController = {
             const row = document.createElement('tr');
             
             row.innerHTML = `
-                <td><strong>${category}</strong></td>
+                <td><strong>${this._escapeHtml(category)}</strong></td>
                 <td>${Formatters.formatCurrency(pot.estimatedAmount)}</td>
                 <td>${Formatters.formatCurrency(pot.actualAmount)}</td>
-                <td><button type="button" class="delete-row-x" aria-label="Delete row" data-category="${category}">×</button></td>
+                <td><button type="button" class="delete-row-x" aria-label="Delete row" data-category="${this._escapeHtml(category)}">×</button></td>
             `;
 
             const deleteBtn = row.querySelector('.delete-row-x');
@@ -150,7 +165,7 @@ const PotsController = {
                     displayText += ` (Example)`;
                 }
 
-                return `<option value="${monthKey}">${displayText}</option>`;
+                return `<option value="${this._escapeHtml(monthKey)}">${this._escapeHtml(displayText)}</option>`;
             }).join('');
 
         // Show initial message
@@ -183,7 +198,7 @@ const PotsController = {
         if (pots.length === 0) {
             container.innerHTML = `
                 <div class="form-section" style="margin-bottom: 1rem;">
-                    <h3>${monthName} ${monthData.year}</h3>
+                    <h3>${this._escapeHtml(monthName)} ${monthData.year}</h3>
                     <p class="empty-message">No pots for this month.</p>
                     <a href="monthlyBudget.html?month=${monthKey}" class="btn btn-action">Edit Month</a>
                 </div>
@@ -193,7 +208,7 @@ const PotsController = {
 
         const potsHtml = pots.map(pot => `
             <tr>
-                <td>${pot.category || 'Unnamed'}</td>
+                <td>${this._escapeHtml(pot.category || 'Unnamed')}</td>
                 <td>${Formatters.formatCurrency(pot.estimatedAmount || 0)}</td>
                 <td>${Formatters.formatCurrency(pot.actualAmount || 0)}</td>
             </tr>
@@ -207,7 +222,7 @@ const PotsController = {
 
         container.innerHTML = `
             <div class="form-section" style="margin-bottom: 1rem;">
-                <h3>${monthName} ${monthData.year}</h3>
+                <h3>${this._escapeHtml(monthName)} ${monthData.year}</h3>
                 <table class="data-table">
                     <thead>
                         <tr>

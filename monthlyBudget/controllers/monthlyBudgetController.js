@@ -12,6 +12,22 @@ const MonthlyBudgetController = {
     _autoSaveDelay: 800,
 
     /**
+     * Escape HTML to prevent XSS when interpolating untrusted strings (peer/share
+     * emails, access levels, free-text category names and row values that may come
+     * from a shared peer-owned month) into innerHTML. Escapes the five
+     * HTML-significant chars so it is safe in both text and attribute contexts.
+     */
+    _escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    /**
      * Calculate the number of weeks in a month
      * Returns an array of week objects with start and end dates
      * Weeks run Monday to Sunday
@@ -148,7 +164,7 @@ const MonthlyBudgetController = {
                     displayText += ` (Example)`;
                 }
 
-                return `<option value="${key}">${displayText}</option>`;
+                return `<option value="${this._escapeHtml(key)}">${this._escapeHtml(displayText)}</option>`;
             });
 
             const options = await Promise.all(optionsPromises);
@@ -895,8 +911,8 @@ const MonthlyBudgetController = {
             <div class="share-item" style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(213, 213, 213, 0.85); border: var(--border-width-thin) solid var(--border-color-black); border-radius: var(--border-radius);">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div>
-                        <strong>Shared with:</strong> ${share.displayEmail}<br>
-                        <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                        <strong>Shared with:</strong> ${this._escapeHtml(share.displayEmail)}<br>
+                        <strong>Access Level:</strong> ${this._escapeHtml(share.access_level.replace('_', '/'))}
                     </div>
                     <button class="btn btn-danger btn-sm delete-share-month-btn" data-share-id="${share.id}">Delete</button>
                 </div>
@@ -1416,7 +1432,7 @@ const MonthlyBudgetController = {
         
         // Create clickable list of users, each on a new line
         const userLinks = sharesWithEmails.map((share, index) => {
-            return `<div class="shared-user-link" data-share-id="${share.id}" style="cursor: pointer; text-decoration: underline; color: var(--link-color, #0066cc); margin-top: 0.25rem;">${share.displayEmail}</div>`;
+            return `<div class="shared-user-link" data-share-id="${share.id}" style="cursor: pointer; text-decoration: underline; color: var(--link-color, #0066cc); margin-top: 0.25rem;">${this._escapeHtml(share.displayEmail)}</div>`;
         });
         
         indicator.innerHTML = `<div style="display: flex; flex-direction: column;"><strong>Shared with:</strong>${userLinks.join('')}</div>`;
@@ -1503,15 +1519,15 @@ const MonthlyBudgetController = {
         modalBody.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                 <div>
-                    <strong>Shared With:</strong> ${share.displayEmail}
+                    <strong>Shared With:</strong> ${this._escapeHtml(share.displayEmail)}
                 </div>
                 <div>
-                    <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                    <strong>Access Level:</strong> ${this._escapeHtml(share.access_level.replace('_', '/'))}
                 </div>
                 ${shareAllData ? '<div><strong>Share All Data:</strong> Yes</div>' : ''}
                 <div>
                     <strong>Months:</strong> ${shareAllData || (share.shared_months && sharedMonths.length > 0) ? 'Yes' : 'No'}<br>
-                    ${shareAllData || (share.shared_months && sharedMonths.length > 0) ? `<span style="font-size: 0.9em; color: var(--text-color-secondary); margin-top: 0.25rem; display: block;">${monthsList}</span>` : ''}
+                    ${shareAllData || (share.shared_months && sharedMonths.length > 0) ? `<span style="font-size: 0.9em; color: var(--text-color-secondary); margin-top: 0.25rem; display: block;">${this._escapeHtml(monthsList)}</span>` : ''}
                 </div>
                 <div>
                     <strong>Pots:</strong> ${shareAllData || share.shared_pots ? 'Yes' : 'No'}
@@ -1712,7 +1728,7 @@ const MonthlyBudgetController = {
         
         // Add variable cost category columns
         categories.forEach(category => {
-            newHeaderHTML += `<th>${category}</th>`;
+            newHeaderHTML += `<th>${this._escapeHtml(category)}</th>`;
         });
         
         newHeaderHTML += '<th>Estimate</th><th>Actual</th><th class="delete-column-header"></th>';
@@ -1741,8 +1757,8 @@ const MonthlyBudgetController = {
             
             // Rebuild row HTML
             let rowHTML = `
-                <td><input type="text" class="weekly-date-range" value="${dateInput?.value || ''}" placeholder="e.g., 30-9 or 1-7"></td>
-                <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${paymentsTextarea?.value || ''}</textarea></td>
+                <td><input type="text" class="weekly-date-range" value="${this._escapeHtml(dateInput?.value || '')}" placeholder="e.g., 30-9 or 1-7"></td>
+                <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${this._escapeHtml(paymentsTextarea?.value || '')}</textarea></td>
             `;
             
             // Add textarea for each variable cost category
@@ -1750,7 +1766,7 @@ const MonthlyBudgetController = {
                 const categoryId = this.sanitizeCategoryId(category);
                 const categoryClass = 'weekly-variable-' + categoryId;
                 const existingValue = existingVariableCosts[category] || '';
-                rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
+                rowHTML += `<td><textarea class="${categoryClass}" placeholder="${this._escapeHtml(category)} (with calculations)" rows="4">${this._escapeHtml(existingValue)}</textarea></td>`;
             });
             
             rowHTML += `
@@ -1938,8 +1954,8 @@ const MonthlyBudgetController = {
 
         const categories = this.getVariableCostCategories();
         let rowHTML = `
-            <td><input type="text" class="weekly-date-range" value="${weekData?.dateRange || weekData?.weekRange || ''}" placeholder="e.g., 30-9 or 1-7"></td>
-            <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${weekData?.paymentsDue || ''}</textarea></td>
+            <td><input type="text" class="weekly-date-range" value="${this._escapeHtml(weekData?.dateRange || weekData?.weekRange || '')}" placeholder="e.g., 30-9 or 1-7"></td>
+            <td><textarea class="weekly-payments-due" placeholder="Payments Due" rows="4">${this._escapeHtml(weekData?.paymentsDue || '')}</textarea></td>
         `;
         
         // Add textarea for each variable cost category
@@ -1986,9 +2002,9 @@ const MonthlyBudgetController = {
                 
             }
             
-            rowHTML += `<td><textarea class="${categoryClass}" placeholder="${category} (with calculations)" rows="4">${existingValue}</textarea></td>`;
+            rowHTML += `<td><textarea class="${categoryClass}" placeholder="${this._escapeHtml(category)} (with calculations)" rows="4">${this._escapeHtml(existingValue)}</textarea></td>`;
         });
-        
+
         rowHTML += `
             <td><input type="number" class="weekly-estimate" value="${weekData?.estimate || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="weekly-actual" value="${weekData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
@@ -2429,11 +2445,11 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="income-source" value="${incomeData?.source || ''}" placeholder="Source"></td>
+            <td><input type="text" class="income-source" value="${this._escapeHtml(incomeData?.source || '')}" placeholder="Source"></td>
             <td><input type="number" class="income-estimated" value="${incomeData?.estimated || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="income-actual" value="${incomeData?.actual || ''}" step="0.01" min="0" placeholder="0.00"></td>
-            <td><input type="text" class="income-date" value="${incomeData?.date || ''}" placeholder="Date"></td>
-            <td><input type="text" class="income-description" value="${incomeData?.description || ''}" placeholder="Description"></td>
+            <td><input type="text" class="income-date" value="${this._escapeHtml(incomeData?.date || '')}" placeholder="Date"></td>
+            <td><input type="text" class="income-description" value="${this._escapeHtml(incomeData?.description || '')}" placeholder="Description"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
@@ -2516,17 +2532,17 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="fixed-cost-category" value="${costData?.category || ''}" placeholder="Name"></td>
+            <td><input type="text" class="fixed-cost-category" value="${this._escapeHtml(costData?.category || '')}" placeholder="Name"></td>
             <td><input type="number" class="fixed-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="fixed-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td class="date-with-tick">
-                <input type="text" class="fixed-cost-date" value="${costData?.date || ''}" placeholder="Date">
+                <input type="text" class="fixed-cost-date" value="${this._escapeHtml(costData?.date || '')}" placeholder="Date">
                 <span class="paid-tick ${costData?.paid ? '' : 'unpaid'}" title="Click to toggle paid status">
                     <input type="checkbox" class="fixed-cost-paid" ${costData?.paid ? 'checked' : ''} style="display:none;">
                     <i class="fas fa-check-circle"></i>
                 </span>
             </td>
-            <td><input type="text" class="fixed-cost-card" value="${costData?.card || ''}" placeholder="Card"></td>
+            <td><input type="text" class="fixed-cost-card" value="${this._escapeHtml(costData?.card || '')}" placeholder="Card"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
@@ -2674,7 +2690,7 @@ const MonthlyBudgetController = {
         const remaining = estimated - actual;
 
         row.innerHTML = `
-            <td><input type="text" class="variable-cost-category" value="${costData?.category || ''}" placeholder="Category"></td>
+            <td><input type="text" class="variable-cost-category" value="${this._escapeHtml(costData?.category || '')}" placeholder="Category"></td>
             <td><input type="number" class="variable-cost-estimated" value="${costData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="variable-cost-actual" value="${costData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00" readonly></td>
             <td class="variable-cost-remaining"><em>${Formatters.formatCurrency(remaining)}</em></td>
@@ -2802,16 +2818,16 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="unplanned-name" value="${expenseData?.name || ''}" placeholder="Name"></td>
+            <td><input type="text" class="unplanned-name" value="${this._escapeHtml(expenseData?.name || '')}" placeholder="Name"></td>
             <td><input type="number" class="unplanned-amount" value="${expenseData?.amount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td class="date-with-tick">
-                <input type="text" class="unplanned-date" value="${expenseData?.date || ''}" placeholder="Date">
+                <input type="text" class="unplanned-date" value="${this._escapeHtml(expenseData?.date || '')}" placeholder="Date">
                 <span class="paid-tick ${expenseData?.paid ? '' : 'unpaid'}" title="Click to toggle paid status">
                     <input type="checkbox" class="unplanned-paid" ${expenseData?.paid ? 'checked' : ''} style="display:none;">
                     <i class="fas fa-check-circle"></i>
                 </span>
             </td>
-            <td><input type="text" class="unplanned-card" value="${expenseData?.card || ''}" placeholder="Card"></td>
+            <td><input type="text" class="unplanned-card" value="${this._escapeHtml(expenseData?.card || '')}" placeholder="Card"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">×</button></td>
         `;
 
@@ -2927,7 +2943,7 @@ const MonthlyBudgetController = {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" class="pot-category" value="${potData?.category || ''}" placeholder="Category"></td>
+            <td><input type="text" class="pot-category" value="${this._escapeHtml(potData?.category || '')}" placeholder="Category"></td>
             <td><input type="number" class="pot-estimated" value="${potData?.estimatedAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><input type="number" class="pot-actual" value="${potData?.actualAmount || ''}" step="0.01" min="0" placeholder="0.00"></td>
             <td><button type="button" class="delete-row-x" aria-label="Delete row">&times;</button></td>
@@ -3368,7 +3384,7 @@ const MonthlyBudgetController = {
                     displayText += ` (Example)`;
                 }
 
-                return `<option value="${key}">${displayText}</option>`;
+                return `<option value="${this._escapeHtml(key)}">${this._escapeHtml(displayText)}</option>`;
             }).join('')
             : '<option value="">No other months available</option>';
 
@@ -4109,9 +4125,9 @@ const MonthlyBudgetController = {
                 // Only render accepted shares - no action buttons needed
                 return `
                     <div class="shared-month-item" style="padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
-                        <div style="margin-bottom: var(--spacing-xs);"><strong>Shared from:</strong> ${ownerEmail}</div>
-                        <div><strong>Access Level:</strong> ${share.access_level}</div>
-                        <div><strong>Months:</strong> ${monthsList}</div>
+                        <div style="margin-bottom: var(--spacing-xs);"><strong>Shared from:</strong> ${this._escapeHtml(ownerEmail)}</div>
+                        <div><strong>Access Level:</strong> ${this._escapeHtml(share.access_level)}</div>
+                        <div><strong>Months:</strong> ${this._escapeHtml(monthsList)}</div>
                         ${share.shared_pots || share.share_all_data ? '<div><strong>Pots:</strong> Yes</div>' : ''}
                         ${share.shared_settings || share.share_all_data ? '<div><strong>Settings:</strong> Yes</div>' : ''}
                     </div>

@@ -6,6 +6,21 @@
 
 const SettingsController = {
     /**
+     * Escape HTML to prevent XSS when interpolating untrusted strings (peer/share
+     * emails, access levels, shared-month display strings) into innerHTML. Escapes
+     * the five HTML-significant chars so it is safe in both text and attribute contexts.
+     */
+    _escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    /**
      * Initialize the settings page
      */
     async init() {
@@ -836,7 +851,7 @@ const SettingsController = {
             } else if (monthData.year === 2045) {
                 displayText += ` (Example)`;
             }
-            return `<option value="${key}">${displayText}</option>`;
+            return `<option value="${this._escapeHtml(key)}">${this._escapeHtml(displayText)}</option>`;
         }).join('');
 
         const emptyOption = monthKeys.length > 0
@@ -1911,15 +1926,15 @@ const SettingsController = {
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div style="flex: 1;">
                         <div style="margin-bottom: var(--spacing-sm);">
-                            <strong>Shared with:</strong> ${share.displayEmail}
+                            <strong>Shared with:</strong> ${this._escapeHtml(share.displayEmail)}
                         </div>
                         <div style="margin-bottom: var(--spacing-sm);">
-                            <strong>Access Level:</strong> ${share.access_level.replace('_', '/')}
+                            <strong>Access Level:</strong> ${this._escapeHtml(share.access_level.replace('_', '/'))}
                         </div>
                         ${shareAllData ? `<div style="margin-bottom: var(--spacing-sm);"><strong>Share All Data:</strong> Yes</div>` : ''}
                         <div style="margin-bottom: var(--spacing-sm);">
                             <strong>Months:</strong> ${shareAllData || (sharedMonths && sharedMonths.length > 0) ? 'Yes' : 'No'}<br>
-                            <span style="font-size: 0.9em; color: var(--text-color-secondary); margin-left: 1rem;">${monthsDisplay}</span>
+                            <span style="font-size: 0.9em; color: var(--text-color-secondary); margin-left: 1rem;">${this._escapeHtml(monthsDisplay)}</span>
                         </div>
                         <div style="margin-bottom: var(--spacing-sm);">
                             <strong>Pots:</strong> ${potsDisplay}
@@ -2693,7 +2708,7 @@ const SettingsController = {
 
                 return `
                     <div class="blocked-user-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm); border: var(--border-width-standard) solid var(--border-color); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs);">
-                        <span>${userEmail}</span>
+                        <span>${this._escapeHtml(userEmail)}</span>
                         <button class="btn btn-sm btn-secondary unblock-user-btn" data-user-id="${block.blocked_user_id}" style="padding: 4px 12px;">Unblock</button>
                     </div>
                 `;
