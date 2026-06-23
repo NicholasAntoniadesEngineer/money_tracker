@@ -81,6 +81,11 @@ DROP FUNCTION IF EXISTS is_on_trial(TEXT, TIMESTAMPTZ) CASCADE;
 DROP FUNCTION IF EXISTS get_price_dollars(BIGINT) CASCADE;
 DROP FUNCTION IF EXISTS get_subscription_type(BIGINT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS is_recurring_billing_enabled(BOOLEAN) CASCADE;
+-- H-3: trial-expiry sweep. is_premium_active(UUID) is NOT dropped here — the
+-- data_shares_insert_as_owner policy (Premium gate on creating a cross-user share)
+-- depends on it; it is maintained via CREATE OR REPLACE (a CASCADE drop would tear
+-- down that policy). Messaging is FREE, so the messages policy no longer references it.
+DROP FUNCTION IF EXISTS expire_overdue_trials() CASCADE;
 DROP FUNCTION IF EXISTS create_trial_subscription() CASCADE;
 DROP FUNCTION IF EXISTS update_identity_keys_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS update_conversations_updated_at() CASCADE;
@@ -815,6 +820,104 @@ CREATE POLICY subscriptions_insert_own ON subscriptions
 REVOKE INSERT, UPDATE ON subscriptions FROM authenticated;
 REVOKE USAGE, SELECT ON SEQUENCE subscriptions_id_seq FROM authenticated;
 
+-- ============================================================
+-- SERVER-AUTHORITATIVE PREMIUM ENTITLEMENT PREDICATE (audit H-3)
+--   [mirrors payments_app/backend/sql/complete-setup.sql]
+-- ============================================================
+-- Single source of truth for "is this user entitled to Premium RIGHT NOW", computed
+-- from subscriptions + subscription_plans -- NEVER from `status` alone:
+--   premium == (status='active' AND plan=Premium)
+--           OR (status='trial'  AND trial_end > NOW())
+-- An EXPIRED trial is treated as NOT premium, so the SHARING gate (data_shares
+-- owner-INSERT, below) is correct even before the pg_cron sweep flips the stale row to
+-- Free. This is the server gate that defeats "keep Premium forever by never running the
+-- client downgrade". (Product decision: messaging is FREE; CREATING a cross-user share
+-- is the Premium feature, so this predicate gates data_shares_insert_as_owner.)
+-- In THIS combined installer the subscriptions tables are created above (step 4), so
+-- the full predicate is defined directly (no table-existence bootstrap guard needed),
+-- and it is defined BEFORE the data_shares policy that uses it (definition-before-use).
+-- SECURITY DEFINER + pinned search_path so the data_shares-INSERT RLS gate can evaluate
+-- it for any caller; reads only the passed uid's single row, returns a boolean.
+CREATE OR REPLACE FUNCTION is_premium_active(p_uid UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM subscriptions s
+        JOIN subscription_plans p ON p.id = s.plan_id
+        WHERE s.user_id = p_uid
+          AND (
+                (s.status = 'active' AND p.name = 'Premium')
+             OR (s.status = 'trial'  AND s.trial_end IS NOT NULL AND s.trial_end > NOW())
+          )
+    );
+$$;
+
+GRANT EXECUTE ON FUNCTION is_premium_active(UUID) TO authenticated;
+
+-- ============================================================
+-- TRIAL EXPIRY SWEEP (audit H-3) -- server-side, NOT client-driven
+--   [mirrors payments_app/backend/sql/complete-setup.sql]
+-- ============================================================
+-- Flip every expired trial to Free/active. Server replacement for the old client-only
+-- downgrade_to_free() path. is_premium_active() already denies expired trials, so the
+-- gate is correct even if this sweep has not run yet; the sweep keeps stored rows honest.
+CREATE OR REPLACE FUNCTION expire_overdue_trials()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_free_id BIGINT;
+    v_count   INTEGER;
+BEGIN
+    SELECT id INTO v_free_id FROM subscription_plans WHERE name = 'Free' LIMIT 1;
+    IF v_free_id IS NULL THEN
+        RAISE LOG 'expire_overdue_trials: Free plan not found; skipping';
+        RETURN 0;
+    END IF;
+
+    UPDATE subscriptions SET
+        plan_id   = v_free_id,
+        status    = 'active',
+        trial_end = NULL
+    WHERE status = 'trial'
+      AND trial_end IS NOT NULL
+      AND trial_end < NOW();
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
+
+-- Sweep runs as the service role via pg_cron -- never grant it to `authenticated`.
+REVOKE ALL ON FUNCTION expire_overdue_trials() FROM PUBLIC;
+
+-- Schedule hourly via pg_cron IF available (Supabase: Dashboard > Database > Extensions
+-- > pg_cron). Safe no-op if absent; is_premium_active() still denies expired trials.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            PERFORM cron.schedule(
+                'expire-overdue-trials',
+                '0 * * * *',
+                $cron$SELECT public.expire_overdue_trials();$cron$
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron present but scheduling expire-overdue-trials failed (likely already scheduled): %', SQLERRM;
+        END;
+    ELSE
+        RAISE NOTICE 'pg_cron not installed: trial-expiry sweep NOT scheduled. is_premium_active() still denies expired trials. Enable pg_cron then re-run this file.';
+    END IF;
+END $$;
+
+
 DO $$ BEGIN RAISE NOTICE '[6/16] Creating data sharing system (data_shares, field_locks)...'; END $$;
 
 -- ============================================================
@@ -841,14 +944,61 @@ ALTER TABLE data_shares ENABLE ROW LEVEL SECURITY;
 CREATE POLICY data_shares_select_involved ON data_shares
     FOR SELECT USING (auth.uid() = owner_user_id OR auth.uid() = shared_with_user_id);
 
+-- PRODUCT DECISION (Premium gate): CREATING a cross-user share is the Premium feature
+-- (the combined "share my budget with someone" experience). Only a premium-active user
+-- (active+Premium OR a still-live trial) may INSERT a share they own. is_premium_active()
+-- is the SECURITY DEFINER server-authoritative predicate defined ABOVE in this installer
+-- (step 4, right after the subscriptions tables) -- so it is resolvable at this point and
+-- a tampered client / direct PostgREST call cannot create a share once its trial lapses.
+-- NOTE: only the OWNER INSERT is gated. SELECT (data_shares_select_involved), the
+-- recipient's accept/reject UPDATE, and read paths are NOT Premium-gated, so an
+-- expired-trial owner keeps reading their own data and messaging for free; they just
+-- cannot create NEW shares.
 CREATE POLICY data_shares_insert_as_owner ON data_shares
-    FOR INSERT WITH CHECK (auth.uid() = owner_user_id);
+    FOR INSERT WITH CHECK (
+        auth.uid() = owner_user_id AND
+        -- Premium gate: only a premium-active user may create a cross-user share.
+        public.is_premium_active(auth.uid())
+    );
 
+-- SEC-C1: data_shares UPDATE policies MUST carry a WITH CHECK, not just a USING.
+-- Postgres defaults the implicit WITH CHECK to the USING expression when WITH CHECK
+-- is omitted; for the RECIPIENT path that USING (status='pending') only inspects the
+-- OLD row, so a pending recipient could PATCH can_edit/share_all_data (the new-row
+-- values were never re-validated) and self-escalate a read-only single-month share
+-- into full read+write of the owner's entire budget once accepted. The fixes:
+--   (owner)     add WITH CHECK (auth.uid() = owner_user_id) so an owner cannot
+--               reassign owner_user_id away from themselves on UPDATE.
+--   (recipient) the recipient is NOT allowed to mutate share grants at all through
+--               table UPDATE — the column-level GRANT below restricts their UPDATE
+--               privilege to the `status` column only (a PATCH of can_edit /
+--               share_all_data / owner_user_id / year / month is rejected as a
+--               privilege error 42501 before RLS), and this WITH CHECK additionally
+--               keeps them on their own row and only permits status to move
+--               pending -> accepted/rejected.
+-- All OWNER mutation of can_edit/share_all_data is routed through the SECURITY DEFINER
+-- update_share_grants() RPC below (mirroring start_trial's re-assert-auth.uid() style).
 CREATE POLICY data_shares_update_as_owner ON data_shares
-    FOR UPDATE USING (auth.uid() = owner_user_id);
+    FOR UPDATE
+    USING (auth.uid() = owner_user_id)
+    WITH CHECK (auth.uid() = owner_user_id);
 
+-- Recipient UPDATE path. PRIMARY control: the column-level GRANT UPDATE(status)
+-- below means a recipient's PATCH can physically only write the `status` column —
+-- can_edit / share_all_data / owner_user_id / year / month are NOT in the recipient's
+-- UPDATE privilege, so a PATCH attempting to set them is rejected by the privilege
+-- check (error 42501) BEFORE RLS even runs. The USING still scopes the recipient to
+-- their own row while it is pending; the WITH CHECK re-validates the NEW row, keeping
+-- the recipient on their own row and only permitting status to land on
+-- 'accepted'/'rejected'. (No self-referential subquery is used — the column GRANT,
+-- not a fragile OLD-value re-read, is what pins the grant flags.)
 CREATE POLICY data_shares_update_as_recipient ON data_shares
-    FOR UPDATE USING (auth.uid() = shared_with_user_id AND status = 'pending');
+    FOR UPDATE
+    USING (auth.uid() = shared_with_user_id AND status = 'pending')
+    WITH CHECK (
+        auth.uid() = shared_with_user_id
+        AND status IN ('accepted', 'rejected')
+    );
 
 CREATE POLICY data_shares_delete_as_owner ON data_shares
     FOR DELETE USING (auth.uid() = owner_user_id);
@@ -906,8 +1056,78 @@ CREATE POLICY user_months_update_shared ON user_months
         )
     );
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON data_shares TO authenticated;
+-- SEC-C1: do NOT grant table-wide UPDATE. A blanket UPDATE privilege let a pending
+-- recipient PATCH can_edit/share_all_data (escalation). Instead grant UPDATE on only
+-- the columns a client legitimately writes directly:
+--   * status                                   — the recipient accepts/rejects
+--   * wrapped_dek / wrap_nonce / wrap_eph_pub  — the OWNER persists the sealed DEK
+--   * wrap_owner_ik / dek_version              — the OWNER persists the SEC-H4 seal context
+--   * updated_at                               — touched on any client UPDATE
+-- The grant FLAGS (can_edit, share_all_data) and the identity/scope columns
+-- (owner_user_id, shared_with_user_id, year, month) are NOT in any client UPDATE
+-- privilege: they are set once at INSERT and only ever mutated by the OWNER through the
+-- SECURITY DEFINER update_share_grants() RPC below. A recipient (or owner) PATCH that
+-- tries to write can_edit/share_all_data therefore fails the column privilege check
+-- (SQLSTATE 42501) before RLS, and even if granted would be blocked by the RLS
+-- WITH CHECK clauses above. This is the audit C-1 "REVOKE table-wide UPDATE; grant
+-- UPDATE(status) only; route owner flag-mutation through a DEFINER RPC" remediation.
+GRANT SELECT, INSERT, DELETE ON data_shares TO authenticated;
+GRANT UPDATE (status, wrapped_dek, wrap_nonce, wrap_eph_pub, wrap_owner_ik, dek_version, updated_at)
+    ON data_shares TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE data_shares_id_seq TO authenticated;
+
+-- SEC-C1: SECURITY DEFINER RPC for the OWNER to mutate a share's grant flags
+-- (can_edit / share_all_data) and its month scope. Runs as the table owner so it can
+-- write the columns withheld from the client UPDATE grant, but RE-ASSERTS auth.uid()
+-- is the share OWNER (mirroring start_trial's auth.uid() re-assertion + SET search_path),
+-- so a recipient can never reach this path. The client's updateDataShare() calls this
+-- instead of a direct PATCH of can_edit/share_all_data.
+CREATE OR REPLACE FUNCTION update_share_grants(
+    p_share_id       BIGINT,
+    p_can_edit       BOOLEAN,
+    p_share_all_data BOOLEAN,
+    p_year           INTEGER DEFAULT NULL,
+    p_month          INTEGER DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_row data_shares%ROWTYPE;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'not authenticated');
+    END IF;
+
+    SELECT * INTO v_row FROM data_shares WHERE id = p_share_id;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'share not found');
+    END IF;
+
+    -- HARD GATE: only the OWNER of the share may change its grant flags / scope.
+    IF v_row.owner_user_id <> v_uid THEN
+        RETURN jsonb_build_object('success', false, 'error', 'not the share owner');
+    END IF;
+
+    UPDATE data_shares SET
+        can_edit       = COALESCE(p_can_edit,       can_edit),
+        share_all_data = COALESCE(p_share_all_data, share_all_data),
+        year           = p_year,
+        month          = p_month,
+        updated_at     = NOW()
+    WHERE id = p_share_id
+    RETURNING * INTO v_row;
+
+    RETURN jsonb_build_object('success', true, 'share', to_jsonb(v_row));
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_share_grants(BIGINT, BOOLEAN, BOOLEAN, INTEGER, INTEGER) TO authenticated;
 
 -- Field locking for concurrent edit prevention
 CREATE TABLE IF NOT EXISTS field_locks (
@@ -1529,6 +1749,12 @@ CREATE POLICY messages_select_participant ON messages
 -- be able to INSERT, even if they bypass the client guard and call PostgREST
 -- directly. is_blocked() is SECURITY DEFINER because blocked_users_select_own hides
 -- the recipient's block rows from the sender's own context.
+-- PRODUCT DECISION (H-3 revision): MESSAGING IS FREE. The Premium gate has been MOVED
+-- off messaging and onto cross-user SHARING (the data_shares owner-INSERT below). So
+-- there is NO is_premium_active() check here: ANY conversation participant may send a
+-- message (sender bound to a conversation they're in, recipient is the counterparty,
+-- and the sender is not blocked). The is_premium_active() predicate still exists and is
+-- enforced on data_shares INSERT (see data_shares_insert_as_owner).
 DROP POLICY IF EXISTS messages_insert_participant ON messages;
 CREATE POLICY messages_insert_participant ON messages
     FOR INSERT WITH CHECK (
@@ -1867,22 +2093,30 @@ ALTER TABLE data_shares
 ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrapped_dek  TEXT;   -- DEK sealed to the recipient's identity pubkey (base64 box ciphertext)
 ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrap_nonce   TEXT;   -- base64 24-byte box nonce
 ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrap_eph_pub TEXT;   -- base64 ephemeral X25519 public key for the box seal
+-- SEC-H4: authenticated, context-bound seal (BUDGET_E2E_DESIGN.md §7 hardening).
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrap_owner_ik TEXT;  -- base64 OWNER identity X25519 PUBLIC key bound into the authenticated seal (sender static key)
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS dek_version   INTEGER; -- owner budget-DEK generation bound into the seal context (matches budget_dek.dek_version)
 
-COMMENT ON COLUMN data_shares.wrapped_dek  IS 'E2E sharing: the OWNER budget DEK sealed (nacl.box) to the recipient identity pubkey (BUDGET_E2E_DESIGN.md §2.5). NULL on an un-sealed/legacy share — recipient then cannot decrypt.';
-COMMENT ON COLUMN data_shares.wrap_nonce   IS 'E2E sharing: base64 24-byte nonce for the wrapped_dek box seal.';
+COMMENT ON COLUMN data_shares.wrapped_dek  IS 'E2E sharing: the OWNER budget DEK sealed (authenticated static+ephemeral box, SEC-H4) to the recipient identity pubkey (BUDGET_E2E_DESIGN.md §2.5/§7). NULL on an un-sealed/legacy share — recipient then cannot decrypt.';
+COMMENT ON COLUMN data_shares.wrap_nonce   IS 'E2E sharing: base64 24-byte nonce for the wrapped_dek seal.';
 COMMENT ON COLUMN data_shares.wrap_eph_pub IS 'E2E sharing: base64 ephemeral X25519 public key the recipient combines with their identity secret to unseal wrapped_dek.';
+COMMENT ON COLUMN data_shares.wrap_owner_ik IS 'E2E sharing (SEC-H4): base64 OWNER identity X25519 PUBLIC key bound into the authenticated seal. The recipient verifies this equals the PINNED (TOFU) sender key before accepting the DEK, and the static-static DH leg over it authenticates the seal origin (no anonymous box).';
+COMMENT ON COLUMN data_shares.dek_version  IS 'E2E sharing (SEC-H4): the owner budget-DEK generation bound into the seal HKDF context (owner_id, recipient_id, owner IK, recipient IK, dek_version, share_id), so a seal cannot be replayed across versions/rows.';
 
 -- RLS: NO new policy is needed. The existing data_shares_select_involved
 -- (auth.uid() = owner_user_id OR auth.uid() = shared_with_user_id) already lets the
--- RECIPIENT read their own share row — including these three new columns — so they
--- can fetch + unseal the wrapped DEK. The OWNER writes them via the existing
--- data_shares_insert_as_owner / data_shares_update_as_owner policies (createDataShare
--- inserts/updates the share row, which the owner owns). The wrapped_dek is opaque
--- ciphertext, so even though the recipient (and only the recipient, per the SELECT
--- policy) can read it, it is useless without their identity secret. REVOCATION: the
--- existing data_shares_delete_as_owner lets the owner delete the share row, which
--- removes the wrapped DEK and (via user_months_select_shared keying off an 'accepted'
--- row) cuts the recipient's read access at the RLS layer (see §7 revocation note).
+-- RECIPIENT read their own share row — including these seal columns — so they can
+-- fetch + unseal the wrapped DEK. The OWNER writes the seal columns directly: they are
+-- in the column-level GRANT UPDATE(... wrapped_dek, wrap_nonce, wrap_eph_pub,
+-- wrap_owner_ik, dek_version ...) above, and the data_shares_update_as_owner policy
+-- (USING + WITH CHECK auth.uid() = owner_user_id) authorizes the row. The grant FLAGS
+-- (can_edit/share_all_data) are NOT writable via PATCH (SEC-C1) — only via INSERT or
+-- the update_share_grants() DEFINER RPC. The wrapped_dek is opaque ciphertext, so even
+-- though the recipient (and only the recipient, per the SELECT policy) can read it, it
+-- is useless without their identity secret. REVOCATION: data_shares_delete_as_owner
+-- lets the owner delete the share row, which removes the wrapped DEK and (via
+-- user_months_select_shared keying off an 'accepted' row) cuts the recipient's read
+-- access at the RLS layer (see §7 revocation note).
 
 DO $$ BEGIN RAISE NOTICE '[14/16] Creating multi-device encryption support (session keys, backups)...'; END $$;
 
