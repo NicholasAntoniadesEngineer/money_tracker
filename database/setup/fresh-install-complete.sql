@@ -126,10 +126,33 @@ CREATE TABLE IF NOT EXISTS user_months (
     unplanned_expenses JSONB DEFAULT '[]',
     income_sources JSONB DEFAULT '[]',
     pots JSONB DEFAULT '[]',
+    -- E2E ENVELOPE (BUDGET_E2E_DESIGN.md §2.1, staged plan S3). One per-ROW secretbox
+    -- over the JSON of ALL SEVEN sensitive JSONB columns above (date_range,
+    -- weekly_breakdown, fixed_costs, variable_costs, unplanned_expenses,
+    -- income_sources, pots) — per-blob granularity, NOT per-column (§1.2). All NULLABLE
+    -- + additive: legacy plaintext rows leave these NULL / enc_version=0 and are read
+    -- from the JSONB columns during the dual-read window (§6); enc_version=1 rows are
+    -- read from enc_payload. The seven JSONB columns stay until cutover.
+    enc_payload TEXT,         -- base64 secretbox ciphertext of JSON{the 7 sensitive columns}
+    enc_nonce   TEXT,         -- base64 24-byte nonce
+    enc_version INTEGER NOT NULL DEFAULT 0,   -- 0 = legacy plaintext, 1 = encrypted
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, year, month)
 );
+
+-- ADDITIVE / IDEMPOTENT: ensure the E2E envelope columns exist on an EXISTING
+-- user_months table (the CREATE TABLE IF NOT EXISTS above is a no-op once the table
+-- exists, so on a live DB these ADD COLUMN IF NOT EXISTS statements are what actually
+-- add them). Safe to re-run; never drops or rewrites existing data. Standalone
+-- equivalent for an existing DB: database/setup/apply-budget-envelope.sql.
+ALTER TABLE user_months ADD COLUMN IF NOT EXISTS enc_payload TEXT;
+ALTER TABLE user_months ADD COLUMN IF NOT EXISTS enc_nonce   TEXT;
+ALTER TABLE user_months ADD COLUMN IF NOT EXISTS enc_version INTEGER NOT NULL DEFAULT 0;
+
+COMMENT ON COLUMN user_months.enc_payload IS 'E2E: base64 secretbox ciphertext of JSON over all seven sensitive JSONB columns (BUDGET_E2E_DESIGN.md §2.1). NULL on legacy plaintext rows.';
+COMMENT ON COLUMN user_months.enc_nonce IS 'E2E: base64 24-byte secretbox nonce for enc_payload. NULL on legacy plaintext rows.';
+COMMENT ON COLUMN user_months.enc_version IS 'E2E envelope version / dual-read discriminator: 0 = legacy plaintext (read JSONB columns), 1 = encrypted (read enc_payload).';
 
 DROP INDEX IF EXISTS idx_user_months_user_id;
 DROP INDEX IF EXISTS idx_user_months_year_month;
@@ -204,13 +227,36 @@ GRANT USAGE, SELECT ON SEQUENCE example_months_id_seq TO authenticated;
 CREATE TABLE IF NOT EXISTS pots (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT,
     estimated_amount NUMERIC(12, 2) DEFAULT 0,
     actual_amount NUMERIC(12, 2) DEFAULT 0,
     comments TEXT DEFAULT '',
+    -- E2E ENVELOPE (BUDGET_E2E_DESIGN.md §2.2, staged plan S3). One per-ROW secretbox
+    -- over JSON{name, estimatedAmount, actualAmount, comments} — the typed columns above
+    -- cannot themselves hold ciphertext. All NULLABLE + additive: legacy plaintext rows
+    -- leave these NULL / enc_version=0 and read the typed columns during the dual-read
+    -- window (§6); enc_version=1 rows read enc_payload. name is nullable (was NOT NULL)
+    -- so an encrypted-only insert needs no plaintext name (§2.2); existing rows untouched.
+    enc_payload TEXT,         -- base64 secretbox ciphertext of JSON{name, estimatedAmount, actualAmount, comments}
+    enc_nonce   TEXT,         -- base64 24-byte nonce
+    enc_version INTEGER NOT NULL DEFAULT 0,   -- 0 = legacy plaintext, 1 = encrypted
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ADDITIVE / IDEMPOTENT: ensure the E2E envelope columns exist on an EXISTING pots
+-- table and relax the name NOT NULL constraint (the CREATE TABLE IF NOT EXISTS above is
+-- a no-op once the table exists). Safe to re-run (DROP NOT NULL is a no-op if already
+-- nullable); never drops or rewrites existing data. Standalone equivalent for an
+-- existing DB: database/setup/apply-budget-envelope.sql.
+ALTER TABLE pots ADD COLUMN IF NOT EXISTS enc_payload TEXT;
+ALTER TABLE pots ADD COLUMN IF NOT EXISTS enc_nonce   TEXT;
+ALTER TABLE pots ADD COLUMN IF NOT EXISTS enc_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE pots ALTER COLUMN name DROP NOT NULL;
+
+COMMENT ON COLUMN pots.enc_payload IS 'E2E: base64 secretbox ciphertext of JSON{name, estimatedAmount, actualAmount, comments} (BUDGET_E2E_DESIGN.md §2.2). NULL on legacy plaintext rows.';
+COMMENT ON COLUMN pots.enc_nonce IS 'E2E: base64 24-byte secretbox nonce for enc_payload. NULL on legacy plaintext rows.';
+COMMENT ON COLUMN pots.enc_version IS 'E2E envelope version / dual-read discriminator: 0 = legacy plaintext (read typed columns), 1 = encrypted (read enc_payload).';
 
 ALTER TABLE pots ENABLE ROW LEVEL SECURITY;
 
