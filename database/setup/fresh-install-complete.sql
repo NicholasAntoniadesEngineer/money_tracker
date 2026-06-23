@@ -2,9 +2,27 @@
 -- MONEY TRACKER - COMPLETE FRESH INSTALL
 -- ============================================================
 -- This script sets up a complete fresh database with all features
--- including E2E encryption, recovery keys, and multi-device support
+-- including E2E encryption, recovery keys, and multi-device support.
+-- Security hardening from the 2026-06 investigation is baked in (search
+-- "HARDENING:" below): WITH CHECK on update policies, column-scoped UPDATE
+-- grants (conversation ordering + mark-as-read), and create_notification
+-- anti-spoofing. NOTE: server-side Premium entitlement enforcement (C1) is
+-- NOT yet applied here — it needs a staged trial-RPC migration first.
 -- ============================================================
--- Can be run on existing database - drops and recreates all tables
+-- Can be run on existing database - drops and recreates all tables.
+-- ============================================================
+-- FULL FRESH-INSTALL CHECKLIST (DB alone is not enough):
+--   1. Create a private Storage bucket `message-attachments` (1 MB limit).
+--   2. Run THIS script in the Supabase SQL Editor.
+--   3. Deploy the edge functions (Supabase CLI or Dashboard):
+--        payments_app: checkout-session, create-portal-session, stripe-webhook,
+--                      list-invoices, update-subscription
+--        auth_db:      user-lookup, delete-account
+--   4. Set edge secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+--        (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are auto-injected).
+--   5. Auth → URL Configuration: add each app origin + .../auth/views/auth.html
+--        to the redirect allow-list.
+--   See secure_db/README.md for the authoritative cross-repo runbook.
 -- ============================================================
 
 DO $$
@@ -692,7 +710,9 @@ CREATE POLICY identity_keys_insert_own ON identity_keys
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY identity_keys_update_own ON identity_keys
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING (auth.uid() = user_id)
+    -- HARDENING: WITH CHECK stops a user reassigning their key row to another user_id.
+    WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY identity_keys_delete_own ON identity_keys
     FOR DELETE USING (auth.uid() = user_id);
@@ -882,6 +902,9 @@ CREATE TRIGGER trigger_update_conversations_updated_at
     EXECUTE FUNCTION update_conversations_updated_at();
 
 GRANT SELECT, INSERT ON conversations TO authenticated;
+-- HARDENING: column-scoped UPDATE so clients can advance conversation ordering
+-- (last_message_at) but cannot rewrite participants or other columns.
+GRANT UPDATE (last_message_at, updated_at) ON conversations TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE conversations_id_seq TO authenticated;
 
 -- Conversation participants
@@ -924,6 +947,10 @@ CREATE POLICY conversations_insert_participant ON conversations
 
 CREATE POLICY conversations_update_participant ON conversations
     FOR UPDATE USING (
+        auth.uid() = user1_id OR auth.uid() = user2_id
+    )
+    -- HARDENING: WITH CHECK prevents moving a conversation to other users.
+    WITH CHECK (
         auth.uid() = user1_id OR auth.uid() = user2_id
     );
 
@@ -1037,6 +1064,17 @@ DECLARE
     v_notification_id BIGINT;
     v_title TEXT;
 BEGIN
+    -- HARDENING: this is SECURITY DEFINER (bypasses RLS). An authenticated client
+    -- must not be able to forge the sender or create server-only (financial)
+    -- notification types. Webhook/service-role calls have a NULL auth.uid() and
+    -- keep their passed values.
+    IF auth.uid() IS NOT NULL THEN
+        p_from_user_id := auth.uid();
+        IF p_type IN ('payment_received', 'payment_reminder') THEN
+            RETURN jsonb_build_object('success', false, 'error', 'forbidden notification type');
+        END IF;
+    END IF;
+
     -- Generate title based on type
     CASE p_type
         WHEN 'message_received' THEN v_title := 'New Message';
@@ -1150,6 +1188,16 @@ CREATE POLICY messages_update_participant ON messages
             WHERE conversations.id = messages.conversation_id
             AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
         )
+    )
+    -- HARDENING: WITH CHECK confines updates to the user's own conversations;
+    -- paired with the column-scoped GRANT below (read/read_at only), message
+    -- content and sender stay tamper-proof.
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM conversations
+            WHERE conversations.id = messages.conversation_id
+            AND (conversations.user1_id = auth.uid() OR conversations.user2_id = auth.uid())
+        )
     );
 
 CREATE OR REPLACE FUNCTION update_messages_updated_at()
@@ -1169,6 +1217,9 @@ CREATE TRIGGER trigger_update_messages_updated_at
     EXECUTE FUNCTION update_messages_updated_at();
 
 GRANT SELECT, INSERT ON messages TO authenticated;
+-- HARDENING: column-scoped UPDATE so a participant can mark messages read (clears
+-- unread counts) WITHOUT being able to alter encrypted_content / sender_id.
+GRANT UPDATE (read, read_at) ON messages TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE messages_id_seq TO authenticated;
 
 DO $$ BEGIN RAISE NOTICE '[11/16] Creating message attachments system...'; END $$;
