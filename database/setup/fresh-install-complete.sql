@@ -1850,6 +1850,40 @@ ALTER TABLE data_shares
     REFERENCES conversations(id)
     ON DELETE SET NULL;
 
+-- ============================================================
+-- CROSS-USER SHARING — wrapped DEK per share (BUDGET_E2E_DESIGN.md §2.5 / §7, S7)
+-- ============================================================
+-- Under client-side E2E (S1-S6) every user_months/pots row is ciphertext under the
+-- OWNER's budget DEK. A recipient cannot decrypt a shared row with their OWN DEK, so
+-- the owner SEALS their DEK to the recipient's identity X25519 public key on each
+-- share row (nacl.box: an ephemeral keypair + the recipient's identity pubkey). The
+-- recipient unseals with their identity secret to recover the OWNER's DEK and decrypt
+-- the shared rows. The server only ever stores opaque ciphertext + the ephemeral
+-- public key — never the unwrapped DEK and never any budget plaintext.
+--
+-- Additive + nullable + idempotent: legacy/unsealed shares leave these NULL and the
+-- recipient simply cannot decrypt (H11 per-row skip), exactly as before S7. Standalone
+-- equivalent for an existing DB: database/setup/apply-budget-share-keys.sql.
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrapped_dek  TEXT;   -- DEK sealed to the recipient's identity pubkey (base64 box ciphertext)
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrap_nonce   TEXT;   -- base64 24-byte box nonce
+ALTER TABLE data_shares ADD COLUMN IF NOT EXISTS wrap_eph_pub TEXT;   -- base64 ephemeral X25519 public key for the box seal
+
+COMMENT ON COLUMN data_shares.wrapped_dek  IS 'E2E sharing: the OWNER budget DEK sealed (nacl.box) to the recipient identity pubkey (BUDGET_E2E_DESIGN.md §2.5). NULL on an un-sealed/legacy share — recipient then cannot decrypt.';
+COMMENT ON COLUMN data_shares.wrap_nonce   IS 'E2E sharing: base64 24-byte nonce for the wrapped_dek box seal.';
+COMMENT ON COLUMN data_shares.wrap_eph_pub IS 'E2E sharing: base64 ephemeral X25519 public key the recipient combines with their identity secret to unseal wrapped_dek.';
+
+-- RLS: NO new policy is needed. The existing data_shares_select_involved
+-- (auth.uid() = owner_user_id OR auth.uid() = shared_with_user_id) already lets the
+-- RECIPIENT read their own share row — including these three new columns — so they
+-- can fetch + unseal the wrapped DEK. The OWNER writes them via the existing
+-- data_shares_insert_as_owner / data_shares_update_as_owner policies (createDataShare
+-- inserts/updates the share row, which the owner owns). The wrapped_dek is opaque
+-- ciphertext, so even though the recipient (and only the recipient, per the SELECT
+-- policy) can read it, it is useless without their identity secret. REVOCATION: the
+-- existing data_shares_delete_as_owner lets the owner delete the share row, which
+-- removes the wrapped DEK and (via user_months_select_shared keying off an 'accepted'
+-- row) cuts the recipient's read access at the RLS layer (see §7 revocation note).
+
 DO $$ BEGIN RAISE NOTICE '[14/16] Creating multi-device encryption support (session keys, backups)...'; END $$;
 
 -- ============================================================

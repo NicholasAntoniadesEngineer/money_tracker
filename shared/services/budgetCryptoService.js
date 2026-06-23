@@ -233,6 +233,92 @@ const BudgetCryptoService = {
         return dek;
     },
 
+    // ==================== cross-user share seal / unseal (S7) ====================
+    //
+    // Cross-user sharing (BUDGET_E2E_DESIGN.md §2.5 / §7) is the ONLY part of the
+    // design that needs new key DISTRIBUTION: the OWNER's budget DEK has to reach a
+    // RECIPIENT who holds a DIFFERENT identity. We do NOT hand-roll this — it is the
+    // standard NaCl box (authenticated public-key encryption) built from the existing
+    // primitives:
+    //   seal   = secretbox(DEK, nonce, deriveSharedSecret(ephSecret, recipientPub))
+    //   unseal = secretbox.open(ct, nonce, deriveSharedSecret(recipientSecret, ephPub))
+    // deriveSharedSecret() is nacl.box.before (X25519 DH + HSalsa20), exactly what
+    // nacl.box / nacl.box.open use internally, so seal(eph -> recipientPub) and
+    // unseal(recipientSecret <- ephPub) agree (Diffie-Hellman symmetry). A FRESH
+    // ephemeral keypair per seal means the wrap key is unique per share and forward
+    // of the ephemeral secret (which is never stored). Both the ephemeral keygen and
+    // the nonce route through the RNG seam, so the gates are deterministic.
+
+    /**
+     * Seal (box-encrypt) the OWNER's DEK to a RECIPIENT's identity public key.
+     *
+     * @param {Uint8Array} dek - the 32-byte OWNER budget DEK to share
+     * @param {Uint8Array|string} recipientPublicKey - the recipient's identity
+     *        X25519 public key (raw Uint8Array, or base64 as returned by
+     *        HistoricalKeysService.getCurrentKey / identity_keys.public_key)
+     * @returns {{wrapped_dek: string, wrap_nonce: string, wrap_eph_pub: string}}
+     *          all base64 — the three data_shares columns
+     */
+    sealDEKToRecipient(dek, recipientPublicKey) {
+        this._assertDek(dek, 'sealDEKToRecipient');
+        const cp = this._cp();
+        const recipientPub = (recipientPublicKey instanceof Uint8Array)
+            ? recipientPublicKey
+            : cp.deserializeKey(recipientPublicKey);
+        if (!(recipientPub instanceof Uint8Array) || recipientPub.length !== 32) {
+            throw new Error('[BudgetCryptoService] sealDEKToRecipient: recipientPublicKey must be a 32-byte X25519 key (raw or base64)');
+        }
+        // Fresh ephemeral keypair per seal (routed through the RNG seam).
+        const eph = cp.generateKeyPair();
+        // box(DEK) = secretbox(DEK, nonce, DH(ephSecret, recipientPub)). encryptBytes
+        // generates the nonce via the RNG seam and returns raw-byte ciphertext+nonce.
+        const sharedKey = cp.deriveSharedSecret(eph.secretKey, recipientPub);
+        const { ciphertext, nonce } = cp.encryptBytes(dek, sharedKey);
+        return {
+            wrapped_dek: cp.serializeKey(ciphertext),
+            wrap_nonce: cp.serializeKey(nonce),
+            wrap_eph_pub: cp.serializeKey(eph.publicKey),
+        };
+    },
+
+    /**
+     * Unseal (box-open) a sealed DEK using the RECIPIENT's identity secret.
+     *
+     * Fails closed: a wrong identity secret (=> wrong DH shared key) or any tamper
+     * makes secretbox.open return null, which decryptBytes turns into a thrown Error
+     * — never a wrong/garbage DEK. So a NON-recipient cannot recover the DEK.
+     *
+     * @param {{wrapped_dek: string, wrap_nonce: string, wrap_eph_pub: string}} sealed
+     *        the three base64 data_shares columns
+     * @param {Uint8Array} recipientSecretKey - the recipient's identity X25519 secret
+     * @returns {Uint8Array} the recovered 32-byte OWNER DEK
+     * @throws {Error} on missing fields, wrong recipient, or tamper
+     */
+    unsealDEK(sealed, recipientSecretKey) {
+        if (!sealed || typeof sealed !== 'object') {
+            throw new Error('[BudgetCryptoService] unsealDEK: sealed envelope is missing');
+        }
+        if (typeof sealed.wrapped_dek !== 'string' ||
+            typeof sealed.wrap_nonce !== 'string' ||
+            typeof sealed.wrap_eph_pub !== 'string') {
+            throw new Error('[BudgetCryptoService] unsealDEK: wrapped_dek/wrap_nonce/wrap_eph_pub must be base64 strings');
+        }
+        if (!(recipientSecretKey instanceof Uint8Array) || recipientSecretKey.length !== 32) {
+            throw new Error('[BudgetCryptoService] unsealDEK: recipientSecretKey must be a 32-byte X25519 secret key');
+        }
+        const cp = this._cp();
+        const ciphertext = cp.deserializeKey(sealed.wrapped_dek);
+        const nonce = cp.deserializeKey(sealed.wrap_nonce);
+        const ephPub = cp.deserializeKey(sealed.wrap_eph_pub);
+        const sharedKey = cp.deriveSharedSecret(recipientSecretKey, ephPub);
+        // Throws on auth failure (wrong recipient / tamper) — fail closed.
+        const dek = cp.decryptBytes(ciphertext, nonce, sharedKey);
+        if (!(dek instanceof Uint8Array) || dek.length !== DEK_LENGTH) {
+            throw new Error(`[BudgetCryptoService] unsealDEK recovered ${dek && dek.length} bytes, expected ${DEK_LENGTH}`);
+        }
+        return dek;
+    },
+
     // ==================== helpers ====================
 
     /**
