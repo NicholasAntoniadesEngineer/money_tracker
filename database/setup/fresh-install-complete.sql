@@ -24,8 +24,8 @@
 --        to the redirect allow-list.
 --   See secure_db/README.md for the authoritative cross-repo runbook.
 -- CANONICAL SOURCES (this all-in-one aggregates them for a single-shot install):
---   identity / E2E-crypto tables  -> auth_db/backend/sql/identity-schema.sql
---   messaging tables              -> secure_db/sql/messaging-schema.sql
+--   identity / E2E-crypto tables  -> auth_db/backend/sql/complete-setup.sql
+--   messaging tables              -> secure_db/sql/complete-setup.sql
 --   To add device pairing to an EXISTING DB instead, run
 --   auth_db/backend/sql/add-device-pairing.sql (non-destructive).
 -- ============================================================
@@ -98,6 +98,7 @@ DROP POLICY IF EXISTS "Users can delete attachments" ON storage.objects;
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 DO $$ BEGIN RAISE NOTICE '[2/16] Creating budget data tables (user_months, example_months, pots)...'; END $$;
 
