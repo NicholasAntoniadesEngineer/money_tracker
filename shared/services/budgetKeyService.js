@@ -354,6 +354,32 @@ const BudgetKeyService = {
     },
 
     /**
+     * Return the DEK currently loaded for the session, WITHOUT requiring the caller
+     * to know the user id.
+     *
+     * This is the fail-closed accessor used by the synchronous budget read/write
+     * transforms (transformMonthToDatabase / transformMonthFromDatabase /
+     * transformPot*Database in DatabaseService, S4/S5). Those transforms run after
+     * ensureBudgetDEK() has bound the session to exactly one user, and only ever
+     * encrypt/decrypt rows belonging to that user, so the single cached
+     * (user_id, DEK) pair is unambiguous. Like getBudgetDEK it performs NO I/O and
+     * NO bootstrap — it is a cheap accessor that THROWS (fail closed) when no DEK is
+     * loaded, so a caller can never silently fall back to plaintext.
+     *
+     * @returns {Uint8Array} the cached 32-byte DEK
+     * @throws {BudgetKeyError} DEK_NOT_LOADED
+     */
+    getLoadedDEK() {
+        if (!this._cachedDek) {
+            throw makeBudgetKeyError(
+                '[BudgetKeyService] budget DEK is not loaded — call ensureBudgetDEK() first (locked or not bootstrapped)',
+                'DEK_NOT_LOADED', true
+            );
+        }
+        return this._cachedDek;
+    },
+
+    /**
      * Clear the in-memory DEK cache. Call on lock / logout / account switch so a
      * subsequent session must re-fetch + re-unwrap (mirrors DatabaseService.clearCache
      * and the identity-key lock discipline). Best-effort wipes the key bytes.

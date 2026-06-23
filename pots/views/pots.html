@@ -106,6 +106,18 @@
     <script src="../../lib/auth_db/shared/utils/errorHandler.js"></script>
     <script src="../../lib/auth_db/shared/utils/validators.js"></script>
     
+    <!-- Budget E2E encryption (S4/S5): primitives + budget DEK/crypto services.
+         Loaded BEFORE databaseService.js so its transformPotTo/FromDatabase
+         transforms can resolve window.BudgetCryptoService / window.BudgetKeyService
+         (encrypt-on-write + dual-read; BUDGET_E2E_DESIGN.md §3). -->
+    <script src="../../lib/auth_db/encryption/services/cryptoLibraryLoader.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyDerivationService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/cryptoPrimitivesService.js"></script>
+    <script src="../../lib/auth_db/encryption/services/keyStorageService.js"></script>
+    <script src="../../lib/auth_db/encryption/utils/encryptionErrors.js"></script>
+    <script src="../../shared/services/budgetCryptoService.js"></script>
+    <script src="../../shared/services/budgetKeyService.js"></script>
+
     <!-- Database Service -->
     <script src="../../lib/auth_db/database/services/databaseService.js"></script>
     <script src="../../database/services/dataSharingService.js"></script>
