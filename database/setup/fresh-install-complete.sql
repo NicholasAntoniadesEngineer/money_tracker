@@ -1115,8 +1115,12 @@ BEGIN
     UPDATE data_shares SET
         can_edit       = COALESCE(p_can_edit,       can_edit),
         share_all_data = COALESCE(p_share_all_data, share_all_data),
-        year           = p_year,
-        month          = p_month,
+        -- C-1: the client calls this RPC with only 3 args (share_id, can_edit,
+        -- share_all_data), so p_year/p_month arrive NULL. Without COALESCE the
+        -- UPDATE would NULL-clobber the existing year/month scope columns on every
+        -- share edit. COALESCE preserves the stored value when the arg is omitted.
+        year           = COALESCE(p_year,  year),
+        month          = COALESCE(p_month, month),
         updated_at     = NOW()
     WHERE id = p_share_id
     RETURNING * INTO v_row;
