@@ -23,15 +23,37 @@ function loadCjs(absPath) {
     const moduleObj = { exports: {} };
     cache.set(resolved, moduleObj);
     const dir = path.dirname(resolved);
-    const localRequire = (spec) => {
+    const resolveSpec = (spec) => {
         if (spec.startsWith('.') || spec.startsWith('/')) {
             let target = path.resolve(dir, spec);
             if (!fs.existsSync(target) && fs.existsSync(target + '.js')) target += '.js';
+            return target;
+        }
+        return nodeRequire.resolve(spec);
+    };
+    const localRequire = (spec) => {
+        if (spec.startsWith('.') || spec.startsWith('/')) {
+            const target = resolveSpec(spec);
             if (target.endsWith('.js') || target.endsWith('.cjs')) return loadCjs(target);
             return nodeRequire(target);
         }
         return nodeRequire(spec);
     };
+    // Some tests use require.resolve(...) + delete require.cache[p] to force a
+    // FRESH module load (e.g. s13 re-loading authService.js between gates). Back
+    // require.cache by the runner's own `cache` Map so the delete-then-require
+    // round-trip actually re-evaluates the module.
+    localRequire.resolve = resolveSpec;
+    localRequire.cache = new Proxy({}, {
+        get(_t, key) { return cache.has(key) ? cache.get(key) : undefined; },
+        has(_t, key) { return cache.has(key); },
+        deleteProperty(_t, key) { cache.delete(key); return true; },
+        ownKeys() { return Array.from(cache.keys()); },
+        getOwnPropertyDescriptor(_t, key) {
+            if (cache.has(key)) return { configurable: true, enumerable: true, value: cache.get(key) };
+            return undefined;
+        },
+    });
     const wrapper = vm.compileFunction(
         src,
         ['module', 'exports', 'require', '__filename', '__dirname', 'Buffer', 'global', 'process'],
