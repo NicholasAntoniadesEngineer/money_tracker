@@ -2572,11 +2572,220 @@ BEGIN
         'opk_pub', CASE WHEN v_opk.id IS NOT NULL THEN v_opk.prekey_pub ELSE NULL END
     );
 EXCEPTION WHEN OTHERS THEN
-    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+    -- W6: do NOT leak raw SQLERRM to the (authenticated) caller. Keep the real
+    -- error in the server log; return a generic, non-revealing message.
+    RAISE LOG 'claim_one_time_prekey: %', SQLERRM;
+    RETURN jsonb_build_object('success', false, 'error', 'internal error');
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION claim_one_time_prekey(UUID) TO authenticated;
+
+-- ============================================================================
+-- W3-3 / L-1 — targeted, rate-limited email <-> userId resolution
+-- ============================================================================
+-- Folded VERBATIM from auth_db/backend/sql/complete-setup.sql so a fresh
+-- all-in-one install includes the W3-3/L-1 hardening (these objects previously
+-- lived only in the auth_db identity setup). The user-lookup edge function
+-- previously resolved findByEmail by pulling auth.admin.listUsers() (FIRST PAGE
+-- ONLY, ~50 users) and .find()-ing in JS:
+--   * an unthrottled account-EXISTENCE ORACLE (200+userId vs 404 over any email),
+--   * silently MISSED real users past page 1 (a correctness bug at scale),
+--   * pulled a page of ALL users' records into the function on every lookup.
+-- These objects let the edge function do a TARGETED, paginated-safe lookup with a
+-- per-caller rate limit, server-side. Defined here (after auth.users exists)
+-- before any caller; idempotent (IF NOT EXISTS / OR REPLACE).
+
+-- user_lookup_audit: rate-limit ledger for findByEmail. One row per attempt
+-- (found OR not found), so the oracle cannot be brute-forced by retrying only on
+-- misses. Service/DEFINER-written only — RLS on, NO authenticated grants.
+CREATE TABLE IF NOT EXISTS user_lookup_audit (
+    id         BIGSERIAL PRIMARY KEY,
+    caller_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    looked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE user_lookup_audit IS 'W3-3: rate-limit ledger for resolve_user_id_by_email(). One row per lookup attempt (found or not) to throttle the account-existence oracle. Service/DEFINER-written only; no authenticated grants.';
+
+DROP INDEX IF EXISTS idx_user_lookup_audit_caller;
+CREATE INDEX idx_user_lookup_audit_caller
+    ON user_lookup_audit(caller_id, looked_at);
+
+ALTER TABLE user_lookup_audit ENABLE ROW LEVEL SECURITY;
+-- No policies / no grants to `authenticated`: only the SECURITY DEFINER resolver
+-- (called by the service-role edge function) reads/writes this table.
+
+-- resolve_user_id_by_email(p_caller_id, p_email): targeted email -> userId lookup.
+-- SECURITY DEFINER so it can read auth.users (a single indexed row, NOT a page of
+-- the whole table). p_caller_id is the JWT-verified caller passed by the edge
+-- function; the function is granted ONLY to service_role (the edge function's
+-- client), so an ordinary `authenticated` user can never call it directly and the
+-- passed caller id is trustworthy. Enforces a per-caller sliding-window cap BEFORE
+-- resolving; every attempt is recorded so a miss costs a token too (oracle defense).
+-- Returns JSONB: {status:'ok',user_id} | {status:'not_found'} | {status:'rate_limited'}.
+CREATE OR REPLACE FUNCTION resolve_user_id_by_email(p_caller_id UUID, p_email TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    LOOKUP_WINDOW   CONSTANT INTERVAL := INTERVAL '1 hour';
+    LOOKUP_MAX      CONSTANT INTEGER  := 30;   -- lookups per caller per window
+    v_count   INTEGER;
+    v_user_id UUID;
+BEGIN
+    IF p_caller_id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'error', 'caller required');
+    END IF;
+    IF p_email IS NULL OR length(trim(p_email)) = 0 THEN
+        RETURN jsonb_build_object('status', 'error', 'error', 'email required');
+    END IF;
+
+    -- Per-caller rate limit (count BOTH hits and misses so the oracle is throttled).
+    SELECT count(*) INTO v_count
+    FROM user_lookup_audit
+    WHERE caller_id = p_caller_id
+      AND looked_at > NOW() - LOOKUP_WINDOW;
+    IF v_count >= LOOKUP_MAX THEN
+        RETURN jsonb_build_object('status', 'rate_limited',
+                                  'retry_after_seconds', EXTRACT(EPOCH FROM LOOKUP_WINDOW)::int);
+    END IF;
+    INSERT INTO user_lookup_audit (caller_id) VALUES (p_caller_id);
+
+    -- Targeted, case-insensitive resolution against the indexed auth.users.email.
+    -- One row, not a page of the whole table; paginated-safe at any scale.
+    SELECT id INTO v_user_id
+    FROM auth.users
+    WHERE lower(email) = lower(trim(p_email))
+    LIMIT 1;
+
+    IF v_user_id IS NULL THEN
+        RETURN jsonb_build_object('status', 'not_found');
+    END IF;
+    RETURN jsonb_build_object('status', 'ok', 'user_id', v_user_id);
+EXCEPTION WHEN OTHERS THEN
+    -- W6: do NOT leak raw SQLERRM to the caller. Log it server-side; return generic.
+    RAISE LOG 'resolve_user_id_by_email: %', SQLERRM;
+    RETURN jsonb_build_object('status', 'error', 'error', 'internal error');
+END;
+$$;
+
+-- service_role ONLY: the user-lookup edge function calls this with its service key
+-- after JWT-verifying the caller. NEVER granted to `authenticated` (that would
+-- re-open a direct, un-vetted oracle bypassing the edge function's auth).
+REVOKE ALL ON FUNCTION resolve_user_id_by_email(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_user_id_by_email(UUID, TEXT) TO service_role;
+
+-- resolve_email_by_user_id(p_caller_id, p_user_id): the L-1 companion to the
+-- resolver above — the REVERSE userId -> email lookup used by getEmailById. Same
+-- pattern, opposite direction; shares the SAME user_lookup_audit budget so a
+-- caller cannot dodge the cap by alternating directions. Brings getEmailById to
+-- parity with findByEmail (W3-3): per-caller rate limit (hits AND misses counted)
+-- + the edge function returns a uniform 200 {email|null}, killing the 404-vs-200
+-- user-id existence oracle. SECURITY DEFINER; granted ONLY to service_role.
+-- Returns JSONB: {status:'ok',email} | {status:'not_found'} | {status:'rate_limited'}.
+CREATE OR REPLACE FUNCTION resolve_email_by_user_id(p_caller_id UUID, p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    LOOKUP_WINDOW   CONSTANT INTERVAL := INTERVAL '1 hour';
+    LOOKUP_MAX      CONSTANT INTEGER  := 30;   -- shared budget with resolve_user_id_by_email
+    v_count INTEGER;
+    v_email TEXT;
+BEGIN
+    IF p_caller_id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'error', 'caller required');
+    END IF;
+    IF p_user_id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'error', 'user id required');
+    END IF;
+
+    -- Per-caller rate limit (count BOTH hits and misses so the oracle is throttled).
+    SELECT count(*) INTO v_count
+    FROM user_lookup_audit
+    WHERE caller_id = p_caller_id
+      AND looked_at > NOW() - LOOKUP_WINDOW;
+    IF v_count >= LOOKUP_MAX THEN
+        RETURN jsonb_build_object('status', 'rate_limited',
+                                  'retry_after_seconds', EXTRACT(EPOCH FROM LOOKUP_WINDOW)::int);
+    END IF;
+    INSERT INTO user_lookup_audit (caller_id) VALUES (p_caller_id);
+
+    -- Targeted resolution against the indexed auth.users primary key.
+    SELECT email INTO v_email
+    FROM auth.users
+    WHERE id = p_user_id
+    LIMIT 1;
+
+    IF v_email IS NULL THEN
+        RETURN jsonb_build_object('status', 'not_found');
+    END IF;
+    RETURN jsonb_build_object('status', 'ok', 'email', v_email);
+EXCEPTION WHEN OTHERS THEN
+    -- W6: do NOT leak raw SQLERRM to the caller. Log it server-side; return generic.
+    RAISE LOG 'resolve_email_by_user_id: %', SQLERRM;
+    RETURN jsonb_build_object('status', 'error', 'error', 'internal error');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION resolve_email_by_user_id(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_email_by_user_id(UUID, UUID) TO service_role;
+
+-- ============================================================================
+-- W6 — physical reaping of expired / time-boxed rows (pg_cron)
+-- ============================================================================
+-- RLS HIDES expired rows but never DELETEs them, so the at-rest ciphertext +
+-- social-graph metadata (who looked up / claimed what, and when) lingers in the
+-- table and in every backup. These guarded pg_cron jobs physically reap:
+--   * pairing_requests  — past their per-row expires_at (single-use, short TTL)
+--   * opk_claim_audit    — claim ledger rows older than 24h (only the recent
+--                          sliding window drives the rate-limit buckets)
+--   * user_lookup_audit  — lookup ledger rows older than 24h (same reasoning)
+-- Same guard pattern as expire-overdue-trials: schedule ONLY if pg_cron is
+-- present, else a RAISE NOTICE no-op. Idempotent: unschedule-if-exists, then
+-- schedule. NEVER a DROP TABLE — these only DELETE expired/aged rows.
+DO $$
+DECLARE
+    j RECORD;
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        BEGIN
+            -- Idempotent: remove any prior incarnation of each job by name first.
+            FOR j IN
+                SELECT jobid FROM cron.job
+                WHERE jobname IN ('reap-pairing-requests',
+                                  'reap-opk-claim-audit',
+                                  'reap-user-lookup-audit')
+            LOOP
+                PERFORM cron.unschedule(j.jobid);
+            END LOOP;
+
+            PERFORM cron.schedule(
+                'reap-pairing-requests',
+                '*/15 * * * *',
+                $cron$DELETE FROM public.pairing_requests WHERE expires_at < now();$cron$
+            );
+            PERFORM cron.schedule(
+                'reap-opk-claim-audit',
+                '17 * * * *',
+                $cron$DELETE FROM public.opk_claim_audit WHERE claimed_at < now() - INTERVAL '24 hours';$cron$
+            );
+            PERFORM cron.schedule(
+                'reap-user-lookup-audit',
+                '23 * * * *',
+                $cron$DELETE FROM public.user_lookup_audit WHERE looked_at < now() - INTERVAL '24 hours';$cron$
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'pg_cron present but scheduling row-reaper jobs failed: %', SQLERRM;
+        END;
+    ELSE
+        RAISE NOTICE 'pg_cron not installed: expired-row reapers NOT scheduled. RLS still HIDES expired rows, but pairing_requests/opk_claim_audit/user_lookup_audit are not physically deleted. Enable pg_cron then re-run this file.';
+    END IF;
+END $$;
 
 -- ============================================================
 -- DATA SHARE STATUS UPDATE FUNCTION
