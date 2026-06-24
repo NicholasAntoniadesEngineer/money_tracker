@@ -405,6 +405,12 @@ const BudgetCryptoService = {
         if (!opts || typeof opts !== 'object') {
             throw new Error('[BudgetCryptoService] unsealDEK: SEC-H4 requires opts {expectedOwnerPublicKey, ownerId, recipientId, dekVersion, shareId}');
         }
+        // CRYPTO_DEEP_REVIEW L-1: dekVersion MUST be supplied by the caller (from the
+        // independently-known share row), NEVER defaulted from the seal blob. Binding to
+        // an attacker-controllable envelope field would defeat version-pinning. No fallback.
+        if (opts.dekVersion === undefined || opts.dekVersion === null) {
+            throw new Error('[BudgetCryptoService] unsealDEK: opts.dekVersion is required (no fallback to sealed.dek_version — that field is attacker-controllable)');
+        }
         // SEC-H4: refuse a legacy/anonymous seal (no bound owner IK). Such seals are
         // unauthenticated by construction and must be re-sealed by the owner.
         if (typeof sealed.wrap_owner_ik !== 'string' || sealed.wrap_owner_ik.length === 0) {
@@ -435,8 +441,7 @@ const BudgetCryptoService = {
             recipientIkB64: cp.serializeKey(recipientPub),
             ownerId: String(opts.ownerId),
             recipientId: String(opts.recipientId),
-            dekVersion: (opts.dekVersion !== undefined && opts.dekVersion !== null)
-                ? opts.dekVersion : sealed.dek_version,
+            dekVersion: opts.dekVersion, // L-1: caller-supplied only; no seal-blob fallback (guarded above)
             shareId: opts.shareId,
         };
         const info = this._sealInfo(ctx);
