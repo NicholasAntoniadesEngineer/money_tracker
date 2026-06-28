@@ -1,0 +1,37 @@
+name: budget-gates
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with lib/* submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Budget E2E gates (CI-safe; need lib/auth_db only)
+        run: |
+          set -e
+          for r in \
+            .s2_budget_key_runner.cjs \
+            .s4s5_budget_transform_runner.cjs \
+            .s6_budget_migration_runner.cjs \
+            .s7_budget_share_runner.cjs \
+            .s10_budget_runner.cjs \
+            .queryupsert_onconflict_runner.cjs ; do
+            echo "== $r =="
+            node "$r"
+          done
